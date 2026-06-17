@@ -1,0 +1,302 @@
+[
+  {
+    "id": "tc_001",
+    "text": "Elon Musk is the CEO of Tesla and founded SpaceX in 2002.",
+    "expected_nodes": ["Elon Musk", "Tesla", "SpaceX"],
+    "expected_relations": ["CEO_OF", "FOUNDED"]
+  },
+  {
+    "id": "tc_002",
+    "text": "Albert Einstein was born in Ulm, Germany in 1879 and developed the theory of relativity.",
+    "expected_nodes": ["Albert Einstein", "Ulm", "Germany", "Theory of Relativity"],
+    "expected_relations": ["BORN_IN", "DEVELOPED"]
+  },
+  {
+    "id": "tc_003",
+    "text": "Apple Inc. was founded by Steve Jobs, Steve Wozniak, and Ronald Wayne in Cupertino, California.",
+    "expected_nodes": ["Apple Inc.", "Steve Jobs", "Steve Wozniak", "Ronald Wayne", "Cupertino", "California"],
+    "expected_relations": ["FOUNDED_BY", "LOCATED_IN"]
+  },
+  {
+    "id": "tc_004",
+    "text": "The Python programming language was created by Guido van Rossum and first released in 1991.",
+    "expected_nodes": ["Python", "Guido van Rossum"],
+    "expected_relations": ["CREATED_BY"]
+  },
+  {
+    "id": "tc_005",
+    "text": "Microsoft acquired GitHub in 2018 for $7.5 billion.",
+    "expected_nodes": ["Microsoft", "GitHub"],
+    "expected_relations": ["ACQUIRED"]
+  },
+  {
+    "id": "tc_006",
+    "text": "Marie Curie was a physicist and chemist who won the Nobel Prize in Physics in 1903 and the Nobel Prize in Chemistry in 1911.",
+    "expected_nodes": ["Marie Curie", "Nobel Prize in Physics", "Nobel Prize in Chemistry"],
+    "expected_relations": ["WON"]
+  },
+  {
+    "id": "tc_007",
+    "text": "The Eiffel Tower is located in Paris, France. It was designed by Gustave Eiffel and built between 1887 and 1889.",
+    "expected_nodes": ["Eiffel Tower", "Paris", "France", "Gustave Eiffel"],
+    "expected_relations": ["LOCATED_IN", "DESIGNED_BY"]
+  },
+  {
+    "id": "tc_008",
+    "text": "OpenAI was founded in 2015 by Sam Altman, Elon Musk, and others. It created ChatGPT and GPT-4.",
+    "expected_nodes": ["OpenAI", "Sam Altman", "Elon Musk", "ChatGPT", "GPT-4"],
+    "expected_relations": ["FOUNDED_BY", "CREATED"]
+  },
+  {
+    "id": "tc_009",
+    "text": "Amazon Web Services (AWS) is a subsidiary of Amazon that provides cloud computing services.",
+    "expected_nodes": ["Amazon Web Services", "Amazon"],
+    "expected_relations": ["SUBSIDIARY_OF"]
+  },
+  {
+    "id": "tc_010",
+    "text": "The Great Wall of China was built over many centuries by various Chinese dynasties to protect against invasions.",
+    "expected_nodes": ["Great Wall of China", "China"],
+    "expected_relations": ["LOCATED_IN"]
+  },
+  {
+    "id": "tc_011",
+    "text": "Barack Obama served as the 44th President of the United States from 2009 to 2017.",
+    "expected_nodes": ["Barack Obama", "United States"],
+    "expected_relations": ["PRESIDENT_OF"]
+  },
+  {
+    "id": "tc_012",
+    "text": "Netflix was founded by Reed Hastings and Marc Randolph in 1997 in Scotts Valley, California.",
+    "expected_nodes": ["Netflix", "Reed Hastings", "Marc Randolph", "Scotts Valley", "California"],
+    "expected_relations": ["FOUNDED_BY", "LOCATED_IN"]
+  },
+  {
+    "id": "tc_013",
+    "text": "Isaac Newton formulated the laws of motion and universal gravitation, which dominated scientific views for nearly three centuries.",
+    "expected_nodes": ["Isaac Newton", "Laws of Motion", "Universal Gravitation"],
+    "expected_relations": ["FORMULATED"]
+  },
+  {
+    "id": "tc_014",
+    "text": "The World Health Organization (WHO) is a specialized agency of the United Nations responsible for international public health.",
+    "expected_nodes": ["World Health Organization", "United Nations"],
+    "expected_relations": ["PART_OF"]
+  },
+  {
+    "id": "tc_015",
+    "text": "Sundar Pichai is the CEO of Alphabet Inc. and its subsidiary Google.",
+    "expected_nodes": ["Sundar Pichai", "Alphabet Inc.", "Google"],
+    "expected_relations": ["CEO_OF", "SUBSIDIARY_OF"]
+  },
+  {
+    "id": "tc_016",
+    "text": "The Roman Empire reached its greatest extent under Emperor Trajan in 117 AD.",
+    "expected_nodes": ["Roman Empire", "Trajan"],
+    "expected_relations": ["RULED_BY"]
+  },
+  {
+    "id": "tc_017",
+    "text": "Bitcoin was created by the pseudonymous person or group known as Satoshi Nakamoto in 2008.",
+    "expected_nodes": ["Bitcoin", "Satoshi Nakamoto"],
+    "expected_relations": ["CREATED_BY"]
+  },
+  {
+    "id": "tc_018",
+    "text": "The Amazon River flows through Brazil and is the world's largest river by discharge volume.",
+    "expected_nodes": ["Amazon River", "Brazil"],
+    "expected_relations": ["FLOWS_THROUGH"]
+  },
+  {
+    "id": "tc_019",
+    "text": "J.K. Rowling wrote the Harry Potter series, which was published by Bloomsbury Publishing.",
+    "expected_nodes": ["J.K. Rowling", "Harry Potter", "Bloomsbury Publishing"],
+    "expected_relations": ["WROTE", "PUBLISHED_BY"]
+  },
+  {
+    "id": "tc_020",
+    "text": "Toyota Motor Corporation is a Japanese multinational automotive manufacturer headquartered in Toyota City, Aichi, Japan.",
+    "expected_nodes": ["Toyota Motor Corporation", "Toyota City", "Aichi", "Japan"],
+    "expected_relations": ["HEADQUARTERED_IN", "LOCATED_IN"]
+  },
+  {
+    "id": "tc_021",
+    "text": "The Hubble Space Telescope was launched in 1990 and is operated by NASA and the European Space Agency.",
+    "expected_nodes": ["Hubble Space Telescope", "NASA", "European Space Agency"],
+    "expected_relations": ["OPERATED_BY"]
+  },
+  {
+    "id": "tc_022",
+    "text": "Winston Churchill served as Prime Minister of the United Kingdom during World War II.",
+    "expected_nodes": ["Winston Churchill", "United Kingdom", "World War II"],
+    "expected_relations": ["PRIME_MINISTER_OF", "DURING"]
+  },
+  {
+    "id": "tc_023",
+    "text": "The Mediterranean Sea borders Southern Europe, North Africa, and Western Asia.",
+    "expected_nodes": ["Mediterranean Sea", "Southern Europe", "North Africa", "Western Asia"],
+    "expected_relations": ["BORDERS"]
+  },
+  {
+    "id": "tc_024",
+    "text": "Ludwig van Beethoven was a German composer and pianist. His Symphony No. 9 is considered one of his greatest works.",
+    "expected_nodes": ["Ludwig van Beethoven", "Germany", "Symphony No. 9"],
+    "expected_relations": ["COMPOSED"]
+  },
+  {
+    "id": "tc_025",
+    "text": "The International Space Station is a modular space station in low Earth orbit and is a joint project among five space agencies.",
+    "expected_nodes": ["International Space Station", "Earth"],
+    "expected_relations": ["ORBITS"]
+  },
+  {
+    "id": "tc_026",
+    "text": "Facebook was founded by Mark Zuckerberg along with fellow Harvard College students in 2004.",
+    "expected_nodes": ["Facebook", "Mark Zuckerberg", "Harvard College"],
+    "expected_relations": ["FOUNDED_BY", "STUDIED_AT"]
+  },
+  {
+    "id": "tc_027",
+    "text": "The Nile River flows northward through northeastern Africa and empties into the Mediterranean Sea.",
+    "expected_nodes": ["Nile River", "Africa", "Mediterranean Sea"],
+    "expected_relations": ["FLOWS_THROUGH", "EMPTIES_INTO"]
+  },
+  {
+    "id": "tc_028",
+    "text": "Charles Darwin developed the theory of evolution by natural selection, published in 'On the Origin of Species' in 1859.",
+    "expected_nodes": ["Charles Darwin", "Theory of Evolution", "On the Origin of Species"],
+    "expected_relations": ["DEVELOPED", "PUBLISHED_IN"]
+  },
+  {
+    "id": "tc_029",
+    "text": "Samsung Electronics is a South Korean multinational electronics corporation and subsidiary of Samsung Group.",
+    "expected_nodes": ["Samsung Electronics", "South Korea", "Samsung Group"],
+    "expected_relations": ["LOCATED_IN", "SUBSIDIARY_OF"]
+  },
+  {
+    "id": "tc_030",
+    "text": "The United Nations was established in 1945 after World War II to promote international cooperation.",
+    "expected_nodes": ["United Nations", "World War II"],
+    "expected_relations": ["FOUNDED_AFTER"]
+  },
+  {
+    "id": "tc_031",
+    "text": "Tim Cook became CEO of Apple after Steve Jobs resigned in 2011.",
+    "expected_nodes": ["Tim Cook", "Apple", "Steve Jobs"],
+    "expected_relations": ["CEO_OF", "SUCCEEDED"]
+  },
+  {
+    "id": "tc_032",
+    "text": "The Sahara Desert covers most of North Africa and is the world's largest hot desert.",
+    "expected_nodes": ["Sahara Desert", "North Africa"],
+    "expected_relations": ["LOCATED_IN"]
+  },
+  {
+    "id": "tc_033",
+    "text": "William Shakespeare was an English playwright and poet, widely regarded as the greatest writer in the English language.",
+    "expected_nodes": ["William Shakespeare", "England"],
+    "expected_relations": ["FROM"]
+  },
+  {
+    "id": "tc_034",
+    "text": "The Large Hadron Collider is operated by CERN and is located on the border of France and Switzerland.",
+    "expected_nodes": ["Large Hadron Collider", "CERN", "France", "Switzerland"],
+    "expected_relations": ["OPERATED_BY", "LOCATED_IN"]
+  },
+  {
+    "id": "tc_035",
+    "text": "Spotify was founded in 2006 in Stockholm, Sweden by Daniel Ek and Martin Lorentzon.",
+    "expected_nodes": ["Spotify", "Stockholm", "Sweden", "Daniel Ek", "Martin Lorentzon"],
+    "expected_relations": ["FOUNDED_BY", "FOUNDED_IN"]
+  },
+  {
+    "id": "tc_036",
+    "text": "The Taj Mahal is an ivory-white marble mausoleum in Agra, India, commissioned by Mughal emperor Shah Jahan.",
+    "expected_nodes": ["Taj Mahal", "Agra", "India", "Shah Jahan"],
+    "expected_relations": ["LOCATED_IN", "COMMISSIONED_BY"]
+  },
+  {
+    "id": "tc_037",
+    "text": "Nikola Tesla was a Serbian-American inventor best known for his contributions to the design of the modern alternating current electricity supply system.",
+    "expected_nodes": ["Nikola Tesla", "Serbia", "United States", "Alternating Current"],
+    "expected_relations": ["FROM", "CONTRIBUTED_TO"]
+  },
+  {
+    "id": "tc_038",
+    "text": "The FIFA World Cup is held every four years and is the most watched sporting event in the world, organized by FIFA.",
+    "expected_nodes": ["FIFA World Cup", "FIFA"],
+    "expected_relations": ["ORGANIZED_BY"]
+  },
+  {
+    "id": "tc_039",
+    "text": "SpaceX successfully launched the Falcon Heavy rocket in 2018, making it the most powerful operational rocket at the time.",
+    "expected_nodes": ["SpaceX", "Falcon Heavy"],
+    "expected_relations": ["LAUNCHED"]
+  },
+  {
+    "id": "tc_040",
+    "text": "The Louvre Museum in Paris, France houses the Mona Lisa painting by Leonardo da Vinci.",
+    "expected_nodes": ["Louvre Museum", "Paris", "France", "Mona Lisa", "Leonardo da Vinci"],
+    "expected_relations": ["LOCATED_IN", "HOUSES", "PAINTED_BY"]
+  },
+  {
+    "id": "tc_041",
+    "text": "Alibaba Group was founded by Jack Ma in Hangzhou, China in 1999.",
+    "expected_nodes": ["Alibaba Group", "Jack Ma", "Hangzhou", "China"],
+    "expected_relations": ["FOUNDED_BY", "FOUNDED_IN"]
+  },
+  {
+    "id": "tc_042",
+    "text": "The Apollo 11 mission landed astronauts Neil Armstrong and Buzz Aldrin on the Moon in 1969.",
+    "expected_nodes": ["Apollo 11", "Neil Armstrong", "Buzz Aldrin", "Moon"],
+    "expected_relations": ["LANDED_ON", "PART_OF"]
+  },
+  {
+    "id": "tc_043",
+    "text": "Vincent van Gogh was a Dutch post-impressionist painter. His famous works include The Starry Night.",
+    "expected_nodes": ["Vincent van Gogh", "Netherlands", "The Starry Night"],
+    "expected_relations": ["FROM", "PAINTED"]
+  },
+  {
+    "id": "tc_044",
+    "text": "The European Union is a political and economic union of 27 member states located primarily in Europe.",
+    "expected_nodes": ["European Union", "Europe"],
+    "expected_relations": ["LOCATED_IN"]
+  },
+  {
+    "id": "tc_045",
+    "text": "Alphabet Inc. is the parent company of Google, formed in 2015 through a restructuring of Google.",
+    "expected_nodes": ["Alphabet Inc.", "Google"],
+    "expected_relations": ["PARENT_OF"]
+  },
+  {
+    "id": "tc_046",
+    "text": "Alan Turing is considered the father of computer science and artificial intelligence.",
+    "expected_nodes": ["Alan Turing", "Computer Science", "Artificial Intelligence"],
+    "expected_relations": ["CONTRIBUTED_TO"]
+  },
+  {
+    "id": "tc_047",
+    "text": "CRISPR-Cas9 gene editing technology was developed by Jennifer Doudna and Emmanuelle Charpentier.",
+    "expected_nodes": ["CRISPR-Cas9", "Jennifer Doudna", "Emmanuelle Charpentier"],
+    "expected_relations": ["DEVELOPED_BY"]
+  },
+  {
+    "id": "tc_048",
+    "text": "The Great Barrier Reef is located in the Coral Sea off the coast of Queensland, Australia.",
+    "expected_nodes": ["Great Barrier Reef", "Coral Sea", "Queensland", "Australia"],
+    "expected_relations": ["LOCATED_IN"]
+  },
+  {
+    "id": "tc_049",
+    "text": "Uber was founded in 2009 by Travis Kalanick and Garrett Camp in San Francisco, California.",
+    "expected_nodes": ["Uber", "Travis Kalanick", "Garrett Camp", "San Francisco", "California"],
+    "expected_relations": ["FOUNDED_BY", "FOUNDED_IN"]
+  },
+  {
+    "id": "tc_050",
+    "text": "The Colosseum in Rome, Italy was built under Emperor Vespasian and completed in 80 AD under Titus.",
+    "expected_nodes": ["Colosseum", "Rome", "Italy", "Vespasian", "Titus"],
+    "expected_relations": ["LOCATED_IN", "BUILT_BY", "COMPLETED_BY"]
+  }
+]

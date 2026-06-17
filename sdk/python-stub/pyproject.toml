@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+# `spaider` — reserved placeholder on PyPI to prevent name squatting.
+# The actual SDK is published as `spaider-client`.
+#
+# When someone `pip install spaider` and then `import spaider`, the package
+# raises RuntimeError with a redirect message pointing at spaider-client.
+# Install itself succeeds (no import happens during install), so unprepared
+# CI pipelines won't be broken by a stray dependency, but actual usage
+# surfaces the redirect immediately and loudly.
+
+[project]
+name = "spaider"
+version = "0.0.1"
+description = "Reserved placeholder — install spaider-client for the actual SDK"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.9"
+authors = [{ name = "Spaider Studio" }]
+keywords = ["spaider", "placeholder", "reserved"]
+classifiers = [
+    "Development Status :: 7 - Inactive",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+
+[project.urls]
+Homepage = "https://pypi.org/project/spaider-client/"
+Repository = "https://github.com/Spaider-studio/spaider"
+Issues = "https://github.com/Spaider-studio/spaider/issues"
+
+[tool.setuptools]
+license-files = ["LICENSE"]
+
+[tool.setuptools.packages.find]
+include = ["spaider"]

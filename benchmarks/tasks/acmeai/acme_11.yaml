@@ -1,0 +1,12 @@
+id: acme_11
+category: acmeai
+title: 'AcmeAI: Who is AcmeAI''s CTO?'
+prompt: Who is AcmeAI's CTO?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: Olivia
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  supporting_titles:
+  - CTO

@@ -1,0 +1,23 @@
+id: 01_merge_order
+title: "Pick the safest merge order for 4 stale, conflicting PRs"
+prompt: |
+  You are reviewing 4 open PRs against `main` of a Python/FastAPI service.
+  All four forked from the same commit (pre-#50) and have not been rebased.
+  They each touch overlapping files in `backend/app/api/v1/ingest.py`
+  and `backend/app/services/query_service.py`.
+
+  - PR-A: extracts a shared parser helper out of ingest.py.
+  - PR-B: hardens query_service.py error handling.
+  - PR-C: renames the ingest.py request schema (mechanical refactor, large diff).
+  - PR-D: adds a brand-new endpoint to ingest.py and one helper to query_service.py.
+
+  Goal: minimize total rebase pain and avoid the "13-file conflict storm"
+  that hit us last sprint.
+
+  Recommend a single merge order (first → last) and one sentence per choice.
+  Be concrete and decisive. Do not hedge. Do not ask follow-up questions.
+expected_all:
+  - "PR-C"
+  - "PR-A"
+max_tokens: 2048
+requires_mcp: false

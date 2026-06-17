@@ -1,0 +1,97 @@
+name: Release / Containers
+
+# Build + push the backend, worker, and frontend images to GitHub Container
+# Registry (GHCR) when a tagged release is pushed. Tags must match v*
+# (e.g. v0.1.0). Run manually with workflow_dispatch + dry_run=true to build
+# the images without pushing — useful to validate the build before tagging.
+#
+# Images published (lowercase namespace, derived from the repo owner so this
+# survives the move into the Spaider-studio org without edits):
+#   ghcr.io/<owner>/spaider-backend   ← ./backend  (Dockerfile)
+#   ghcr.io/<owner>/spaider-worker    ← ./backend  (Dockerfile.worker)
+#   ghcr.io/<owner>/spaider-frontend  ← ./frontend (Dockerfile)
+#
+# Note: the frontend bakes BACKEND_API_URL at build time (defaults to
+# http://localhost:8000/api). Self-hosters running the full compose stack on one
+# host get the right default; other topologies should rebuild with --build-arg.
+#
+# Setup before first release:
+#   1. No secret needed — GITHUB_TOKEN carries packages:write within the repo.
+#   2. After the first push, set each package's visibility to Public and link it
+#      to the repo (one-time, org → Packages settings in the GitHub UI).
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (default). Type false to actually push to GHCR."
+        required: false
+        default: "true"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: spaider-backend
+            context: ./backend
+            dockerfile: ./backend/Dockerfile
+          - image: spaider-worker
+            context: ./backend
+            dockerfile: ./backend/Dockerfile.worker
+          - image: spaider-frontend
+            context: ./frontend
+            dockerfile: ./frontend/Dockerfile
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Lowercase the registry namespace
+        id: ns
+        # GHCR requires a lowercase path; the org is "Spaider-studio".
+        run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata (tags + labels)
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ steps.ns.outputs.owner }}/${{ matrix.image }}
+          # `latest` only on a stable (no pre-release suffix) version tag.
+          # `type=sha` guarantees ≥1 tag even on a branch dry-run (semver tags
+          # are empty off a version tag, which would fail build-push otherwise).
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short
+            type=raw,value=latest,enable=${{ github.ref_type == 'tag' && !contains(github.ref_name, '-') }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: ${{ github.event.inputs.dry_run != 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

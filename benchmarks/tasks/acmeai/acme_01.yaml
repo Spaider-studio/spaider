@@ -1,0 +1,12 @@
+id: acme_01
+category: acmeai
+title: 'AcmeAI: When does the acmeai.com domain expire?'
+prompt: When does the acmeai.com domain expire?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: '2026-06-15'
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  supporting_titles:
+  - acmeai.com

@@ -1,0 +1,12 @@
+id: acme_12
+category: acmeai
+title: 'AcmeAI: Which customer sent an unrenewal notice after being quiet for 4 months?'
+prompt: Which customer sent an unrenewal notice after being quiet for 4 months?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: Initech
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  supporting_titles:
+  - Initech

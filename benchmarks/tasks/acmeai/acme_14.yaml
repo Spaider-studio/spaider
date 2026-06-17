@@ -1,0 +1,13 @@
+id: acme_14
+category: acmeai
+title: 'AcmeAI: What scope change did Stark Industries request after the feature Y
+  preview?'
+prompt: What scope change did Stark Industries request after the feature Y preview?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: per-API-key rate limiting
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  supporting_titles:
+  - per-API-key

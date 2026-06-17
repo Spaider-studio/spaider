@@ -1,0 +1,19 @@
+# Production overrides — use with:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+services:
+  backend-api:
+    restart: always
+    mem_limit: 512m
+    # No volume mount in production — image is self-contained
+
+  backend-worker:
+    restart: always
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 512m
+
+  frontend:
+    restart: always

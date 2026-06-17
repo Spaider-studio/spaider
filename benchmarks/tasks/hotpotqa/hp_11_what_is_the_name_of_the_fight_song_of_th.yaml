@@ -1,0 +1,19 @@
+id: hp_11
+category: hotpotqa
+title: 'HotpotQA: What is the name of the fight song of the university whose main
+  campus is in Law'
+prompt: What is the name of the fight song of the university whose main campus is
+  in Lawrence, Kansas and whose branch campuses are in the Kansas City metropolitan
+  area?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: Kansas Song
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  hotpot_id: 5a7166395542994082a3e814
+  hotpot_type: bridge
+  hotpot_level: hard
+  supporting_titles:
+  - Kansas Song
+  - University of Kansas

@@ -1,0 +1,88 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+.env
+!.env.example
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.tox/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# Node / Next.js
+node_modules/
+.next/
+.turbo/
+out/
+dist/
+build/
+.vercel/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Docker
+.docker/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Eval results (generated, not versioned)
+backend/tests/eval/results/
+
+# Temp files
+/tmp/spaider/
+
+# Secrets (belt-and-suspenders)
+*.pem
+*.key
+secrets/
+credentials.json
+
+# Local Claude Code state — scheduled tasks, local settings
+.claude/
+
+# Project-scoped MCP config — holds a SpAIder agent Bearer token
+# (written by `spaider mcp install --scope project`), plus its timestamped backups
+.mcp.json
+.mcp.json.*
+
+# Internal founder-facing working files — never committed
+PRIVATE-*.md
+PRE-OPEN-SOURCE-TODO.md
+benchmarks/corpus/nexora_ctx_*.txt
+
+# Benchmark scratch run dirs (logs, JSONL) — never commit
+benchmarks/runs_refresh/

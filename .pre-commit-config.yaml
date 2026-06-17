@@ -1,0 +1,64 @@
+# Do not bypass these hooks with --no-verify; fix the underlying issue.
+# Bootstrap on a fresh checkout:
+#     pip install -e backend[dev]
+#     pre-commit install
+
+repos:
+  # ------------------------------------------------------------------
+  # Ruff — lint across all Python packages; format on backend only.
+  # Each package carries its own [tool.ruff] config (line-length 120,
+  # select E/F/W/I); ruff discovers the right one per file.
+  # ------------------------------------------------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^(backend|cli|sdk/python|benchmarks)/
+      - id: ruff-format
+        files: ^backend/
+
+  # ------------------------------------------------------------------
+  # Mypy — incrementally adopted; config in backend/pyproject.toml.
+  # Scope (connectors, parser_service, ingest.py) matches the surfaces
+  # that produced the worst recent type bugs.
+  # ------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.1
+    hooks:
+      - id: mypy
+        files: ^backend/app/(connectors/|services/parser_service\.py|api/v1/ingest\.py)
+        args: [--config-file=backend/pyproject.toml]
+        additional_dependencies:
+          - "pydantic>=2.9"
+          - "fastapi>=0.115"
+
+  # ------------------------------------------------------------------
+  # Local repo-specific guards. These exist because real bugs landed
+  # despite ruff+mypy passing — see the docstrings in each script for
+  # the incident that motivated them.
+  # ------------------------------------------------------------------
+  - repo: local
+    hooks:
+      - id: check-duplicate-response-classes
+        name: no duplicate Pydantic Request/Response class names
+        entry: python scripts/lint/check_duplicate_response_classes.py
+        language: system
+        pass_filenames: false
+        files: ^backend/app/.*\.py$
+
+      - id: check-async-persist-paired
+        name: every _get_run_state caller also _save_run_state
+        entry: python scripts/lint/check_async_persist_calls.py
+        language: system
+        pass_filenames: false
+        files: ^backend/app/api/v1/ingest\.py$
+
+      - id: smoke-tests
+        name: pytest -m smoke (fast subset)
+        entry: bash -c 'cd backend && python -m pytest -m smoke --no-header -q'
+        language: system
+        pass_filenames: false
+        # Only fire when source or test files change — config-only edits
+        # don't need to re-run the suite.
+        files: ^backend/(app|tests)/.*\.py$

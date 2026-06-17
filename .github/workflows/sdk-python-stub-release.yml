@@ -1,0 +1,81 @@
+name: Release / SDK Stub
+
+# Build and publish the `spaider` placeholder package to PyPI when a tagged
+# release is pushed. Tags must match sdk-python-stub/v* (e.g.
+# sdk-python-stub/v0.0.1).
+#
+# This is a SQUATTER PREVENTION package, not the real SDK. The bare PyPI
+# name `spaider` is reserved here so nobody can ship a malicious package
+# under that name and harm users who `pip install spaider` by mistake.
+# The actual SDK is `spaider-client` (see sdk-python-release.yml).
+#
+# Setup before first release:
+#
+#   1. Reserve the spaider name on PyPI as a Pending Publisher
+#      (https://pypi.org/manage/account/publishing/) with:
+#        - PyPI Project Name: spaider
+#        - Owner: Spaider-studio
+#        - Repository name: spaider
+#        - Workflow name: sdk-python-stub-release.yml
+#        - Environment name: pypi
+#   2. The "pypi" GitHub environment is already configured for the main SDK
+#      release workflow — reuse it. No additional setup needed.
+#   3. Tag and push:  git tag sdk-python-stub/v0.0.1 && git push origin sdk-python-stub/v0.0.1
+#   4. This workflow takes over — builds from sdk/python-stub/ and publishes
+#      via PyPI's trusted-publisher OIDC flow.
+#
+# The stub rarely needs new releases (only if the redirect message ever
+# changes, or for security backports). Most of the year this workflow
+# sits idle, which is exactly what we want from a placeholder.
+
+on:
+  push:
+    tags:
+      - "sdk-python-stub/v*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (default). Type false to actually publish to PyPI."
+        required: false
+        default: "true"
+
+permissions:
+  # Required for PyPI trusted publishing via OIDC.
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: pypi
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install build tooling
+        run: pip install build twine
+
+      - name: Build distributions
+        run: cd sdk/python-stub && python -m build
+
+      - name: Twine check
+        run: twine check sdk/python-stub/dist/*
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: spaider-stub-dist
+          path: sdk/python-stub/dist/
+          retention-days: 14
+
+      - name: Publish to PyPI
+        if: ${{ inputs.dry_run != 'true' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: sdk/python-stub/dist

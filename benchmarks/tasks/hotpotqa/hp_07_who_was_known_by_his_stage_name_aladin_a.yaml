@@ -1,0 +1,18 @@
+id: hp_07
+category: hotpotqa
+title: 'HotpotQA: Who was known by his stage name Aladin and helped organizations
+  improve their pe'
+prompt: Who was known by his stage name Aladin and helped organizations improve their
+  performance as a consultant?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: Eenasul Fateh
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  hotpot_id: 5a85b2d95542997b5ce40028
+  hotpot_type: bridge
+  hotpot_level: hard
+  supporting_titles:
+  - Eenasul Fateh
+  - Management consulting

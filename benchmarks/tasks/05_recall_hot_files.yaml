@@ -1,0 +1,13 @@
+id: 05_recall_hot_files
+title: "Recall: the project's concurrency hot-files list (memory-only)"
+prompt: |
+  Name at least two files in this repository that are flagged as
+  concurrency hot-files — i.e. files that should be checked against
+  open PRs before editing because parallel agents collide on them
+  frequently. Answer in a short bullet list. If you don't know,
+  reply with exactly the string `unknown`.
+expected_all:
+  - "ingest.py"
+  - "query_service"
+max_tokens: 1024
+requires_mcp: true

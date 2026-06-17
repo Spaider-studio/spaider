@@ -1,0 +1,16 @@
+id: hp_01
+category: hotpotqa
+title: 'HotpotQA: Were Scott Derrickson and Ed Wood of the same nationality?'
+prompt: Were Scott Derrickson and Ed Wood of the same nationality?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: 'yes'
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  hotpot_id: 5a8b57f25542995d1e6f1371
+  hotpot_type: comparison
+  hotpot_level: hard
+  supporting_titles:
+  - Ed Wood
+  - Scott Derrickson

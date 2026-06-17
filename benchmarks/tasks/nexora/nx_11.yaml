@@ -1,0 +1,10 @@
+id: nx_11
+category: nexora
+title: What budget was Nexora's warranty-claim classification project for Vantage
+  Telecom greenlit with?
+prompt: What budget was Nexora's warranty-claim classification project for Vantage
+  Telecom greenlit with?
+format_hint: Answer with just the value, no explanation.
+expected_substring: 8,510,000
+max_tokens: 256
+requires_mcp: false

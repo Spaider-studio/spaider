@@ -1,0 +1,13 @@
+id: acme_13
+category: acmeai
+title: 'AcmeAI: Who is the decision owner for delaying the Beacon analytics rollout
+  to Q3?'
+prompt: Who is the decision owner for delaying the Beacon analytics rollout to Q3?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: Olivia
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  supporting_titles:
+  - Beacon

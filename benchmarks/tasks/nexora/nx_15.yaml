@@ -1,0 +1,10 @@
+id: nx_15
+category: nexora
+title: What is the badge ID of Nexora's lead for experiment-platform design for the
+  payments stack?
+prompt: What is the badge ID of Nexora's lead for experiment-platform design for the
+  payments stack?
+format_hint: Answer with just the value, no explanation.
+expected_substring: NX-1282
+max_tokens: 256
+requires_mcp: false

@@ -1,0 +1,18 @@
+id: rs_01_stark_arr
+category: recall_specific
+title: "Recall: dollar amount at risk on the Stark Industries account"
+prompt: |
+  What dollar amount of annual recurring revenue (ARR) is at risk on
+  the Stark Industries account this quarter? Reply with the specific
+  dollar figure and one sentence of context. If you don't know, reply
+  exactly: unknown.
+oracle:
+  kind: llm_judge
+  rubric: |
+    PASS if the response identifies $480k (or $480,000) as the ARR at
+    risk on the Stark Industries account, AND links it to the feature Y
+    / Q2 board review threat. The exact figure $480k is the test —
+    if it gives a different number it's a hallucination.
+    FAIL if it cites a different number, says "unknown" when the data
+    is in scope, or invents a justification.
+max_tokens: 1024

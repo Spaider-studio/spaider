@@ -1,0 +1,20 @@
+FROM python:3.13-slim-bookworm
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libxcb1 libgl1 libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir --root-user-action=ignore --timeout 600 --retries 5 "uv>=0.11.0"
+
+# pyproject.toml is the single source of truth — see Dockerfile for context.
+COPY . .
+
+RUN uv pip install --system --no-cache \
+    --extra-index-url https://download.pytorch.org/whl/cpu \
+    --index-strategy unsafe-best-match \
+    ".[dev]"
+
+CMD ["python", "-m", "app.worker"]

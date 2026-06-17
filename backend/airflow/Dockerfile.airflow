@@ -1,0 +1,15 @@
+FROM apache/airflow:2.10.2-python3.11
+
+USER root
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+USER airflow
+
+# `neo4j` provides both sync and async drivers; the shared
+# ``spaider_lib.consolidation`` module uses the async one.
+# `pandas` pulls numpy as a transitive dep — the cosine-similarity pass
+# needs it. `networkx` is reserved for future graph-statistics tasks.
+RUN pip install --no-cache-dir neo4j networkx pandas

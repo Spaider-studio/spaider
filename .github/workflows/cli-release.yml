@@ -1,0 +1,64 @@
+name: Release / CLI
+
+# Build and publish spaider-cli to PyPI when a tagged release is pushed.
+# Tags must match cli/v* (e.g. cli/v0.1.0) so a product-version tag (v*,
+# which releases the container images) never publishes the CLI by accident.
+# Same namespaced-tag scheme as sdk-python/v* and sdk-python-stub/v*.
+#
+# Setup before first release (PyPI trusted publisher, OIDC, no token):
+#
+#   1. Reserve the spaider-cli name on PyPI as a Pending Publisher
+#      (https://pypi.org/manage/account/publishing/) with:
+#        - PyPI Project Name: spaider-cli
+#        - Owner: Spaider-studio
+#        - Repository name: spaider
+#        - Workflow name: cli-release.yml
+#        - Environment name: pypi
+#   2. Tag a release: git tag cli/v0.1.0 && git push origin cli/v0.1.0
+#   3. This workflow takes over from here: builds the sdist + wheel,
+#      then publishes via PyPI's trusted-publisher flow.
+
+on:
+  push:
+    tags:
+      - "cli/v*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (default). Type false to actually publish to PyPI."
+        required: false
+        default: "true"
+
+permissions:
+  # Required for PyPI trusted publishing via OIDC.
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: pypi
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install build tooling
+        run: pip install build twine
+
+      - name: Build distributions
+        run: cd cli && python -m build
+
+      - name: Twine check
+        run: twine check cli/dist/*
+
+      - name: Publish to PyPI
+        if: ${{ inputs.dry_run != 'true' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: cli/dist

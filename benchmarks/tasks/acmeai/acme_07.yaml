@@ -1,0 +1,12 @@
+id: acme_07
+category: acmeai
+title: 'AcmeAI: Which source file contains the token-validation race Sara found?'
+prompt: Which source file contains the token-validation race Sara found?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: auth_service.py
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  supporting_titles:
+  - auth_service

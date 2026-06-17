@@ -1,0 +1,10 @@
+id: nx_04
+category: nexora
+title: What budget was Nexora's ad-spend attribution project for Sundial Health greenlit
+  with?
+prompt: What budget was Nexora's ad-spend attribution project for Sundial Health greenlit
+  with?
+format_hint: Answer with just the value, no explanation.
+expected_substring: 6,840,000
+max_tokens: 256
+requires_mcp: false

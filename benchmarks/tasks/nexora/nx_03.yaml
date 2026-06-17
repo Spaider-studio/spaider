@@ -1,0 +1,10 @@
+id: nx_03
+category: nexora
+title: What budget was Nexora's payment-routing optimization project for Beacon Media
+  greenlit with?
+prompt: What budget was Nexora's payment-routing optimization project for Beacon Media
+  greenlit with?
+format_hint: Answer with just the value, no explanation.
+expected_substring: 8,620,000
+max_tokens: 256
+requires_mcp: false

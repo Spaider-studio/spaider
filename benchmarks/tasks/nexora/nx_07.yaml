@@ -1,0 +1,10 @@
+id: nx_07
+category: nexora
+title: What budget was Nexora's chatbot intent routing project for Beacon Media greenlit
+  with?
+prompt: What budget was Nexora's chatbot intent routing project for Beacon Media greenlit
+  with?
+format_hint: Answer with just the value, no explanation.
+expected_substring: 3,240,000
+max_tokens: 256
+requires_mcp: false

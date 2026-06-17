@@ -1,0 +1,71 @@
+version: 2
+
+# Weekly dependency updates, grouped to keep PR volume sane. One ecosystem
+# block per package manifest so updates land scoped to the package they touch.
+#
+# Each group bundles only MINOR and PATCH updates; MAJOR updates get their
+# own individual PRs. A breaking major (e.g. lucide-react 0.x->1.x)
+# must never ride along with — and block — routine safe bumps.
+updates:
+  # --- Python packages ---
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      backend-deps:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: pip
+    directory: /cli
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      cli-deps:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: pip
+    directory: /sdk/python
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      sdk-deps:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: pip
+    directory: /benchmarks
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      benchmark-deps:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # --- Frontend ---
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      frontend-deps:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # --- GitHub Actions ---
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]

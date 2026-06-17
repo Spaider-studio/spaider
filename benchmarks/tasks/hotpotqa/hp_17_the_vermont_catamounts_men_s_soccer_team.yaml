@@ -1,0 +1,18 @@
+id: hp_17
+category: hotpotqa
+title: 'HotpotQA: The Vermont Catamounts men''s soccer team currently competes in
+  a conference that'
+prompt: The Vermont Catamounts men's soccer team currently competes in a conference
+  that was formerly known as what from 1988 to 1996?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: the North Atlantic Conference
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  hotpot_id: 5ab3e45655429976abd1bcd4
+  hotpot_type: bridge
+  hotpot_level: hard
+  supporting_titles:
+  - America East Conference
+  - Vermont Catamounts men's soccer

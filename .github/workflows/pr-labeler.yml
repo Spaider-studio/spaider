@@ -1,0 +1,62 @@
+name: PR Labeler
+
+# Maps the conventional PR title prefix (feat:, fix:, docs:, ...) to a label
+# so .github/release.yml can sort generated release notes into categories
+# without anyone labeling by hand.
+#
+# Security note: pull_request_target runs with write permissions, so this
+# workflow deliberately never checks out or executes PR code. It only reads
+# the PR title and calls the labels API.
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened]
+
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            const title = context.payload.pull_request.title || "";
+
+            // Conventional prefix -> release-notes label. A "!" after the
+            // type/scope (feat!: ...) marks a breaking change.
+            const rules = [
+              [/^[a-z]+(\([^)]*\))?!:/, "breaking"],
+              [/^feat(\([^)]*\))?:/, "enhancement"],
+              [/^fix(\([^)]*\))?:/, "bug"],
+              [/^docs(\([^)]*\))?:/, "documentation"],
+              [/^(chore|ci|build|refactor|perf|test|style)(\([^)]*\))?:/, "maintenance"],
+            ];
+            const label = (rules.find(([re]) => re.test(title)) || [])[1];
+            if (!label) {
+              core.info(`No conventional prefix in title: "${title}", skipping.`);
+              return;
+            }
+
+            // Ensure the label exists (default repos lack "breaking"/"maintenance").
+            const colors = {
+              breaking: "b60205", enhancement: "a2eeef", bug: "d73a4a",
+              documentation: "0075ca", maintenance: "cfd3d7",
+            };
+            try {
+              await github.rest.issues.createLabel({
+                ...context.repo, name: label, color: colors[label] ?? "ededed",
+              });
+            } catch (e) {
+              if (e.status !== 422) throw e; // 422 = already exists
+            }
+
+            await github.rest.issues.addLabels({
+              ...context.repo,
+              issue_number: context.payload.pull_request.number,
+              labels: [label],
+            });
+            core.info(`Labeled #${context.payload.pull_request.number} as "${label}".`);

@@ -1,0 +1,19 @@
+id: cb_04_openai_fallback
+category: compounding_brain
+title: "Decision recall: should we add OpenAI as a fallback LLM provider?"
+prompt: |
+  A new engineer is suggesting we add OpenAI as a fallback LLM provider
+  for redundancy. Has this been discussed before? If so, what was
+  decided and why? Reply in 2-3 sentences.
+oracle:
+  kind: llm_judge
+  rubric: |
+    PASS if the response indicates this has been discussed (and
+    rejected) — recently, by Olivia, on cost grounds (OpenAI's
+    per-token pricing is incompatible with Atlas's pricing/agent
+    budget). The response should treat the discussion as closed, not
+    relitigate it.
+    FAIL if the response either pretends this is a fresh question,
+    fabricates a different reason, or recommends adding OpenAI without
+    referencing the prior decision.
+max_tokens: 2048

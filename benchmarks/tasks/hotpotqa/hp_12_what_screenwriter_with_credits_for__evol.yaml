@@ -1,0 +1,18 @@
+id: hp_12
+category: hotpotqa
+title: 'HotpotQA: What screenwriter with credits for "Evolution" co-wrote a film starring
+  Nicolas '
+prompt: What screenwriter with credits for "Evolution" co-wrote a film starring Nicolas
+  Cage and Téa Leoni?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: David Weissman
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  hotpot_id: 5a877e5d5542993e715abf7d
+  hotpot_type: bridge
+  hotpot_level: hard
+  supporting_titles:
+  - David Weissman
+  - The Family Man

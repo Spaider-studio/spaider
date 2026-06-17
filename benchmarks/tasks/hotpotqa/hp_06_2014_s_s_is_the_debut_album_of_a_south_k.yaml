@@ -1,0 +1,18 @@
+id: hp_06
+category: hotpotqa
+title: 'HotpotQA: 2014 S/S is the debut album of a South Korean boy group that was
+  formed by who?'
+prompt: 2014 S/S is the debut album of a South Korean boy group that was formed by
+  who?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: YG Entertainment
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  hotpot_id: 5abd94525542992ac4f382d2
+  hotpot_type: bridge
+  hotpot_level: hard
+  supporting_titles:
+  - 2014 S/S
+  - Winner (band)

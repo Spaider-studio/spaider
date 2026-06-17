@@ -1,0 +1,15 @@
+id: rs_04_domain_expiry
+category: recall_specific
+title: "Recall: when does the acmeai.com domain expire?"
+prompt: |
+  When does the acmeai.com domain expire, and how many days before
+  the Atlas launch is that? Reply with the specific date and the
+  exact day-gap. If you don't know, reply exactly: unknown.
+oracle:
+  kind: llm_judge
+  rubric: |
+    PASS if the response identifies 2026-06-15 as the domain expiry
+    AND notes it falls 13 days before the June 28 launch. Both data
+    points must appear.
+    FAIL if either is missing, mis-stated, or invented.
+max_tokens: 1024

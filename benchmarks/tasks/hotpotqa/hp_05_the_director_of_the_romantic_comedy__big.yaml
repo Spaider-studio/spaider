@@ -1,0 +1,18 @@
+id: hp_05
+category: hotpotqa
+title: 'HotpotQA: The director of the romantic comedy "Big Stone Gap" is based in
+  what New York ci'
+prompt: The director of the romantic comedy "Big Stone Gap" is based in what New York
+  city?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: Greenwich Village, New York City
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  hotpot_id: 5a8e3ea95542995a26add48d
+  hotpot_type: bridge
+  hotpot_level: hard
+  supporting_titles:
+  - Adriana Trigiani
+  - Big Stone Gap (film)

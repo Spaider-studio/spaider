@@ -1,0 +1,18 @@
+id: hp_02
+category: hotpotqa
+title: 'HotpotQA: What government position was held by the woman who portrayed Corliss
+  Archer in t'
+prompt: What government position was held by the woman who portrayed Corliss Archer
+  in the film Kiss and Tell?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: Chief of Protocol
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  hotpot_id: 5a8c7595554299585d9e36b6
+  hotpot_type: bridge
+  hotpot_level: hard
+  supporting_titles:
+  - Kiss and Tell (1945 film)
+  - Shirley Temple

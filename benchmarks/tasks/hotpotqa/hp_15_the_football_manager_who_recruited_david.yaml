@@ -1,0 +1,18 @@
+id: hp_15
+category: hotpotqa
+title: 'HotpotQA: The football manager who recruited David Beckham managed Manchester
+  United durin'
+prompt: The football manager who recruited David Beckham managed Manchester United
+  during what timeframe?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: from 1986 to 2013
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  hotpot_id: 5ab6d09255429954757d337d
+  hotpot_type: bridge
+  hotpot_level: hard
+  supporting_titles:
+  - 1995–96 Manchester United F.C. season
+  - Alex Ferguson

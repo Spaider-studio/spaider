@@ -1,0 +1,16 @@
+id: hp_20
+category: hotpotqa
+title: 'HotpotQA: Which writer was from England, Henry Roth or Robert Erskine Childers?'
+prompt: Which writer was from England, Henry Roth or Robert Erskine Childers?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: Robert Erskine Childers DSC
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  hotpot_id: 5a8133725542995ce29dcbdb
+  hotpot_type: comparison
+  hotpot_level: hard
+  supporting_titles:
+  - Henry Roth
+  - Robert Erskine Childers

@@ -1,0 +1,20 @@
+id: cb_03_assign_atlas_perf
+category: compounding_brain
+title: "Recommend who to assign a new auth-service performance investigation"
+prompt: |
+  A new bug report came in: auth-service is showing intermittent token
+  validation failures under load. Based on past activity, who is the
+  best engineer to assign this to? Reply with a name and one-sentence
+  justification grounded in their recent work.
+oracle:
+  kind: llm_judge
+  rubric: |
+    PASS if the response names Sara AND justifies it by referencing her
+    prior work on the auth_service.py token-validation race (issue
+    #287, fix in progress). Diego is acceptable as a secondary
+    candidate (he wrote the load-test harness that reproduces the
+    issue) but the primary recommendation should be Sara.
+    FAIL if it picks anyone else without a strong justification, or if
+    the justification is generic ("Sara is senior") rather than
+    referencing the recent token-race work specifically.
+max_tokens: 2048

@@ -1,0 +1,12 @@
+id: acme_09
+category: acmeai
+title: 'AcmeAI: Whose invoices fail to reconcile because of the AWS rate-limit ceiling?'
+prompt: Whose invoices fail to reconcile because of the AWS rate-limit ceiling?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: Globex
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  supporting_titles:
+  - Globex

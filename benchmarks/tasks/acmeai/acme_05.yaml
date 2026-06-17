@@ -1,0 +1,12 @@
+id: acme_05
+category: acmeai
+title: 'AcmeAI: When is the Atlas database migration window scheduled?'
+prompt: When is the Atlas database migration window scheduled?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: '2026-06-25'
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  supporting_titles:
+  - migration

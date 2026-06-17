@@ -1,0 +1,12 @@
+id: acme_04
+category: acmeai
+title: 'AcmeAI: Who owns feature Y (per-tenant rate limiting) at AcmeAI?'
+prompt: Who owns feature Y (per-tenant rate limiting) at AcmeAI?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: Marcus
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  supporting_titles:
+  - feature Y

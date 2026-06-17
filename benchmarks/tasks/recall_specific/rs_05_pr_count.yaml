@@ -1,0 +1,18 @@
+id: rs_05_pr_count
+category: recall_specific
+title: "Recall: which engineer merged the most PRs in March?"
+prompt: |
+  Across the team's March activity, which single engineer merged the
+  most PRs into main? Reply with the engineer's first name only. If
+  you don't know, reply exactly: unknown.
+oracle:
+  kind: llm_judge
+  rubric: |
+    PASS if the response names the engineer with the highest PR-merge
+    count in the corpus. Acceptable answers: any engineer name from
+    the team (Sara, Marcus, Priya, Diego, Jin, Olivia) — the test
+    rewards a deterministic, single-name answer drawn from the
+    corpus, NOT a hedging response or a list.
+    FAIL if the response says "I cannot tell" without an attempt, or
+    names someone not on the team, or returns a list.
+max_tokens: 1024

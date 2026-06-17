@@ -1,0 +1,4834 @@
+{
+  "components": {
+    "schemas": {
+      "APIResponse": {
+        "properties": {
+          "data": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "APIResponse",
+        "type": "object"
+      },
+      "Agent": {
+        "properties": {
+          "api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Transient response field \u2014 populated exactly once in POST /agents and POST /agents/{id}/rotate-key so the caller can copy the raw key. Never persisted: only its SHA-256 hash lives in Redis (at spaider:apikey:<hash>) via AuthService.generate_and_store_api_key().",
+            "title": "Api Key"
+          },
+          "api_key_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Internal: SHA-256 hash of the agent's current API key. Persisted on the agent record so rotation can revoke the previous key with a single Redis DEL instead of scanning spaider:apikey:*. Always nulled on list/get/update responses \u2014 never exposed to callers.",
+            "title": "Api Key Hash"
+          },
+          "clearance_level": {
+            "default": 1,
+            "description": "Diplomat Protocol clearance level (1=Public/Guest \u2026 5=Admin). The agent can only retrieve SpaiderNodes whose clearance_level is \u2264 this value.  Nodes without an explicit clearance_level are treated as level 1 (public).",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Clearance Level",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "interaction_memory": {
+            "default": false,
+            "description": "Episodic Memory opt-in flag. When True, every query/response pair is recorded as an InteractionNode in Neo4j, linked to the SystemAgent and to the SpaiderNodes that informed the answer.",
+            "title": "Interaction Memory",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
+          "tenant_id": {
+            "default": "default",
+            "title": "Tenant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "Agent",
+        "type": "object"
+      },
+      "AgentBridgeResponse": {
+        "description": "Response for POST /agents/connect \u2014 confirms the synaptic bridge was created.",
+        "properties": {
+          "link_type": {
+            "title": "Link Type",
+            "type": "string"
+          },
+          "source_agent_id": {
+            "title": "Source Agent Id",
+            "type": "string"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          },
+          "target_agent_id": {
+            "title": "Target Agent Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "source_agent_id",
+          "target_agent_id",
+          "link_type"
+        ],
+        "title": "AgentBridgeResponse",
+        "type": "object"
+      },
+      "AgentConnectRequest": {
+        "description": "Request body for POST /agents/connect \u2014 creates a SHARES_KNOWLEDGE_WITH bridge.",
+        "properties": {
+          "source_agent_id": {
+            "description": "ID of the source SystemAgent",
+            "title": "Source Agent Id",
+            "type": "string"
+          },
+          "target_agent_id": {
+            "description": "ID of the target SystemAgent",
+            "title": "Target Agent Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_agent_id",
+          "target_agent_id"
+        ],
+        "title": "AgentConnectRequest",
+        "type": "object"
+      },
+      "AgentCreateRequest": {
+        "properties": {
+          "clearance_level": {
+            "default": 1,
+            "description": "Diplomat Protocol clearance level (1=Public/Guest \u2026 5=Admin).",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Clearance Level",
+            "type": "integer"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "interaction_memory": {
+            "default": false,
+            "description": "Enable episodic memory recording for this agent (opt-in).",
+            "title": "Interaction Memory",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "permissions": {
+            "default": [
+              "read",
+              "write",
+              "query"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
+          "tenant_id": {
+            "default": "default",
+            "title": "Tenant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "AgentCreateRequest",
+        "type": "object"
+      },
+      "AgentImportResponse": {
+        "description": "Summary returned after a successful NDJSON graph import.\n\n``new_api_key`` is a freshly generated credential for the restored agent \u2014\nthe original key is never stored in the export file for security reasons.\nShow this value to the operator exactly once.",
+        "properties": {
+          "agent_id": {
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "edges_restored": {
+            "title": "Edges Restored",
+            "type": "integer"
+          },
+          "new_api_key": {
+            "title": "New Api Key",
+            "type": "string"
+          },
+          "nodes_restored": {
+            "title": "Nodes Restored",
+            "type": "integer"
+          },
+          "skipped": {
+            "title": "Skipped",
+            "type": "integer"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "agent_id",
+          "new_api_key",
+          "nodes_restored",
+          "edges_restored",
+          "skipped"
+        ],
+        "title": "AgentImportResponse",
+        "type": "object"
+      },
+      "AgentListResponse": {
+        "properties": {
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/Agent"
+            },
+            "title": "Agents",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "agents",
+          "total"
+        ],
+        "title": "AgentListResponse",
+        "type": "object"
+      },
+      "AgentResponse": {
+        "properties": {
+          "agent": {
+            "$ref": "#/components/schemas/Agent"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "agent"
+        ],
+        "title": "AgentResponse",
+        "type": "object"
+      },
+      "Body_import_agent_graph_api_v1_agents_import_post": {
+        "properties": {
+          "file": {
+            "description": ".ndjson file from GET /{agent_id}/export",
+            "format": "binary",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_import_agent_graph_api_v1_agents_import_post",
+        "type": "object"
+      },
+      "Body_ingest_file_stream_api_v1_ingest_file_stream_post": {
+        "properties": {
+          "agent_id": {
+            "default": "default",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "file": {
+            "format": "binary",
+            "title": "File",
+            "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_ingest_file_stream_api_v1_ingest_file_stream_post",
+        "type": "object"
+      },
+      "Body_ingest_file_sync_api_v1_ingest_file_post": {
+        "properties": {
+          "agent_id": {
+            "default": "default",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "file": {
+            "format": "binary",
+            "title": "File",
+            "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_ingest_file_sync_api_v1_ingest_file_post",
+        "type": "object"
+      },
+      "Body_ingest_files_multi_api_v1_ingest_files_post": {
+        "properties": {
+          "agent_id": {
+            "default": "default",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "files": {
+            "items": {
+              "format": "binary",
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "title": "Body_ingest_files_multi_api_v1_ingest_files_post",
+        "type": "object"
+      },
+      "ClusterGraphPayload": {
+        "description": "Response body for GET /graph/clusters \u2014 LOD overview of an agent's graph.",
+        "properties": {
+          "agent_id": {
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "cluster_edges": {
+            "items": {
+              "$ref": "#/components/schemas/GraphClusterEdge"
+            },
+            "title": "Cluster Edges",
+            "type": "array"
+          },
+          "clusters": {
+            "items": {
+              "$ref": "#/components/schemas/GraphCluster"
+            },
+            "title": "Clusters",
+            "type": "array"
+          },
+          "total_edges": {
+            "default": 0,
+            "title": "Total Edges",
+            "type": "integer"
+          },
+          "total_nodes": {
+            "default": 0,
+            "title": "Total Nodes",
+            "type": "integer"
+          },
+          "zoom_level": {
+            "default": 0,
+            "title": "Zoom Level",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "agent_id"
+        ],
+        "title": "ClusterGraphPayload",
+        "type": "object"
+      },
+      "ConnectorStats": {
+        "description": "Last-run statistics for one connector \u2014 updated after every completed run.",
+        "properties": {
+          "connector_id": {
+            "title": "Connector Id",
+            "type": "string"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "last_run_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run At"
+          },
+          "records_processed": {
+            "default": 0,
+            "title": "Records Processed",
+            "type": "integer"
+          },
+          "status": {
+            "default": "idle",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "connector_id"
+        ],
+        "title": "ConnectorStats",
+        "type": "object"
+      },
+      "ConsolidateRequest": {
+        "description": "Optional knobs for the on-demand consolidate trigger.",
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "title": "ConsolidateRequest",
+        "type": "object"
+      },
+      "ConsolidateResponse": {
+        "properties": {
+          "dag_id": {
+            "title": "Dag Id",
+            "type": "string"
+          },
+          "dag_run_id": {
+            "title": "Dag Run Id",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "status_url": {
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "dag_id",
+          "dag_run_id",
+          "state",
+          "status_url"
+        ],
+        "title": "ConsolidateResponse",
+        "type": "object"
+      },
+      "CypherQueryRequest": {
+        "properties": {
+          "agent_id": {
+            "default": "default",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "cypher": {
+            "title": "Cypher",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cypher"
+        ],
+        "title": "CypherQueryRequest",
+        "type": "object"
+      },
+      "DeleteInteractionsResponse": {
+        "description": "Confirmation that an agent's episodic memory was wiped.",
+        "properties": {
+          "agent_id": {
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "deleted_count": {
+            "title": "Deleted Count",
+            "type": "integer"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "agent_id",
+          "deleted_count"
+        ],
+        "title": "DeleteInteractionsResponse",
+        "type": "object"
+      },
+      "DeleteNodeResponse": {
+        "properties": {
+          "audit_entry": {
+            "title": "Audit Entry",
+            "type": "object"
+          },
+          "deleted_edges": {
+            "title": "Deleted Edges",
+            "type": "integer"
+          },
+          "deleted_node_id": {
+            "title": "Deleted Node Id",
+            "type": "string"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "deleted_node_id",
+          "deleted_edges",
+          "audit_entry"
+        ],
+        "title": "DeleteNodeResponse",
+        "type": "object"
+      },
+      "Edge": {
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "properties": {
+            "title": "Properties",
+            "type": "object"
+          },
+          "relation": {
+            "title": "Relation",
+            "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          },
+          "target_id": {
+            "title": "Target Id",
+            "type": "string"
+          },
+          "utility_weight": {
+            "default": 1.0,
+            "description": "Synapse strength (V2 Cognitive Graph). Controls edge width in 3D view.",
+            "title": "Utility Weight",
+            "type": "number"
+          }
+        },
+        "required": [
+          "source_id",
+          "target_id",
+          "relation"
+        ],
+        "title": "Edge",
+        "type": "object"
+      },
+      "EngineVersionToggle": {
+        "properties": {
+          "version": {
+            "enum": [
+              "v1",
+              "v2"
+            ],
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "EngineVersionToggle",
+        "type": "object"
+      },
+      "FeedbackPayload": {
+        "properties": {
+          "query_id": {
+            "description": "Correlation ID returned by the query endpoint (or any client-generated UUID).",
+            "title": "Query Id",
+            "type": "string"
+          },
+          "success": {
+            "description": "True if the answer was judged correct/helpful; False otherwise.",
+            "title": "Success",
+            "type": "boolean"
+          },
+          "used_node_ids": {
+            "description": "IDs of SpaiderNodes that were part of the RAG context for this query.",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Used Node Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "query_id",
+          "used_node_ids",
+          "success"
+        ],
+        "title": "FeedbackPayload",
+        "type": "object"
+      },
+      "FeedbackResponse": {
+        "properties": {
+          "accepted": {
+            "title": "Accepted",
+            "type": "boolean"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "node_count": {
+            "title": "Node Count",
+            "type": "integer"
+          },
+          "query_id": {
+            "title": "Query Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "accepted",
+          "query_id",
+          "message",
+          "node_count"
+        ],
+        "title": "FeedbackResponse",
+        "type": "object"
+      },
+      "GraphCluster": {
+        "description": "Aggregated cluster used for level-of-detail rendering.\nA cluster groups many SpaiderNodes \u2014 its sphere size in the frontend\nscales with `node_count`.",
+        "properties": {
+          "id": {
+            "description": "Stable cluster identifier, e.g. 'cluster:PERSON'",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "description": "Human-readable label shown on the cluster sphere",
+            "title": "Label",
+            "type": "string"
+          },
+          "node_count": {
+            "description": "Number of member nodes",
+            "minimum": 0.0,
+            "title": "Node Count",
+            "type": "integer"
+          },
+          "sample_node_ids": {
+            "description": "Up to 10 representative member ids \u2014 useful for click-to-drill-down",
+            "items": {
+              "type": "string"
+            },
+            "title": "Sample Node Ids",
+            "type": "array"
+          },
+          "type": {
+            "description": "Node type that defines the cluster (used for colour)",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "type",
+          "node_count"
+        ],
+        "title": "GraphCluster",
+        "type": "object"
+      },
+      "GraphClusterEdge": {
+        "description": "Aggregated relation between two clusters.",
+        "properties": {
+          "count": {
+            "description": "Number of underlying RELATION edges",
+            "minimum": 1.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "id": {
+            "description": "Stable id, e.g. 'cluster-edge:PERSON->ORGANIZATION'",
+            "title": "Id",
+            "type": "string"
+          },
+          "source_cluster_id": {
+            "title": "Source Cluster Id",
+            "type": "string"
+          },
+          "target_cluster_id": {
+            "title": "Target Cluster Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "source_cluster_id",
+          "target_cluster_id",
+          "count"
+        ],
+        "title": "GraphClusterEdge",
+        "type": "object"
+      },
+      "GraphPayload": {
+        "properties": {
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/Edge"
+            },
+            "title": "Edges",
+            "type": "array"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/Node"
+            },
+            "title": "Nodes",
+            "type": "array"
+          }
+        },
+        "title": "GraphPayload",
+        "type": "object"
+      },
+      "GraphResponse": {
+        "properties": {
+          "agent_id": {
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "edge_count": {
+            "title": "Edge Count",
+            "type": "integer"
+          },
+          "edges": {
+            "items": {
+              "type": "object"
+            },
+            "title": "Edges",
+            "type": "array"
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit"
+          },
+          "node_count": {
+            "title": "Node Count",
+            "type": "integer"
+          },
+          "nodes": {
+            "items": {
+              "type": "object"
+            },
+            "title": "Nodes",
+            "type": "array"
+          },
+          "offset": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offset"
+          }
+        },
+        "required": [
+          "nodes",
+          "edges",
+          "node_count",
+          "edge_count",
+          "agent_id"
+        ],
+        "title": "GraphResponse",
+        "type": "object"
+      },
+      "GraphStats": {
+        "properties": {
+          "agent_id": {
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "density": {
+            "title": "Density",
+            "type": "number"
+          },
+          "edge_count": {
+            "title": "Edge Count",
+            "type": "integer"
+          },
+          "node_count": {
+            "title": "Node Count",
+            "type": "integer"
+          },
+          "relation_distribution": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Relation Distribution",
+            "type": "object"
+          },
+          "type_distribution": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Type Distribution",
+            "type": "object"
+          }
+        },
+        "required": [
+          "node_count",
+          "edge_count",
+          "type_distribution",
+          "relation_distribution",
+          "density",
+          "agent_id"
+        ],
+        "title": "GraphStats",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "IngestQueuedResponse": {
+        "properties": {
+          "agent_id": {
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "message_id": {
+            "title": "Message Id",
+            "type": "string"
+          },
+          "status": {
+            "default": "queued",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message_id",
+          "agent_id"
+        ],
+        "title": "IngestQueuedResponse",
+        "type": "object"
+      },
+      "IngestRequest": {
+        "properties": {
+          "agent_id": {
+            "default": "default",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "text": {
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "IngestRequest",
+        "type": "object"
+      },
+      "IngestSyncResponse": {
+        "properties": {
+          "agent_id": {
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/SlimEdge"
+            },
+            "title": "Edges",
+            "type": "array"
+          },
+          "edges_created": {
+            "title": "Edges Created",
+            "type": "integer"
+          },
+          "edges_merged": {
+            "title": "Edges Merged",
+            "type": "integer"
+          },
+          "latency_ms": {
+            "title": "Latency Ms",
+            "type": "number"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/SlimNode"
+            },
+            "title": "Nodes",
+            "type": "array"
+          },
+          "nodes_created": {
+            "title": "Nodes Created",
+            "type": "integer"
+          },
+          "nodes_merged": {
+            "title": "Nodes Merged",
+            "type": "integer"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "agent_id",
+          "nodes_created",
+          "nodes_merged",
+          "edges_created",
+          "edges_merged",
+          "nodes",
+          "edges",
+          "latency_ms"
+        ],
+        "title": "IngestSyncResponse",
+        "type": "object"
+      },
+      "Node": {
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "embedding": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embedding"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "properties": {
+            "title": "Properties",
+            "type": "object"
+          },
+          "type": {
+            "default": "OTHER",
+            "title": "Type",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "label"
+        ],
+        "title": "Node",
+        "type": "object"
+      },
+      "QueryRequest": {
+        "properties": {
+          "agent_id": {
+            "default": "default",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          },
+          "session_id": {
+            "default": "",
+            "description": "Client-supplied session identifier for grouping related interaction turns. Used by episodic memory (interaction_memory=True) to link related queries. A UUID is generated server-side when omitted.",
+            "title": "Session Id",
+            "type": "string"
+          },
+          "top_k": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Number of seed nodes retrieved by vector search. Downstream context limits scale proportionally (context_limit = ceil(top_k * 2.5)). Omit to use the server default (top_k=8). Recommended: 8 for small graphs (<1k nodes), 20 for medium, 50 for large (50k+ nodes).",
+            "title": "Top K"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "title": "QueryRequest",
+        "type": "object"
+      },
+      "QueryResult": {
+        "properties": {
+          "answer": {
+            "title": "Answer",
+            "type": "string"
+          },
+          "confidence_score": {
+            "default": 1.0,
+            "description": "Verifier confidence score from the final iteration.",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence Score",
+            "type": "number"
+          },
+          "cypher_used": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cypher Used"
+          },
+          "iterations_used": {
+            "default": 1,
+            "description": "Number of retrieve-verify iterations executed before synthesis.",
+            "title": "Iterations Used",
+            "type": "integer"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          },
+          "re_query_happened": {
+            "default": false,
+            "description": "True when at least one re-query was issued due to insufficient context.",
+            "title": "Re Query Happened",
+            "type": "boolean"
+          },
+          "subgraph": {
+            "$ref": "#/components/schemas/GraphPayload"
+          },
+          "verifier_feedback": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Accumulated missing-information categories reported by the verifier across all iterations. None when the first pass was sufficient.",
+            "title": "Verifier Feedback"
+          }
+        },
+        "required": [
+          "question",
+          "answer",
+          "subgraph"
+        ],
+        "title": "QueryResult",
+        "type": "object"
+      },
+      "RecordEventRequest": {
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "event_type": {
+            "minLength": 1,
+            "title": "Event Type",
+            "type": "string"
+          },
+          "graph_state_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Graph State Hash"
+          },
+          "payload": {
+            "title": "Payload",
+            "type": "object"
+          },
+          "workflow_id": {
+            "minLength": 1,
+            "title": "Workflow Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workflow_id",
+          "event_type"
+        ],
+        "title": "RecordEventRequest",
+        "type": "object"
+      },
+      "RecordEventResponse": {
+        "properties": {
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          },
+          "workflow_id": {
+            "title": "Workflow Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id",
+          "workflow_id"
+        ],
+        "title": "RecordEventResponse",
+        "type": "object"
+      },
+      "ReflectionToggle": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "ReflectionToggle",
+        "type": "object"
+      },
+      "RotateKeyResponse": {
+        "description": "Response for POST /agents/{agent_id}/rotate-key.\n\n``api_key`` is the new raw credential \u2014 shown exactly once; the caller\nmust persist it immediately, as only its SHA-256 hash is kept in Redis\nafter this call returns.",
+        "properties": {
+          "agent_id": {
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "api_key": {
+            "title": "Api Key",
+            "type": "string"
+          },
+          "message": {
+            "default": "Key rotated successfully.",
+            "title": "Message",
+            "type": "string"
+          },
+          "success": {
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "agent_id",
+          "api_key"
+        ],
+        "title": "RotateKeyResponse",
+        "type": "object"
+      },
+      "SlimEdge": {
+        "description": "Edge without redundant fields.",
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "relation": {
+            "title": "Relation",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "source",
+          "target",
+          "relation"
+        ],
+        "title": "SlimEdge",
+        "type": "object"
+      },
+      "SlimNode": {
+        "description": "Node without embedding \u2014 used in API responses to avoid sending 1536 floats.",
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "properties": {
+            "default": {},
+            "title": "Properties",
+            "type": "object"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "type"
+        ],
+        "title": "SlimNode",
+        "type": "object"
+      },
+      "SwarmConnection": {
+        "properties": {
+          "allowed_node_types": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Node Types"
+          },
+          "allowed_relation_types": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Relation Types"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "permission": {
+            "title": "Permission",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "source_agent_id": {
+            "title": "Source Agent Id",
+            "type": "string"
+          },
+          "target_agent_id": {
+            "title": "Target Agent Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_agent_id",
+          "target_agent_id",
+          "permission",
+          "scope"
+        ],
+        "title": "SwarmConnection",
+        "type": "object"
+      },
+      "SwarmConnectionRequest": {
+        "properties": {
+          "allowed_node_types": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Node Types"
+          },
+          "allowed_relation_types": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Relation Types"
+          },
+          "permission": {
+            "default": "read_only",
+            "title": "Permission",
+            "type": "string"
+          },
+          "scope": {
+            "default": "full",
+            "title": "Scope",
+            "type": "string"
+          },
+          "source_agent_id": {
+            "title": "Source Agent Id",
+            "type": "string"
+          },
+          "target_agent_id": {
+            "title": "Target Agent Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_agent_id",
+          "target_agent_id"
+        ],
+        "title": "SwarmConnectionRequest",
+        "type": "object"
+      },
+      "SwarmConnectionResponse": {
+        "properties": {
+          "connection": {
+            "$ref": "#/components/schemas/SwarmConnection"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "connection"
+        ],
+        "title": "SwarmConnectionResponse",
+        "type": "object"
+      },
+      "SwarmLinkDeleteResponse": {
+        "description": "Confirmation that a synaptic bridge was deleted.",
+        "properties": {
+          "deleted_count": {
+            "title": "Deleted Count",
+            "type": "integer"
+          },
+          "source_agent_id": {
+            "title": "Source Agent Id",
+            "type": "string"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          },
+          "target_agent_id": {
+            "title": "Target Agent Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "success",
+          "deleted_count",
+          "source_agent_id",
+          "target_agent_id"
+        ],
+        "title": "SwarmLinkDeleteResponse",
+        "type": "object"
+      },
+      "SwarmLinkResponse": {
+        "description": "A single active SHARES_KNOWLEDGE_WITH edge between two SystemAgent nodes.",
+        "properties": {
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_name": {
+            "title": "Source Name",
+            "type": "string"
+          },
+          "target_id": {
+            "title": "Target Id",
+            "type": "string"
+          },
+          "target_name": {
+            "title": "Target Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_id",
+          "source_name",
+          "target_id",
+          "target_name"
+        ],
+        "title": "SwarmLinkResponse",
+        "type": "object"
+      },
+      "SwarmQueryRequest": {
+        "description": "Swarm Intelligence query \u2014 searches across all (or selected) agent brains,\nsynthesises an answer via LLM, and returns the source node IDs for highlighting.",
+        "properties": {
+          "agent_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Restrict search to these agent IDs. None = query all agents.",
+            "title": "Agent Ids"
+          },
+          "query": {
+            "description": "Natural language question for the swarm",
+            "minLength": 1,
+            "title": "Query",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "SwarmQueryRequest",
+        "type": "object"
+      },
+      "SwarmQueryResponse": {
+        "properties": {
+          "agents_involved": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Agents Involved",
+            "type": "array"
+          },
+          "answer": {
+            "title": "Answer",
+            "type": "string"
+          },
+          "source_node_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Source Node Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "answer",
+          "source_node_ids",
+          "agents_involved"
+        ],
+        "title": "SwarmQueryResponse",
+        "type": "object"
+      },
+      "SynthesizeRequest": {
+        "properties": {
+          "agent_id": {
+            "default": "default",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "max_samples": {
+            "default": 1000,
+            "maximum": 50000.0,
+            "minimum": 1.0,
+            "title": "Max Samples",
+            "type": "integer"
+          },
+          "min_confidence": {
+            "default": 0.7,
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Min Confidence",
+            "type": "number"
+          },
+          "min_path_length": {
+            "default": 2,
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Min Path Length",
+            "type": "integer"
+          },
+          "output_format": {
+            "default": "both",
+            "title": "Output Format",
+            "type": "string"
+          },
+          "strategy": {
+            "default": "factual",
+            "title": "Strategy",
+            "type": "string"
+          }
+        },
+        "title": "SynthesizeRequest",
+        "type": "object"
+      },
+      "SynthesizeResult": {
+        "properties": {
+          "dataset_id": {
+            "title": "Dataset Id",
+            "type": "string"
+          },
+          "dataset_path": {
+            "title": "Dataset Path",
+            "type": "string"
+          },
+          "stats": {
+            "title": "Stats",
+            "type": "object"
+          },
+          "status": {
+            "default": "completed",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "dataset_id",
+          "dataset_path",
+          "stats"
+        ],
+        "title": "SynthesizeResult",
+        "type": "object"
+      },
+      "SystemSettingsResponse": {
+        "properties": {
+          "auto_reflection": {
+            "title": "Auto Reflection",
+            "type": "boolean"
+          },
+          "engine_version": {
+            "enum": [
+              "v1",
+              "v2"
+            ],
+            "title": "Engine Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "auto_reflection",
+          "engine_version"
+        ],
+        "title": "SystemSettingsResponse",
+        "type": "object"
+      },
+      "TraverseRequest": {
+        "properties": {
+          "depth": {
+            "default": 2,
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Depth",
+            "type": "integer"
+          },
+          "relation_filter": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relation Filter"
+          },
+          "start_node_id": {
+            "title": "Start Node Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start_node_id"
+        ],
+        "title": "TraverseRequest",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "WorkflowEventsResponse": {
+        "properties": {
+          "events": {
+            "items": {
+              "type": "object"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "title": "Workflow Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workflow_id",
+          "events",
+          "total"
+        ],
+        "title": "WorkflowEventsResponse",
+        "type": "object"
+      },
+      "WorkflowListResponse": {
+        "properties": {
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "workflows": {
+            "items": {
+              "$ref": "#/components/schemas/WorkflowSummary"
+            },
+            "title": "Workflows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "workflows",
+          "total"
+        ],
+        "title": "WorkflowListResponse",
+        "type": "object"
+      },
+      "WorkflowSummary": {
+        "properties": {
+          "agent_id": {
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "event_count": {
+            "title": "Event Count",
+            "type": "integer"
+          },
+          "first_event": {
+            "title": "First Event",
+            "type": "string"
+          },
+          "last_event": {
+            "title": "Last Event",
+            "type": "string"
+          },
+          "workflow_id": {
+            "title": "Workflow Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workflow_id",
+          "agent_id",
+          "first_event",
+          "last_event",
+          "event_count"
+        ],
+        "title": "WorkflowSummary",
+        "type": "object"
+      },
+      "_BatchBody": {
+        "properties": {
+          "agent_id": {
+            "default": "default",
+            "description": "Target agent namespace.",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "payloads": {
+            "description": "List of GraphPayload objects to ingest (max 100).",
+            "items": {
+              "$ref": "#/components/schemas/GraphPayload"
+            },
+            "maxItems": 100,
+            "title": "Payloads",
+            "type": "array"
+          }
+        },
+        "required": [
+          "payloads"
+        ],
+        "title": "_BatchBody",
+        "type": "object"
+      },
+      "_BatchIngestResponse": {
+        "properties": {
+          "agent_id": {
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "edges_created": {
+            "title": "Edges Created",
+            "type": "integer"
+          },
+          "edges_merged": {
+            "title": "Edges Merged",
+            "type": "integer"
+          },
+          "latency_ms": {
+            "title": "Latency Ms",
+            "type": "number"
+          },
+          "nodes_created": {
+            "title": "Nodes Created",
+            "type": "integer"
+          },
+          "nodes_merged": {
+            "title": "Nodes Merged",
+            "type": "integer"
+          },
+          "payloads_processed": {
+            "title": "Payloads Processed",
+            "type": "integer"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "agent_id",
+          "payloads_processed",
+          "nodes_created",
+          "nodes_merged",
+          "edges_created",
+          "edges_merged",
+          "latency_ms"
+        ],
+        "title": "_BatchIngestResponse",
+        "type": "object"
+      },
+      "_IngestGraphRequest": {
+        "description": "GraphPayload extended with routing metadata for direct graph ingest.\n``agent_id`` determines which agent's namespace receives the nodes/edges.",
+        "properties": {
+          "agent_id": {
+            "default": "default",
+            "description": "Target agent namespace.",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/Edge"
+            },
+            "title": "Edges",
+            "type": "array"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/Node"
+            },
+            "title": "Nodes",
+            "type": "array"
+          }
+        },
+        "title": "_IngestGraphRequest",
+        "type": "object"
+      },
+      "_IngestMCPRequest": {
+        "properties": {
+          "agent_id": {
+            "default": "default",
+            "description": "Target agent namespace.",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "args": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Arguments to the stdio command (e.g. `[\"mcp-server-fetch\"]`).",
+            "title": "Args"
+          },
+          "command": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Executable for stdio transport (e.g. `uvx`, `node`). Mutually exclusive with `server_url`.",
+            "title": "Command"
+          },
+          "env": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Environment overrides for the stdio subprocess.",
+            "title": "Env"
+          },
+          "headers": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Extra HTTP headers for the SSE connection (auth tokens, etc.).",
+            "title": "Headers"
+          },
+          "server_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Absolute URL of an HTTP/SSE MCP server. Mutually exclusive with `command`.",
+            "title": "Server Url"
+          },
+          "source_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human label for provenance metadata on every ingested record.",
+            "title": "Source Label"
+          }
+        },
+        "title": "_IngestMCPRequest",
+        "type": "object"
+      },
+      "_IngestSQLRequest": {
+        "properties": {
+          "agent_id": {
+            "default": "default",
+            "description": "Target agent namespace.",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "batch_size": {
+            "default": 1000,
+            "maximum": 50000.0,
+            "minimum": 1.0,
+            "title": "Batch Size",
+            "type": "integer"
+          },
+          "content_columns": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Columns concatenated into record.text. Empty/None = all non-cursor columns.",
+            "title": "Content Columns"
+          },
+          "cursor_column": {
+            "default": "id",
+            "description": "Monotonic cursor column.",
+            "title": "Cursor Column",
+            "type": "string"
+          },
+          "dsn": {
+            "description": "SQLAlchemy DSN (e.g. `postgresql+asyncpg://user:pass@host/db`, `sqlite+aiosqlite:///path/to/db`). Plaintext for v1 \u2014 secrets-service backed DSNs are a follow-up.",
+            "title": "Dsn",
+            "type": "string"
+          },
+          "id_column": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Column"
+          },
+          "initial_cursor": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Resume value. None = use stored RunState cursor or sentinel.",
+            "title": "Initial Cursor"
+          },
+          "query": {
+            "description": "Arbitrary SELECT/WITH query. Wrapped in a subquery before pagination so it can include GROUP BY / HAVING / ORDER BY / LIMIT.",
+            "title": "Query",
+            "type": "string"
+          },
+          "source_label": {
+            "default": "sql",
+            "title": "Source Label",
+            "type": "string"
+          },
+          "title_column": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title Column"
+          }
+        },
+        "required": [
+          "dsn",
+          "query"
+        ],
+        "title": "_IngestSQLRequest",
+        "type": "object"
+      },
+      "_IngestURLRequest": {
+        "properties": {
+          "agent_id": {
+            "default": "default",
+            "description": "Target agent namespace.",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "urls": {
+            "description": "Absolute HTTP/HTTPS URLs to fetch and ingest (max 20 per request).",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Urls",
+            "type": "array"
+          }
+        },
+        "required": [
+          "urls"
+        ],
+        "title": "_IngestURLRequest",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "SpAIder \u2014 A multi-agent semantic knowledge graph platform powered by LLMs and Neo4j. Ingest unstructured text, build a persistent knowledge graph, query it in natural language, and synthesise fine-tuning datasets for downstream models.",
+    "title": "SpAIder",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/agents": {
+      "get": {
+        "description": "List all registered agents.",
+        "operationId": "list_agents_api_v1_agents_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Agents",
+        "tags": [
+          "agents"
+        ]
+      },
+      "post": {
+        "description": "Create a new agent namespace. Returns the agent record with a generated API key.\nStore this API key securely; it is only shown once.",
+        "operationId": "create_agent_api_v1_agents_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Agent",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/connect": {
+      "post": {
+        "description": "Create a SHARES_KNOWLEDGE_WITH synaptic bridge between two SystemAgent nodes.\nThe relationship is idempotent (safe to call multiple times).\nReturns 400 if source == target, or if either agent node does not exist in Neo4j.",
+        "operationId": "connect_agents_api_v1_agents_connect_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentConnectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentBridgeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Connect Agents",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/import": {
+      "post": {
+        "description": "Stream-parse a `.ndjson` file produced by `GET /{agent_id}/export` and restore the agent's full knowledge graph.\n\n**Memory safety:** The file is read in 64 KB chunks and parsed line-by-line. The full file is NEVER loaded into memory; nodes and edges are flushed to Neo4j in micro-batches of 500 items.\n\n**State machine (per line):**\n- `metadata` (line 1): parse provenance; 409 if agent exists and `merge=false`; restore agent record in Redis with a fresh API key.\n- `node`: accumulate \u2192 flush every 500 via `write_graph_batch` (MERGE semantics).\n- `edge`: flush remaining nodes first; accumulate \u2192 flush every 500.\n- `interaction` / `informed_by` / unknown: counted in `skipped`.\n\nReturns a summary with the new API key (shown once), node/edge counts, and a skip count for unprocessed lines.",
+        "operationId": "import_agent_graph_api_v1_agents_import_post",
+        "parameters": [
+          {
+            "description": "False (default): raise 409 if the agent already exists. True: merge imported graph into an existing namespace using idempotent MERGE \u2014 safe to re-run on partial imports.",
+            "in": "query",
+            "name": "merge",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "False (default): raise 409 if the agent already exists. True: merge imported graph into an existing namespace using idempotent MERGE \u2014 safe to re-run on partial imports.",
+              "title": "Merge",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "If set, ignore the agent_id in the file's metadata and import the graph into this existing agent's namespace instead. Every node and edge has its `agent_id` re-keyed to this value before write. Always uses MERGE semantics (append + idempotent) \u2014 never destroys the target's existing data. The target agent must already exist (404 if not). The target's API key is left untouched; the response's `new_api_key` field is empty.",
+            "in": "query",
+            "name": "target_agent_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "If set, ignore the agent_id in the file's metadata and import the graph into this existing agent's namespace instead. Every node and edge has its `agent_id` re-keyed to this value before write. Always uses MERGE semantics (append + idempotent) \u2014 never destroys the target's existing data. The target agent must already exist (404 if not). The target's API key is left untouched; the response's `new_api_key` field is empty.",
+              "title": "Target Agent Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_agent_graph_api_v1_agents_import_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentImportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restore agent graph from NDJSON file (hibernation import)",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/link": {
+      "delete": {
+        "description": "Remove the SHARES_KNOWLEDGE_WITH edge between two SystemAgent nodes.\nReturns 404 if the edge does not exist.",
+        "operationId": "delete_swarm_link_api_v1_agents_link_delete",
+        "parameters": [
+          {
+            "description": "agent_id of the source SystemAgent",
+            "in": "query",
+            "name": "source_agent_id",
+            "required": true,
+            "schema": {
+              "description": "agent_id of the source SystemAgent",
+              "title": "Source Agent Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "agent_id of the target SystemAgent",
+            "in": "query",
+            "name": "target_agent_id",
+            "required": true,
+            "schema": {
+              "description": "agent_id of the target SystemAgent",
+              "title": "Target Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwarmLinkDeleteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Swarm Link",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/links": {
+      "get": {
+        "description": "Return every active SHARES_KNOWLEDGE_WITH bridge in the neural graph,\nenriched with human-readable agent names.",
+        "operationId": "list_swarm_links_api_v1_agents_links_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SwarmLinkResponse"
+                  },
+                  "title": "Response List Swarm Links Api V1 Agents Links Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Swarm Links",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/{agent_id}": {
+      "delete": {
+        "description": "Delete an agent and its entire knowledge graph from Neo4j.\nThis is irreversible.",
+        "operationId": "delete_agent_api_v1_agents__agent_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Agent",
+        "tags": [
+          "agents"
+        ]
+      },
+      "get": {
+        "description": "Retrieve agent details. API key is redacted.",
+        "operationId": "get_agent_api_v1_agents__agent_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Agent",
+        "tags": [
+          "agents"
+        ]
+      },
+      "put": {
+        "description": "Update an existing agent's metadata.",
+        "operationId": "update_agent_api_v1_agents__agent_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Agent",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/{agent_id}/export": {
+      "get": {
+        "description": "Stream the complete knowledge graph for this agent as a Newline-Delimited JSON (NDJSON) file download.\n\n**Memory safety:** Uses the Neo4j Bolt driver's server-side cursor \u2014 the full graph is NEVER loaded into Python memory. Safe for graphs with 100 k+ nodes.\n\n**Line types** (in order):\n- `metadata` \u2014 one line; agent provenance + export parameters\n- `node` \u2014 one line per SpaiderNode\n- `edge` \u2014 one line per RELATION edge\n- `interaction` \u2014 one line per InteractionNode (episodic memory)\n- `informed_by` \u2014 one line per INFORMED_BY edge pair\n\nPass `include_embeddings=false` to omit 1536-dimensional vectors (reduces file size ~6 KB per node).",
+        "operationId": "export_agent_graph_ndjson_api_v1_agents__agent_id__export_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "title": "Agent Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Include embedding vectors in the export. Set to false to reduce file size when vectors are not needed for import (they will be recomputed on ingest).",
+            "in": "query",
+            "name": "include_embeddings",
+            "required": false,
+            "schema": {
+              "default": true,
+              "description": "Include embedding vectors in the export. Set to false to reduce file size when vectors are not needed for import (they will be recomputed on ingest).",
+              "title": "Include Embeddings",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stream full agent graph as NDJSON (hibernation export)",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/{agent_id}/interactions": {
+      "delete": {
+        "description": "Hard-delete every `InteractionNode` that belongs to this agent. All associated `BELONGS_TO_AGENT` and `INFORMED_BY` relationships are removed automatically via `DETACH DELETE`.\n\n**SpaiderNodes are never affected** \u2014 only episodic memory records.\n\nReturns the count of deleted `InteractionNode` objects.",
+        "operationId": "delete_agent_interactions_api_v1_agents__agent_id__interactions_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteInteractionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Wipe episodic memory for an agent",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/agents/{agent_id}/rotate-key": {
+      "post": {
+        "description": "Rotate the agent's API key: revoke the current credential and issue a new one.\n\nThe Neo4j knowledge graph is keyed on ``agent_id``, so rotation leaves every\nnode, edge, and embedding untouched by design \u2014 only the ``spaider:apikey:*``\nRedis slot changes.",
+        "operationId": "rotate_api_key_api_v1_agents__agent_id__rotate_key_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RotateKeyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rotate Api Key",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/api/v1/analytics/ingest": {
+      "get": {
+        "description": "Hourly ingest volume, node/edge counts, and avg latency for the last N days.",
+        "operationId": "ingest_timeseries_api_v1_analytics_ingest_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "agent_id",
+            "required": false,
+            "schema": {
+              "default": "default",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 7,
+              "maximum": 90,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ingest Timeseries",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/api/v1/analytics/overview": {
+      "get": {
+        "description": "Aggregate totals: ingests, nodes created, queries, latencies.",
+        "operationId": "overview_api_v1_analytics_overview_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "agent_id",
+            "required": false,
+            "schema": {
+              "default": "default",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Overview",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/api/v1/analytics/query": {
+      "get": {
+        "description": "Hourly query volume, avg latency, and nodes returned for the last N days.",
+        "operationId": "query_timeseries_api_v1_analytics_query_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "agent_id",
+            "required": false,
+            "schema": {
+              "default": "default",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 7,
+              "maximum": 90,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Query Timeseries",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/api/v1/analytics/top-agents": {
+      "get": {
+        "description": "Most active agents by ingest count.",
+        "operationId": "top_agents_api_v1_analytics_top_agents_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Top Agents",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/api/v1/connectors/{connector_id}/status": {
+      "get": {
+        "description": "Returns the statistics recorded after the most recent run of the named connector.  If the connector has never been run since the server started (or if it was just registered), the response is an idle zero-count record.\n\n**Intended use:** the Studio UI polls this endpoint every few seconds after triggering a connector run to display record counts and error state without blocking the user.",
+        "operationId": "get_connector_status_api_v1_connectors__connector_id__status_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connector_id",
+            "required": true,
+            "schema": {
+              "title": "Connector Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectorStats"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get last-run statistics for a connector",
+        "tags": [
+          "connectors"
+        ]
+      }
+    },
+    "/api/v1/graph": {
+      "get": {
+        "description": "Return a coherent page of nodes and edges for an agent namespace.\n\nPagination contract\n-------------------\n* Nodes are ordered deterministically by ``n.id`` so pages are stable\n  across concurrent writes.\n* Edges are **only** included when both endpoints fall within the\n  requested page \u2014 no dangling edge IDs are ever returned.\n* ``limit`` is capped at 2000 (hard server-side guardrail).  Clients\n  that need the full graph should iterate via ``offset`` or switch to\n  the ``/clusters`` endpoint for an aggregated LOD overview.\n\nResponse envelope\n-----------------\n``limit`` and ``offset`` are echoed back so clients can construct the\nnext-page URL without tracking state:\n``GET /graph?agent_id=X&limit=500&offset=500``",
+        "operationId": "get_graph_api_v1_graph_get",
+        "parameters": [
+          {
+            "description": "Agent namespace to query",
+            "in": "query",
+            "name": "agent_id",
+            "required": false,
+            "schema": {
+              "default": "default",
+              "description": "Agent namespace to query",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Maximum nodes per page. Hard cap of 2000 prevents OOM on the backend and browser physics engine. Use offset to page through larger graphs.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 500,
+              "description": "Maximum nodes per page. Hard cap of 2000 prevents OOM on the backend and browser physics engine. Use offset to page through larger graphs.",
+              "maximum": 2000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Node offset for pagination",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Node offset for pagination",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GraphResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Graph",
+        "tags": [
+          "graph"
+        ]
+      }
+    },
+    "/api/v1/graph/clusters": {
+      "get": {
+        "description": "Return a level-of-detail overview of the agent's graph.\n\nGroups nodes by type into a small number of clusters; each cluster carries\nits member count (\u2192 sphere size) and up to 10 sample ids (\u2192 drill-down).\nDesigned for million-node scale \u2014 the payload stays bounded by the number\nof distinct node types, regardless of total graph size.",
+        "operationId": "get_graph_clusters_api_v1_graph_clusters_get",
+        "parameters": [
+          {
+            "description": "Agent namespace to cluster",
+            "in": "query",
+            "name": "agent_id",
+            "required": false,
+            "schema": {
+              "default": "default",
+              "description": "Agent namespace to cluster",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Aggregation granularity.  0 = one cluster per node type (coarse overview, fastest). Higher values reserved for future sub-community refinement.",
+            "in": "query",
+            "name": "zoom_level",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Aggregation granularity.  0 = one cluster per node type (coarse overview, fastest). Higher values reserved for future sub-community refinement.",
+              "maximum": 3,
+              "minimum": 0,
+              "title": "Zoom Level",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClusterGraphPayload"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Graph Clusters",
+        "tags": [
+          "graph"
+        ]
+      }
+    },
+    "/api/v1/graph/multiverse": {
+      "get": {
+        "description": "Return the full multiverse: every SystemAgent gravity-centre node,\nevery SpaiderNode across all agents, plus RELATION and BELONGS_TO_AGENT edges.\nUsed by the 3D galaxy / Neural Multiverse frontend view.",
+        "operationId": "get_multiverse_graph_api_v1_graph_multiverse_get",
+        "parameters": [
+          {
+            "description": "Max nodes to return",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 2000,
+              "description": "Max nodes to return",
+              "maximum": 10000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GraphResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Multiverse Graph",
+        "tags": [
+          "graph"
+        ]
+      }
+    },
+    "/api/v1/graph/stats": {
+      "get": {
+        "description": "Return aggregate statistics for the agent's graph:\nnode count, edge count, type distributions, and graph density.\n\nUses server-side Cypher aggregation (``get_graph_stats``) instead of\nmaterialising the full graph into Python memory \u2014 safe on graphs with\nmillions of nodes.",
+        "operationId": "get_graph_stats_api_v1_graph_stats_get",
+        "parameters": [
+          {
+            "description": "Agent namespace",
+            "in": "query",
+            "name": "agent_id",
+            "required": false,
+            "schema": {
+              "default": "default",
+              "description": "Agent namespace",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GraphStats"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Graph Stats",
+        "tags": [
+          "graph"
+        ]
+      }
+    },
+    "/api/v1/ingest": {
+      "post": {
+        "description": "Async ingest: serialise the payload and push to the Kafka topic.\nThe compressor worker will consume and write to Neo4j asynchronously.",
+        "operationId": "ingest_text_async_api_v1_ingest_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestQueuedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ingest Text Async",
+        "tags": [
+          "ingest"
+        ]
+      }
+    },
+    "/api/v1/ingest/file": {
+      "post": {
+        "description": "Thin wrapper around the Upload Connector. Accepts any supported document format \u2014 PDF, DOCX, PPTX, HTML, Markdown, and plain text \u2014 via `multipart/form-data`.\n\nInternally delegates to `UploadConnector` \u2192 `parser_service.parse()` \u2192 full extraction pipeline. The response shape is identical to `/ingest/sync` for backward compatibility.",
+        "operationId": "ingest_file_sync_api_v1_ingest_file_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_ingest_file_sync_api_v1_ingest_file_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestSyncResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload a single file for synchronous ingestion (PDF, DOCX, PPTX, HTML, MD, TXT)",
+        "tags": [
+          "ingest"
+        ]
+      }
+    },
+    "/api/v1/ingest/file/stream": {
+      "post": {
+        "description": "Upload a .txt file for async streaming ingestion.",
+        "operationId": "ingest_file_stream_api_v1_ingest_file_stream_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_ingest_file_stream_api_v1_ingest_file_stream_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ingest File Stream",
+        "tags": [
+          "ingest"
+        ]
+      }
+    },
+    "/api/v1/ingest/files": {
+      "post": {
+        "description": "Batch document upload. Accepts up to **20 files** per request in any supported format (PDF, DOCX, PPTX, HTML, Markdown, TXT).\n\nEach file is parsed independently by the Upload Connector. A parse failure on one file is routed to the DLQ and does not abort the remaining files.\n\nAll successfully parsed files are extracted **concurrently** via `asyncio.gather` \u2014 a batch of N files completes in roughly the time of one. Counts in the response are aggregated across all files.",
+        "operationId": "ingest_files_multi_api_v1_ingest_files_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_ingest_files_multi_api_v1_ingest_files_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestSyncResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload multiple files for synchronous ingestion",
+        "tags": [
+          "ingest"
+        ]
+      }
+    },
+    "/api/v1/ingest/graph": {
+      "post": {
+        "description": "Push a fully-formed `GraphPayload` directly into the knowledge graph, **bypassing the LLM text-extraction phase entirely**.\n\nThis endpoint is designed for clients that already hold structured entity/relation data or have pre-computed their own embeddings (Bring Your Own Vectors).\n\n**BYOV behaviour** (inherited from `EntityResolver`):\n- Node carries a valid embedding of the correct dimension \u2192 preserved as-is (zero embedding cost).\n- Node carries an embedding with the wrong dimension \u2192 HTTP 422 raised immediately.\n- Node has no embedding \u2192 embedded automatically by the service.\n\nDeduplication against the existing agent graph is always performed via `EntityResolver` before writing to Neo4j.",
+        "operationId": "ingest_graph_api_v1_ingest_graph_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_IngestGraphRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestSyncResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Direct GraphPayload ingest (BYOV)",
+        "tags": [
+          "ingest"
+        ]
+      }
+    },
+    "/api/v1/ingest/graph/batch": {
+      "post": {
+        "description": "Push up to **100** `GraphPayload` objects in a single request, bypassing the LLM extraction phase.\n\nAll payloads are resolved concurrently via `asyncio.gather` \u2014 each payload's deduplication and (optional) embedding call runs in parallel, so a batch of N payloads completes in roughly the time of one rather than N \u00d7 one.\n\nAfter resolution the entire batch is written to Neo4j in a **single transaction** via `GraphService.write_graph_batch()` for maximum throughput.\n\n**Limits:** maximum 100 payloads per request (HTTP 422 if exceeded).\n\n**BYOV behaviour** is identical to `POST /ingest/graph`: correct-dimension embeddings are preserved; wrong-dimension embeddings raise HTTP 422 immediately.",
+        "operationId": "ingest_graph_batch_api_v1_ingest_graph_batch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_BatchBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/_BatchIngestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Batch GraphPayload ingest (BYOV)",
+        "tags": [
+          "ingest"
+        ]
+      }
+    },
+    "/api/v1/ingest/mcp": {
+      "post": {
+        "description": "Connects to a Model Context Protocol server, pages through `list_resources`, and ingests each resource whose content has changed since the last run for this agent.\n\n**Transports:** exactly one of `command` (stdio subprocess) or `server_url` (SSE) must be set.\n\n**Incremental sync:** identical to `/ingest/url` \u2014 RunState is stored per `(connector_id, agent_id)` in process. Resources whose `lastModified` matches the stored value are fast-skipped (no read). Otherwise SHA-256 hashing decides whether to ingest. \n\nFailed resources are routed to the DLQ; one bad resource never aborts the rest of the run.",
+        "operationId": "ingest_mcp_api_v1_ingest_mcp_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_IngestMCPRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestSyncResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ingest resources from an MCP server (stdio or SSE)",
+        "tags": [
+          "ingest"
+        ]
+      }
+    },
+    "/api/v1/ingest/sql": {
+      "post": {
+        "description": "Connects to the supplied DSN, runs the wrapped query with cursor-based pagination, and ingests each row as a record. Per-stream cursor is persisted in RunState (`source_states[\"__sql_cursor__\"]`) so subsequent calls resume from where the previous one left off.\n\n**Supported dialects:** PostgreSQL (`postgresql+asyncpg://`), SQLite (`sqlite+aiosqlite:///`), and any other dialect SQLAlchemy supports as an async driver.\n\n**Security:** for v1, the DSN is plaintext on the wire. For scheduled / persisted SQL connectors, store credentials through SecretsService (separate follow-up).\n\nPer-row exceptions are logged and skipped (single bad row never aborts the stream).",
+        "operationId": "ingest_sql_api_v1_ingest_sql_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_IngestSQLRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestSyncResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stream rows from any SQLAlchemy DSN and ingest each row as a record",
+        "tags": [
+          "ingest"
+        ]
+      }
+    },
+    "/api/v1/ingest/stream": {
+      "post": {
+        "description": "Async streaming ingest: returns 202 immediately, runs extraction in background.\nResults are pushed via WebSocket at ws://localhost:8000/ws/{agent_id}.",
+        "operationId": "ingest_text_stream_api_v1_ingest_stream_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ingest Text Stream",
+        "tags": [
+          "ingest"
+        ]
+      }
+    },
+    "/api/v1/ingest/sync": {
+      "post": {
+        "description": "Synchronous ingest: run the full extraction + write pipeline inline.\nIntended for development, testing, and low-volume use-cases.",
+        "operationId": "ingest_text_sync_api_v1_ingest_sync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestSyncResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ingest Text Sync",
+        "tags": [
+          "ingest"
+        ]
+      }
+    },
+    "/api/v1/ingest/url": {
+      "post": {
+        "description": "Fetches each URL via `httpx` (15 s timeout) and parses the response with Trafilatura for precision boilerplate removal.\n\n**Incremental sync:** conditional HTTP headers (`If-None-Match` / `If-Modified-Since`) are sent on repeat calls for the same URL. A `304 Not Modified` response yields zero records for that URL with no graph write \u2014 perfect for scheduled re-crawls.\n\nRunState (ETags / Last-Modified values) is stored in-process and survives across requests for the lifetime of the server. Persist to Redis for multi-process or restart-durable incremental sync.\n\nFailed URLs (4xx, 5xx, timeout, parse error) are routed to the DLQ and do not abort the remaining URLs in the batch.",
+        "operationId": "ingest_url_api_v1_ingest_url_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_IngestURLRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestSyncResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Fetch one or more URLs and ingest their content",
+        "tags": [
+          "ingest"
+        ]
+      }
+    },
+    "/api/v1/node/{node_id}": {
+      "delete": {
+        "description": "GDPR killswitch: permanently delete a node and all its relationships.\nRequires admin permission. Creates an immutable audit log entry in Redis.",
+        "operationId": "delete_node_api_v1_node__node_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "agent_id",
+            "required": false,
+            "schema": {
+              "default": "default",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Agent-Permission",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Agent-Permission"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteNodeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Node",
+        "tags": [
+          "node"
+        ]
+      }
+    },
+    "/api/v1/query": {
+      "post": {
+        "description": "Natural-language query over the knowledge graph.\nTranslates the question to Cypher using an LLM, executes it, and synthesises\na human-readable answer with supporting subgraph context.\n\n**Episodic Memory:** When the agent has ``interaction_memory=True``, the\nquery/response pair is recorded asynchronously as an ``InteractionNode``\nin Neo4j (fire-and-forget via BackgroundTasks \u2014 zero added latency).",
+        "operationId": "query_nl_api_v1_query_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Query Nl",
+        "tags": [
+          "query"
+        ]
+      }
+    },
+    "/api/v1/query/cypher": {
+      "post": {
+        "description": "Execute a raw Cypher query against the graph.\nOnly READ operations are permitted; write keywords are rejected.\nResults are filtered to the requesting agent's namespace.",
+        "operationId": "query_cypher_api_v1_query_cypher_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CypherQueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "object"
+                  },
+                  "title": "Response Query Cypher Api V1 Query Cypher Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Query Cypher",
+        "tags": [
+          "query"
+        ]
+      }
+    },
+    "/api/v1/query/stream": {
+      "post": {
+        "description": "Streaming natural-language query via Server-Sent Events.\nTokens arrive as they're generated \u2014 no waiting for the full response.\n\nSSE format:\n    data: <token>\\n\\n\n    data: [DONE]\\n\\n",
+        "operationId": "stream_query_api_v1_query_stream_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stream Query",
+        "tags": [
+          "query"
+        ]
+      }
+    },
+    "/api/v1/query/traverse": {
+      "post": {
+        "description": "Traverse the graph from a start node up to the requested depth.\nOptionally filter by relationship type.",
+        "operationId": "traverse_api_v1_query_traverse_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TraverseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GraphPayload"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Traverse",
+        "tags": [
+          "query"
+        ]
+      }
+    },
+    "/api/v1/replay/events": {
+      "post": {
+        "description": "Record a workflow event for later replay/audit.",
+        "operationId": "record_event_api_v1_replay_events_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordEventRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordEventResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Record Event",
+        "tags": [
+          "replay"
+        ]
+      }
+    },
+    "/api/v1/replay/workflows": {
+      "get": {
+        "description": "List distinct workflow runs available for replay.",
+        "operationId": "list_workflows_api_v1_replay_workflows_get",
+        "parameters": [
+          {
+            "description": "Filter by agent ID",
+            "in": "query",
+            "name": "agent_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by agent ID",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Workflows",
+        "tags": [
+          "replay"
+        ]
+      }
+    },
+    "/api/v1/replay/workflows/{workflow_id}/events": {
+      "get": {
+        "description": "Fetch the complete event log for a specific workflow run.",
+        "operationId": "get_workflow_events_api_v1_replay_workflows__workflow_id__events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workflow_id",
+            "required": true,
+            "schema": {
+              "title": "Workflow Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter events after this ISO timestamp",
+            "in": "query",
+            "name": "start_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter events after this ISO timestamp",
+              "title": "Start Time"
+            }
+          },
+          {
+            "description": "Filter events before this ISO timestamp",
+            "in": "query",
+            "name": "end_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter events before this ISO timestamp",
+              "title": "End Time"
+            }
+          },
+          {
+            "description": "Comma-separated event type filter",
+            "in": "query",
+            "name": "event_types",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Comma-separated event type filter",
+              "title": "Event Types"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 1000,
+              "maximum": 10000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowEventsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Workflow Events",
+        "tags": [
+          "replay"
+        ]
+      }
+    },
+    "/api/v1/swarm/connections": {
+      "get": {
+        "description": "List all swarm connections for a given agent (as source or target).",
+        "operationId": "list_connections_api_v1_swarm_connections_get",
+        "parameters": [
+          {
+            "description": "Agent ID to list connections for",
+            "in": "query",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "description": "Agent ID to list connections for",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Connections",
+        "tags": [
+          "swarm"
+        ]
+      },
+      "post": {
+        "description": "Establish a swarm connection granting one agent access to another agent's graph.\n\nPermissions:\n- read_only: target can query source's graph but not modify it\n- read_write: target can read and write to source's graph\n\nScope:\n- full: all node/edge types\n- filtered: restricted to allowed_node_types / allowed_relation_types",
+        "operationId": "create_connection_api_v1_swarm_connections_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SwarmConnectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwarmConnectionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Connection",
+        "tags": [
+          "swarm"
+        ]
+      }
+    },
+    "/api/v1/swarm/connections/{connection_id}": {
+      "delete": {
+        "description": "Revoke (delete) a swarm connection by ID.",
+        "operationId": "revoke_connection_api_v1_swarm_connections__connection_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "title": "Connection Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revoke Connection",
+        "tags": [
+          "swarm"
+        ]
+      }
+    },
+    "/api/v1/swarm/events/stream": {
+      "get": {
+        "description": "Stream live swarm worker activity as Server-Sent Events (SSE).\n\nArchitecture\n------------\nWorker events are published to the Redis Pub/Sub channel\n``swarm_log_channel`` by ``publish_swarm_log()`` throughout the\nswarm pipeline (pheromone stamp, lease claim, specialist dispatch,\nXACK, etc.).  This endpoint subscribes to that channel and fans\nthe events out to every connected browser tab simultaneously.\n\nWhy Pub/Sub, not the pheromone Redis Stream\n--------------------------------------------\nThe existing ``pheromone_stream`` uses Consumer Groups \u2014 each\nmessage is delivered to exactly ONE worker.  Multiple browser tabs\nsubscribing to it would steal messages from each other.  Pub/Sub\nbroadcasts every message to ALL subscribers, making it the correct\nprimitive for live-log fan-out.\n\nZombie-connection prevention\n----------------------------\n``await request.is_disconnected()`` is checked on every iteration.\nWhen the user closes the browser tab, FastAPI raises a disconnect\nsignal; the loop breaks, the generator is garbage-collected, and\nthe Pub/Sub subscriber is cleaned up via its ``finally`` block.\nWithout this check, a closed connection would keep a coroutine and\na Redis Pub/Sub slot open indefinitely \u2014 a memory and connection\nleak under sustained traffic.\n\nSSE format (per W3C EventSource spec)\n--------------------------------------\nEach event frame::\n\n    data: {\"type\":\"pheromone\",\"agent\":\"swarm_worker_3f9a\",\"message\":\"Node stamped\",\"timestamp\":\"2026-04-04T18:00:00Z\",\"node_id\":\"abc123\"}\\n\\n\n\nThe double newline (``\\n\\n``) is the SSE frame delimiter that\ntriggers the browser's ``EventSource.onmessage`` callback.\n\nResponse headers\n----------------\n``Cache-Control: no-cache``  \u2014 prevents proxies from buffering the stream.\n``Connection: keep-alive``   \u2014 keeps the TCP connection open for the\n                               lifetime of the subscription.\n``X-Accel-Buffering: no``    \u2014 disables Nginx proxy buffering when the\n                               backend sits behind an Nginx reverse proxy.\n\nClient usage (JavaScript)\n-------------------------\n::\n\n    const es = new EventSource(\"/api/v1/swarm/events/stream\");\n    es.onmessage = (e) => {\n        const event = JSON.parse(e.data);\n        console.log(event.type, event.agent, event.message);\n    };\n    // Close when done to release the server-side subscription:\n    es.close();\n\nEvent schema (JSON fields in every frame)\n------------------------------------------\n.. code-block:: json\n\n    {\n        \"type\":      \"pheromone | lease | dispatch | ack | error | heartbeat\",\n        \"agent\":     \"<worker_id or specialist_name>\",\n        \"message\":   \"<human-readable log line>\",\n        \"timestamp\": \"<ISO-8601 UTC>\",\n        \"node_id\":   \"<optional>\",\n        \"session_id\":\"<optional>\"\n    }",
+        "operationId": "swarm_events_stream_api_v1_swarm_events_stream_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Swarm Live-Log \u2014 Server-Sent Events",
+        "tags": [
+          "swarm"
+        ]
+      }
+    },
+    "/api/v1/swarm/health": {
+      "get": {
+        "description": "Aggregate all live swarm worker heartbeats into a single health snapshot.\n\nDiscovery mechanism\n-------------------\nEach ``swarm_listener`` worker refreshes a Redis key\n``agent_status:{agent_id}`` every 10 s with a TTL of 15 s\n(see ``_heartbeat_loop`` in ``workers/swarm_listener.py``).\n\nThis endpoint scans for all keys matching ``agent_status:*`` and\nreturns the agent IDs of workers that are currently online.  A worker\nthat has stopped refreshing its key is automatically absent from the\nlist within \u226415 s \u2014 no explicit de-registration required.\n\nSCAN vs KEYS\n------------\n``redis.scan_iter()`` uses Redis' cursor-based SCAN under the hood.\nUnlike ``KEYS *``, it never blocks the Redis event loop for longer\nthan O(1) per iteration, making it safe for production key-spaces\nwith tens of thousands of entries.\n\nResponse\n--------\n``200 OK``::\n\n    {\n        \"active_agents\": [\"swarm_worker_3f9a1c02\", \"swarm_worker_a81b4d77\"],\n        \"total\": 2\n    }\n\nAn empty ``active_agents`` list means no workers are currently running.",
+        "operationId": "swarm_health_api_v1_swarm_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Live worker presence \u2014 Swarm Pulse",
+        "tags": [
+          "swarm"
+        ]
+      }
+    },
+    "/api/v1/swarm/query": {
+      "post": {
+        "description": "Swarm Intelligence: federated multi-agent query with LLM synthesis.\n\nPipeline:\n  1. Embed query \u2192 vector search across all/selected agents\n  2. Fall back to text search if vector search yields nothing\n  3. Build attributed context: [Agent: <id>] Wei\u00df: <fact>\n  4. LiteLLM synthesis with Swarm Intelligence system prompt\n  5. Return answer + source_node_ids (for 3D graph highlighting)",
+        "operationId": "swarm_query_api_v1_swarm_query_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SwarmQueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwarmQueryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Swarm Query",
+        "tags": [
+          "swarm"
+        ]
+      }
+    },
+    "/api/v1/synthesize": {
+      "post": {
+        "description": "Generate a fine-tuning dataset from the knowledge graph.\n\nStrategies:\n- factual: simple entity-attribute Q&A pairs\n- reasoning: multi-hop chain-of-thought examples\n- relations: relation extraction training examples\n\nOutput formats: openai (chat JSONL), alpaca, or both.",
+        "operationId": "synthesize_dataset_api_v1_synthesize_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SynthesizeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SynthesizeResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Synthesize Dataset",
+        "tags": [
+          "synthesize"
+        ]
+      }
+    },
+    "/api/v1/synthesize/download/{dataset_id}": {
+      "get": {
+        "description": "Download a previously generated dataset as a .jsonl file.\nThe dataset_id is returned by the POST /synthesize endpoint.",
+        "operationId": "download_dataset_api_v1_synthesize_download__dataset_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataset_id",
+            "required": true,
+            "schema": {
+              "title": "Dataset Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Dataset",
+        "tags": [
+          "synthesize"
+        ]
+      }
+    },
+    "/api/v1/synthesize/export": {
+      "get": {
+        "description": "Stream the entire knowledge graph (or a single agent's subset) as a\nChatML-formatted `.jsonl` file suitable for OpenAI / LM-Studio fine-tuning.\n\nEach line is a complete JSON object:\n    {\"messages\": [\n        {\"role\": \"system\",  \"content\": \"...\"},\n        {\"role\": \"user\",    \"content\": \"...\"},\n        {\"role\": \"assistant\",\"content\": \"...\"}\n    ]}\n\nThe response is streamed record-by-record from the Neo4j cursor so that\narbitrarily large graphs never materialise fully in RAM.",
+        "operationId": "export_chatml_stream_api_v1_synthesize_export_get",
+        "parameters": [
+          {
+            "description": "Export only nodes belonging to this agent. Omit for the full multiverse.",
+            "in": "query",
+            "name": "agent_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Export only nodes belonging to this agent. Omit for the full multiverse.",
+              "title": "Agent Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Chatml Stream",
+        "tags": [
+          "synthesize"
+        ]
+      }
+    },
+    "/api/v1/synthesize/generate_dataset": {
+      "get": {
+        "description": "Generate synthetic agentic tool-call trajectories for fine-tuning small LMs.\n\nEach record in the output `.jsonl` is a complete 5-turn conversation:\n    system \u2192 user \u2192 assistant (tool_call) \u2192 tool (result) \u2192 assistant (final answer)\n\nThe model is trained to autonomously call `query_spaider` when it needs\nknowledge-graph facts \u2014 mirroring real SpAIder agent behaviour.\n\nSampling strategy:\n  1. Try to find a random SHARES_KNOWLEDGE_WITH bridge and sample nodes\n     from both connected agents \u2014 produces rich cross-domain examples.\n  2. Fall back to random nodes within `agent_id` (or any agent) if no\n     bridges exist.\n\nThe Teacher LLM (configured via `LLM_MODEL` env) invents realistic user\nquestions, tool queries, simulated results, and final answers.\nThe stream is line-delimited JSON \u2014 safe to pipe directly to training jobs.",
+        "operationId": "generate_agentic_dataset_api_v1_synthesize_generate_dataset_get",
+        "parameters": [
+          {
+            "description": "Scope sampling to a specific agent. Omit to use the full multiverse.",
+            "in": "query",
+            "name": "agent_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Scope sampling to a specific agent. Omit to use the full multiverse.",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "description": "Number of tool-call trajectories to generate.",
+            "in": "query",
+            "name": "num_samples",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Number of tool-call trajectories to generate.",
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Num Samples",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Max simultaneous Teacher-LLM calls.",
+            "in": "query",
+            "name": "concurrency",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "description": "Max simultaneous Teacher-LLM calls.",
+              "maximum": 20,
+              "minimum": 1,
+              "title": "Concurrency",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate Agentic Dataset",
+        "tags": [
+          "synthesize"
+        ]
+      }
+    },
+    "/api/v1/system/consolidate": {
+      "post": {
+        "description": "Trigger the graph_maintenance Airflow DAG immediately, off its\nnormal schedule. Useful right after a heavy ingest, or when the\noperator wants to run consolidation without waiting for Sunday 03:00 UTC.\n\nBehaviour\n---------\n- Returns the new ``dag_run_id`` and a ``status_url`` the operator can\n  poll (or open in the Airflow UI).\n- Returns **503 Service Unavailable** when ``AIRFLOW_BASE_URL`` is\n  unset or unreachable. The error body points at the CLI fallback\n  (``python -m app.scripts.run_consolidation``) which works without\n  Airflow.\n\nAuthentication: re-uses ``AIRFLOW_USERNAME``/``AIRFLOW_PASSWORD`` from\nsettings (basic auth \u2014 Airflow's stable v2 default). Airflow's other\nauth schemes (Kerberos, JWT) would need a separate adapter.",
+        "operationId": "trigger_consolidate_api_v1_system_consolidate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ConsolidateRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsolidateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Trigger Consolidate",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/v1/system/feedback": {
+      "post": {
+        "description": "Submit feedback for a completed query to trigger Hebbian weight updates.\n\nThe endpoint returns **202 Accepted** immediately.  The actual Neo4j write\nruns as a background task so the client is never blocked on DB latency.\n\n**Hebbian rules applied to all RELATION edges between `used_node_ids`:**\n- `success = true`  \u2192 `utility_weight = min(2.0, weight + 0.1)`\n- `success = false` \u2192 `utility_weight = max(0.1, weight - 0.1)`\n\nIn V2 engine mode, edges with `utility_weight < 0.3` are filtered out of\nRAG retrieval (Managed Forgetting), while high-weight edges are prioritised\nat the top of the LLM context window.",
+        "operationId": "submit_feedback_api_v1_system_feedback_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit query feedback for synaptic plasticity update",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/v1/system/settings": {
+      "get": {
+        "description": "Read the global system settings from Neo4j.\nCreates the singleton node on first call if it does not yet exist.\n\nReturns:\n    auto_reflection: Whether the autonomous Reflection Engine is active.\n    engine_version:  Active graph engine \u2014 \"v1\" (classic RAG) or \"v2\" (Cognitive Graph).",
+        "operationId": "get_system_settings_api_v1_system_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemSettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get System Settings",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/v1/system/settings/engine": {
+      "post": {
+        "description": "Switch the active graph engine between V1 and V2.\n\n- **v1**: Classic RAG graph \u2014 all edges rendered with uniform width.\n- **v2**: Cognitive Graph \u2014 edge width reflects `utility_weight` synapse strength.\n\nThe setting is persisted in Neo4j and immediately visible to all connected clients\nvia the EngineContext (frontend polls or reads on mount).\nReturns 404 if the settings node is missing (call GET first to initialise).",
+        "operationId": "set_engine_version_api_v1_system_settings_engine_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EngineVersionToggle"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemSettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Engine Version",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/v1/system/settings/reflection": {
+      "post": {
+        "description": "Enable or disable the autonomous Reflection Engine (Hippocampus).\n\nThe toggle is persisted on the global SystemSettings singleton in Neo4j\nand is checked by the background scheduler every 5 minutes.\nReturns 404 if the settings node is missing (call GET first to initialise).",
+        "operationId": "set_reflection_toggle_api_v1_system_settings_reflection_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReflectionToggle"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemSettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Reflection Toggle",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "Check the liveness and readiness of all backend services.\nReturns a per-service status dict and an overall healthy flag.",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Health Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Service health check",
+        "tags": [
+          "health"
+        ]
+      }
+    }
+  }
+}

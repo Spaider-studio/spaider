@@ -1,0 +1,10 @@
+id: nx_19
+category: nexora
+title: What is the badge ID of Nexora's lead for privacy-preserving machine learning
+  for LLM services?
+prompt: What is the badge ID of Nexora's lead for privacy-preserving machine learning
+  for LLM services?
+format_hint: Answer with just the value, no explanation.
+expected_substring: NX-1974
+max_tokens: 256
+requires_mcp: false

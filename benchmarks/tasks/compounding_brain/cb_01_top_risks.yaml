@@ -1,0 +1,20 @@
+id: cb_01_top_risks
+category: compounding_brain
+title: "Identify the top 3 risks blocking the Atlas Q2 launch"
+prompt: |
+  Identify the top 3 risks currently blocking the Q2 launch of project
+  Atlas at AcmeAI. Be specific — name the systems, people, and dates
+  involved. Do not speculate; only cite risks supported by recent team
+  activity. Reply with a numbered list of three items, one short paragraph each.
+oracle:
+  kind: llm_judge
+  rubric: |
+    PASS the response if it identifies at least 3 distinct risks AND each
+    risk references concrete entities from the corpus (named people,
+    systems, dates, or customers). Examples of qualifying risks: the
+    auth-service token race, the database migration window with zero
+    buffer, the unowned acmeai.com domain renewal, the Stark Industries
+    feature Y scope creep, the Globex billing reconciliation problem.
+    FAIL if the response is vague (e.g. "scope creep", "tech debt"),
+    invents risks not in the data, or names fewer than 3 distinct items.
+max_tokens: 2048

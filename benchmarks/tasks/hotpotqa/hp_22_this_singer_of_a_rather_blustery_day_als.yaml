@@ -1,0 +1,16 @@
+id: hp_22
+category: hotpotqa
+title: 'HotpotQA: This singer of A Rather Blustery Day also voiced what hedgehog?'
+prompt: This singer of A Rather Blustery Day also voiced what hedgehog?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: Sonic
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  hotpot_id: 5ae6050f55429929b0807a5e
+  hotpot_type: bridge
+  hotpot_level: hard
+  supporting_titles:
+  - A Rather Blustery Day
+  - Jim Cummings

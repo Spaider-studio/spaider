@@ -1,0 +1,12 @@
+id: acme_08
+category: acmeai
+title: 'AcmeAI: How much ARR is at risk from Initech''s unrenewal notice?'
+prompt: How much ARR is at risk from Initech's unrenewal notice?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: $90k
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  supporting_titles:
+  - Initech

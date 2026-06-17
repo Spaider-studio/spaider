@@ -1,0 +1,10 @@
+id: nx_09
+category: nexora
+title: What budget was Nexora's vendor-compliance auditing project for Beacon Media
+  greenlit with?
+prompt: What budget was Nexora's vendor-compliance auditing project for Beacon Media
+  greenlit with?
+format_hint: Answer with just the value, no explanation.
+expected_substring: 2,160,000
+max_tokens: 256
+requires_mcp: false

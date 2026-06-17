@@ -1,0 +1,17 @@
+id: cb_08_atlas_health
+category: compounding_brain
+title: "Project Atlas — overall health: green / yellow / red?"
+prompt: |
+  As of the most recent retro, is project Atlas on track for its Q2
+  launch? Answer green / yellow / red and cite at least 2 pieces of
+  evidence. Reply in 4-5 sentences.
+oracle:
+  kind: llm_judge
+  rubric: |
+    PASS if the response says yellow or red (NOT green), AND cites at
+    least 2 of: auth-service race, DB migration zero-buffer, unowned
+    domain renewal, Stark scope creep, Globex billing problem,
+    headcount freeze. The reasoning should be specific.
+    FAIL if it says green (the data clearly supports yellow/red), or
+    if its evidence is generic.
+max_tokens: 2048

@@ -1,0 +1,18 @@
+id: cb_05_unowned_blocker
+category: compounding_brain
+title: "Find the unowned launch-blocker that nobody is tracking"
+prompt: |
+  Is there any active risk to the Atlas Q2 launch that currently has no
+  named owner? If so, name it specifically and explain why it's
+  unowned. Reply in 2 sentences.
+oracle:
+  kind: llm_judge
+  rubric: |
+    PASS if the response identifies the acmeai.com domain renewal due
+    2026-06-15 as an unowned launch-blocker, AND explicitly notes that
+    it falls 13 days before the June 28 launch with no human picking
+    up the action item.
+    FAIL if it picks a risk that does have an owner (e.g. the
+    auth-service race is owned by Sara; the DB migration is owned by
+    Priya), or if it doesn't surface the domain renewal at all.
+max_tokens: 2048

@@ -1,0 +1,12 @@
+id: acme_03
+category: acmeai
+title: 'AcmeAI: How much ARR is at risk if Stark Industries churns?'
+prompt: How much ARR is at risk if Stark Industries churns?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: $480k
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  supporting_titles:
+  - Stark

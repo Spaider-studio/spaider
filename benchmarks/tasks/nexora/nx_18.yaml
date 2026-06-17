@@ -1,0 +1,10 @@
+id: nx_18
+category: nexora
+title: What is the badge ID of Nexora's lead for adversarial-robustness testing for
+  fraud systems?
+prompt: What is the badge ID of Nexora's lead for adversarial-robustness testing for
+  fraud systems?
+format_hint: Answer with just the value, no explanation.
+expected_substring: NX-5261
+max_tokens: 256
+requires_mcp: false

@@ -1,0 +1,226 @@
+name: CI
+
+# One CI workflow for the whole monorepo. A cheap `changes` job detects which
+# package trees a push/PR touches (dorny/paths-filter), and only the affected
+# jobs run. PR checks render as "CI / backend-tests", "CI / cli-tests (3.12)",
+# and so on, all grouped under a single workflow on the Actions tab.
+#
+# Job inventory (each ported unchanged from the per-package workflows this
+# file replaced: backend-ci, frontend-ci, cli-ci, sdk-ci):
+#
+#   backend-lint     ruff check (E, F, W, I) over backend/app. ~15s.
+#   backend-deps     installs the backend on each supported Python and
+#                    byte-compiles every module; catches a dependency without
+#                    wheels for a new Python (a common dependency-bump break).
+#   backend-tests    full compose stack (Neo4j / Redis / Kafka / ...) and the
+#                    backend pytest suite inside the API container, exactly as
+#                    it runs locally. The regression wall.
+#   frontend-build   `npm ci && npm run build` for the Next.js app, so a
+# dependency bump can't silently break the build.
+#   cli-tests        lint + pytest for spaider-cli on 3.11-3.14. Self-contained.
+#   sdk-tests        lint + pytest for spaider-client on 3.11-3.14, including
+#                    the OpenAPI contract guard (tests/test_contract.py) that
+#                    fails when SDK models drift from the committed snapshot.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  # paths-filter reads the PR's changed-file list via the API on
+  # pull_request events; without this it fails with
+  # "Resource not accessible by integration".
+  pull-requests: read
+
+# Cancel superseded PR runs; queue (never cancel) runs on main.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      cli: ${{ steps.filter.outputs.cli }}
+      sdk: ${{ steps.filter.outputs.sdk }}
+    steps:
+      - uses: actions/checkout@v6
+      # Third-party action: pinned to a full commit SHA (v4.0.1).
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'docker-compose.yml'
+              - 'docker-compose.dev.yml'
+              - '.env.example'
+              - '.github/workflows/ci.yml'
+            frontend:
+              - 'frontend/**'
+              - '.github/workflows/ci.yml'
+            cli:
+              - 'cli/**'
+              - '.github/workflows/ci.yml'
+            sdk:
+              - 'sdk/python/**'
+              - '.github/workflows/ci.yml'
+
+  backend-lint:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install ruff
+        run: pip install "ruff>=0.6,<0.7"
+      - name: Ruff check (E, F, W, I)
+        working-directory: backend
+        run: ruff check --select E,F,W,I app
+
+  backend-deps:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.14 added once its wheel ecosystem for the native deps completes.
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - name: Install backend (resolves all wheels on this Python)
+        working-directory: backend
+        run: pip install .[dev]
+      - name: Byte-compile every module
+        working-directory: backend
+        run: python -m compileall -q app
+
+  backend-tests:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Prepare .env
+        env:
+          # Optional: add an OPENAI_API_KEY repo secret to also run the live
+          # ingest->query e2e tests; without it they skip and the rest run.
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          cp .env.example .env
+          python3 - <<'PY'
+          import base64, os, pathlib, re, secrets
+          p = pathlib.Path(".env")
+          s = p.read_text()
+          key = base64.b64encode(secrets.token_bytes(32)).decode()
+          s = re.sub(r"(?m)^CONNECTOR_SECRET_KEY=.*$", f"CONNECTOR_SECRET_KEY={key}", s)
+          llm = os.environ.get("OPENAI_API_KEY", "")
+          if llm:
+              s = re.sub(r"(?m)^LLM_API_KEY=.*$", f"LLM_API_KEY={llm}", s)
+              s = re.sub(r"(?m)^EMBEDDING_API_KEY=.*$", f"EMBEDDING_API_KEY={llm}", s)
+          p.write_text(s)
+          PY
+
+      - name: Bring up the stack
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build --wait backend-api backend-worker
+
+      - name: Run backend test suite
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml exec -T backend-api python -m pytest tests/ --ignore=tests/eval -q
+
+      - name: Stack logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml logs --tail=150 backend-api neo4j redis kafka
+
+  frontend-build:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install (clean, from lockfile)
+        working-directory: frontend
+        run: npm ci
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+  cli-tests:
+    needs: changes
+    if: needs.changes.outputs.cli == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+
+      - name: Install spaider-cli + dev extras
+        run: pip install -e "./cli[dev]"
+
+      - name: Ruff lint
+        run: ruff check cli/src cli/tests
+
+      - name: Pytest
+        run: cd cli && python -m pytest -v --tb=short
+
+  sdk-tests:
+    needs: changes
+    if: needs.changes.outputs.sdk == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+
+      - name: Install spaider-client + dev extras
+        run: pip install -e "./sdk/python[dev]"
+
+      - name: Ruff check (E, F, W, I)
+        run: cd sdk/python && ruff check --select E,F,W,I spaider tests
+
+      - name: Pytest (incl. OpenAPI contract guard)
+        run: cd sdk/python && python -m pytest -v --tb=short

@@ -1,0 +1,2 @@
+# This file ensures that Git tracks the otherwise empty 'public' directory
+# so that the Dockerfile doesn't fail when trying to COPY it.

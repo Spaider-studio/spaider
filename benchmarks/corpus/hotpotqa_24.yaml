@@ -1,0 +1,260 @@
+company: HotpotQA
+window:
+  start: '2026-04-29'
+  days: 1
+facts:
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: Scott Derrickson] Scott Derrickson (born July 16, 1966) is an American director, screenwriter and producer.  He lives in Los Angeles, California.  He is best known for directing horror
+    films such as "Sinister", "The Exorcism of Emily Rose", and "Deliver Us From Evil", as well as the 2016 Marvel Cinematic Universe installment, "Doctor Strange."'
+  source: hotpotqa:5a8b57f25542995d1e6f1371#Scott Derrickson
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: "[Wikipedia: Ed Wood] Edward Davis Wood Jr. (October 10, 1924 \u2013 December 10, 1978) was an American filmmaker, actor, writer, producer, and director."
+  source: hotpotqa:5a8b57f25542995d1e6f1371#Ed Wood
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: "[Wikipedia: Shirley Temple] Shirley Temple Black (April 23, 1928 \u2013 February 10, 2014) was an American actress, singer, dancer, businesswoman, and diplomat who was Hollywood's number one box-office\
+    \ draw as a child actress from 1935 to 1938.  As an adult, she was named United States ambassador to Ghana and to Czechoslovakia and also served as Chief of Protocol of the United States."
+  source: hotpotqa:5a8c7595554299585d9e36b6#Shirley Temple
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: Kiss and Tell (1945 film)] Kiss and Tell is a 1945 American comedy film starring then 17-year-old Shirley Temple as Corliss Archer.  In the film, two teenage girls cause their respective
+    parents much concern when they start to become interested in boys.  The parents'' bickering about which girl is the worse influence causes more problems than it solves.'
+  source: hotpotqa:5a8c7595554299585d9e36b6#Kiss and Tell (1945 film)
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: The Hork-Bajir Chronicles] The Hork-Bajir Chronicles is the second companion book to the "Animorphs" series, written by K. A. Applegate.  With respect to continuity within the series,
+    it takes place before book #23, "The Pretender", although the events told in the story occur between the time of "The Ellimist Chronicles" and "The Andalite Chronicles".  The book is introduced by Tobias,
+    who flies to the valley of the free Hork-Bajir, where Jara Hamee tells him the story of how the Yeerks enslaved the Hork-Bajir, and how Aldrea, an Andalite, and her companion, Dak Hamee, a Hork-Bajir,
+    tried to save their world from the invasion.  Jara Hamee''s story is narrated from the points of view of Aldrea, Dak Hamee, and Esplin 9466, alternating in similar fashion to the "Megamorphs" books.'
+  source: hotpotqa:5a85ea095542994775f606a8#The Hork-Bajir Chronicles
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: Animorphs] Animorphs is a science fantasy series of young adult books written by Katherine Applegate and her husband Michael Grant, writing together under the name K. A. Applegate,
+    and published by Scholastic.  It is told in first person, with all six main characters taking turns narrating the books through their own perspectives.  Horror, war, dehumanization, sanity, morality,
+    innocence, leadership, freedom and growing up are the core themes of the series.'
+  source: hotpotqa:5a85ea095542994775f606a8#Animorphs
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: Laleli Mosque] The Laleli Mosque (Turkish: "Laleli Camii, or Tulip Mosque" ) is an 18th-century Ottoman imperial mosque located in Laleli, Fatih, Istanbul, Turkey.'
+  source: hotpotqa:5adbf0a255429947ff17385a#Laleli Mosque
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: "[Wikipedia: Esma Sultan Mansion] The Esma Sultan Mansion (Turkish: \"Esma Sultan Yal\u0131s\u0131\" ), a historical yal\u0131 (English: waterside mansion ) located at Bosphorus in Ortak\xF6y neighborhood\
+    \ of Istanbul, Turkey and named after its original owner Esma Sultan, is used today as a cultural center after being redeveloped."
+  source: hotpotqa:5adbf0a255429947ff17385a#Esma Sultan Mansion
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: Adriana Trigiani] Adriana Trigiani is an Italian American best-selling author of sixteen books, television writer, film director, and entrepreneur based in Greenwich Village, New York
+    City.  Trigiani has published a novel a year since 2000.'
+  source: hotpotqa:5a8e3ea95542995a26add48d#Adriana Trigiani
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: Big Stone Gap (film)] Big Stone Gap is a 2014 American drama romantic comedy film written and directed by Adriana Trigiani and produced by Donna Gigliotti for Altar Identity Studios,
+    a subsidiary of Media Society.  Based on Trigiani''s 2000 best-selling novel of the same name, the story is set in the actual Virginia town of Big Stone Gap circa 1970s.  The film had its world premiere
+    at the Virginia Film Festival on November 6, 2014.'
+  source: hotpotqa:5a8e3ea95542995a26add48d#Big Stone Gap (film)
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: 2014 S/S] 2014 S/S is the debut album of South Korean group WINNER.  It was released on August 12, 2014 by the group''s record label, YG Entertainment.  The members were credited for
+    writing the lyrics and composing the majority of the album''s songs.'
+  source: hotpotqa:5abd94525542992ac4f382d2#2014 S/S
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: "[Wikipedia: Winner (band)] Winner (Hangul: \uC704\uB108), often stylized as WINNER, is a South Korean boy group formed in 2013 by YG Entertainment and debuted in 2014.  It currently consists of\
+    \ four members, Jinwoo, Seunghoon, Mino and Seungyoon.  Originally a five-piece group with Taehyun, who later departed from the group in November 2016."
+  source: hotpotqa:5abd94525542992ac4f382d2#Winner (band)
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: "[Wikipedia: Eenasul Fateh] Eenasul Fateh (Bengali: \u0988\u09A8\u09BE\u09B8\u09C1\u09B2 \u09AB\u09BE\u09A4\u09C7\u09B9 ; born 3 April 1959), also known by his stage name Aladin, is a Bangladeshi-British\
+    \ cultural practitioner, magician, live artist and former international management consultant."
+  source: hotpotqa:5a85b2d95542997b5ce40028#Eenasul Fateh
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: Management consulting] Management consulting is the practice of helping organizations to improve their performance, operating primarily through the analysis of existing organizational
+    problems and the development of plans for improvement.  Organizations may draw upon the services of management consultants for a number of reasons, including gaining external (and presumably objective)
+    advice and access to the consultants'' specialized expertise.'
+  source: hotpotqa:5a85b2d95542997b5ce40028#Management consulting
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: "[Wikipedia: Androscoggin Bank Colis\xE9e] The Androscoggin Bank Colis\xE9e (formerly Central Maine Civic Center and Lewiston Colisee) is a 4,000 capacity (3,677 seated) multi-purpose arena, in\
+    \ Lewiston, Maine, that opened in 1958.  In 1965 it was the location of the World Heavyweight Title fight during which one of the most famous sports photographs of the century was taken of Muhammed\
+    \ Ali standing over Sonny Liston."
+  source: "hotpotqa:5a87ab905542996e4f3088c1#Androscoggin Bank Colis\xE9e"
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: "[Wikipedia: Lewiston Maineiacs] The Lewiston Maineiacs were a junior ice hockey team of the Quebec Major Junior Hockey League based in Lewiston, Maine.  The team played its home games at the Androscoggin\
+    \ Bank Colis\xE9e.  They were the second QMJHL team in the United States, and the only one to play a full season.  They won the President's Cup in 2007."
+  source: hotpotqa:5a87ab905542996e4f3088c1#Lewiston Maineiacs
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: Annie Morton] Annie Morton (born October 8, 1970) is an American model born in Pennsylvania.  She has appeared on the covers of "British Vogue", "ID", "Marie Claire", and other magazines.  She
+    has been photographed by Helmut Newton; Peter Lindbergh; Annie Leibovitz; Richard Avedon; Juergen Teller; Paul Jasmin, Mary Ellen Mark and Terry Richardson, and modeled for Donna Karan, Givenchy, Guerlain,
+    Chanel, "Harper''s Bazaar", "Sports Illustrated" and Victoria''s Secret.  A long time vegetarian, an advocate for organic lifestyle choices and natural healthcare.  She co-founded Tsi-La Organics, a
+    "Green Luxury" company that creates and sells vegan, organic perfume and skin care products.'
+  source: hotpotqa:5a7bbb64554299042af8f7cc#Annie Morton
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: Terry Richardson] Terrence "Uncle Terry" Richardson (born August 14, 1965) is an American fashion and portrait photographer who has shot advertising campaigns for Marc Jacobs, Aldo,
+    Supreme, Sisley, Tom Ford, and Yves Saint Laurent among others.  He has also done work for magazines such as "Rolling Stone", "GQ", "Vogue", "Vanity Fair", "Harper''s Bazaar", "i-D", and "Vice".'
+  source: hotpotqa:5a7bbb64554299042af8f7cc#Terry Richardson
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: Local H] Local H is an American rock band originally formed by guitarist and vocalist Scott Lucas, bassist Matt Garcia, drummer Joe Daniels, and lead guitarist John Sparkman in Zion,
+    Illinois in 1987.  The members all met in high school in 1987 and founded Local H three years later.'
+  source: hotpotqa:5a8db19d5542994ba4e3dd00#Local H
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: For Against] For Against is a United States post-punk/dream pop band from Lincoln, Nebraska.  Despite numerous lineup shuffles and some periods of dormancy, the band has produced material
+    steadily from its 1984 inception to the present.'
+  source: hotpotqa:5a8db19d5542994ba4e3dd00#For Against
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: "[Wikipedia: Kansas Song] Kansas Song (We\u2019re From Kansas) is a fight song of the University of Kansas."
+  source: hotpotqa:5a7166395542994082a3e814#Kansas Song
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: University of Kansas] The University of Kansas, often referred to as KU or Kansas, is a public research university in the U.S. state of Kansas.  The main campus in Lawrence, one of
+    the largest college towns in Kansas, is on Mount Oread, the highest elevation in Lawrence.  Two branch campuses are in the Kansas City metropolitan area: the Edwards Campus in Overland Park, and the
+    university''s medical school and hospital in Kansas City.  There are also educational and research sites in Parsons, Topeka, Garden City, Hays, and Leavenworth, and branches of the medical school in
+    Wichita and Salina.  The university is one of the 62 members of the Association of American Universities.'
+  source: hotpotqa:5a7166395542994082a3e814#University of Kansas
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: David Weissman] David Weissman is a screenwriter and director.  His film credits include "The Family Man" (2000), "Evolution" (2001), and ""When in Rome"" (2010).'
+  source: hotpotqa:5a877e5d5542993e715abf7d#David Weissman
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: "[Wikipedia: The Family Man] The Family Man is a 2000 American romantic comedy-drama film directed by Brett Ratner, written by David Diamond and David Weissman, and starring Nicolas Cage and T\xE9\
+    a Leoni.  Cage's production company, Saturn Films, helped produce the film.  The film centers on a man who sees what could have been had he made a different decision 13 years prior."
+  source: hotpotqa:5a877e5d5542993e715abf7d#The Family Man
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: End of Days (film)] End of Days is a 1999 American fantasy action horror thriller film directed by Peter Hyams and starring Arnold Schwarzenegger, Gabriel Byrne, Robin Tunney, Kevin
+    Pollak, Rod Steiger, CCH Pounder, and Udo Kier.  The film follows former New York Police Department detective Jericho Cane (Schwarzenegger) after he saves a banker (Byrne) from an assassin, finds himself
+    embroiled in a religious conflict, and must protect an innocent young woman (Tunney) who is chosen by evil forces to conceive the Antichrist with Satan.'
+  source: hotpotqa:5ab3b0bf5542992ade7c6e39#End of Days (film)
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: Oh My God (Guns N'' Roses song)] "Oh My God" is a song by Guns N'' Roses released in 1999 on the soundtrack to the film "End of Days".  The song was sent out to radio stations in November
+    1999 as a promo for the soundtrack and the band.  Despite being the band''s first recorded release in almost five years, it was never issued as a stand-alone single for public retail.'
+  source: hotpotqa:5ab3b0bf5542992ade7c6e39#Oh My God (Guns N' Roses song)
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: 888 7th Avenue] 888 7th Avenue is a 628 ft (191m) tall modern-style office skyscraper in Midtown Manhattan which was completed in 1969 and has 46 floors.  Emery Roth & Sons designed
+    the building, which is tied with Central Park Place for the 65th tallest building in New York City.  It currently carries the Vornado Realty Trust corporate headquarters.  Previously known as the Arlen
+    Building, its namesake being the company responsible for its construction, Arlen Realty & Development Corporation.  The Red Eye Grill is located in the building at street level.'
+  source: hotpotqa:5ab56e32554299637185c594#888 7th Avenue
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: Random House Tower] The Random House Tower, also known as the Park Imperial Apartments, is a 52-story mixed-use tower in New York City, United States, that is used as the headquarters
+    of book publisher Random House and a luxury apartment complex.  The book publisher entrance is on Broadway and goes up to 27 floors, while the apartment complex entrance is on West 56th Street.'
+  source: hotpotqa:5ab56e32554299637185c594#Random House Tower
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: "[Wikipedia: 1995\u201396 Manchester United F.C. season] The 1995\u201396 season was Manchester United's fourth season in the Premier League, and their 21st consecutive season in the top division\
+    \ of English football.  United finished the season by becoming the first English team to win the Double (league title and FA Cup) twice.  Their triumph was made all the more remarkable by the fact that\
+    \ Alex Ferguson had sold experienced players Paul Ince, Mark Hughes and Andrei Kanchelskis before the start of the season, and not made any major signings.  Instead, he had drafted in young players\
+    \ like Nicky Butt, David Beckham, Paul Scholes and the Neville brothers, Gary and Phil."
+  source: "hotpotqa:5ab6d09255429954757d337d#1995\u201396 Manchester United F.C. season"
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: Alex Ferguson] Sir Alexander Chapman Ferguson, CBE (born 31 December 1941) is a Scottish former football manager and player who managed Manchester United from 1986 to 2013.  He is regarded
+    by many players, managers and analysts to be one of the greatest and most successful managers of all time.'
+  source: hotpotqa:5ab6d09255429954757d337d#Alex Ferguson
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: "[Wikipedia: Brown State Fishing Lake] Brown State Fishing Lake (sometimes also known as Brown State Fishing Lake And Wildlife Area) is a protected area in Brown County, Kansas in the United States.\
+    \  The lake is 62 acres (0.25 km\xB2) in area and up to 13 feet (4 m) deep.  The area was formerly known as Brown County State Park, and is 8 miles (13 km) east of Hiawatha, Kansas."
+  source: hotpotqa:5a75e05c55429976ec32bc5f#Brown State Fishing Lake
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: Brown County, Kansas] Brown County (county code BR) is a county located in the northeast portion of the U.S. state of Kansas.  As of the 2010 census, the county population was 9,984.  Its
+    county seat and most populous city is Hiawatha.  Brown County is the location of the Kickapoo Indian Reservation of Kansas, the majority of the Sac and Fox Reservation and the majority of the Iowa Reservation
+    of Kansas and Nebraska.'
+  source: hotpotqa:5a75e05c55429976ec32bc5f#Brown County, Kansas
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: America East Conference] The America East Conference is a collegiate athletic conference affiliated with the NCAA Division I, whose members are located mainly in the Northeastern United
+    States.  The conference was known as the Eastern College Athletic Conference-North from 1979 to 1988 and the North Atlantic Conference from 1988 to 1996.'
+  source: hotpotqa:5ab3e45655429976abd1bcd4#America East Conference
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: Vermont Catamounts men''s soccer] The Vermont Catamounts men''s soccer team represents the University of Vermont in all NCAA Division I men''s college soccer competitions.  The team
+    competes in the America East Conference.'
+  source: hotpotqa:5ab3e45655429976abd1bcd4#Vermont Catamounts men's soccer
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: "[Wikipedia: Giuseppe Verdi] Giuseppe Fortunino Francesco Verdi (] ; 9 or 10 October 1813 \u2013 27 January 1901) was an Italian opera composer."
+  source: hotpotqa:5ab29c24554299449642c932#Giuseppe Verdi
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: "[Wikipedia: Ambroise Thomas] Charles Louis Ambroise Thomas (5 August 1811 \u2013 12 February 1896) was a French composer, best known for his operas \"Mignon\" (1866) and \"Hamlet\" (1868, after\
+    \ Shakespeare) and as Director of the Conservatoire de Paris from 1871 till his death."
+  source: hotpotqa:5ab29c24554299449642c932#Ambroise Thomas
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: "[Wikipedia: Richard Nixon] Richard Milhous Nixon (January 9, 1913 \u2013 April 22, 1994) was the 37th President of the United States from 1969 until 1974, when he resigned from office, the only\
+    \ U.S. president to do so.  He had previously served as the 36th Vice President of the United States from 1953 to 1961, and prior to that as a U.S. Representative and also Senator from California."
+  source: hotpotqa:5ae0d4c9554299603e418468#Richard Nixon
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: "[Wikipedia: Roger O. Egeberg] Roger Olaf Egeberg, M.D. (13 November 1902 \u2013 13 September 1997 Washington, D.C.) was an American medical educator, administrator and advocate of public health.\
+    \  He was General Douglas MacArthur's personal physician during World War II in the Pacific theater.  His other roles included Assistant Secretary for Health and Scientific Affairs in the Department\
+    \ of Health, Education, and Welfare (now the United States Department of Health and Human Services) during the Nixon administration and Dean of the University of Southern California's medical school."
+  source: hotpotqa:5ae0d4c9554299603e418468#Roger O. Egeberg
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: "[Wikipedia: Henry Roth] Henry Roth (February 8, 1906 \u2013 October 13, 1995) was an American novelist and short story writer."
+  source: hotpotqa:5a8133725542995ce29dcbdb#Henry Roth
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: "[Wikipedia: Robert Erskine Childers] Robert Erskine Childers DSC (25 June 1870 \u2013 24 November 1922), universally known as Erskine Childers, was a British writer, whose works included the influential\
+    \ novel \"The Riddle of the Sands\", and a Fenian revolutionary who smuggled guns to Ireland in his sailing yacht \"Asgard\".  He was executed by the authorities of the nascent Irish Free State during\
+    \ the Irish Civil War.  He was the son of British Orientalist scholar Robert Caesar Childers; the cousin of Hugh Childers and Robert Barton; and the father of the fourth President of Ireland, Erskine\
+    \ Hamilton Childers."
+  source: hotpotqa:5a8133725542995ce29dcbdb#Robert Erskine Childers
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: "[Wikipedia: Sergio P\xE9rez] Sergio P\xE9rez Mendoza (    ; born 26 January 1990) also known as \"Checo\" P\xE9rez, is a Mexican racing driver, currently driving for Force India."
+  source: "hotpotqa:5ae7a8175542993210983ed8#Sergio P\xE9rez"
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: "[Wikipedia: Formula One drivers from Mexico] There have been six Formula One drivers from Mexico who have taken part in races since the championship began in 1950.  Pedro Rodr\xEDguez is the most\
+    \ successful Mexican driver being the only one to have won a grand prix.  Sergio P\xE9rez, the only other Mexican to finish on the podium, currently races with Sahara Force India F1 Team ."
+  source: hotpotqa:5ae7a8175542993210983ed8#Formula One drivers from Mexico
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: Jim Cummings] James Jonah Cummings (born November 3, 1952) is an American voice actor and singer, who has appeared in almost 400 roles.  He is known for voicing the title character
+    from "Darkwing Duck", Dr. Robotnik from "Sonic the Hedgehog", and Pete.  His other characters include Winnie the Pooh, Tigger, and the Tasmanian Devil.  He has performed in numerous Disney and DreamWorks
+    animations including "Aladdin", "The Lion King", "Balto", "Antz", "The Road to El Dorado", "Shrek", and "The Princess and the Frog".  He has also provided voice-over work for video games, such as "Icewind
+    Dale", "Fallout", "", "Baldur''s Gate", "Mass Effect 2", "", "", "", and "Splatterhouse".'
+  source: hotpotqa:5ae6050f55429929b0807a5e#Jim Cummings
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: A Rather Blustery Day] "A Rather Blustery Day" is a whimsical song from the Walt Disney musical film featurette, "Winnie the Pooh and the Blustery Day".  It was written by Robert &
+    Richard Sherman and sung by Jim Cummings as "Pooh".'
+  source: hotpotqa:5ae6050f55429929b0807a5e#A Rather Blustery Day
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: Apple Remote] The Apple Remote is a remote control device released in or after October 2005 by Apple Inc. for use with a number of its products which use infrared capabilities.  The
+    device was originally designed to interact with the Front Row media program on the iSight iMac G5 and is compatible with some later desktop and portable Macintosh computers.  The first three generations
+    of Apple TV used the Apple Remote as their primary control mechanism.  It has now been replaced with the Siri Remote in the fourth generation.  Prior to the Apple Remote, Apple produced several nameless
+    IR remotes for products such as the Macintosh TV, TV tuner expansion boards, and the PowerCD drive.'
+  source: hotpotqa:5adddccd5542997dc7907069#Apple Remote
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: Front Row (software)] Front Row is a discontinued media center software application for Apple''s Macintosh computers and Apple TV for navigating and viewing video, photos, podcasts,
+    and music from a computer, optical disc, or the Internet through a 10-foot user interface (similar to Windows Media Center and Kodi).  The software relies on iTunes and iPhoto and is controlled by an
+    Apple Remote or the keyboard function keys.  The first version was released October 2005, with two major revisions since.  Front Row was removed and discontinued in Mac OS X 10.7.'
+  source: hotpotqa:5adddccd5542997dc7907069#Front Row (software)
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: Wolf Alice] Wolf Alice are a four-piece alternative rock band from North London, formed initially as a two-person band in 2010.  Its members since 2012 are Ellie Rowsell (vocals, guitar),
+    Joff Oddie (guitars, vocals), Theo Ellis (bass), and Joel Amey (drums, vocals).'
+  source: hotpotqa:5ae2070a5542994d89d5b313#Wolf Alice
+- date: '2026-04-29'
+  type: WIKIPEDIA
+  text: '[Wikipedia: Badly Drawn Boy] Damon Michael Gough (born 2 October 1969, in Dunstable, Bedfordshire), known by the stage name Badly Drawn Boy, is an English indie singer-songwriter and multi-instrumentalist.'
+  source: hotpotqa:5ae2070a5542994d89d5b313#Badly Drawn Boy

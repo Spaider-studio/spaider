@@ -1,0 +1,31 @@
+id: 03_duplicate_class
+title: "Find the duplicate Pydantic class definition"
+prompt: |
+  This file declares request/response models for a key-rotation endpoint.
+  One class is defined twice with conflicting fields. Name the class and
+  cite both line numbers. Do not rewrite the file.
+
+  ```python
+   1  from pydantic import BaseModel
+   2
+   3  class RotateKeyRequest(BaseModel):
+   4      reason: str | None = None
+   5
+   6  class RotateKeyResponse(BaseModel):
+   7      new_key: str
+   8      rotated_at: str
+   9
+  10  class AgentResponse(BaseModel):
+  11      id: str
+  12      name: str
+  13
+  14  class RotateKeyResponse(BaseModel):
+  15      key_id: str
+  16      message: str
+  ```
+expected_all:
+  - "RotateKeyResponse"
+  - "6"
+  - "14"
+max_tokens: 2048
+requires_mcp: false

@@ -1,0 +1,424 @@
+company: AcmeAI
+window:
+  start: '2026-03-01'
+  days: 30
+facts:
+- date: '2026-03-02'
+  type: CUSTOMER
+  text: Acme Corp (Nina) confirmed sandbox access works as advertised.
+  source: intercom:assorted
+- date: '2026-03-02'
+  type: CUSTOMER
+  text: Wayne Enterprises asked about data residency in EU; answered next year.
+  source: intercom:assorted
+- date: '2026-03-02'
+  type: DECISION
+  text: 'Decided to delay the Beacon analytics rollout to Q3. Reason: focus the team
+    on Atlas Q2 launch. Decision owner: Olivia. Affects: Diego, Jin (were staffed
+    on Beacon).'
+  source: notion:adr-2026-03-02
+- date: '2026-03-02'
+  type: PR
+  text: 'Sara merged PR#205 into main: ''chore: clean up unused imports in atlas.py''.
+    Reviewed by Marcus.'
+  source: github:PR#205
+- date: '2026-03-02'
+  type: SPRINT
+  text: Sprint 11 kickoff. Atlas Q2 launch target reaffirmed for June 28. Olivia (CTO)
+    confirmed launch-readiness review will gate the release.
+  source: notion:sprint-11-kickoff
+- date: '2026-03-02'
+  type: SPRINT
+  text: 'Standup note: Marcus thanked Sara for the unblock on the redis sorted-set
+    TTL question.'
+  source: slack:#standups
+- date: '2026-03-03'
+  type: CUSTOMER
+  text: 'Stark Industries (Tony, VP Product) on a call with Olivia: explicitly stated
+    they will churn if feature Y (per-tenant rate limiting) is not shipped before
+    their Q2 board review on June 20. Renewal at risk: $480k ARR.'
+  source: salesforce:opp-stark-renewal
+- date: '2026-03-03'
+  type: PR
+  text: 'Jin merged PR#204 into main: ''infra: bump Postgres minor version''. Reviewed
+    by Diego.'
+  source: github:PR#204
+- date: '2026-03-03'
+  type: PR
+  text: 'Diego merged PR#214 into main: ''frontend: rework breadcrumb component''.
+    Reviewed by Sara.'
+  source: github:PR#214
+- date: '2026-03-03'
+  type: PR
+  text: 'Jin merged PR#218 into main: ''infra: add ECR image scanning step''. Reviewed
+    by Priya.'
+  source: github:PR#218
+- date: '2026-03-03'
+  type: SPRINT
+  text: 'Standup note: Diego: the load-test harness is now reusable; documented in
+    tools/loadgen/README.md.'
+  source: slack:#standups
+- date: '2026-03-04'
+  type: DECISION
+  text: 'Feature Y (per-tenant rate limiting) bumped to Sprint 13 priority 1. Owner:
+    Marcus. Driven by: Stark Industries churn risk.'
+  source: notion:adr-2026-03-04
+- date: '2026-03-04'
+  type: HIRE
+  text: Diego closed Q1 hiring for the Atlas team — no offers extended. Q2 freeze
+    in effect.
+  source: notion:hiring-q1-close
+- date: '2026-03-05'
+  type: BLOCKER
+  text: Marcus reported AWS rate-limit ceiling on the billing reconciliation job is
+    now hit daily. Globex's invoices are failing to reconcile in time. Marcus is blocked
+    pending a quota raise from AWS support.
+  source: slack:#engineering
+- date: '2026-03-06'
+  type: CUSTOMER
+  text: 'Globex (Sam, finance) emailed: their March invoice was generated 6 days late
+    again. This is the third consecutive month. They are escalating to their CFO.
+    Account at risk.'
+  source: email:support@globex
+- date: '2026-03-06'
+  type: REVIEW
+  text: 'Jin reviewed PR#258 (by Diego): asked for a feature flag wrap; author added
+    one.'
+  source: github:PR#258
+- date: '2026-03-07'
+  type: PR
+  text: 'Marcus merged PR#206 into main: ''atlas: add request_id to log lines''. Reviewed
+    by Olivia.'
+  source: github:PR#206
+- date: '2026-03-07'
+  type: PR
+  text: 'Olivia merged PR#208 into main: ''billing: better error messages on retry
+    exhaustion''. Reviewed by Jin.'
+  source: github:PR#208
+- date: '2026-03-07'
+  type: PR
+  text: 'Priya merged PR#213 into main: ''atlas: drop dead /v0 health route''. Reviewed
+    by Sara.'
+  source: github:PR#213
+- date: '2026-03-07'
+  type: SPRINT
+  text: 'Standup note: Priya proposed pairing on the schema migration; Marcus agreed
+    for one afternoon.'
+  source: slack:#standups
+- date: '2026-03-08'
+  type: CUSTOMER
+  text: Wayne Enterprises asked for a soc2-type-ii letter; sent.
+  source: intercom:assorted
+- date: '2026-03-08'
+  type: OPS
+  text: Kafka topic retention bumped from 24h to 72h on staging.
+  source: slack:#ops
+- date: '2026-03-08'
+  type: PR
+  text: 'Marcus merged PR#202 into main: ''frontend: dark-mode toggle in user settings''.
+    Reviewed by Sara.'
+  source: github:PR#202
+- date: '2026-03-08'
+  type: SPRINT
+  text: 'Standup note: team voted to keep the on-call rotation at 1 week, not switch
+    to 2.'
+  source: slack:#standups
+- date: '2026-03-09'
+  type: BLOCKER
+  text: Sara found an intermittent token-validation race in auth_service.py. Cannot
+    reproduce reliably; only happens under load >300 RPS. Could affect the Atlas launch
+    if it manifests in prod.
+  source: github:issue#287
+- date: '2026-03-09'
+  type: OPS
+  text: Postgres minor-version upgrade applied to staging without incident.
+  source: slack:#ops
+- date: '2026-03-09'
+  type: PR
+  text: 'Sara merged PR#216 into main: ''atlas: extract RateLimitConfig out of settings.py''.
+    Reviewed by Jin.'
+  source: github:PR#216
+- date: '2026-03-10'
+  type: OPS
+  text: 'Domain registrar reminder email forwarded to ops@acmeai: the acmeai.com domain
+    expires on 2026-06-15 — 13 days before Atlas launch. No action recorded. Owner
+    unclear.'
+  source: email:ops@acmeai
+- date: '2026-03-11'
+  type: CUSTOMER
+  text: Wayne Enterprises CFO joined a quarterly review; pleased with the integration.
+  source: intercom:assorted
+- date: '2026-03-11'
+  type: DECISION
+  text: 'Database migration window for Atlas: scheduled for 2026-06-25 (weekend before
+    launch). Priya raised concern that this leaves zero buffer if migration fails.
+    Olivia confirmed the schedule anyway, citing migration window availability with
+    the DB vendor.'
+  source: notion:adr-2026-03-11
+- date: '2026-03-11'
+  type: OPS
+  text: vendor (auth0) sent a notice about a planned April maintenance window.
+  source: slack:#ops
+- date: '2026-03-11'
+  type: PR
+  text: 'Priya merged PR#212 into main: ''chore: ruff autofix across backend''. Reviewed
+    by Marcus.'
+  source: github:PR#212
+- date: '2026-03-12'
+  type: CUSTOMER
+  text: Acme Corp (Nina, eng manager) requested a sandbox environment for their team
+    to test integration with Atlas pre-launch. Diego promised delivery by end of Sprint
+    12.
+  source: intercom:thread-acme-sandbox
+- date: '2026-03-12'
+  type: PR
+  text: 'Priya merged PR#215 into main: ''billing: idempotency keys on retries''.
+    Reviewed by Olivia.'
+  source: github:PR#215
+- date: '2026-03-12'
+  type: REVIEW
+  text: 'Marcus reviewed PR#254 (by Priya): asked for a CHANGELOG entry; author added.'
+  source: github:PR#254
+- date: '2026-03-12'
+  type: SPRINT
+  text: 'Standup note: Jin is on PTO Monday-Wednesday; CI on-call shifted to Sara.'
+  source: slack:#standups
+- date: '2026-03-13'
+  type: RETRO
+  text: 'Sprint 11 retro: team flagged that the Stark feature Y dependency is now
+    blocking Atlas critical path. Olivia accepted the risk; did not authorise additional
+    headcount.'
+  source: notion:retro-sprint-11
+- date: '2026-03-13'
+  type: REVIEW
+  text: 'Jin reviewed PR#252 (by Priya): flagged a missing await on a redis call;
+    author fixed.'
+  source: github:PR#252
+- date: '2026-03-13'
+  type: REVIEW
+  text: 'Code review on PR#312 (Marcus, feature Y skeleton): Sara raised concern about
+    the rate-limiter using Redis sorted sets without a TTL — could lead to unbounded
+    key growth. Marcus accepted; deferred fix to next PR.'
+  source: github:PR#312
+- date: '2026-03-14'
+  type: PR
+  text: 'Marcus merged PR#209 into main: ''frontend: extract DateRangePicker into
+    a hook''. Reviewed by Jin.'
+  source: github:PR#209
+- date: '2026-03-16'
+  type: BLOCKER
+  text: 'Marcus: AWS support raised quota but the reconciliation job is still missing
+    the SLA. Root cause is now suspected to be a join in billing.py that was added
+    in Q1 — it scans the full ledger table. Plan: rewrite as windowed query in Sprint
+    13.'
+  source: slack:#engineering
+- date: '2026-03-17'
+  type: CUSTOMER
+  text: 'Initech (Brad, IT) sent an unrenewal notice. They cite no specific issue
+    but the account has been quiet for 4 months. Diego flagged: no one from AcmeAI
+    has reached out since November. ARR at risk: $90k.'
+  source: email:brad@initech
+- date: '2026-03-18'
+  type: OPS
+  text: Datadog forwarder updated to v2; metric drop verified zero gap.
+  source: slack:#ops
+- date: '2026-03-18'
+  type: PR
+  text: 'Sara merged PR#217 into main: ''chore: bump Python to 3.11.15 in CI''. Reviewed
+    by Jin.'
+  source: github:PR#217
+- date: '2026-03-18'
+  type: PR
+  text: 'Priya merged PR#319 into main: ''atlas: add migration scaffolding for v2
+    schema''. Reviewed by Jin. The schema introduces a non-null column with a default
+    — should be a forward-only migration.'
+  source: github:PR#319
+- date: '2026-03-18'
+  type: REVIEW
+  text: 'Marcus reviewed PR#257 (by Olivia): noted that the new SQL view should have
+    an index; opened follow-up.'
+  source: github:PR#257
+- date: '2026-03-19'
+  type: DECISION
+  text: 'Decided NOT to add OpenAI as a fallback LLM provider — Olivia again. Reason:
+    cost model (per-token) doesn''t fit the agent budget that Atlas''s pricing assumes.
+    Confirmed for the second time this quarter; this discussion is now closed.'
+  source: notion:adr-2026-03-19
+- date: '2026-03-19'
+  type: PR
+  text: 'Priya merged PR#210 into main: ''tests: add property-based tests for parser''.
+    Reviewed by Sara.'
+  source: github:PR#210
+- date: '2026-03-19'
+  type: SPRINT
+  text: 'Standup note: Sara mentioned the new ruff version is surfacing pre-existing
+    warnings.'
+  source: slack:#standups
+- date: '2026-03-20'
+  type: BLOCKER
+  text: 'Sara: auth-service token race now reliably reproducible at 350 RPS with the
+    load-test harness Diego wrote. Root cause located in session-cache invalidation.
+    Fix in progress, ETA Sprint 13.'
+  source: github:issue#287
+- date: '2026-03-20'
+  type: CUSTOMER
+  text: 'Stark Industries (Tony) escalated again: ''we have not seen a feature Y preview
+    yet; we are in 14-day notice territory unless you confirm a demo by April 1.''
+    Forwarded to Marcus.'
+  source: email:tony@stark
+- date: '2026-03-20'
+  type: PR
+  text: 'Sara merged PR#207 into main: ''atlas: cache JWT decoder result per request''.
+    Reviewed by Olivia.'
+  source: github:PR#207
+- date: '2026-03-20'
+  type: REVIEW
+  text: 'Marcus reviewed PR#256 (by Olivia): approved without comments — small docs
+    change.'
+  source: github:PR#256
+- date: '2026-03-21'
+  type: OPS
+  text: blue/green deploy pipeline now requires manual approval into prod.
+  source: slack:#ops
+- date: '2026-03-21'
+  type: PR
+  text: 'Sara merged PR#200 into main: ''refactor parser_service exception handling''.
+    Reviewed by Marcus.'
+  source: github:PR#200
+- date: '2026-03-21'
+  type: REVIEW
+  text: 'Marcus reviewed PR#253 (by Priya): asked for a smaller PR; author split into
+    two follow-ups.'
+  source: github:PR#253
+- date: '2026-03-22'
+  type: OPS
+  text: production read-only banner tested in staging; behavior matches expectation.
+  source: slack:#ops
+- date: '2026-03-22'
+  type: PR
+  text: 'Olivia merged PR#203 into main: ''docs: update README examples''. Reviewed
+    by Jin.'
+  source: github:PR#203
+- date: '2026-03-22'
+  type: REVIEW
+  text: 'Sara reviewed PR#255 (by Priya): questioned whether the new retry logic should
+    use jitter; rolled in.'
+  source: github:PR#255
+- date: '2026-03-22'
+  type: SPRINT
+  text: 'Standup note: Jin: the dashboard query is sometimes slow — assigned to herself
+    for next sprint.'
+  source: slack:#standups
+- date: '2026-03-23'
+  type: OPS
+  text: 'S3 bucket lifecycle rule added: archive logs >90 days to Glacier.'
+  source: slack:#ops
+- date: '2026-03-23'
+  type: PR
+  text: 'Marcus merged PR#338 into main: ''feature Y skeleton — per-tenant rate limiting
+    (alpha)''. Reviewed by Sara. Demo-ready behind a feature flag.'
+  source: github:PR#338
+- date: '2026-03-23'
+  type: SPRINT
+  text: 'Standup note: Olivia reminded everyone to log launch-readiness blockers in
+    the risk register.'
+  source: slack:#standups
+- date: '2026-03-24'
+  type: CUSTOMER
+  text: 'Marcus delivered a feature Y preview to Stark Industries. Tony''s feedback:
+    ''directionally good, but we need rate-limit overrides per API key, not per tenant''.
+    Bumps scope.'
+  source: intercom:thread-stark-rate-limits
+- date: '2026-03-24'
+  type: PR
+  text: 'Priya merged PR#201 into main: ''fix flaky pagination test''. Reviewed by
+    Marcus.'
+  source: github:PR#201
+- date: '2026-03-25'
+  type: CUSTOMER
+  text: Wayne Enterprises (Mei) asked about Postgres connection pooling; resolved
+    on a 15-min call.
+  source: intercom:assorted
+- date: '2026-03-25'
+  type: DECISION
+  text: 'Per-API-key rate limiting accepted as a Sprint 13 follow-up to feature Y.
+    Owner: Marcus. Confirmed by Olivia.'
+  source: notion:adr-2026-03-25
+- date: '2026-03-25'
+  type: HIRE
+  text: Recruiter (external, Lisa) followed up on a senior platform candidate. Olivia
+    declined, citing the Q2 freeze.
+  source: email:lisa@recruiter
+- date: '2026-03-25'
+  type: OPS
+  text: stage-only chaos run last night; killed one billing pod, recovered in 18s.
+  source: slack:#ops
+- date: '2026-03-25'
+  type: PR
+  text: 'Marcus merged PR#211 into main: ''ops: rotate Grafana API tokens''. Reviewed
+    by Jin.'
+  source: github:PR#211
+- date: '2026-03-25'
+  type: REVIEW
+  text: 'Sara reviewed PR#250 (by Priya): raised a comment about test coverage on
+    the new parser branch.'
+  source: github:PR#250
+- date: '2026-03-26'
+  type: BLOCKER
+  text: 'Priya: the schema migration plan now requires a 4-hour read-only window.
+    Olivia asked whether this conflicts with Stark''s Q2 board review on June 20.
+    Confirmed: if migration window stays at June 25, Stark is unaffected, but the
+    launch buffer is still zero.'
+  source: notion:risk-register
+- date: '2026-03-26'
+  type: CUSTOMER
+  text: Acme Corp requested a renewal call early; scheduled for April 8.
+  source: intercom:assorted
+- date: '2026-03-27'
+  type: CUSTOMER
+  text: Acme Corp asked whether SSO via Okta is on the roadmap; answered yes Q3.
+  source: intercom:assorted
+- date: '2026-03-27'
+  type: OPS
+  text: DNS / domain renewal still has no recorded owner. Diego raised it in the ops
+    standup; action item assigned to ops@ but no human picked it up.
+  source: slack:#ops
+- date: '2026-03-27'
+  type: OPS
+  text: weekly DB backup verified; restore time = 22 minutes for 50 GB snapshot.
+  source: slack:#ops
+- date: '2026-03-27'
+  type: PR
+  text: 'Olivia merged PR#219 into main: ''tests: cover the websocket-reconnect path''.
+    Reviewed by Jin.'
+  source: github:PR#219
+- date: '2026-03-28'
+  type: REVIEW
+  text: 'Sara reviewed PR#251 (by Marcus): approved with one minor naming nit, addressed
+    before merge.'
+  source: github:PR#251
+- date: '2026-03-28'
+  type: SPRINT
+  text: 'Standup note: Diego will help Marcus on the rate-limiter once feature Y skeleton
+    merges.'
+  source: slack:#standups
+- date: '2026-03-29'
+  type: SPRINT
+  text: 'Standup note: team agreed to skip Friday standup, ship a written status instead.'
+  source: slack:#standups
+- date: '2026-03-30'
+  type: HIRE
+  text: 'Reaffirmed: no additional hiring in Q2. Headcount freeze pending Series B
+    close (estimated Q3). All Atlas work has to come from existing team.'
+  source: notion:adr-2026-03-30
+- date: '2026-03-30'
+  type: OPS
+  text: Grafana board for atlas latency added; pinned to engineering channel.
+  source: slack:#ops
+- date: '2026-03-30'
+  type: RETRO
+  text: 'Sprint 12 retro. Top open risks for Atlas Q2 launch named explicitly: (1)
+    auth-service race (Sara, fix in progress); (2) DB migration buffer = 0 days (Priya,
+    accepted); (3) acmeai.com domain renewal due 2026-06-15 — STILL NO OWNER; (4)
+    Stark Industries feature Y scope creep to per-API-key.'
+  source: notion:retro-sprint-12

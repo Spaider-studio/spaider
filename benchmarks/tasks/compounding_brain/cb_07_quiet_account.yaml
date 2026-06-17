@@ -1,0 +1,17 @@
+id: cb_07_quiet_account
+category: compounding_brain
+title: "Which account just churned and why?"
+prompt: |
+  A customer just sent an unrenewal notice this month. Which one, and
+  what was the contributing factor according to the team's own analysis?
+  Reply in 2 sentences.
+oracle:
+  kind: llm_judge
+  rubric: |
+    PASS if the response identifies Initech (Brad) AND notes that the
+    contributing factor was no AcmeAI outreach for ~4 months (account
+    went quiet), per Diego's flag. Mentioning the $90k ARR figure is
+    a plus.
+    FAIL if it picks a different customer (Globex was unhappy but did
+    not churn; Stark was unhappy but did not churn).
+max_tokens: 2048

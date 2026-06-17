@@ -1,0 +1,78 @@
+name: Release / SDK
+
+# Build and publish spaider-client to PyPI when a tagged release is pushed.
+# Tags must match sdk-python/v* (e.g. sdk-python/v0.1.0).
+#
+# Setup before first release:
+#
+#   1. Reserve the spaider-client name on PyPI as a Pending Publisher
+#      (https://pypi.org/manage/account/publishing/) with:
+#        - PyPI Project Name: spaider-client
+#        - Owner: Spaider-studio
+#        - Repository name: spaider
+#        - Workflow name: sdk-python-release.yml
+#        - Environment name: pypi
+#   2. Configure a GitHub environment named "pypi" under repo Settings →
+#      Environments. Optionally add yourself as a required reviewer to gate
+#      every publish behind a manual approval click.
+#   3. Tag a release:  git tag sdk-python/v0.1.0 && git push origin sdk-python/v0.1.0
+#   4. This workflow takes over — builds the sdist + wheel from sdk/python/,
+#      verifies metadata with twine check, then publishes via PyPI's
+#      trusted-publisher OIDC flow (no API token needed).
+#
+# Run manually with workflow_dispatch + dry_run=true to validate the build
+# without publishing — useful before tagging.
+
+on:
+  push:
+    tags:
+      - "sdk-python/v*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (default). Type false to actually publish to PyPI."
+        required: false
+        default: "true"
+
+permissions:
+  # Required for PyPI trusted publishing via OIDC.
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: pypi
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install build tooling
+        run: pip install build twine
+
+      - name: Build distributions
+        run: cd sdk/python && python -m build
+
+      - name: Twine check
+        run: twine check sdk/python/dist/*
+
+      - name: Upload build artifacts
+        # Keeps the sdist + wheel available on the workflow run page even when
+        # publishing is skipped (dry_run) or fails part-way.
+        uses: actions/upload-artifact@v7
+        with:
+          name: spaider-client-dist
+          path: sdk/python/dist/
+          retention-days: 14
+
+      - name: Publish to PyPI
+        if: ${{ inputs.dry_run != 'true' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: sdk/python/dist

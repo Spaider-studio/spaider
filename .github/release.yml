@@ -1,0 +1,23 @@
+# Configures the "Generate release notes" button (and the REST equivalent):
+# every PR merged since the last tag is sorted into a category by label.
+# Labels are applied automatically from the conventional PR title by
+# .github/workflows/pr-labeler.yml, so nobody has to label by hand.
+changelog:
+  exclude:
+    labels:
+      - skip-changelog
+  categories:
+    - title: "Breaking changes"
+      labels: [breaking]
+    - title: "Features"
+      labels: [enhancement]
+    - title: "Bug fixes"
+      labels: [bug]
+    - title: "Documentation"
+      labels: [documentation]
+    - title: "Dependencies"
+      labels: [dependencies]
+    - title: "Maintenance"
+      labels: [maintenance]
+    - title: "Other changes"
+      labels: ["*"]

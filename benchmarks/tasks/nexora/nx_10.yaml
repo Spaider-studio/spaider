@@ -1,0 +1,10 @@
+id: nx_10
+category: nexora
+title: What budget was Nexora's call-center sentiment analysis project for Keystone
+  Aerospace greenlit with?
+prompt: What budget was Nexora's call-center sentiment analysis project for Keystone
+  Aerospace greenlit with?
+format_hint: Answer with just the value, no explanation.
+expected_substring: 8,820,000
+max_tokens: 256
+requires_mcp: false

@@ -1,0 +1,10 @@
+id: nx_16
+category: nexora
+title: What is the badge ID of Nexora's lead for FinOps cost optimization for fraud
+  systems?
+prompt: What is the badge ID of Nexora's lead for FinOps cost optimization for fraud
+  systems?
+format_hint: Answer with just the value, no explanation.
+expected_substring: NX-4546
+max_tokens: 256
+requires_mcp: false

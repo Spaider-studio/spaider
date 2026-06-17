@@ -1,0 +1,18 @@
+id: hp_23
+category: hotpotqa
+title: 'HotpotQA: Aside from the Apple Remote, what other device can control the program
+  Apple Rem'
+prompt: Aside from the Apple Remote, what other device can control the program Apple
+  Remote was originally designed to interact with?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: keyboard function keys
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  hotpot_id: 5adddccd5542997dc7907069
+  hotpot_type: bridge
+  hotpot_level: hard
+  supporting_titles:
+  - Apple Remote
+  - Front Row (software)

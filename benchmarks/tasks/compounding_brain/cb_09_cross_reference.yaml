@@ -1,0 +1,18 @@
+id: cb_09_cross_reference
+category: compounding_brain
+title: "Cross-reference: which team member is on the critical path of two launch risks?"
+prompt: |
+  Which single AcmeAI team member appears as the named owner on more
+  than one currently-open Atlas Q2 launch risk? Name the person and
+  list the risks. Reply in 3 sentences.
+oracle:
+  kind: llm_judge
+  rubric: |
+    PASS if the response names Marcus AND lists at least two of his
+    open risk owner-assignments: (a) Globex billing reconciliation,
+    (b) feature Y for Stark Industries, (c) per-API-key rate limiting
+    follow-up. Sara is acceptable as a secondary mention but Marcus is
+    the correct primary answer.
+    FAIL if it picks a different owner, or names only one risk for
+    Marcus.
+max_tokens: 2048

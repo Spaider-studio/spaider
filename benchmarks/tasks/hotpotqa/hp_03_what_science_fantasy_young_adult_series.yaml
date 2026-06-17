@@ -1,0 +1,18 @@
+id: hp_03
+category: hotpotqa
+title: 'HotpotQA: What science fantasy young adult series, told in first person, has
+  a set of comp'
+prompt: What science fantasy young adult series, told in first person, has a set of
+  companion books narrating the stories of enslaved worlds and alien species?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: Animorphs
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  hotpot_id: 5a85ea095542994775f606a8
+  hotpot_type: bridge
+  hotpot_level: hard
+  supporting_titles:
+  - Animorphs
+  - The Hork-Bajir Chronicles

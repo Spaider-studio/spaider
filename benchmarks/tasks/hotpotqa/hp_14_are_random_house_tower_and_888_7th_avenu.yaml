@@ -1,0 +1,16 @@
+id: hp_14
+category: hotpotqa
+title: 'HotpotQA: Are Random House Tower and 888 7th Avenue both used for real estate?'
+prompt: Are Random House Tower and 888 7th Avenue both used for real estate?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: 'no'
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  hotpot_id: 5ab56e32554299637185c594
+  hotpot_type: comparison
+  hotpot_level: hard
+  supporting_titles:
+  - 888 7th Avenue
+  - Random House Tower

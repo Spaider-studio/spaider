@@ -1,0 +1,18 @@
+id: hp_16
+category: hotpotqa
+title: 'HotpotQA: Brown State Fishing Lake is in a country that has a population of
+  how many inhab'
+prompt: Brown State Fishing Lake is in a country that has a population of how many
+  inhabitants ?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: 9,984
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  hotpot_id: 5a75e05c55429976ec32bc5f
+  hotpot_type: bridge
+  hotpot_level: hard
+  supporting_titles:
+  - Brown County, Kansas
+  - Brown State Fishing Lake

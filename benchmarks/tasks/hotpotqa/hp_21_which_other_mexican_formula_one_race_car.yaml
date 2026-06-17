@@ -1,0 +1,18 @@
+id: hp_21
+category: hotpotqa
+title: 'HotpotQA: Which other Mexican Formula One race car driver has held the podium
+  besides the '
+prompt: Which other Mexican Formula One race car driver has held the podium besides
+  the Force India driver born in 1990?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: Pedro Rodríguez
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  hotpot_id: 5ae7a8175542993210983ed8
+  hotpot_type: bridge
+  hotpot_level: hard
+  supporting_titles:
+  - Formula One drivers from Mexico
+  - Sergio Pérez

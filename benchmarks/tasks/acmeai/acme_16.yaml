@@ -1,0 +1,13 @@
+id: acme_16
+category: acmeai
+title: 'AcmeAI: How long did the billing pod take to recover in the staging chaos
+  run?'
+prompt: How long did the billing pod take to recover in the staging chaos run?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: 18s
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  supporting_titles:
+  - chaos

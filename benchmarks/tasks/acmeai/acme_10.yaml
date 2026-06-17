@@ -1,0 +1,12 @@
+id: acme_10
+category: acmeai
+title: 'AcmeAI: When is Stark Industries'' Q2 board review?'
+prompt: When is Stark Industries' Q2 board review?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: June 20
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  supporting_titles:
+  - Stark

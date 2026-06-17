@@ -1,0 +1,18 @@
+id: hp_13
+category: hotpotqa
+title: 'HotpotQA: What year did Guns N Roses perform a promo for a movie starring
+  Arnold Schwarzen'
+prompt: What year did Guns N Roses perform a promo for a movie starring Arnold Schwarzenegger
+  as a former New York Police detective?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: '1999'
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  hotpot_id: 5ab3b0bf5542992ade7c6e39
+  hotpot_type: bridge
+  hotpot_level: hard
+  supporting_titles:
+  - End of Days (film)
+  - Oh My God (Guns N' Roses song)

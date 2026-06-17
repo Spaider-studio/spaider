@@ -1,0 +1,12 @@
+id: acme_06
+category: acmeai
+title: 'AcmeAI: At what request rate is the auth-service token race reliably reproducible?'
+prompt: At what request rate is the auth-service token race reliably reproducible?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: 350 RPS
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  supporting_titles:
+  - auth-service

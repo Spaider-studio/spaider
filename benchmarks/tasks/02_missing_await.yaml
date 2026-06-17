@@ -1,0 +1,26 @@
+id: 02_missing_await
+title: "Spot the missing await in an async ingest handler"
+prompt: |
+  Review this Python diff. Identify the single bug. Reply with the line
+  number(s) and a one-sentence fix. Do not rewrite the function.
+
+  ```python
+   1  async def ingest_text_sync(text: str, agent_id: str) -> IngestResult:
+   2      record = await parser_service.parse(text)
+   3      run_state = _get_run_state(agent_id)
+   4      run_state.add(record)
+   5      _save_run_state(agent_id, run_state)
+   6      await _emit_kafka(record)
+   7      return IngestResult(node_count=record.node_count)
+   8
+   9  def _get_run_state(agent_id: str) -> RunState:
+  10      return asyncio.run(_load_run_state(agent_id))
+  11
+  12  async def _save_run_state(agent_id: str, state: RunState) -> None:
+  13      await redis.set(f"run:{agent_id}", state.json())
+  ```
+expected_all:
+  - "await"
+  - "_save_run_state"
+max_tokens: 2048
+requires_mcp: false

@@ -1,0 +1,47 @@
+# Development overrides — use with:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+services:
+  neo4j:
+    environment:
+      DEBUG: "true"
+
+  zookeeper:
+    environment:
+      DEBUG: "true"
+
+  kafka:
+    environment:
+      DEBUG: "true"
+
+  redis:
+    environment:
+      DEBUG: "true"
+
+  backend-api:
+    volumes:
+      - ./backend:/app
+    # --timeout-graceful-shutdown 3: a hot-reload (or any restart) waits at most
+    # 3s for open connections to drain before forcing the swap. Without it a
+    # long-lived SSE stream (MCP /api/v1/mcp/sse, the Live Pheromone feed) keeps
+    # the old worker in "Waiting for connections to close" indefinitely, so the
+    # reload never completes and the whole API hangs until a manual recreate.
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--timeout-graceful-shutdown", "3"]
+    environment:
+      DEBUG: "true"
+
+  backend-worker:
+    volumes:
+      - ./backend:/app
+    environment:
+      DEBUG: "true"
+
+  frontend:
+    volumes:
+      - ./frontend/src:/app/src
+    environment:
+      DEBUG: "true"
+
+  kong:
+    environment:
+      DEBUG: "true"

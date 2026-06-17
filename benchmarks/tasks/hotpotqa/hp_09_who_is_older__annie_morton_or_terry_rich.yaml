@@ -1,0 +1,16 @@
+id: hp_09
+category: hotpotqa
+title: 'HotpotQA: Who is older, Annie Morton or Terry Richardson?'
+prompt: Who is older, Annie Morton or Terry Richardson?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: Terry Richardson
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  hotpot_id: 5a7bbb64554299042af8f7cc
+  hotpot_type: bridge
+  hotpot_level: hard
+  supporting_titles:
+  - Annie Morton
+  - Terry Richardson

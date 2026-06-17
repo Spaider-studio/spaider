@@ -1,0 +1,18 @@
+id: hp_24
+category: hotpotqa
+title: 'HotpotQA: Which performance act has a higher instrument to person ratio, Badly
+  Drawn Boy o'
+prompt: Which performance act has a higher instrument to person ratio, Badly Drawn
+  Boy or Wolf Alice?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: Badly Drawn Boy
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  hotpot_id: 5ae2070a5542994d89d5b313
+  hotpot_type: comparison
+  hotpot_level: hard
+  supporting_titles:
+  - Badly Drawn Boy
+  - Wolf Alice

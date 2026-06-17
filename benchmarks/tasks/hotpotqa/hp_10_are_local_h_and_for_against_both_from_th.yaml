@@ -1,0 +1,16 @@
+id: hp_10
+category: hotpotqa
+title: 'HotpotQA: Are Local H and For Against both from the United States?'
+prompt: Are Local H and For Against both from the United States?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: 'yes'
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  hotpot_id: 5a8db19d5542994ba4e3dd00
+  hotpot_type: comparison
+  hotpot_level: hard
+  supporting_titles:
+  - For Against
+  - Local H

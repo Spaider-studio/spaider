@@ -1,0 +1,131 @@
+# Airflow stack for the SpAIder graph_maintenance DAG.
+#
+# Overlay file — bring up alongside the main stack:
+#   docker compose -f docker-compose.yml -f docker-compose.airflow.yml up -d
+# or via the Makefile:
+#   make airflow-up
+#
+# Default credentials: admin / spaider-airflow (override via env vars).
+# Web UI: http://localhost:8090   (port 8090 to avoid clashing with Kong on 8080)
+#
+# What runs here:
+#   * airflow-init        — one-shot DB schema + admin user setup
+#   * airflow-scheduler   — schedules + executes DAG runs (LocalExecutor)
+#   * airflow-webserver   — UI + API
+#
+# The shared spaider consolidation lib is bind-mounted at
+# /opt/airflow/spaider_lib so the DAG can import it without us repackaging
+# the backend image.
+
+x-airflow-common: &airflow-common
+  build:
+    context: ./backend/airflow
+    dockerfile: Dockerfile.airflow
+  image: spaider-airflow:latest
+  environment:
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres-airflow:5432/airflow
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=}
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth
+    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY:-spaider-airflow-secret-change-in-prod}
+    # Tell our DAG where the bind-mounted shared lib lives.
+    SPAIDER_LIB_PARENT: /opt/airflow
+    # Neo4j connection (overrides the DAG's default fallback).
+    NEO4J_URI: bolt://neo4j:7687
+    NEO4J_USER: neo4j
+    NEO4J_PASSWORD: ${NEO4J_PASSWORD:-spaider-dev-2024}
+    # Maintenance tunables (read by spaider_lib.consolidation).
+    MAINTENANCE_DAG_SCHEDULE: ${MAINTENANCE_DAG_SCHEDULE:-0 3 * * 0}
+    ORPHAN_MIN_AGE_DAYS: ${ORPHAN_MIN_AGE_DAYS:-7}
+    MERGE_SIMILARITY_THRESHOLD: ${MERGE_SIMILARITY_THRESHOLD:-0.95}
+  volumes:
+    - ./backend/airflow/dags:/opt/airflow/dags
+    - ./backend/app/lib:/opt/airflow/spaider_lib
+    - airflow_logs:/opt/airflow/logs
+  networks:
+    - default
+  depends_on:
+    postgres-airflow:
+      condition: service_healthy
+
+services:
+  postgres-airflow:
+    image: postgres:16-alpine
+    container_name: spaider-airflow-postgres
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres_airflow_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - default
+    restart: unless-stopped
+
+  airflow-init:
+    <<: *airflow-common
+    container_name: spaider-airflow-init
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate
+        airflow users create \
+          --username "${_AIRFLOW_WWW_USER_USERNAME:-admin}" \
+          --password "${_AIRFLOW_WWW_USER_PASSWORD:-spaider-airflow}" \
+          --firstname Admin --lastname User \
+          --role Admin --email admin@spaider.local || true
+        echo "Airflow init complete."
+    restart: "no"
+
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: spaider-airflow-scheduler
+    command: scheduler
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type SchedulerJob --hostname "$$(hostname)"']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+      postgres-airflow:
+        condition: service_healthy
+    restart: unless-stopped
+
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: spaider-airflow-webserver
+    command: webserver
+    ports:
+      - "8090:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+      postgres-airflow:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_airflow_data:
+  airflow_logs:
+
+networks:
+  default:
+    name: spaider_default
+    external: true

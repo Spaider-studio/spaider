@@ -1,0 +1,9 @@
+id: 04_recall_branch_pref
+title: "Recall: the user's preferred branch-naming convention (memory-only)"
+prompt: |
+  What branch-naming convention does this user prefer for new feature
+  work? Answer in one short sentence. If you do not have a confident
+  answer, reply with exactly the string `unknown` and nothing else.
+expected_substring: "feature/issue-"
+max_tokens: 1024
+requires_mcp: true

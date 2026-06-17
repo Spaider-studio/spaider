@@ -1,0 +1,15 @@
+id: rs_03_launch_date
+category: recall_specific
+title: "Recall: target launch date for project Atlas"
+prompt: |
+  On what date is project Atlas targeted to launch? Reply with the
+  specific date in ISO format (YYYY-MM-DD) and one sentence of
+  context. If you don't know, reply exactly: unknown.
+oracle:
+  kind: llm_judge
+  rubric: |
+    PASS if the response identifies June 28 (2026-06-28) as the Atlas
+    Q2 launch target, AND notes that this was reaffirmed at sprint 11
+    kickoff (or that Olivia/the CTO confirmed it).
+    FAIL if a different date or quarter is given.
+max_tokens: 1024

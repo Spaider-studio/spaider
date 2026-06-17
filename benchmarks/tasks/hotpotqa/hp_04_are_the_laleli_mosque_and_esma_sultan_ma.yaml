@@ -1,0 +1,17 @@
+id: hp_04
+category: hotpotqa
+title: 'HotpotQA: Are the Laleli Mosque and Esma Sultan Mansion located in the same
+  neighborhood?'
+prompt: Are the Laleli Mosque and Esma Sultan Mansion located in the same neighborhood?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: 'no'
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  hotpot_id: 5adbf0a255429947ff17385a
+  hotpot_type: comparison
+  hotpot_level: hard
+  supporting_titles:
+  - Esma Sultan Mansion
+  - Laleli Mosque

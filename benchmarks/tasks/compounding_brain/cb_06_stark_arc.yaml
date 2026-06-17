@@ -1,0 +1,19 @@
+id: cb_06_stark_arc
+category: compounding_brain
+title: "Summarise the Stark Industries account thread end-to-end"
+prompt: |
+  Summarise the entire Stark Industries account thread this month: what
+  do they want, what was promised, what was delivered, and what is the
+  current open ask? Reply with 4 short bullet points.
+oracle:
+  kind: llm_judge
+  rubric: |
+    PASS if the response covers ALL of the following: (1) Stark
+    threatened churn unless feature Y (per-tenant rate limiting) ships
+    before their Q2 board review on June 20; (2) the renewal is worth
+    ~$480k ARR; (3) the alpha skeleton was demoed on March 24; (4)
+    Stark then asked for per-API-KEY rate limiting (not per-tenant) as
+    follow-up scope. Acceptable to merge sentences; what matters is all
+    four facts surface.
+    FAIL if any of the four are missing, mis-stated, or invented.
+max_tokens: 2048

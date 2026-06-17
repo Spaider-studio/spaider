@@ -1,0 +1,18 @@
+id: hp_08
+category: hotpotqa
+title: 'HotpotQA: The arena where the Lewiston Maineiacs played their home games can
+  seat how many'
+prompt: The arena where the Lewiston Maineiacs played their home games can seat how
+  many people?
+format_hint: Answer in as few words as possible. Just the answer, no explanation.
+expected_output: 3,677 seated
+oracle:
+  kind: composite
+max_tokens: 256
+properties:
+  hotpot_id: 5a87ab905542996e4f3088c1
+  hotpot_type: bridge
+  hotpot_level: hard
+  supporting_titles:
+  - Androscoggin Bank Colisée
+  - Lewiston Maineiacs

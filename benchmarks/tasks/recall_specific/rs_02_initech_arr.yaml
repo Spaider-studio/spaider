@@ -1,0 +1,16 @@
+id: rs_02_initech_arr
+category: recall_specific
+title: "Recall: dollar amount at risk on the Initech account"
+prompt: |
+  How much annual recurring revenue (ARR) is at risk on the Initech
+  account, according to Diego's flag this month? Reply with the
+  specific figure and one short sentence of context. If you don't
+  know, reply exactly: unknown.
+oracle:
+  kind: llm_judge
+  rubric: |
+    PASS if the response identifies $90k (or $90,000) as the at-risk
+    ARR on Initech, AND mentions the unrenewal notice or the 4-month
+    silence as the cause. Bonus if it names Brad as the contact.
+    FAIL if a different figure is cited or invented.
+max_tokens: 1024

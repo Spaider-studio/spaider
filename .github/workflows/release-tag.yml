@@ -1,0 +1,94 @@
+name: Release / Auto-tag
+
+# "Release = merge the version-bump PR."
+#
+# When a push to main changes one of the package manifests, this workflow
+# reads the new version, creates the matching namespaced tag (cli/vX.Y.Z,
+# sdk-python/vX.Y.Z, sdk-python-stub/vX.Y.Z) if it doesn't exist yet, and
+# starts the corresponding release workflow on that tag.
+#
+# Why the explicit dispatch: tags pushed with the built-in GITHUB_TOKEN do
+# not trigger tag-push workflows (GitHub's recursion guard), so creating the
+# tag alone would do nothing. workflow_dispatch is the documented exception,
+# so we create the tag for auditability AND dispatch the release run on the
+# tag's ref with dry_run=false.
+#
+# Idempotent by design: if the tag for the manifest's current version already
+# exists, the package is skipped: touching a pyproject without bumping the
+# version releases nothing, and re-runs never double-publish.
+#
+# The product/container release (plain v* tags) stays a deliberate manual act
+# via the Releases UI; see RELEASING.md.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cli/pyproject.toml"
+      - "sdk/python/pyproject.toml"
+      - "sdk/python-stub/pyproject.toml"
+
+permissions:
+  contents: write   # create + push tags
+  actions: write    # dispatch the release workflows
+
+concurrency:
+  group: release-tag-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  tag-and-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: cli
+            manifest: cli/pyproject.toml
+            tag_prefix: cli/v
+            workflow: cli-release.yml
+          - name: sdk-python
+            manifest: sdk/python/pyproject.toml
+            tag_prefix: sdk-python/v
+            workflow: sdk-python-release.yml
+          - name: sdk-python-stub
+            manifest: sdk/python-stub/pyproject.toml
+            tag_prefix: sdk-python-stub/v
+            workflow: sdk-python-stub-release.yml
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Read version and decide
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(python3 -c "import tomllib; print(tomllib.load(open('${{ matrix.manifest }}','rb'))['project']['version'])")
+          tag="${{ matrix.tag_prefix }}${version}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "Tag $tag already exists; nothing to release for ${{ matrix.name }}."
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "Tag $tag is new; will tag and release ${{ matrix.name }} $version."
+          fi
+
+      - name: Create and push tag
+        if: steps.decide.outputs.release == 'true'
+        run: |
+          git tag "${{ steps.decide.outputs.tag }}" "${GITHUB_SHA}"
+          git push origin "refs/tags/${{ steps.decide.outputs.tag }}"
+
+      - name: Dispatch release workflow on the tag
+        if: steps.decide.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run "${{ matrix.workflow }}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --ref "refs/tags/${{ steps.decide.outputs.tag }}" \
+            -f dry_run=false
+          echo "Dispatched ${{ matrix.workflow }} on ${{ steps.decide.outputs.tag }}."

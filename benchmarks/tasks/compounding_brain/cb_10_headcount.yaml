@@ -1,0 +1,17 @@
+id: cb_10_headcount
+category: compounding_brain
+title: "Can we hire someone to help with the Atlas crunch?"
+prompt: |
+  Atlas is under launch pressure and short on hands. Can the team hire
+  to relieve the load this quarter? If not, why not, and when might
+  hiring resume? Reply in 2-3 sentences.
+oracle:
+  kind: llm_judge
+  rubric: |
+    PASS if the response indicates Q2 hiring is FROZEN (no hires this
+    quarter), AND attributes the freeze to the Series B close timeline
+    (estimated Q3 resumption). Bonus if it notes Olivia explicitly
+    declined a senior platform candidate this month for the same
+    reason.
+    FAIL if it says hiring is open, or invents a different reason.
+max_tokens: 2048

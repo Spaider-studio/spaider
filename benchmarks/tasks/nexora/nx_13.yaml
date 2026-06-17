@@ -1,0 +1,8 @@
+id: nx_13
+category: nexora
+title: What is the badge ID of Nexora's lead for fairness auditing for LLM services?
+prompt: What is the badge ID of Nexora's lead for fairness auditing for LLM services?
+format_hint: Answer with just the value, no explanation.
+expected_substring: NX-9968
+max_tokens: 256
+requires_mcp: false

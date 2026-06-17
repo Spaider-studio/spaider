@@ -1,0 +1,17 @@
+id: cb_02_globex_status
+category: compounding_brain
+title: "Status of Globex's billing reconciliation issue"
+prompt: |
+  Globex has been complaining about late billing reconciliation. What is
+  the current status — root cause, owner, plan? Reply in 3 sentences.
+oracle:
+  kind: llm_judge
+  rubric: |
+    PASS if the response identifies (1) Marcus as the owner, (2) the
+    root cause as an unbounded ledger-table scan in billing.py / AWS
+    rate-limit ceiling, AND (3) the plan to rewrite as a windowed query
+    in Sprint 13. Mentioning the AWS quota raise that didn't fully fix
+    the SLA is a plus.
+    FAIL if the response invents a cause not in the data, names the
+    wrong owner, or claims the issue is resolved.
+max_tokens: 2048
