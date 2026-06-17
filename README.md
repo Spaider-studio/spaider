@@ -123,6 +123,17 @@ That's the whole flow. `spaider init` checks Docker, prompts for your LLM provid
 
 Run `spaider doctor` any time for a read-only audit of the install.
 
+**Prefer prebuilt images?** Skip the source build — pull the published containers and run the stack:
+
+```bash
+git clone https://github.com/Spaider-studio/spaider.git && cd spaider
+cp .env.example .env          # set LLM_API_KEY (or leave empty for Ollama)
+docker compose pull           # fetch ghcr.io/spaider-studio/spaider-* images
+docker compose up -d          # pin a release with SPAIDER_VERSION=0.1.0
+```
+
+The default compose builds the app images from source (`docker compose up --build`); the lines above pull the prebuilt images from GHCR instead.
+
 <details>
 <summary><b>Manual install</b> (advanced)</summary>
 

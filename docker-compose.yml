@@ -119,6 +119,9 @@ services:
     restart: unless-stopped
 
   backend-api:
+    # `docker compose pull` fetches the published image; `--build` rebuilds from
+    # source. Pin a version with SPAIDER_VERSION (e.g. 0.1.0); defaults to latest.
+    image: ghcr.io/spaider-studio/spaider-backend:${SPAIDER_VERSION:-latest}
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -164,6 +167,7 @@ services:
     restart: unless-stopped
 
   backend-worker:
+    image: ghcr.io/spaider-studio/spaider-worker:${SPAIDER_VERSION:-latest}
     build:
       context: ./backend
       dockerfile: Dockerfile.worker
@@ -203,6 +207,7 @@ services:
     restart: unless-stopped
 
   frontend:
+    image: ghcr.io/spaider-studio/spaider-frontend:${SPAIDER_VERSION:-latest}
     build:
       context: ./frontend
       args:
