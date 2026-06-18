@@ -62,3 +62,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: cli/dist
+          # PyPI versions are immutable; skip (don't fail) if a re-run hits an
+          # already-published file. The version bump in pyproject.toml is what
+          # ships new code — this just keeps re-tags from erroring.
+          skip-existing: true
