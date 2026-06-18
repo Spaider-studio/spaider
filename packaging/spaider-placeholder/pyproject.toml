@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "spaider"
+version = "0.0.2"
+description = "Reserved name — installs spaider-client, the real Spaider SDK"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "Apache-2.0"
+authors = [{ name = "SpAIder Studio" }]
+# This distribution owns the short `spaider` name on PyPI but ships no module
+# of its own. It depends on spaider-client (which provides the importable
+# `spaider` package), so `pip install spaider` gets you the real SDK and
+# `import spaider` always resolves to it — no namespace collision, any order.
+dependencies = ["spaider-client"]
+
+[project.urls]
+Homepage = "https://pypi.org/project/spaider-client/"
+Source = "https://github.com/Spaider-studio/spaider"
+
+[tool.hatch.build.targets.wheel]
+# Metadata-only wheel: ships no `spaider/` package, so it can never clobber
+# the real SDK's module (the bug in the 0.0.1 placeholder).
+bypass-selection = true
+
+[tool.hatch.build.targets.sdist]
+include = ["README.md", "pyproject.toml"]
