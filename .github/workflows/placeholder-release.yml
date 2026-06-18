@@ -1,0 +1,70 @@
+name: Release / Placeholder
+
+# Build and publish the `spaider` name-reservation package to PyPI when a
+# tagged release is pushed. Tags must match placeholder/v* (e.g.
+# placeholder/v0.0.2) so it never publishes alongside the CLI (cli/v*), the
+# SDK (sdk-python/v*), or the container images (v*).
+#
+# This package ships no code — it just depends on spaider-client so the short
+# `spaider` name resolves to the real SDK. See packaging/spaider-placeholder/.
+#
+# Setup before first release (PyPI trusted publisher, OIDC, no token):
+#
+#   1. On https://pypi.org/manage/account/publishing/ add a publisher for the
+#      EXISTING `spaider` project (Manage project → Publishing) with:
+#        - PyPI Project Name: spaider
+#        - Owner: Spaider-studio
+#        - Repository name: spaider
+#        - Workflow name: placeholder-release.yml
+#        - Environment name: pypi
+#   2. Tag a release: git tag placeholder/v0.0.2 && git push origin placeholder/v0.0.2
+#   3. This workflow builds the sdist + wheel and publishes via the
+#      trusted-publisher flow.
+
+on:
+  push:
+    tags:
+      - "placeholder/v*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (default). Type false to actually publish to PyPI."
+        required: false
+        default: "true"
+
+permissions:
+  # Required for PyPI trusted publishing via OIDC.
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: pypi
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install build tooling
+        run: pip install build twine
+
+      - name: Build distributions
+        run: cd packaging/spaider-placeholder && python -m build
+
+      - name: Twine check
+        run: twine check packaging/spaider-placeholder/dist/*
+
+      - name: Publish to PyPI
+        if: ${{ inputs.dry_run != 'true' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: packaging/spaider-placeholder/dist
+          # PyPI versions are immutable; skip (don't fail) if a re-run hits an
+          # already-published file.
+          skip-existing: true
