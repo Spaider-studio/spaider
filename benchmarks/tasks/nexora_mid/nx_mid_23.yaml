@@ -1,0 +1,13 @@
+id: nx_mid_23
+category: nexora_mid
+title: What budget was Nexora's document redaction project for Polaris Foods greenlit
+  with?
+prompt: What budget was Nexora's document redaction project for Polaris Foods greenlit
+  with?
+format_hint: Answer with just the value, no explanation.
+expected_substring: 7,790,000
+max_tokens: 256
+requires_mcp: false
+oracle:
+  kind: composite
+expected_output: 7,790,000

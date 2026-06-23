@@ -38,7 +38,7 @@ SpAIder gives every AI agent a persistent, queryable knowledge graph. Agents ing
 
 ## Benchmarks
 
-Benchmarked on **24 HotpotQA** multi-hop questions + a **16-question private corpus**, scored on EM / F1 / GEval (LLM-judge), **8 sweeps**, **bootstrapped 95% CIs**, with an **independent gpt-4o judge**.
+Benchmarked on **24 HotpotQA** multi-hop questions + a **16-question private corpus**, scored on EM / F1 / GEval (LLM-judge), **8 sweeps**, **95% CIs cluster-bootstrapped over the distinct questions** (not the graded rows), with an **independent gpt-4o judge**.
 
 ### Accuracy: the value is the memory, not the model
 
@@ -54,7 +54,7 @@ Benchmarked on **24 HotpotQA** multi-hop questions + a **16-question private cor
 
 On **private data the LLM has never seen**, the bare LLM scores **0.00 on every metric** and SpAIder lifts semantic correctness to **0.97**. That is the entire value of the memory. Even on public trivia the LLM already half-knows, grounding the answer in retrieved facts still lifts it markedly (0.43 → 0.77).
 
-<sub>SpAIder has also been benchmarked head-to-head against other open memory systems on identical corpora with an independent gpt-4o judge: it performs on par with the best of them, while a bare model scores ~0 on private data.</sub>
+<sub>**Head-to-head:** on identical corpora, questions and an independent gpt-4o judge, SpAIder is **statistically tied with Mem0 and Cognee** — every system-vs-system difference falls within its 95% CI — while all three beat a bare model by a wide margin on private data. Full reproducible table (3 corpora, both retrieval-isolated and native modes): [benchmarks/COMPARISON_SYSTEMS.md](benchmarks/COMPARISON_SYSTEMS.md).</sub>
 
 ### Cost: flat as your knowledge base grows
 

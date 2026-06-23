@@ -1,0 +1,13 @@
+id: nx_mid_15
+category: nexora_mid
+title: What budget was Nexora's vendor-compliance auditing project for Cascade Energy
+  greenlit with?
+prompt: What budget was Nexora's vendor-compliance auditing project for Cascade Energy
+  greenlit with?
+format_hint: Answer with just the value, no explanation.
+expected_substring: 6,030,000
+max_tokens: 256
+requires_mcp: false
+oracle:
+  kind: composite
+expected_output: 6,030,000

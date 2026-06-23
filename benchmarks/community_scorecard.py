@@ -2,11 +2,13 @@
 
 Reads runner.py JSONL output (composite oracle: EM / F1 / GEval / ROUGE-L) for
 two arms, ``vanilla`` (LLM alone) and ``with-spaider`` (LLM + SpAIder memory),
-and reports, per metric, each arm's mean with a **bootstrapped 95% CI**, plus
-the **lift** (with-spaider − vanilla) with a *paired* bootstrap CI.
+and reports, per metric, each arm's mean with a **95% CI bootstrapped over the
+distinct questions** (not the graded rows), plus the **lift** (with-spaider −
+vanilla) with a *paired* bootstrap CI.
 
-Methodology: 24 HotpotQA multi-hop questions, N repeated sweeps, LLM-judge
-correctness as the headline, bootstrapped CIs. GEval is the headline metric:
+Methodology: each distinct question's repeated sweeps are collapsed to one
+per-question mean before resampling (a cluster bootstrap over questions), so the
+CIs reflect question-level uncertainty. GEval is the headline metric:
 EM/F1 reward surface token-overlap and understate correct-but-verbose answers;
 exactly the failure mode an AI-memory system is meant to fix.
 
@@ -150,13 +152,15 @@ def build(runs_dir: str) -> dict:
     spa_hits = _per_task_means(loaded["hits"]["with-spaider"])
     hit_rate = statistics.fmean(list(spa_hits.values())) if spa_hits else None
     return {"runs_dir": runs_dir, "rows": loaded["rows"], "bootstrap": B,
+            "questions": max((r["n_tasks"] for r in results), default=0),
             "results": results, "retrieval_hit_rate": hit_rate}
 
 
 def to_markdown(sc: dict) -> str:
     lines = ["# SpAIder community scorecard", ""]
-    lines.append(f"24 HotpotQA multi-hop questions · {sc['rows']} graded rows · "
-                 f"bootstrapped 95% CI ({sc['bootstrap']:,} resamples).")
+    lines.append(f"{sc.get('questions', 0)} distinct questions · {sc['rows']} graded rows · "
+                 f"95% CI cluster-bootstrapped over questions "
+                 f"({sc['bootstrap']:,} resamples), not over rows.")
     lines.append("Arms: **vanilla** (gpt-4o-mini alone) vs **with-spaider** "
                  "(gpt-4o-mini + SpAIder memory). GEval = LLM-judge correctness "
                  "(headline; EM/F1 understate correct-but-verbose answers).")

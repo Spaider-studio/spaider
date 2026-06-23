@@ -1,0 +1,1513 @@
+{
+  "runs_dir": "/Users/mycl/Git/spaider-bench/benchmarks/runs/sys_compare",
+  "rows": 1020,
+  "bootstrap": 10000,
+  "metrics": [
+    [
+      "geval__gpt-4o",
+      "GEval (judge: gpt-4o)",
+      "headline"
+    ],
+    [
+      "geval_score",
+      "GEval (self-judge)",
+      ""
+    ],
+    [
+      "f1_score",
+      "F1",
+      ""
+    ],
+    [
+      "exact_match",
+      "Exact Match",
+      ""
+    ],
+    [
+      "rouge_l_score",
+      "ROUGE-L",
+      ""
+    ]
+  ],
+  "headline": "geval__gpt-4o",
+  "baseline": "vanilla",
+  "vs": "spaider-fixed",
+  "categories": {
+    "acmeai": {
+      "arms": [
+        "cognee-fixed",
+        "cognee-native",
+        "mem0-fixed",
+        "mem0-native",
+        "spaider-fixed",
+        "spaider-native",
+        "vanilla"
+      ],
+      "per_arm": {
+        "cognee-fixed": {
+          "metrics": {
+            "geval__gpt-4o": {
+              "mean": 0.8958333333333334,
+              "ci": [
+                0.75,
+                1.0
+              ],
+              "n": 16,
+              "label": "GEval (judge: gpt-4o)"
+            },
+            "geval_score": {
+              "mean": 0.8541666666666666,
+              "ci": [
+                0.6875,
+                1.0
+              ],
+              "n": 16,
+              "label": "GEval (self-judge)"
+            },
+            "f1_score": {
+              "mean": 0.70625,
+              "ci": [
+                0.5,
+                0.8854166666666666
+              ],
+              "n": 16,
+              "label": "F1"
+            },
+            "exact_match": {
+              "mean": 0.5625,
+              "ci": [
+                0.3125,
+                0.8125
+              ],
+              "n": 16,
+              "label": "Exact Match"
+            },
+            "rouge_l_score": {
+              "mean": 0.70625,
+              "ci": [
+                0.5083333333333333,
+                0.8833333333333333
+              ],
+              "n": 16,
+              "label": "ROUGE-L"
+            }
+          },
+          "avg_tokens": 604.0833333333334,
+          "retrieval_hit": 0.9375
+        },
+        "cognee-native": {
+          "metrics": {
+            "geval__gpt-4o": {
+              "mean": 0.90625,
+              "ci": [
+                0.7708333333333334,
+                0.9895833333333334
+              ],
+              "n": 16,
+              "label": "GEval (judge: gpt-4o)"
+            },
+            "geval_score": {
+              "mean": 0.8958333333333334,
+              "ci": [
+                0.75,
+                1.0
+              ],
+              "n": 16,
+              "label": "GEval (self-judge)"
+            },
+            "f1_score": {
+              "mean": 0.69375,
+              "ci": [
+                0.4979166666666667,
+                0.8743055555555556
+              ],
+              "n": 16,
+              "label": "F1"
+            },
+            "exact_match": {
+              "mean": 0.6458333333333334,
+              "ci": [
+                0.4166666666666667,
+                0.8541666666666666
+              ],
+              "n": 16,
+              "label": "Exact Match"
+            },
+            "rouge_l_score": {
+              "mean": 0.69375,
+              "ci": [
+                0.49583333333333335,
+                0.875
+              ],
+              "n": 16,
+              "label": "ROUGE-L"
+            }
+          },
+          "avg_tokens": 0.0,
+          "retrieval_hit": 0.6666666666666666
+        },
+        "mem0-fixed": {
+          "metrics": {
+            "geval__gpt-4o": {
+              "mean": 0.8854166666666666,
+              "ci": [
+                0.7395833333333334,
+                1.0
+              ],
+              "n": 16,
+              "label": "GEval (judge: gpt-4o)"
+            },
+            "geval_score": {
+              "mean": 0.84375,
+              "ci": [
+                0.65625,
+                1.0
+              ],
+              "n": 16,
+              "label": "GEval (self-judge)"
+            },
+            "f1_score": {
+              "mean": 0.675,
+              "ci": [
+                0.4583333333333333,
+                0.8708333333333333
+              ],
+              "n": 16,
+              "label": "F1"
+            },
+            "exact_match": {
+              "mean": 0.5625,
+              "ci": [
+                0.3125,
+                0.8125
+              ],
+              "n": 16,
+              "label": "Exact Match"
+            },
+            "rouge_l_score": {
+              "mean": 0.675,
+              "ci": [
+                0.4583333333333333,
+                0.875
+              ],
+              "n": 16,
+              "label": "ROUGE-L"
+            }
+          },
+          "avg_tokens": 608.375,
+          "retrieval_hit": 0.9375
+        },
+        "mem0-native": {
+          "metrics": {
+            "geval__gpt-4o": {
+              "mean": 0.90625,
+              "ci": [
+                0.75,
+                1.0
+              ],
+              "n": 16,
+              "label": "GEval (judge: gpt-4o)"
+            },
+            "geval_score": {
+              "mean": 0.84375,
+              "ci": [
+                0.65625,
+                1.0
+              ],
+              "n": 16,
+              "label": "GEval (self-judge)"
+            },
+            "f1_score": {
+              "mean": 0.6958333333333333,
+              "ci": [
+                0.4875,
+                0.875
+              ],
+              "n": 16,
+              "label": "F1"
+            },
+            "exact_match": {
+              "mean": 0.5833333333333334,
+              "ci": [
+                0.3333333333333333,
+                0.8125
+              ],
+              "n": 16,
+              "label": "Exact Match"
+            },
+            "rouge_l_score": {
+              "mean": 0.6958333333333333,
+              "ci": [
+                0.4875,
+                0.875
+              ],
+              "n": 16,
+              "label": "ROUGE-L"
+            }
+          },
+          "avg_tokens": 562.625,
+          "retrieval_hit": 0.9375
+        },
+        "spaider-fixed": {
+          "metrics": {
+            "geval__gpt-4o": {
+              "mean": 0.96875,
+              "ci": [
+                0.90625,
+                1.0
+              ],
+              "n": 16,
+              "label": "GEval (judge: gpt-4o)"
+            },
+            "geval_score": {
+              "mean": 0.90625,
+              "ci": [
+                0.75,
+                1.0
+              ],
+              "n": 16,
+              "label": "GEval (self-judge)"
+            },
+            "f1_score": {
+              "mean": 0.70625,
+              "ci": [
+                0.50625,
+                0.8916666666666667
+              ],
+              "n": 16,
+              "label": "F1"
+            },
+            "exact_match": {
+              "mean": 0.5625,
+              "ci": [
+                0.3125,
+                0.8125
+              ],
+              "n": 16,
+              "label": "Exact Match"
+            },
+            "rouge_l_score": {
+              "mean": 0.70625,
+              "ci": [
+                0.5,
+                0.8854166666666666
+              ],
+              "n": 16,
+              "label": "ROUGE-L"
+            }
+          },
+          "avg_tokens": 568.125,
+          "retrieval_hit": 0.9375
+        },
+        "spaider-native": {
+          "metrics": {
+            "geval__gpt-4o": {
+              "mean": 0.875,
+              "ci": [
+                0.71875,
+                1.0
+              ],
+              "n": 16,
+              "label": "GEval (judge: gpt-4o)"
+            },
+            "geval_score": {
+              "mean": 0.84375,
+              "ci": [
+                0.65625,
+                1.0
+              ],
+              "n": 16,
+              "label": "GEval (self-judge)"
+            },
+            "f1_score": {
+              "mean": 0.725,
+              "ci": [
+                0.5,
+                0.9125
+              ],
+              "n": 16,
+              "label": "F1"
+            },
+            "exact_match": {
+              "mean": 0.625,
+              "ci": [
+                0.375,
+                0.875
+              ],
+              "n": 16,
+              "label": "Exact Match"
+            },
+            "rouge_l_score": {
+              "mean": 0.725,
+              "ci": [
+                0.5,
+                0.9125
+              ],
+              "n": 16,
+              "label": "ROUGE-L"
+            }
+          },
+          "avg_tokens": 7908.0,
+          "retrieval_hit": 0.9375
+        },
+        "vanilla": {
+          "metrics": {
+            "geval__gpt-4o": {
+              "mean": 0.0,
+              "ci": [
+                0.0,
+                0.0
+              ],
+              "n": 16,
+              "label": "GEval (judge: gpt-4o)"
+            },
+            "geval_score": {
+              "mean": 0.0,
+              "ci": [
+                0.0,
+                0.0
+              ],
+              "n": 16,
+              "label": "GEval (self-judge)"
+            },
+            "f1_score": {
+              "mean": 0.0,
+              "ci": [
+                0.0,
+                0.0
+              ],
+              "n": 16,
+              "label": "F1"
+            },
+            "exact_match": {
+              "mean": 0.0,
+              "ci": [
+                0.0,
+                0.0
+              ],
+              "n": 16,
+              "label": "Exact Match"
+            },
+            "rouge_l_score": {
+              "mean": 0.0,
+              "ci": [
+                0.0,
+                0.0
+              ],
+              "n": 16,
+              "label": "ROUGE-L"
+            }
+          },
+          "avg_tokens": 109.375,
+          "retrieval_hit": null
+        }
+      },
+      "lifts": [
+        {
+          "arm": "cognee-fixed",
+          "ref": "vanilla",
+          "mean": 0.8958333333333334,
+          "ci": [
+            0.75,
+            1.0
+          ],
+          "significant": true
+        },
+        {
+          "arm": "cognee-native",
+          "ref": "vanilla",
+          "mean": 0.90625,
+          "ci": [
+            0.7708333333333334,
+            0.9895833333333334
+          ],
+          "significant": true
+        },
+        {
+          "arm": "mem0-fixed",
+          "ref": "vanilla",
+          "mean": 0.8854166666666666,
+          "ci": [
+            0.7395833333333334,
+            1.0
+          ],
+          "significant": true
+        },
+        {
+          "arm": "mem0-native",
+          "ref": "vanilla",
+          "mean": 0.90625,
+          "ci": [
+            0.75,
+            1.0
+          ],
+          "significant": true
+        },
+        {
+          "arm": "spaider-fixed",
+          "ref": "vanilla",
+          "mean": 0.96875,
+          "ci": [
+            0.90625,
+            1.0
+          ],
+          "significant": true
+        },
+        {
+          "arm": "spaider-native",
+          "ref": "vanilla",
+          "mean": 0.875,
+          "ci": [
+            0.71875,
+            1.0
+          ],
+          "significant": true
+        },
+        {
+          "arm": "cognee-fixed",
+          "ref": "spaider-fixed",
+          "mean": -0.07291666666666666,
+          "ci": [
+            -0.20833333333333331,
+            0.0
+          ],
+          "significant": false
+        },
+        {
+          "arm": "cognee-native",
+          "ref": "spaider-fixed",
+          "mean": -0.06249999999999999,
+          "ci": [
+            -0.20833333333333331,
+            0.04166666666666668
+          ],
+          "significant": false
+        },
+        {
+          "arm": "mem0-fixed",
+          "ref": "spaider-fixed",
+          "mean": -0.08333333333333334,
+          "ci": [
+            -0.22916666666666669,
+            0.0
+          ],
+          "significant": false
+        },
+        {
+          "arm": "mem0-native",
+          "ref": "spaider-fixed",
+          "mean": -0.0625,
+          "ci": [
+            -0.1875,
+            0.0
+          ],
+          "significant": false
+        },
+        {
+          "arm": "spaider-native",
+          "ref": "spaider-fixed",
+          "mean": -0.09375,
+          "ci": [
+            -0.25,
+            0.0
+          ],
+          "significant": false
+        },
+        {
+          "arm": "vanilla",
+          "ref": "spaider-fixed",
+          "mean": -0.96875,
+          "ci": [
+            -1.0,
+            -0.90625
+          ],
+          "significant": true
+        }
+      ]
+    },
+    "hotpotqa": {
+      "arms": [
+        "cognee-fixed",
+        "cognee-native",
+        "mem0-fixed",
+        "mem0-native",
+        "spaider-fixed",
+        "spaider-native",
+        "vanilla"
+      ],
+      "per_arm": {
+        "cognee-fixed": {
+          "metrics": {
+            "geval__gpt-4o": {
+              "mean": 0.8611111111111112,
+              "ci": [
+                0.7083333333333334,
+                0.9861111111111112
+              ],
+              "n": 24,
+              "label": "GEval (judge: gpt-4o)"
+            },
+            "geval_score": {
+              "mean": 0.8611111111111112,
+              "ci": [
+                0.7083333333333334,
+                0.9861111111111112
+              ],
+              "n": 24,
+              "label": "GEval (self-judge)"
+            },
+            "f1_score": {
+              "mean": 0.8293650793650794,
+              "ci": [
+                0.6825396825396824,
+                0.9484126984126985
+              ],
+              "n": 24,
+              "label": "F1"
+            },
+            "exact_match": {
+              "mean": 0.6944444444444445,
+              "ci": [
+                0.5,
+                0.875
+              ],
+              "n": 24,
+              "label": "Exact Match"
+            },
+            "rouge_l_score": {
+              "mean": 0.8174603174603176,
+              "ci": [
+                0.6765873015873015,
+                0.9365079365079364
+              ],
+              "n": 24,
+              "label": "ROUGE-L"
+            }
+          },
+          "avg_tokens": 1145.8194444444446,
+          "retrieval_hit": 1.0
+        },
+        "cognee-native": {
+          "metrics": {
+            "geval__gpt-4o": {
+              "mean": 0.7847222222222222,
+              "ci": [
+                0.625,
+                0.9236111111111112
+              ],
+              "n": 24,
+              "label": "GEval (judge: gpt-4o)"
+            },
+            "geval_score": {
+              "mean": 0.7847222222222222,
+              "ci": [
+                0.625,
+                0.9236111111111112
+              ],
+              "n": 24,
+              "label": "GEval (self-judge)"
+            },
+            "f1_score": {
+              "mean": 0.7447089947089948,
+              "ci": [
+                0.5886243386243386,
+                0.8835978835978836
+              ],
+              "n": 24,
+              "label": "F1"
+            },
+            "exact_match": {
+              "mean": 0.5555555555555556,
+              "ci": [
+                0.3611111111111111,
+                0.7361111111111112
+              ],
+              "n": 24,
+              "label": "Exact Match"
+            },
+            "rouge_l_score": {
+              "mean": 0.7235449735449735,
+              "ci": [
+                0.5681216931216931,
+                0.8644179894179894
+              ],
+              "n": 24,
+              "label": "ROUGE-L"
+            }
+          },
+          "avg_tokens": 0.0,
+          "retrieval_hit": 0.4166666666666667
+        },
+        "mem0-fixed": {
+          "metrics": {
+            "geval__gpt-4o": {
+              "mean": 0.875,
+              "ci": [
+                0.7083333333333334,
+                1.0
+              ],
+              "n": 24,
+              "label": "GEval (judge: gpt-4o)"
+            },
+            "geval_score": {
+              "mean": 0.8819444444444445,
+              "ci": [
+                0.7361111111111112,
+                1.0
+              ],
+              "n": 24,
+              "label": "GEval (self-judge)"
+            },
+            "f1_score": {
+              "mean": 0.8432539682539683,
+              "ci": [
+                0.6964285714285715,
+                0.9583333333333334
+              ],
+              "n": 24,
+              "label": "F1"
+            },
+            "exact_match": {
+              "mean": 0.7083333333333334,
+              "ci": [
+                0.5,
+                0.875
+              ],
+              "n": 24,
+              "label": "Exact Match"
+            },
+            "rouge_l_score": {
+              "mean": 0.8313492063492064,
+              "ci": [
+                0.6865079365079364,
+                0.9484126984126985
+              ],
+              "n": 24,
+              "label": "ROUGE-L"
+            }
+          },
+          "avg_tokens": 1163.2916666666667,
+          "retrieval_hit": 1.0
+        },
+        "mem0-native": {
+          "metrics": {
+            "geval__gpt-4o": {
+              "mean": 0.8333333333333334,
+              "ci": [
+                0.6666666666666666,
+                0.9583333333333334
+              ],
+              "n": 24,
+              "label": "GEval (judge: gpt-4o)"
+            },
+            "geval_score": {
+              "mean": 0.8333333333333334,
+              "ci": [
+                0.6666666666666666,
+                0.9583333333333334
+              ],
+              "n": 24,
+              "label": "GEval (self-judge)"
+            },
+            "f1_score": {
+              "mean": 0.7876984126984127,
+              "ci": [
+                0.6329365079365079,
+                0.9206349206349206
+              ],
+              "n": 24,
+              "label": "F1"
+            },
+            "exact_match": {
+              "mean": 0.625,
+              "ci": [
+                0.4166666666666667,
+                0.8333333333333334
+              ],
+              "n": 24,
+              "label": "Exact Match"
+            },
+            "rouge_l_score": {
+              "mean": 0.7757936507936508,
+              "ci": [
+                0.6150793650793651,
+                0.9107142857142857
+              ],
+              "n": 24,
+              "label": "ROUGE-L"
+            }
+          },
+          "avg_tokens": 1170.8333333333333,
+          "retrieval_hit": 1.0
+        },
+        "spaider-fixed": {
+          "metrics": {
+            "geval__gpt-4o": {
+              "mean": 0.8333333333333334,
+              "ci": [
+                0.6666666666666666,
+                0.9583333333333334
+              ],
+              "n": 24,
+              "label": "GEval (judge: gpt-4o)"
+            },
+            "geval_score": {
+              "mean": 0.8541666666666666,
+              "ci": [
+                0.7083333333333334,
+                0.9791666666666666
+              ],
+              "n": 24,
+              "label": "GEval (self-judge)"
+            },
+            "f1_score": {
+              "mean": 0.8075396825396824,
+              "ci": [
+                0.6488095238095238,
+                0.9404761904761906
+              ],
+              "n": 24,
+              "label": "F1"
+            },
+            "exact_match": {
+              "mean": 0.7083333333333334,
+              "ci": [
+                0.5,
+                0.875
+              ],
+              "n": 24,
+              "label": "Exact Match"
+            },
+            "rouge_l_score": {
+              "mean": 0.8075396825396824,
+              "ci": [
+                0.6468253968253969,
+                0.9404761904761906
+              ],
+              "n": 24,
+              "label": "ROUGE-L"
+            }
+          },
+          "avg_tokens": 943.5833333333334,
+          "retrieval_hit": 1.0
+        },
+        "spaider-native": {
+          "metrics": {
+            "geval__gpt-4o": {
+              "mean": 0.7708333333333334,
+              "ci": [
+                0.6041666666666666,
+                0.9166666666666666
+              ],
+              "n": 24,
+              "label": "GEval (judge: gpt-4o)"
+            },
+            "geval_score": {
+              "mean": 0.7916666666666666,
+              "ci": [
+                0.625,
+                0.9583333333333334
+              ],
+              "n": 24,
+              "label": "GEval (self-judge)"
+            },
+            "f1_score": {
+              "mean": 0.7341269841269842,
+              "ci": [
+                0.5674603174603174,
+                0.878968253968254
+              ],
+              "n": 24,
+              "label": "F1"
+            },
+            "exact_match": {
+              "mean": 0.5833333333333334,
+              "ci": [
+                0.375,
+                0.7916666666666666
+              ],
+              "n": 24,
+              "label": "Exact Match"
+            },
+            "rouge_l_score": {
+              "mean": 0.7341269841269842,
+              "ci": [
+                0.5674603174603174,
+                0.8829365079365079
+              ],
+              "n": 24,
+              "label": "ROUGE-L"
+            }
+          },
+          "avg_tokens": 9204.625,
+          "retrieval_hit": 1.0
+        },
+        "vanilla": {
+          "metrics": {
+            "geval__gpt-4o": {
+              "mean": 0.4583333333333333,
+              "ci": [
+                0.2708333333333333,
+                0.6458333333333334
+              ],
+              "n": 24,
+              "label": "GEval (judge: gpt-4o)"
+            },
+            "geval_score": {
+              "mean": 0.4791666666666667,
+              "ci": [
+                0.2916666666666667,
+                0.6666666666666666
+              ],
+              "n": 24,
+              "label": "GEval (self-judge)"
+            },
+            "f1_score": {
+              "mean": 0.09159588999926406,
+              "ci": [
+                0.04976837072701734,
+                0.13905795787669878
+              ],
+              "n": 24,
+              "label": "F1"
+            },
+            "exact_match": {
+              "mean": 0.0,
+              "ci": [
+                0.0,
+                0.0
+              ],
+              "n": 24,
+              "label": "Exact Match"
+            },
+            "rouge_l_score": {
+              "mean": 0.07024084014578653,
+              "ci": [
+                0.03811959239590818,
+                0.10696359813748574
+              ],
+              "n": 24,
+              "label": "ROUGE-L"
+            }
+          },
+          "avg_tokens": 103.75,
+          "retrieval_hit": null
+        }
+      },
+      "lifts": [
+        {
+          "arm": "cognee-fixed",
+          "ref": "vanilla",
+          "mean": 0.40277777777777773,
+          "ci": [
+            0.17361111111111108,
+            0.625
+          ],
+          "significant": true
+        },
+        {
+          "arm": "cognee-native",
+          "ref": "vanilla",
+          "mean": 0.3263888888888889,
+          "ci": [
+            0.06944444444444443,
+            0.576388888888889
+          ],
+          "significant": true
+        },
+        {
+          "arm": "mem0-fixed",
+          "ref": "vanilla",
+          "mean": 0.4166666666666667,
+          "ci": [
+            0.1875,
+            0.6458333333333334
+          ],
+          "significant": true
+        },
+        {
+          "arm": "mem0-native",
+          "ref": "vanilla",
+          "mean": 0.375,
+          "ci": [
+            0.14583333333333334,
+            0.5833333333333334
+          ],
+          "significant": true
+        },
+        {
+          "arm": "spaider-fixed",
+          "ref": "vanilla",
+          "mean": 0.375,
+          "ci": [
+            0.125,
+            0.625
+          ],
+          "significant": true
+        },
+        {
+          "arm": "spaider-native",
+          "ref": "vanilla",
+          "mean": 0.3125,
+          "ci": [
+            0.10416666666666667,
+            0.5208333333333334
+          ],
+          "significant": true
+        },
+        {
+          "arm": "cognee-fixed",
+          "ref": "spaider-fixed",
+          "mean": 0.027777777777777776,
+          "ci": [
+            0.0,
+            0.08333333333333333
+          ],
+          "significant": false
+        },
+        {
+          "arm": "cognee-native",
+          "ref": "spaider-fixed",
+          "mean": -0.04861111111111111,
+          "ci": [
+            -0.20138888888888887,
+            0.09027777777777779
+          ],
+          "significant": false
+        },
+        {
+          "arm": "mem0-fixed",
+          "ref": "spaider-fixed",
+          "mean": 0.041666666666666664,
+          "ci": [
+            0.0,
+            0.125
+          ],
+          "significant": false
+        },
+        {
+          "arm": "mem0-native",
+          "ref": "spaider-fixed",
+          "mean": 0.0,
+          "ci": [
+            -0.125,
+            0.125
+          ],
+          "significant": false
+        },
+        {
+          "arm": "spaider-native",
+          "ref": "spaider-fixed",
+          "mean": -0.0625,
+          "ci": [
+            -0.20833333333333334,
+            0.08333333333333333
+          ],
+          "significant": false
+        },
+        {
+          "arm": "vanilla",
+          "ref": "spaider-fixed",
+          "mean": -0.375,
+          "ci": [
+            -0.6041666666666666,
+            -0.125
+          ],
+          "significant": true
+        }
+      ]
+    },
+    "nexora_mid": {
+      "arms": [
+        "cognee-fixed",
+        "cognee-native",
+        "mem0-fixed",
+        "mem0-native",
+        "spaider-fixed",
+        "spaider-native",
+        "vanilla"
+      ],
+      "per_arm": {
+        "cognee-fixed": {
+          "metrics": {
+            "geval__gpt-4o": {
+              "mean": 0.9583333333333334,
+              "ci": [
+                0.9,
+                1.0
+              ],
+              "n": 60,
+              "label": "GEval (judge: gpt-4o)"
+            },
+            "geval_score": {
+              "mean": 1.0,
+              "ci": [
+                1.0,
+                1.0
+              ],
+              "n": 60,
+              "label": "GEval (self-judge)"
+            },
+            "f1_score": {
+              "mean": 1.0,
+              "ci": [
+                1.0,
+                1.0
+              ],
+              "n": 60,
+              "label": "F1"
+            },
+            "exact_match": {
+              "mean": 1.0,
+              "ci": [
+                1.0,
+                1.0
+              ],
+              "n": 60,
+              "label": "Exact Match"
+            },
+            "rouge_l_score": {
+              "mean": 1.0,
+              "ci": [
+                1.0,
+                1.0
+              ],
+              "n": 60,
+              "label": "ROUGE-L"
+            }
+          },
+          "avg_tokens": 767.85,
+          "retrieval_hit": 1.0
+        },
+        "cognee-native": {
+          "metrics": {
+            "geval__gpt-4o": {
+              "mean": 0.8833333333333333,
+              "ci": [
+                0.8,
+                0.95
+              ],
+              "n": 60,
+              "label": "GEval (judge: gpt-4o)"
+            },
+            "geval_score": {
+              "mean": 0.9166666666666666,
+              "ci": [
+                0.8333333333333334,
+                0.9833333333333333
+              ],
+              "n": 60,
+              "label": "GEval (self-judge)"
+            },
+            "f1_score": {
+              "mean": 0.9166666666666666,
+              "ci": [
+                0.8333333333333334,
+                0.9833333333333333
+              ],
+              "n": 60,
+              "label": "F1"
+            },
+            "exact_match": {
+              "mean": 0.9166666666666666,
+              "ci": [
+                0.8333333333333334,
+                0.9833333333333333
+              ],
+              "n": 60,
+              "label": "Exact Match"
+            },
+            "rouge_l_score": {
+              "mean": 0.9166666666666666,
+              "ci": [
+                0.8333333333333334,
+                0.9833333333333333
+              ],
+              "n": 60,
+              "label": "ROUGE-L"
+            }
+          },
+          "avg_tokens": 0.0,
+          "retrieval_hit": 0.9166666666666666
+        },
+        "mem0-fixed": {
+          "metrics": {
+            "geval__gpt-4o": {
+              "mean": 0.9833333333333333,
+              "ci": [
+                0.95,
+                1.0
+              ],
+              "n": 60,
+              "label": "GEval (judge: gpt-4o)"
+            },
+            "geval_score": {
+              "mean": 1.0,
+              "ci": [
+                1.0,
+                1.0
+              ],
+              "n": 60,
+              "label": "GEval (self-judge)"
+            },
+            "f1_score": {
+              "mean": 1.0,
+              "ci": [
+                1.0,
+                1.0
+              ],
+              "n": 60,
+              "label": "F1"
+            },
+            "exact_match": {
+              "mean": 1.0,
+              "ci": [
+                1.0,
+                1.0
+              ],
+              "n": 60,
+              "label": "Exact Match"
+            },
+            "rouge_l_score": {
+              "mean": 1.0,
+              "ci": [
+                1.0,
+                1.0
+              ],
+              "n": 60,
+              "label": "ROUGE-L"
+            }
+          },
+          "avg_tokens": 778.2666666666667,
+          "retrieval_hit": 1.0
+        },
+        "mem0-native": {
+          "metrics": {
+            "geval__gpt-4o": {
+              "mean": 0.9666666666666667,
+              "ci": [
+                0.9166666666666666,
+                1.0
+              ],
+              "n": 60,
+              "label": "GEval (judge: gpt-4o)"
+            },
+            "geval_score": {
+              "mean": 1.0,
+              "ci": [
+                1.0,
+                1.0
+              ],
+              "n": 60,
+              "label": "GEval (self-judge)"
+            },
+            "f1_score": {
+              "mean": 1.0,
+              "ci": [
+                1.0,
+                1.0
+              ],
+              "n": 60,
+              "label": "F1"
+            },
+            "exact_match": {
+              "mean": 1.0,
+              "ci": [
+                1.0,
+                1.0
+              ],
+              "n": 60,
+              "label": "Exact Match"
+            },
+            "rouge_l_score": {
+              "mean": 1.0,
+              "ci": [
+                1.0,
+                1.0
+              ],
+              "n": 60,
+              "label": "ROUGE-L"
+            }
+          },
+          "avg_tokens": 759.2166666666667,
+          "retrieval_hit": 1.0
+        },
+        "spaider-fixed": {
+          "metrics": {
+            "geval__gpt-4o": {
+              "mean": 0.9583333333333334,
+              "ci": [
+                0.9,
+                1.0
+              ],
+              "n": 60,
+              "label": "GEval (judge: gpt-4o)"
+            },
+            "geval_score": {
+              "mean": 1.0,
+              "ci": [
+                1.0,
+                1.0
+              ],
+              "n": 60,
+              "label": "GEval (self-judge)"
+            },
+            "f1_score": {
+              "mean": 1.0,
+              "ci": [
+                1.0,
+                1.0
+              ],
+              "n": 60,
+              "label": "F1"
+            },
+            "exact_match": {
+              "mean": 1.0,
+              "ci": [
+                1.0,
+                1.0
+              ],
+              "n": 60,
+              "label": "Exact Match"
+            },
+            "rouge_l_score": {
+              "mean": 1.0,
+              "ci": [
+                1.0,
+                1.0
+              ],
+              "n": 60,
+              "label": "ROUGE-L"
+            }
+          },
+          "avg_tokens": 695.8833333333333,
+          "retrieval_hit": 1.0
+        },
+        "spaider-native": {
+          "metrics": {
+            "geval__gpt-4o": {
+              "mean": 0.975,
+              "ci": [
+                0.9333333333333333,
+                1.0
+              ],
+              "n": 60,
+              "label": "GEval (judge: gpt-4o)"
+            },
+            "geval_score": {
+              "mean": 0.9833333333333333,
+              "ci": [
+                0.95,
+                1.0
+              ],
+              "n": 60,
+              "label": "GEval (self-judge)"
+            },
+            "f1_score": {
+              "mean": 0.9833333333333333,
+              "ci": [
+                0.95,
+                1.0
+              ],
+              "n": 60,
+              "label": "F1"
+            },
+            "exact_match": {
+              "mean": 0.9833333333333333,
+              "ci": [
+                0.95,
+                1.0
+              ],
+              "n": 60,
+              "label": "Exact Match"
+            },
+            "rouge_l_score": {
+              "mean": 0.9833333333333333,
+              "ci": [
+                0.95,
+                1.0
+              ],
+              "n": 60,
+              "label": "ROUGE-L"
+            }
+          },
+          "avg_tokens": 8513.116666666667,
+          "retrieval_hit": 1.0
+        },
+        "vanilla": {
+          "metrics": {
+            "geval__gpt-4o": {
+              "mean": 0.0,
+              "ci": [
+                0.0,
+                0.0
+              ],
+              "n": 60,
+              "label": "GEval (judge: gpt-4o)"
+            },
+            "geval_score": {
+              "mean": 0.0,
+              "ci": [
+                0.0,
+                0.0
+              ],
+              "n": 60,
+              "label": "GEval (self-judge)"
+            },
+            "f1_score": {
+              "mean": 0.0,
+              "ci": [
+                0.0,
+                0.0
+              ],
+              "n": 60,
+              "label": "F1"
+            },
+            "exact_match": {
+              "mean": 0.0,
+              "ci": [
+                0.0,
+                0.0
+              ],
+              "n": 60,
+              "label": "Exact Match"
+            },
+            "rouge_l_score": {
+              "mean": 0.0,
+              "ci": [
+                0.0,
+                0.0
+              ],
+              "n": 60,
+              "label": "ROUGE-L"
+            }
+          },
+          "avg_tokens": 78.01666666666667,
+          "retrieval_hit": null
+        }
+      },
+      "lifts": [
+        {
+          "arm": "cognee-fixed",
+          "ref": "vanilla",
+          "mean": 0.9583333333333334,
+          "ci": [
+            0.9083333333333333,
+            1.0
+          ],
+          "significant": true
+        },
+        {
+          "arm": "cognee-native",
+          "ref": "vanilla",
+          "mean": 0.8833333333333333,
+          "ci": [
+            0.8,
+            0.95
+          ],
+          "significant": true
+        },
+        {
+          "arm": "mem0-fixed",
+          "ref": "vanilla",
+          "mean": 0.9833333333333333,
+          "ci": [
+            0.95,
+            1.0
+          ],
+          "significant": true
+        },
+        {
+          "arm": "mem0-native",
+          "ref": "vanilla",
+          "mean": 0.9666666666666667,
+          "ci": [
+            0.9166666666666666,
+            1.0
+          ],
+          "significant": true
+        },
+        {
+          "arm": "spaider-fixed",
+          "ref": "vanilla",
+          "mean": 0.9583333333333334,
+          "ci": [
+            0.9083333333333333,
+            1.0
+          ],
+          "significant": true
+        },
+        {
+          "arm": "spaider-native",
+          "ref": "vanilla",
+          "mean": 0.975,
+          "ci": [
+            0.9333333333333333,
+            1.0
+          ],
+          "significant": true
+        },
+        {
+          "arm": "cognee-fixed",
+          "ref": "spaider-fixed",
+          "mean": 0.0,
+          "ci": [
+            -0.03333333333333333,
+            0.041666666666666664
+          ],
+          "significant": false
+        },
+        {
+          "arm": "cognee-native",
+          "ref": "spaider-fixed",
+          "mean": -0.075,
+          "ci": [
+            -0.15833333333333333,
+            0.0
+          ],
+          "significant": false
+        },
+        {
+          "arm": "mem0-fixed",
+          "ref": "spaider-fixed",
+          "mean": 0.025,
+          "ci": [
+            -0.016666666666666666,
+            0.08333333333333333
+          ],
+          "significant": false
+        },
+        {
+          "arm": "mem0-native",
+          "ref": "spaider-fixed",
+          "mean": 0.008333333333333333,
+          "ci": [
+            -0.025,
+            0.05
+          ],
+          "significant": false
+        },
+        {
+          "arm": "spaider-native",
+          "ref": "spaider-fixed",
+          "mean": 0.016666666666666666,
+          "ci": [
+            -0.03333333333333333,
+            0.08333333333333333
+          ],
+          "significant": false
+        },
+        {
+          "arm": "vanilla",
+          "ref": "spaider-fixed",
+          "mean": -0.9583333333333334,
+          "ci": [
+            -1.0,
+            -0.9083333333333333
+          ],
+          "significant": true
+        }
+      ]
+    }
+  }
+}

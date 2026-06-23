@@ -55,7 +55,10 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
+
+if TYPE_CHECKING:  # avoids importing competitor adapters (and their deps) at runtime
+    from benchmarks.adapters.base import MemorySystemAdapter
 
 import yaml
 
@@ -738,6 +741,117 @@ async def _run_with_spaider(task: Task, cfg: LLMConfig) -> RunRecord:
         retrieved_node_ids=sorted(retrieved_ids),
         backend_tokens_in=backend_tokens_in,
         backend_tokens_out=backend_tokens_out,
+        error=err,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Mode: generic adapter (head-to-head competitors — Mem0, Cognee, spaider-fixed)
+# ---------------------------------------------------------------------------
+
+
+# Shared fixed-reader prompt. EVERY system's fixed-reader run uses this exact
+# reader, so the only thing that differs across arms is the retrieved context —
+# isolating the memory's contribution from the answer model. Mirrors the intent
+# of _DEFAULT_WITH_SPAIDER_SYSTEM_PROMPT (ground in retrieved facts, not priors).
+_FIXED_READER_SYSTEM = (
+    "You answer the user's question using ONLY the retrieved context below. "
+    "It contains the authoritative facts for this task; do not rely on prior "
+    "knowledge, because the gold facts may differ from what you remember. "
+    "Answer directly and concisely.\n\n"
+    "=== Retrieved context ===\n{context}\n=== End retrieved context ==="
+)
+
+
+async def run_with_adapter(
+    adapter: "MemorySystemAdapter", task: Task, cfg: LLMConfig, answer_mode: str,
+) -> RunRecord:
+    """Run one task through a competitor memory system (Mem0, Cognee, …).
+
+    ``answer_mode``:
+      * ``"fixed"``  — ``adapter.retrieve()`` → the shared fixed reader answers
+        (same reader model for every system; only retrieval differs).
+      * ``"native"`` — ``adapter.answer_native()`` answers end-to-end.
+
+    Returns a RunRecord with ``mode = f"{adapter.name}-{answer_mode}"`` so it
+    lands beside vanilla / with-spaider rows in the same JSONL and scorecard.
+    Adapter-agnostic: it only touches the ``MemorySystemAdapter`` interface, so
+    it never imports mem0/cognee — those load only inside the concrete adapter.
+    """
+    from litellm import acompletion
+
+    if answer_mode not in ("fixed", "native"):
+        raise ValueError(f"answer_mode must be 'fixed' or 'native', got {answer_mode!r}")
+
+    started = datetime.now(timezone.utc)
+    t0 = time.perf_counter()
+    err: Optional[str] = None
+    final_text = ""
+    tokens_in = tokens_out = 0
+    retrieved_text: Optional[str] = None
+
+    # The question the system sees. Append the per-task format hint so answers
+    # stay short — the same hint the vanilla / with-spaider arms receive.
+    question = task.prompt
+    if task.format_hint:
+        question = f"{task.prompt}\n\n{task.format_hint}"
+
+    try:
+        if answer_mode == "fixed":
+            ctx = await adapter.retrieve(task.prompt)
+            retrieved_text = ctx.text or None
+            messages = [
+                {"role": "system", "content": _FIXED_READER_SYSTEM.format(context=ctx.text)},
+                {"role": "user", "content": question},
+            ]
+            resp = await acompletion(
+                messages=messages, **_completion_kwargs(cfg, task.max_tokens),
+            )
+            message = resp.choices[0].message
+            final_text = _extract_text(message)
+            usage = getattr(resp, "usage", None)
+            if usage:
+                tokens_in = getattr(usage, "prompt_tokens", 0) or 0
+                tokens_out = getattr(usage, "completion_tokens", 0) or 0
+        else:  # native
+            ans = await adapter.answer_native(question, task.max_tokens)
+            final_text = ans.text or ""
+            tokens_in = ans.tokens_in
+            tokens_out = ans.tokens_out
+            retrieved_text = ans.retrieved_text
+    except Exception as exc:  # noqa: BLE001
+        err = f"{type(exc).__name__}: {exc}"
+        logger.warning("%s-%s run failed for %s: %s", adapter.name, answer_mode, task.id, err)
+
+    if err:
+        result = EvalResult(False, "")
+    else:
+        result = await _evaluate(task, final_text, cfg, retrieved_text=retrieved_text)
+
+    wall = (time.perf_counter() - t0) * 1000
+    return RunRecord(
+        run_id=str(uuid.uuid4()),
+        task_id=task.id,
+        task_title=task.title,
+        category=task.category,
+        mode=f"{adapter.name}-{answer_mode}",
+        provider=cfg.provider,
+        model=cfg.model,
+        started_at=started.isoformat(),
+        wall_time_ms=round(wall, 2),
+        tokens_in=tokens_in,
+        tokens_out=tokens_out,
+        tool_calls=0,
+        success=result.success,
+        final_text=final_text[:2_000],
+        judge_rationale=result.rationale,
+        oracle_kind=task.oracle_kind,
+        f1_score=result.f1_score,
+        exact_match=result.exact_match,
+        geval_score=result.geval_score,
+        rouge_l_score=result.rouge_l_score,
+        retrieval_hit=result.retrieval_hit,
+        retrieval_hit_subject=result.retrieval_hit_subject,
         error=err,
     )
 

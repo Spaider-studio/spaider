@@ -1,0 +1,13 @@
+id: nx_mid_08
+category: nexora_mid
+title: What budget was Nexora's supplier lead-time prediction project for Beacon Media
+  greenlit with?
+prompt: What budget was Nexora's supplier lead-time prediction project for Beacon
+  Media greenlit with?
+format_hint: Answer with just the value, no explanation.
+expected_substring: 7,570,000
+max_tokens: 256
+requires_mcp: false
+oracle:
+  kind: composite
+expected_output: 7,570,000

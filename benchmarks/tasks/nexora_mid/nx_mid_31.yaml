@@ -1,0 +1,13 @@
+id: nx_mid_31
+category: nexora_mid
+title: What is the badge ID of Nexora's lead for observability tooling for the payments
+  stack?
+prompt: What is the badge ID of Nexora's lead for observability tooling for the payments
+  stack?
+format_hint: Answer with just the value, no explanation.
+expected_substring: NX-8272
+max_tokens: 256
+requires_mcp: false
+oracle:
+  kind: composite
+expected_output: NX-8272

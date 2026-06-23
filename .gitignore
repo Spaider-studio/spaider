@@ -86,3 +86,9 @@ benchmarks/corpus/nexora_ctx_*.txt
 
 # Benchmark scratch run dirs (logs, JSONL) — never commit
 benchmarks/runs_refresh/
+
+# Head-to-head competitor harness scratch — isolated per-system venvs and
+# their local stores (Chroma / LanceDB / file graphs). Created by following
+# benchmarks/adapters/README.md; never commit.
+benchmarks/.venv-*
+benchmarks/.bench_data/

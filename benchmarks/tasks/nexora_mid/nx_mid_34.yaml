@@ -1,0 +1,13 @@
+id: nx_mid_34
+category: nexora_mid
+title: What is the badge ID of Nexora's lead for adversarial-robustness testing for
+  healthcare workloads?
+prompt: What is the badge ID of Nexora's lead for adversarial-robustness testing for
+  healthcare workloads?
+format_hint: Answer with just the value, no explanation.
+expected_substring: NX-6542
+max_tokens: 256
+requires_mcp: false
+oracle:
+  kind: composite
+expected_output: NX-6542

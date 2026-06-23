@@ -18,6 +18,7 @@ Run: benchmarks/.venv/bin/python -m benchmarks.gen_synthetic_corpus
 """
 from __future__ import annotations
 
+import argparse
 import pathlib
 import random
 
@@ -85,11 +86,23 @@ SUBDOMAIN = ["for fraud systems", "for recommendation systems", "for forecasting
 
 
 def main() -> None:
+    ap = argparse.ArgumentParser(description="Generate the Nexora synthetic private corpus + QA tasks")
+    ap.add_argument("--employees", type=int, default=N_EMPLOYEES, help="number of STAFF facts")
+    ap.add_argument("--projects", type=int, default=N_PROJECTS, help="number of PROJECT facts")
+    ap.add_argument("--budget-q", type=int, default=11, help="number of project-budget questions")
+    ap.add_argument("--badge-q", type=int, default=10, help="number of employee-badge questions")
+    ap.add_argument("--suffix", default="", help="output variant suffix, e.g. '_mid' → corpus/nexora_mid.yaml, tasks/nexora_mid/, category nexora_mid")
+    ap.add_argument("--oracle", default="substring", choices=["substring", "composite"],
+                    help="substring = free pass/fail (default, legacy nexora); composite = EM/F1/GEval continuous metrics")
+    args = ap.parse_args()
+
+    n_emp, n_proj = args.employees, args.projects
+    corpus_name = f"nexora{args.suffix}"
     rng = random.Random(SEED)
 
     # unique full names
     names, used = [], set()
-    while len(names) < N_EMPLOYEES:
+    while len(names) < n_emp:
         n = f"{rng.choice(FIRST)} {rng.choice(LAST)}"
         if n not in used:
             used.add(n); names.append(n)
@@ -97,7 +110,7 @@ def main() -> None:
     # unique specialties (specialty x subdomain)
     spec_pairs = [(s, d) for s in SPECIALTY for d in SUBDOMAIN]
     rng.shuffle(spec_pairs)
-    spec_pairs = spec_pairs[:N_EMPLOYEES]
+    spec_pairs = spec_pairs[:n_emp]
 
     facts, employees, badges = [], [], set()
     for i, name in enumerate(names):
@@ -118,7 +131,7 @@ def main() -> None:
     # unique projects (problem x client)
     prob_client = [(p, c) for p in PROBLEMS for c in CLIENTS]
     rng.shuffle(prob_client)
-    prob_client = prob_client[:N_PROJECTS]
+    prob_client = prob_client[:n_proj]
     projects, budgets = [], set()
     for problem, client in prob_client:
         owner = rng.choice(employees)
@@ -139,31 +152,37 @@ def main() -> None:
 
     # ---- QA tasks: anchor on the UNIQUE semantic descriptor, answer is a unique value ----
     qa = []
-    for p in rng.sample(projects, 11):
+    for p in rng.sample(projects, min(args.budget_q, len(projects))):
         qa.append((f"What budget was Nexora's {p['problem']} project for {p['client']} greenlit with?",
                    f"{p['budget']:,}"))
-    for e in rng.sample(employees, 10):
+    for e in rng.sample(employees, min(args.badge_q, len(employees))):
         qa.append((f"What is the badge ID of Nexora's lead for {e['spec']} {e['sub']}?",
                    e['badge']))
 
-    (ROOT / "benchmarks/corpus/nexora.yaml").write_text(
+    (ROOT / f"benchmarks/corpus/{corpus_name}.yaml").write_text(
         yaml.safe_dump({"company": "Nexora Systems", "facts": facts}, sort_keys=False), encoding="utf-8")
     flat = "\n\n".join(f"[{f['type']}] {f['text']}" for f in facts)
-    (ROOT / "benchmarks/corpus/nexora.txt").write_text(flat, encoding="utf-8")
+    (ROOT / f"benchmarks/corpus/{corpus_name}.txt").write_text(flat, encoding="utf-8")
 
-    tdir = ROOT / "benchmarks/tasks/nexora"
+    tdir = ROOT / f"benchmarks/tasks/{corpus_name}"
     tdir.mkdir(parents=True, exist_ok=True)
     for old in tdir.glob("*.yaml"):
         old.unlink()
     for i, (q, ans) in enumerate(qa, 1):
-        tid = f"nx_{i:02d}"
-        (tdir / f"{tid}.yaml").write_text(yaml.safe_dump({
-            "id": tid, "category": "nexora", "title": q, "prompt": q,
+        tid = f"nx{args.suffix}_{i:02d}"
+        task = {
+            "id": tid, "category": corpus_name, "title": q, "prompt": q,
             "format_hint": "Answer with just the value, no explanation.",
             "expected_substring": ans, "max_tokens": 256, "requires_mcp": False,
-        }, sort_keys=False), encoding="utf-8")
+        }
+        if args.oracle == "composite":
+            # Continuous EM/F1/GEval (the unique value makes EM exact); flows
+            # through the same scoring as the AcmeAI/HotpotQA arms.
+            task["oracle"] = {"kind": "composite"}
+            task["expected_output"] = ans
+        (tdir / f"{tid}.yaml").write_text(yaml.safe_dump(task, sort_keys=False), encoding="utf-8")
 
-    print(f"corpus: {len(facts)} facts (~{len(flat)//4} tokens), {len(qa)} QA tasks")
+    print(f"{corpus_name}: {len(facts)} facts (~{len(flat)//4} tokens), {len(qa)} QA tasks")
 
 
 if __name__ == "__main__":

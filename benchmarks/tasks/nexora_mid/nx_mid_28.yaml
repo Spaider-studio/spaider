@@ -1,0 +1,13 @@
+id: nx_mid_28
+category: nexora_mid
+title: What budget was Nexora's real-time fraud scoring project for Polaris Foods
+  greenlit with?
+prompt: What budget was Nexora's real-time fraud scoring project for Polaris Foods
+  greenlit with?
+format_hint: Answer with just the value, no explanation.
+expected_substring: 3,510,000
+max_tokens: 256
+requires_mcp: false
+oracle:
+  kind: composite
+expected_output: 3,510,000

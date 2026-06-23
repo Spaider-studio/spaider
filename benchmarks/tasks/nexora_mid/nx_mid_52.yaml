@@ -1,0 +1,13 @@
+id: nx_mid_52
+category: nexora_mid
+title: What is the badge ID of Nexora's lead for FinOps cost optimization for the
+  risk org?
+prompt: What is the badge ID of Nexora's lead for FinOps cost optimization for the
+  risk org?
+format_hint: Answer with just the value, no explanation.
+expected_substring: NX-5967
+max_tokens: 256
+requires_mcp: false
+oracle:
+  kind: composite
+expected_output: NX-5967
