@@ -1,0 +1,13 @@
+id: nx_mid_55
+category: nexora_mid
+title: What is the badge ID of Nexora's lead for edge-deployment optimization for
+  computer-vision systems?
+prompt: What is the badge ID of Nexora's lead for edge-deployment optimization for
+  computer-vision systems?
+format_hint: Answer with just the value, no explanation.
+expected_substring: NX-7012
+max_tokens: 256
+requires_mcp: false
+oracle:
+  kind: composite
+expected_output: NX-7012

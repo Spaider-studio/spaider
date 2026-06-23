@@ -1,0 +1,13 @@
+id: nx_mid_45
+category: nexora_mid
+title: What is the badge ID of Nexora's lead for knowledge-graph modeling for the
+  logistics suite?
+prompt: What is the badge ID of Nexora's lead for knowledge-graph modeling for the
+  logistics suite?
+format_hint: Answer with just the value, no explanation.
+expected_substring: NX-3309
+max_tokens: 256
+requires_mcp: false
+oracle:
+  kind: composite
+expected_output: NX-3309

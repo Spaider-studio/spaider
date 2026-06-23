@@ -1,0 +1,993 @@
+company: Nexora Systems
+facts:
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-6201
+  text: Leonie Holloway is Nexora Systems' lead for model-drift monitoring for computer-vision
+    systems, working out of the Porto office under badge NX-6201. They are the point
+    of contact for any work touching model-drift monitoring.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:dynamic demand forecasting:Sundial Health
+  text: Nexora Systems' dynamic demand forecasting project for Sundial Health is built
+    on a vision transformer, is led by Mateo Renner, and was greenlit with a budget
+    of $2,430,000. It is the only Nexora engagement delivering dynamic demand forecasting
+    to Sundial Health.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:predictive equipment maintenance:Cascade Energy
+  text: Nexora Systems' predictive equipment maintenance project for Cascade Energy
+    is built on a gradient-boosted ensemble, is led by Bjorn Ferreira, and was greenlit
+    with a budget of $6,230,000. It is the only Nexora engagement delivering predictive
+    equipment maintenance to Cascade Energy.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-2759
+  text: Yuki Marchetti is Nexora Systems' lead for edge-deployment optimization for
+    the risk org, working out of the Reykjavik office under badge NX-2759. They are
+    the point of contact for any work touching edge-deployment optimization.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:store-traffic forecasting:Vantage Telecom
+  text: Nexora Systems' store-traffic forecasting project for Vantage Telecom is built
+    on a reinforcement-learning policy, is led by Rafael Abara, and was greenlit with
+    a budget of $3,770,000. It is the only Nexora engagement delivering store-traffic
+    forecasting to Vantage Telecom.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-6000
+  text: Lucia Halloran is Nexora Systems' lead for observability tooling for forecasting
+    systems, working out of the Ljubljana office under badge NX-6000. They are the
+    point of contact for any work touching observability tooling.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:ad-spend attribution:Sundial Health
+  text: Nexora Systems' ad-spend attribution project for Sundial Health is built on
+    a retrieval-augmented LLM, is led by Anton Rivkin, and was greenlit with a budget
+    of $5,410,000. It is the only Nexora engagement delivering ad-spend attribution
+    to Sundial Health.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:satellite-imagery change detection:Ironwood Retail
+  text: Nexora Systems' satellite-imagery change detection project for Ironwood Retail
+    is built on a retrieval-augmented LLM, is led by Mei Adeyemi, and was greenlit
+    with a budget of $7,520,000. It is the only Nexora engagement delivering satellite-imagery
+    change detection to Ironwood Retail.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:content moderation:Sundial Health
+  text: Nexora Systems' content moderation project for Sundial Health is built on
+    a vision transformer, is led by Cyrus Renner, and was greenlit with a budget of
+    $5,750,000. It is the only Nexora engagement delivering content moderation to
+    Sundial Health.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:sensor-drift calibration:Sundial Health
+  text: Nexora Systems' sensor-drift calibration project for Sundial Health is built
+    on a graph-neural-network model, is led by Imani Holloway, and was greenlit with
+    a budget of $4,540,000. It is the only Nexora engagement delivering sensor-drift
+    calibration to Sundial Health.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-2351
+  text: Kwame Castellanos is Nexora Systems' lead for edge-deployment optimization
+    for LLM services, working out of the Da Nang office under badge NX-2351. They
+    are the point of contact for any work touching edge-deployment optimization.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:warehouse route optimization:Sundial Health
+  text: Nexora Systems' warehouse route optimization project for Sundial Health is
+    built on a Bayesian state-space model, is led by Mateo Rivkin, and was greenlit
+    with a budget of $2,210,000. It is the only Nexora engagement delivering warehouse
+    route optimization to Sundial Health.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:support-ticket auto-triage:Beacon Media
+  text: Nexora Systems' support-ticket auto-triage project for Beacon Media is built
+    on a reinforcement-learning policy, is led by Mateo Dalgaard, and was greenlit
+    with a budget of $1,170,000. It is the only Nexora engagement delivering support-ticket
+    auto-triage to Beacon Media.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:predictive equipment maintenance:Polaris Foods
+  text: Nexora Systems' predictive equipment maintenance project for Polaris Foods
+    is built on a streaming Kafka pipeline, is led by Ingrid Adeyemi, and was greenlit
+    with a budget of $8,230,000. It is the only Nexora engagement delivering predictive
+    equipment maintenance to Polaris Foods.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-8193
+  text: Tomas Holloway is Nexora Systems' lead for data-governance policy for recommendation
+    systems, working out of the Reykjavik office under badge NX-8193. They are the
+    point of contact for any work touching data-governance policy.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-1857
+  text: Ingrid Halloran is Nexora Systems' lead for FinOps cost optimization for the
+    data platform, working out of the Trondheim office under badge NX-1857. They are
+    the point of contact for any work touching FinOps cost optimization.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-3159
+  text: Anja Strand is Nexora Systems' lead for labeling-workflow design for the payments
+    stack, working out of the Porto office under badge NX-3159. They are the point
+    of contact for any work touching labeling-workflow design.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:wind-turbine yaw control:Keystone Aerospace
+  text: Nexora Systems' wind-turbine yaw control project for Keystone Aerospace is
+    built on a vision transformer, is led by Talia Berg, and was greenlit with a budget
+    of $7,490,000. It is the only Nexora engagement delivering wind-turbine yaw control
+    to Keystone Aerospace.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:customer churn prediction:Polaris Foods
+  text: Nexora Systems' customer churn prediction project for Polaris Foods is built
+    on a real-time feature store, is led by Hassan Halloran, and was greenlit with
+    a budget of $9,150,000. It is the only Nexora engagement delivering customer churn
+    prediction to Polaris Foods.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:chatbot intent routing:Sundial Health
+  text: Nexora Systems' chatbot intent routing project for Sundial Health is built
+    on a retrieval-augmented LLM, is led by Rafael Abara, and was greenlit with a
+    budget of $6,550,000. It is the only Nexora engagement delivering chatbot intent
+    routing to Sundial Health.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-4207
+  text: Bjorn Ferreira is Nexora Systems' lead for annotation-quality assurance for
+    the logistics suite, working out of the Tallinn office under badge NX-4207. They
+    are the point of contact for any work touching annotation-quality assurance.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:inventory shrinkage detection:Polaris Foods
+  text: Nexora Systems' inventory shrinkage detection project for Polaris Foods is
+    built on a federated-learning setup, is led by Rafael Abara, and was greenlit
+    with a budget of $2,130,000. It is the only Nexora engagement delivering inventory
+    shrinkage detection to Polaris Foods.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:medical-claims adjudication:Ironwood Retail
+  text: Nexora Systems' medical-claims adjudication project for Ironwood Retail is
+    built on an on-device edge model, is led by Talia Adeyemi, and was greenlit with
+    a budget of $3,220,000. It is the only Nexora engagement delivering medical-claims
+    adjudication to Ironwood Retail.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:ride-demand surge pricing:Tessera Insurance
+  text: Nexora Systems' ride-demand surge pricing project for Tessera Insurance is
+    built on a vision transformer, is led by Mateo Rivkin, and was greenlit with a
+    budget of $7,470,000. It is the only Nexora engagement delivering ride-demand
+    surge pricing to Tessera Insurance.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:ride-demand surge pricing:Sundial Health
+  text: Nexora Systems' ride-demand surge pricing project for Sundial Health is built
+    on a streaming Kafka pipeline, is led by Ada Dalgaard, and was greenlit with a
+    budget of $6,840,000. It is the only Nexora engagement delivering ride-demand
+    surge pricing to Sundial Health.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:insurance-fraud ring detection:Halberd Logistics
+  text: Nexora Systems' insurance-fraud ring detection project for Halberd Logistics
+    is built on a Bayesian state-space model, is led by Dario Nakamura, and was greenlit
+    with a budget of $1,740,000. It is the only Nexora engagement delivering insurance-fraud
+    ring detection to Halberd Logistics.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:network intrusion detection:Ironwood Retail
+  text: Nexora Systems' network intrusion detection project for Ironwood Retail is
+    built on a streaming Kafka pipeline, is led by Imani Holloway, and was greenlit
+    with a budget of $4,670,000. It is the only Nexora engagement delivering network
+    intrusion detection to Ironwood Retail.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:cyber-threat triage:Tessera Insurance
+  text: Nexora Systems' cyber-threat triage project for Tessera Insurance is built
+    on a Bayesian state-space model, is led by Nadia Rivkin, and was greenlit with
+    a budget of $4,010,000. It is the only Nexora engagement delivering cyber-threat
+    triage to Tessera Insurance.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-1939
+  text: Idris Strand is Nexora Systems' lead for FinOps cost optimization for healthcare
+    workloads, working out of the Da Nang office under badge NX-1939. They are the
+    point of contact for any work touching FinOps cost optimization.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:inventory shrinkage detection:Ironwood Retail
+  text: Nexora Systems' inventory shrinkage detection project for Ironwood Retail
+    is built on a vision transformer, is led by Leonie Holloway, and was greenlit
+    with a budget of $8,920,000. It is the only Nexora engagement delivering inventory
+    shrinkage detection to Ironwood Retail.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:content moderation:Cascade Energy
+  text: Nexora Systems' content moderation project for Cascade Energy is built on
+    a gradient-boosted ensemble, is led by Lev Marchetti, and was greenlit with a
+    budget of $6,690,000. It is the only Nexora engagement delivering content moderation
+    to Cascade Energy.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:satellite-imagery change detection:Meridian Bank
+  text: Nexora Systems' satellite-imagery change detection project for Meridian Bank
+    is built on a Bayesian state-space model, is led by Ingrid Holloway, and was greenlit
+    with a budget of $1,770,000. It is the only Nexora engagement delivering satellite-imagery
+    change detection to Meridian Bank.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:cyber-threat triage:Vantage Telecom
+  text: Nexora Systems' cyber-threat triage project for Vantage Telecom is built on
+    a reinforcement-learning policy, is led by Leonie Holloway, and was greenlit with
+    a budget of $7,650,000. It is the only Nexora engagement delivering cyber-threat
+    triage to Vantage Telecom.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:chatbot intent routing:Keystone Aerospace
+  text: Nexora Systems' chatbot intent routing project for Keystone Aerospace is built
+    on a real-time feature store, is led by Soren Vale, and was greenlit with a budget
+    of $3,050,000. It is the only Nexora engagement delivering chatbot intent routing
+    to Keystone Aerospace.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:support-ticket auto-triage:Ironwood Retail
+  text: Nexora Systems' support-ticket auto-triage project for Ironwood Retail is
+    built on a real-time feature store, is led by Idris Strand, and was greenlit with
+    a budget of $7,910,000. It is the only Nexora engagement delivering support-ticket
+    auto-triage to Ironwood Retail.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-9722
+  text: Niamh Kettler is Nexora Systems' lead for annotation-quality assurance for
+    LLM services, working out of the Hobart office under badge NX-9722. They are the
+    point of contact for any work touching annotation-quality assurance.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:menu-pricing optimization:Tessera Insurance
+  text: Nexora Systems' menu-pricing optimization project for Tessera Insurance is
+    built on a graph-neural-network model, is led by Mateo Rivkin, and was greenlit
+    with a budget of $6,870,000. It is the only Nexora engagement delivering menu-pricing
+    optimization to Tessera Insurance.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-6421
+  text: Anton Petrov is Nexora Systems' lead for model-drift monitoring for fraud
+    systems, working out of the Trondheim office under badge NX-6421. They are the
+    point of contact for any work touching model-drift monitoring.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-4426
+  text: Sasha Vale is Nexora Systems' lead for retrieval evaluation for the payments
+    stack, working out of the Da Nang office under badge NX-4426. They are the point
+    of contact for any work touching retrieval evaluation.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:crop-yield forecasting:Keystone Aerospace
+  text: Nexora Systems' crop-yield forecasting project for Keystone Aerospace is built
+    on an on-device edge model, is led by Kwame Adeyemi, and was greenlit with a budget
+    of $4,520,000. It is the only Nexora engagement delivering crop-yield forecasting
+    to Keystone Aerospace.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-6751
+  text: Mei Adeyemi is Nexora Systems' lead for adversarial-robustness testing for
+    the data platform, working out of the Tallinn office under badge NX-6751. They
+    are the point of contact for any work touching adversarial-robustness testing.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:supplier lead-time prediction:Beacon Media
+  text: Nexora Systems' supplier lead-time prediction project for Beacon Media is
+    built on a retrieval-augmented LLM, is led by Dario Voss, and was greenlit with
+    a budget of $7,570,000. It is the only Nexora engagement delivering supplier lead-time
+    prediction to Beacon Media.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:wind-turbine yaw control:Ironwood Retail
+  text: Nexora Systems' wind-turbine yaw control project for Ironwood Retail is built
+    on a retrieval-augmented LLM, is led by Idris Strand, and was greenlit with a
+    budget of $3,260,000. It is the only Nexora engagement delivering wind-turbine
+    yaw control to Ironwood Retail.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:transaction reconciliation:Halberd Logistics
+  text: Nexora Systems' transaction reconciliation project for Halberd Logistics is
+    built on a Bayesian state-space model, is led by Imani Fischer, and was greenlit
+    with a budget of $3,010,000. It is the only Nexora engagement delivering transaction
+    reconciliation to Halberd Logistics.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-7785
+  text: Mateo Renner is Nexora Systems' lead for fairness auditing for the risk org,
+    working out of the Asuncion office under badge NX-7785. They are the point of
+    contact for any work touching fairness auditing.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-8652
+  text: Kwame Solano is Nexora Systems' lead for annotation-quality assurance for
+    the data platform, working out of the Kigali office under badge NX-8652. They
+    are the point of contact for any work touching annotation-quality assurance.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:returns-fraud detection:Keystone Aerospace
+  text: Nexora Systems' returns-fraud detection project for Keystone Aerospace is
+    built on a gradient-boosted ensemble, is led by Kwame Castellanos, and was greenlit
+    with a budget of $6,700,000. It is the only Nexora engagement delivering returns-fraud
+    detection to Keystone Aerospace.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-4579
+  text: Talia Adeyemi is Nexora Systems' lead for fairness auditing for forecasting
+    systems, working out of the Da Nang office under badge NX-4579. They are the point
+    of contact for any work touching fairness auditing.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:loan-application triage:Meridian Bank
+  text: Nexora Systems' loan-application triage project for Meridian Bank is built
+    on a vision transformer, is led by Nadia Castellanos, and was greenlit with a
+    budget of $5,220,000. It is the only Nexora engagement delivering loan-application
+    triage to Meridian Bank.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:menu-pricing optimization:Halberd Logistics
+  text: Nexora Systems' menu-pricing optimization project for Halberd Logistics is
+    built on a real-time feature store, is led by Rosa Lindqvist, and was greenlit
+    with a budget of $2,630,000. It is the only Nexora engagement delivering menu-pricing
+    optimization to Halberd Logistics.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-5713
+  text: Marcus Voss is Nexora Systems' lead for knowledge-graph modeling for computer-vision
+    systems, working out of the Hobart office under badge NX-5713. They are the point
+    of contact for any work touching knowledge-graph modeling.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:store-traffic forecasting:Tessera Insurance
+  text: Nexora Systems' store-traffic forecasting project for Tessera Insurance is
+    built on a Bayesian state-space model, is led by Priya Rivkin, and was greenlit
+    with a budget of $1,920,000. It is the only Nexora engagement delivering store-traffic
+    forecasting to Tessera Insurance.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:automated KYC verification:Tessera Insurance
+  text: Nexora Systems' automated KYC verification project for Tessera Insurance is
+    built on a real-time feature store, is led by Oskar Abara, and was greenlit with
+    a budget of $8,720,000. It is the only Nexora engagement delivering automated
+    KYC verification to Tessera Insurance.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-6033
+  text: Priya Rivkin is Nexora Systems' lead for LLM red-teaming for healthcare workloads,
+    working out of the Hobart office under badge NX-6033. They are the point of contact
+    for any work touching LLM red-teaming.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-1900
+  text: Dario Voss is Nexora Systems' lead for knowledge-graph modeling for the risk
+    org, working out of the Asuncion office under badge NX-1900. They are the point
+    of contact for any work touching knowledge-graph modeling.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:store-traffic forecasting:Beacon Media
+  text: Nexora Systems' store-traffic forecasting project for Beacon Media is built
+    on a real-time feature store, is led by Idris Strand, and was greenlit with a
+    budget of $8,580,000. It is the only Nexora engagement delivering store-traffic
+    forecasting to Beacon Media.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-9410
+  text: Leonie Solano is Nexora Systems' lead for prompt-injection defense for the
+    payments stack, working out of the Tallinn office under badge NX-9410. They are
+    the point of contact for any work touching prompt-injection defense.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:ad-spend attribution:Cascade Energy
+  text: Nexora Systems' ad-spend attribution project for Cascade Energy is built on
+    a streaming Kafka pipeline, is led by Idris Strand, and was greenlit with a budget
+    of $3,470,000. It is the only Nexora engagement delivering ad-spend attribution
+    to Cascade Energy.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-4069
+  text: Greta Osei is Nexora Systems' lead for LLM red-teaming for fraud systems,
+    working out of the Hobart office under badge NX-4069. They are the point of contact
+    for any work touching LLM red-teaming.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:medical-claims adjudication:Beacon Media
+  text: Nexora Systems' medical-claims adjudication project for Beacon Media is built
+    on a graph-neural-network model, is led by Greta Quinn, and was greenlit with
+    a budget of $8,710,000. It is the only Nexora engagement delivering medical-claims
+    adjudication to Beacon Media.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:dynamic demand forecasting:Keystone Aerospace
+  text: Nexora Systems' dynamic demand forecasting project for Keystone Aerospace
+    is built on a graph-neural-network model, is led by Ingrid Halloran, and was greenlit
+    with a budget of $1,810,000. It is the only Nexora engagement delivering dynamic
+    demand forecasting to Keystone Aerospace.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-5914
+  text: Oskar Abara is Nexora Systems' lead for labeling-workflow design for the data
+    platform, working out of the Trondheim office under badge NX-5914. They are the
+    point of contact for any work touching labeling-workflow design.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:shipment ETA prediction:Tessera Insurance
+  text: Nexora Systems' shipment ETA prediction project for Tessera Insurance is built
+    on an on-device edge model, is led by Rafael Solano, and was greenlit with a budget
+    of $9,630,000. It is the only Nexora engagement delivering shipment ETA prediction
+    to Tessera Insurance.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-8113
+  text: Anton Rivkin is Nexora Systems' lead for retrieval evaluation for LLM services,
+    working out of the Kigali office under badge NX-8113. They are the point of contact
+    for any work touching retrieval evaluation.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:document redaction:Keystone Aerospace
+  text: Nexora Systems' document redaction project for Keystone Aerospace is built
+    on an on-device edge model, is led by Bjorn Osei, and was greenlit with a budget
+    of $6,410,000. It is the only Nexora engagement delivering document redaction
+    to Keystone Aerospace.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:lead-scoring automation:Sundial Health
+  text: Nexora Systems' lead-scoring automation project for Sundial Health is built
+    on a Bayesian state-space model, is led by Anton Rivkin, and was greenlit with
+    a budget of $9,190,000. It is the only Nexora engagement delivering lead-scoring
+    automation to Sundial Health.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-8667
+  text: Rafael Abara is Nexora Systems' lead for canary-release tooling for the risk
+    org, working out of the Tallinn office under badge NX-8667. They are the point
+    of contact for any work touching canary-release tooling.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-2838
+  text: Ada Dalgaard is Nexora Systems' lead for privacy-preserving machine learning
+    for recommendation systems, working out of the Da Nang office under badge NX-2838.
+    They are the point of contact for any work touching privacy-preserving machine
+    learning.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:warehouse route optimization:Ironwood Retail
+  text: Nexora Systems' warehouse route optimization project for Ironwood Retail is
+    built on a real-time feature store, is led by Mateo Rivkin, and was greenlit with
+    a budget of $1,560,000. It is the only Nexora engagement delivering warehouse
+    route optimization to Ironwood Retail.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-4581
+  text: Mateo Dvorak is Nexora Systems' lead for data-pipeline reliability for the
+    data platform, working out of the Reykjavik office under badge NX-4581. They are
+    the point of contact for any work touching data-pipeline reliability.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-6542
+  text: Mateo Dalgaard is Nexora Systems' lead for adversarial-robustness testing
+    for healthcare workloads, working out of the Ljubljana office under badge NX-6542.
+    They are the point of contact for any work touching adversarial-robustness testing.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-6353
+  text: Hassan Halloran is Nexora Systems' lead for data-governance policy for fraud
+    systems, working out of the Trondheim office under badge NX-6353. They are the
+    point of contact for any work touching data-governance policy.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-4379
+  text: Rafael Solano is Nexora Systems' lead for synthetic-data generation for LLM
+    services, working out of the Da Nang office under badge NX-4379. They are the
+    point of contact for any work touching synthetic-data generation.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:warranty-claim classification:Ironwood Retail
+  text: Nexora Systems' warranty-claim classification project for Ironwood Retail
+    is built on a retrieval-augmented LLM, is led by Mateo Renner, and was greenlit
+    with a budget of $8,510,000. It is the only Nexora engagement delivering warranty-claim
+    classification to Ironwood Retail.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-2792
+  text: Greta Quinn is Nexora Systems' lead for FinOps cost optimization for forecasting
+    systems, working out of the Kigali office under badge NX-2792. They are the point
+    of contact for any work touching FinOps cost optimization.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-7796
+  text: Ada Voss is Nexora Systems' lead for model-drift monitoring for forecasting
+    systems, working out of the Da Nang office under badge NX-7796. They are the point
+    of contact for any work touching model-drift monitoring.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-7012
+  text: Dario Nakamura is Nexora Systems' lead for edge-deployment optimization for
+    computer-vision systems, working out of the Valparaiso office under badge NX-7012.
+    They are the point of contact for any work touching edge-deployment optimization.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-9162
+  text: Imani Lindqvist is Nexora Systems' lead for retrieval evaluation for recommendation
+    systems, working out of the Porto office under badge NX-9162. They are the point
+    of contact for any work touching retrieval evaluation.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:ad-spend attribution:Polaris Foods
+  text: Nexora Systems' ad-spend attribution project for Polaris Foods is built on
+    a real-time feature store, is led by Lucia Halloran, and was greenlit with a budget
+    of $6,440,000. It is the only Nexora engagement delivering ad-spend attribution
+    to Polaris Foods.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-8272
+  text: Sasha Berg is Nexora Systems' lead for observability tooling for the payments
+    stack, working out of the Ljubljana office under badge NX-8272. They are the point
+    of contact for any work touching observability tooling.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-5691
+  text: Nadia Rivkin is Nexora Systems' lead for data-governance policy for forecasting
+    systems, working out of the Hobart office under badge NX-5691. They are the point
+    of contact for any work touching data-governance policy.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-4789
+  text: Imani Fischer is Nexora Systems' lead for annotation-quality assurance for
+    the payments stack, working out of the Hobart office under badge NX-4789. They
+    are the point of contact for any work touching annotation-quality assurance.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-5967
+  text: Ada Okonkwo is Nexora Systems' lead for FinOps cost optimization for the risk
+    org, working out of the Asuncion office under badge NX-5967. They are the point
+    of contact for any work touching FinOps cost optimization.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:lead-scoring automation:Vantage Telecom
+  text: Nexora Systems' lead-scoring automation project for Vantage Telecom is built
+    on a federated-learning setup, is led by Cyrus Holloway, and was greenlit with
+    a budget of $4,570,000. It is the only Nexora engagement delivering lead-scoring
+    automation to Vantage Telecom.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-3253
+  text: Imani Holloway is Nexora Systems' lead for schema-evolution management for
+    the payments stack, working out of the Trondheim office under badge NX-3253. They
+    are the point of contact for any work touching schema-evolution management.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-2819
+  text: Lev Marchetti is Nexora Systems' lead for GPU-cluster operations for recommendation
+    systems, working out of the Kigali office under badge NX-2819. They are the point
+    of contact for any work touching GPU-cluster operations.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:supply-chain risk modeling:Keystone Aerospace
+  text: Nexora Systems' supply-chain risk modeling project for Keystone Aerospace
+    is built on a streaming Kafka pipeline, is led by Rafael Abara, and was greenlit
+    with a budget of $2,030,000. It is the only Nexora engagement delivering supply-chain
+    risk modeling to Keystone Aerospace.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-4693
+  text: Freya Castellanos is Nexora Systems' lead for edge-deployment optimization
+    for recommendation systems, working out of the Hobart office under badge NX-4693.
+    They are the point of contact for any work touching edge-deployment optimization.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-3896
+  text: Niamh Holloway is Nexora Systems' lead for observability tooling for the logistics
+    suite, working out of the Reykjavik office under badge NX-3896. They are the point
+    of contact for any work touching observability tooling.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-3737
+  text: Soren Vale is Nexora Systems' lead for edge-deployment optimization for fraud
+    systems, working out of the Reykjavik office under badge NX-3737. They are the
+    point of contact for any work touching edge-deployment optimization.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:document redaction:Halberd Logistics
+  text: Nexora Systems' document redaction project for Halberd Logistics is built
+    on a graph-neural-network model, is led by Kwame Solano, and was greenlit with
+    a budget of $5,950,000. It is the only Nexora engagement delivering document redaction
+    to Halberd Logistics.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:patient-readmission prediction:Tessera Insurance
+  text: Nexora Systems' patient-readmission prediction project for Tessera Insurance
+    is built on a retrieval-augmented LLM, is led by Dario Osei, and was greenlit
+    with a budget of $4,230,000. It is the only Nexora engagement delivering patient-readmission
+    prediction to Tessera Insurance.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:vendor-compliance auditing:Cascade Energy
+  text: Nexora Systems' vendor-compliance auditing project for Cascade Energy is built
+    on a graph-neural-network model, is led by Lucia Halloran, and was greenlit with
+    a budget of $6,030,000. It is the only Nexora engagement delivering vendor-compliance
+    auditing to Cascade Energy.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:crop-yield forecasting:Meridian Bank
+  text: Nexora Systems' crop-yield forecasting project for Meridian Bank is built
+    on a Bayesian state-space model, is led by Idris Halloran, and was greenlit with
+    a budget of $4,440,000. It is the only Nexora engagement delivering crop-yield
+    forecasting to Meridian Bank.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:real-estate valuation:Sundial Health
+  text: Nexora Systems' real-estate valuation project for Sundial Health is built
+    on a retrieval-augmented LLM, is led by Kwame Castellanos, and was greenlit with
+    a budget of $3,590,000. It is the only Nexora engagement delivering real-estate
+    valuation to Sundial Health.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:payment-routing optimization:Vantage Telecom
+  text: Nexora Systems' payment-routing optimization project for Vantage Telecom is
+    built on a graph-neural-network model, is led by Cyrus Holloway, and was greenlit
+    with a budget of $6,640,000. It is the only Nexora engagement delivering payment-routing
+    optimization to Vantage Telecom.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:credit-default risk scoring:Tessera Insurance
+  text: Nexora Systems' credit-default risk scoring project for Tessera Insurance
+    is built on a graph-neural-network model, is led by Dario Osei, and was greenlit
+    with a budget of $3,860,000. It is the only Nexora engagement delivering credit-default
+    risk scoring to Tessera Insurance.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:contract clause extraction:Cascade Energy
+  text: Nexora Systems' contract clause extraction project for Cascade Energy is built
+    on a retrieval-augmented LLM, is led by Mateo Dvorak, and was greenlit with a
+    budget of $6,400,000. It is the only Nexora engagement delivering contract clause
+    extraction to Cascade Energy.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-4442
+  text: Talia Berg is Nexora Systems' lead for vector-index tuning for the payments
+    stack, working out of the Trondheim office under badge NX-4442. They are the point
+    of contact for any work touching vector-index tuning.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:chatbot intent routing:Tessera Insurance
+  text: Nexora Systems' chatbot intent routing project for Tessera Insurance is built
+    on a gradient-boosted ensemble, is led by Anton Petrov, and was greenlit with
+    a budget of $8,390,000. It is the only Nexora engagement delivering chatbot intent
+    routing to Tessera Insurance.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:transaction reconciliation:Cascade Energy
+  text: Nexora Systems' transaction reconciliation project for Cascade Energy is built
+    on a retrieval-augmented LLM, is led by Dario Voss, and was greenlit with a budget
+    of $8,090,000. It is the only Nexora engagement delivering transaction reconciliation
+    to Cascade Energy.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:insurance-fraud ring detection:Tessera Insurance
+  text: Nexora Systems' insurance-fraud ring detection project for Tessera Insurance
+    is built on a real-time feature store, is led by Kwame Solano, and was greenlit
+    with a budget of $1,230,000. It is the only Nexora engagement delivering insurance-fraud
+    ring detection to Tessera Insurance.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:document redaction:Polaris Foods
+  text: Nexora Systems' document redaction project for Polaris Foods is built on a
+    retrieval-augmented LLM, is led by Lev Ibarra, and was greenlit with a budget
+    of $7,790,000. It is the only Nexora engagement delivering document redaction
+    to Polaris Foods.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:real-estate valuation:Cascade Energy
+  text: Nexora Systems' real-estate valuation project for Cascade Energy is built
+    on a Bayesian state-space model, is led by Talia Adeyemi, and was greenlit with
+    a budget of $3,960,000. It is the only Nexora engagement delivering real-estate
+    valuation to Cascade Energy.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:returns-fraud detection:Beacon Media
+  text: Nexora Systems' returns-fraud detection project for Beacon Media is built
+    on a streaming Kafka pipeline, is led by Soren Vale, and was greenlit with a budget
+    of $5,550,000. It is the only Nexora engagement delivering returns-fraud detection
+    to Beacon Media.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-3920
+  text: Cyrus Holloway is Nexora Systems' lead for schema-evolution management for
+    computer-vision systems, working out of the Hobart office under badge NX-3920.
+    They are the point of contact for any work touching schema-evolution management.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:workforce-shift scheduling:Keystone Aerospace
+  text: Nexora Systems' workforce-shift scheduling project for Keystone Aerospace
+    is built on a retrieval-augmented LLM, is led by Priya Rivkin, and was greenlit
+    with a budget of $6,290,000. It is the only Nexora engagement delivering workforce-shift
+    scheduling to Keystone Aerospace.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-1455
+  text: Cyrus Renner is Nexora Systems' lead for retrieval evaluation for computer-vision
+    systems, working out of the Porto office under badge NX-1455. They are the point
+    of contact for any work touching retrieval evaluation.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-7054
+  text: Marcus Dvorak is Nexora Systems' lead for canary-release tooling for fraud
+    systems, working out of the Reykjavik office under badge NX-7054. They are the
+    point of contact for any work touching canary-release tooling.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:transaction reconciliation:Vantage Telecom
+  text: Nexora Systems' transaction reconciliation project for Vantage Telecom is
+    built on a vision transformer, is led by Ingrid Halloran, and was greenlit with
+    a budget of $6,720,000. It is the only Nexora engagement delivering transaction
+    reconciliation to Vantage Telecom.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:subscription dunning optimization:Vantage Telecom
+  text: Nexora Systems' subscription dunning optimization project for Vantage Telecom
+    is built on a reinforcement-learning policy, is led by Lev Marchetti, and was
+    greenlit with a budget of $7,670,000. It is the only Nexora engagement delivering
+    subscription dunning optimization to Vantage Telecom.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:support-ticket auto-triage:Cascade Energy
+  text: Nexora Systems' support-ticket auto-triage project for Cascade Energy is built
+    on a reinforcement-learning policy, is led by Dario Voss, and was greenlit with
+    a budget of $6,060,000. It is the only Nexora engagement delivering support-ticket
+    auto-triage to Cascade Energy.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-4488
+  text: Lev Ibarra is Nexora Systems' lead for annotation-quality assurance for computer-vision
+    systems, working out of the Ljubljana office under badge NX-4488. They are the
+    point of contact for any work touching annotation-quality assurance.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:pharmacy stock replenishment:Sundial Health
+  text: Nexora Systems' pharmacy stock replenishment project for Sundial Health is
+    built on a reinforcement-learning policy, is led by Hassan Halloran, and was greenlit
+    with a budget of $4,270,000. It is the only Nexora engagement delivering pharmacy
+    stock replenishment to Sundial Health.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:product recommendation ranking:Halberd Logistics
+  text: Nexora Systems' product recommendation ranking project for Halberd Logistics
+    is built on a real-time feature store, is led by Lucia Halloran, and was greenlit
+    with a budget of $3,740,000. It is the only Nexora engagement delivering product
+    recommendation ranking to Halberd Logistics.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:pharmacy stock replenishment:Halberd Logistics
+  text: Nexora Systems' pharmacy stock replenishment project for Halberd Logistics
+    is built on an on-device edge model, is led by Cyrus Renner, and was greenlit
+    with a budget of $9,380,000. It is the only Nexora engagement delivering pharmacy
+    stock replenishment to Halberd Logistics.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:cold-chain temperature tracking:Sundial Health
+  text: Nexora Systems' cold-chain temperature tracking project for Sundial Health
+    is built on a graph-neural-network model, is led by Mateo Dalgaard, and was greenlit
+    with a budget of $3,950,000. It is the only Nexora engagement delivering cold-chain
+    temperature tracking to Sundial Health.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:payment-routing optimization:Polaris Foods
+  text: Nexora Systems' payment-routing optimization project for Polaris Foods is
+    built on a gradient-boosted ensemble, is led by Rafael Abara, and was greenlit
+    with a budget of $2,450,000. It is the only Nexora engagement delivering payment-routing
+    optimization to Polaris Foods.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-7574
+  text: Rosa Lindqvist is Nexora Systems' lead for LLM red-teaming for recommendation
+    systems, working out of the Ljubljana office under badge NX-7574. They are the
+    point of contact for any work touching LLM red-teaming.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-5249
+  text: Mateo Rivkin is Nexora Systems' lead for adversarial-robustness testing for
+    the risk org, working out of the Tallinn office under badge NX-5249. They are
+    the point of contact for any work touching adversarial-robustness testing.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:payment-routing optimization:Sundial Health
+  text: Nexora Systems' payment-routing optimization project for Sundial Health is
+    built on a Bayesian state-space model, is led by Ingrid Halloran, and was greenlit
+    with a budget of $5,300,000. It is the only Nexora engagement delivering payment-routing
+    optimization to Sundial Health.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:customer churn prediction:Tessera Insurance
+  text: Nexora Systems' customer churn prediction project for Tessera Insurance is
+    built on a federated-learning setup, is led by Mateo Dalgaard, and was greenlit
+    with a budget of $9,560,000. It is the only Nexora engagement delivering customer
+    churn prediction to Tessera Insurance.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:fleet fuel-efficiency modeling:Polaris Foods
+  text: Nexora Systems' fleet fuel-efficiency modeling project for Polaris Foods is
+    built on a streaming Kafka pipeline, is led by Oskar Abara, and was greenlit with
+    a budget of $2,350,000. It is the only Nexora engagement delivering fleet fuel-efficiency
+    modeling to Polaris Foods.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-5558
+  text: Nadia Castellanos is Nexora Systems' lead for retrieval evaluation for the
+    logistics suite, working out of the Valparaiso office under badge NX-5558. They
+    are the point of contact for any work touching retrieval evaluation.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:loan-application triage:Beacon Media
+  text: Nexora Systems' loan-application triage project for Beacon Media is built
+    on a vision transformer, is led by Nadia Rivkin, and was greenlit with a budget
+    of $7,810,000. It is the only Nexora engagement delivering loan-application triage
+    to Beacon Media.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:lead-scoring automation:Halberd Logistics
+  text: Nexora Systems' lead-scoring automation project for Halberd Logistics is built
+    on a Bayesian state-space model, is led by Anja Strand, and was greenlit with
+    a budget of $5,520,000. It is the only Nexora engagement delivering lead-scoring
+    automation to Halberd Logistics.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-3133
+  text: Freya Strand is Nexora Systems' lead for incident response for the data platform,
+    working out of the Valparaiso office under badge NX-3133. They are the point of
+    contact for any work touching incident response.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:vendor-compliance auditing:Keystone Aerospace
+  text: Nexora Systems' vendor-compliance auditing project for Keystone Aerospace
+    is built on a retrieval-augmented LLM, is led by Tomas Holloway, and was greenlit
+    with a budget of $9,860,000. It is the only Nexora engagement delivering vendor-compliance
+    auditing to Keystone Aerospace.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:contract clause extraction:Ironwood Retail
+  text: Nexora Systems' contract clause extraction project for Ironwood Retail is
+    built on a Bayesian state-space model, is led by Mateo Berg, and was greenlit
+    with a budget of $6,250,000. It is the only Nexora engagement delivering contract
+    clause extraction to Ironwood Retail.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-5202
+  text: Ingrid Adeyemi is Nexora Systems' lead for FinOps cost optimization for recommendation
+    systems, working out of the Porto office under badge NX-5202. They are the point
+    of contact for any work touching FinOps cost optimization.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:credit-default risk scoring:Meridian Bank
+  text: Nexora Systems' credit-default risk scoring project for Meridian Bank is built
+    on a streaming Kafka pipeline, is led by Yuki Marchetti, and was greenlit with
+    a budget of $2,580,000. It is the only Nexora engagement delivering credit-default
+    risk scoring to Meridian Bank.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:shipment ETA prediction:Ironwood Retail
+  text: Nexora Systems' shipment ETA prediction project for Ironwood Retail is built
+    on a federated-learning setup, is led by Sasha Berg, and was greenlit with a budget
+    of $2,870,000. It is the only Nexora engagement delivering shipment ETA prediction
+    to Ironwood Retail.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-3309
+  text: Dario Osei is Nexora Systems' lead for knowledge-graph modeling for the logistics
+    suite, working out of the Asuncion office under badge NX-3309. They are the point
+    of contact for any work touching knowledge-graph modeling.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:real-time fraud scoring:Beacon Media
+  text: Nexora Systems' real-time fraud scoring project for Beacon Media is built
+    on a reinforcement-learning policy, is led by Nadia Rivkin, and was greenlit with
+    a budget of $3,820,000. It is the only Nexora engagement delivering real-time
+    fraud scoring to Beacon Media.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-3683
+  text: Idris Halloran is Nexora Systems' lead for vector-index tuning for the logistics
+    suite, working out of the Ljubljana office under badge NX-3683. They are the point
+    of contact for any work touching vector-index tuning.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:call-center sentiment analysis:Polaris Foods
+  text: Nexora Systems' call-center sentiment analysis project for Polaris Foods is
+    built on a streaming Kafka pipeline, is led by Imani Lindqvist, and was greenlit
+    with a budget of $5,130,000. It is the only Nexora engagement delivering call-center
+    sentiment analysis to Polaris Foods.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:warranty-claim classification:Keystone Aerospace
+  text: Nexora Systems' warranty-claim classification project for Keystone Aerospace
+    is built on a Bayesian state-space model, is led by Mateo Rivkin, and was greenlit
+    with a budget of $1,270,000. It is the only Nexora engagement delivering warranty-claim
+    classification to Keystone Aerospace.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-6069
+  text: Tomas Castellanos is Nexora Systems' lead for data-pipeline reliability for
+    healthcare workloads, working out of the Hobart office under badge NX-6069. They
+    are the point of contact for any work touching data-pipeline reliability.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-3113
+  text: Mateo Berg is Nexora Systems' lead for GPU-cluster operations for the logistics
+    suite, working out of the Porto office under badge NX-3113. They are the point
+    of contact for any work touching GPU-cluster operations.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:ride-demand surge pricing:Vantage Telecom
+  text: Nexora Systems' ride-demand surge pricing project for Vantage Telecom is built
+    on a reinforcement-learning policy, is led by Sasha Berg, and was greenlit with
+    a budget of $4,780,000. It is the only Nexora engagement delivering ride-demand
+    surge pricing to Vantage Telecom.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:automated KYC verification:Vantage Telecom
+  text: Nexora Systems' automated KYC verification project for Vantage Telecom is
+    built on a streaming Kafka pipeline, is led by Bjorn Ferreira, and was greenlit
+    with a budget of $8,870,000. It is the only Nexora engagement delivering automated
+    KYC verification to Vantage Telecom.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:carbon-footprint accounting:Halberd Logistics
+  text: Nexora Systems' carbon-footprint accounting project for Halberd Logistics
+    is built on a streaming Kafka pipeline, is led by Tomas Castellanos, and was greenlit
+    with a budget of $1,160,000. It is the only Nexora engagement delivering carbon-footprint
+    accounting to Halberd Logistics.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-9646
+  text: Bjorn Osei is Nexora Systems' lead for observability tooling for the data
+    platform, working out of the Asuncion office under badge NX-9646. They are the
+    point of contact for any work touching observability tooling.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:real-time fraud scoring:Polaris Foods
+  text: Nexora Systems' real-time fraud scoring project for Polaris Foods is built
+    on a federated-learning setup, is led by Kwame Adeyemi, and was greenlit with
+    a budget of $3,510,000. It is the only Nexora engagement delivering real-time
+    fraud scoring to Polaris Foods.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:product recommendation ranking:Cascade Energy
+  text: Nexora Systems' product recommendation ranking project for Cascade Energy
+    is built on a real-time feature store, is led by Rafael Abara, and was greenlit
+    with a budget of $1,470,000. It is the only Nexora engagement delivering product
+    recommendation ranking to Cascade Energy.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-5318
+  text: Cyrus Okonkwo is Nexora Systems' lead for incident response for the risk org,
+    working out of the Da Nang office under badge NX-5318. They are the point of contact
+    for any work touching incident response.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-8310
+  text: Ingrid Holloway is Nexora Systems' lead for synthetic-data generation for
+    fraud systems, working out of the Tallinn office under badge NX-8310. They are
+    the point of contact for any work touching synthetic-data generation.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:network intrusion detection:Sundial Health
+  text: Nexora Systems' network intrusion detection project for Sundial Health is
+    built on a gradient-boosted ensemble, is led by Imani Holloway, and was greenlit
+    with a budget of $2,260,000. It is the only Nexora engagement delivering network
+    intrusion detection to Sundial Health.
+- date: '2026-05-01'
+  type: STAFF
+  source: hr:NX-8870
+  text: Kwame Adeyemi is Nexora Systems' lead for synthetic-data generation for healthcare
+    workloads, working out of the Tallinn office under badge NX-8870. They are the
+    point of contact for any work touching synthetic-data generation.
+- date: '2026-05-01'
+  type: PROJECT
+  source: proj:invoice anomaly detection:Cascade Energy
+  text: Nexora Systems' invoice anomaly detection project for Cascade Energy is built
+    on an on-device edge model, is led by Greta Quinn, and was greenlit with a budget
+    of $8,820,000. It is the only Nexora engagement delivering invoice anomaly detection
+    to Cascade Energy.

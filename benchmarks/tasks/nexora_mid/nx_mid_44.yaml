@@ -1,0 +1,13 @@
+id: nx_mid_44
+category: nexora_mid
+title: What is the badge ID of Nexora's lead for edge-deployment optimization for
+  LLM services?
+prompt: What is the badge ID of Nexora's lead for edge-deployment optimization for
+  LLM services?
+format_hint: Answer with just the value, no explanation.
+expected_substring: NX-2351
+max_tokens: 256
+requires_mcp: false
+oracle:
+  kind: composite
+expected_output: NX-2351

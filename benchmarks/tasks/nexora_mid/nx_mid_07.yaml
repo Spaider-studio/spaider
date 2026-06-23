@@ -1,0 +1,13 @@
+id: nx_mid_07
+category: nexora_mid
+title: What budget was Nexora's sensor-drift calibration project for Sundial Health
+  greenlit with?
+prompt: What budget was Nexora's sensor-drift calibration project for Sundial Health
+  greenlit with?
+format_hint: Answer with just the value, no explanation.
+expected_substring: 4,540,000
+max_tokens: 256
+requires_mcp: false
+oracle:
+  kind: composite
+expected_output: 4,540,000

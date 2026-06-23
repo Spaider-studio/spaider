@@ -1,6 +1,6 @@
 # SpAIder community scorecard
 
-24 HotpotQA multi-hop questions · 384 graded rows · bootstrapped 95% CI (10,000 resamples).
+24 distinct questions · 384 graded rows · 95% CI cluster-bootstrapped over questions (10,000 resamples), not over rows.
 Arms: **vanilla** (gpt-4o-mini alone) vs **with-spaider** (gpt-4o-mini + SpAIder memory). GEval = LLM-judge correctness (headline; EM/F1 understate correct-but-verbose answers).
 
 | Metric | Vanilla | With SpAIder | Lift (95% CI) | Sig. |

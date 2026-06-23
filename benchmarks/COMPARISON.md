@@ -8,9 +8,9 @@
 | Exact Match | 0.00→0.52 (**+0.52** ✅) | 0.00→0.72 (**+0.72** ✅) |
 | ROUGE-L | 0.07→0.69 (**+0.62** ✅) | 0.00→0.78 (**+0.78** ✅) |
 
-- _HotpotQA (public): 384 graded rows, retrieval hit-rate 100%._
-- _AcmeAI (private): 256 graded rows, retrieval hit-rate 94%._
+- _HotpotQA (public): 24 distinct questions, 384 graded rows, retrieval hit-rate 100%._
+- _AcmeAI (private): 16 distinct questions, 256 graded rows, retrieval hit-rate 94%._
 
-⭐ semantic-correctness judge · ✅ = lift's 95% CI excludes 0.
+⭐ semantic-correctness judge · ✅ = lift's 95% CI excludes 0 · 95% CIs cluster-bootstrapped over the distinct questions, not the graded rows.
 
 **Read it directly:** where vanilla already scores on GEval, the LLM knew the answer (public/memorized) and SpAIder's semantic lift is small; where vanilla ≈ 0, the LLM *could not* know it (private data) and SpAIder lifts every metric. That gap is the memory's value.

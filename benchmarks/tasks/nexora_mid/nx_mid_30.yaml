@@ -1,0 +1,13 @@
+id: nx_mid_30
+category: nexora_mid
+title: What budget was Nexora's credit-default risk scoring project for Tessera Insurance
+  greenlit with?
+prompt: What budget was Nexora's credit-default risk scoring project for Tessera Insurance
+  greenlit with?
+format_hint: Answer with just the value, no explanation.
+expected_substring: 3,860,000
+max_tokens: 256
+requires_mcp: false
+oracle:
+  kind: composite
+expected_output: 3,860,000

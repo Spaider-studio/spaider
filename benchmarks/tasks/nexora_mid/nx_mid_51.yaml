@@ -1,0 +1,13 @@
+id: nx_mid_51
+category: nexora_mid
+title: What is the badge ID of Nexora's lead for model-drift monitoring for computer-vision
+  systems?
+prompt: What is the badge ID of Nexora's lead for model-drift monitoring for computer-vision
+  systems?
+format_hint: Answer with just the value, no explanation.
+expected_substring: NX-6201
+max_tokens: 256
+requires_mcp: false
+oracle:
+  kind: composite
+expected_output: NX-6201

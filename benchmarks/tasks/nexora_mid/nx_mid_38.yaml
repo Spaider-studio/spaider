@@ -1,0 +1,13 @@
+id: nx_mid_38
+category: nexora_mid
+title: What is the badge ID of Nexora's lead for privacy-preserving machine learning
+  for recommendation systems?
+prompt: What is the badge ID of Nexora's lead for privacy-preserving machine learning
+  for recommendation systems?
+format_hint: Answer with just the value, no explanation.
+expected_substring: NX-2838
+max_tokens: 256
+requires_mcp: false
+oracle:
+  kind: composite
+expected_output: NX-2838

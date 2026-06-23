@@ -1,0 +1,13 @@
+id: nx_mid_46
+category: nexora_mid
+title: What is the badge ID of Nexora's lead for data-governance policy for fraud
+  systems?
+prompt: What is the badge ID of Nexora's lead for data-governance policy for fraud
+  systems?
+format_hint: Answer with just the value, no explanation.
+expected_substring: NX-6353
+max_tokens: 256
+requires_mcp: false
+oracle:
+  kind: composite
+expected_output: NX-6353

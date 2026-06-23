@@ -1,0 +1,13 @@
+id: nx_mid_05
+category: nexora_mid
+title: What budget was Nexora's fleet fuel-efficiency modeling project for Polaris
+  Foods greenlit with?
+prompt: What budget was Nexora's fleet fuel-efficiency modeling project for Polaris
+  Foods greenlit with?
+format_hint: Answer with just the value, no explanation.
+expected_substring: 2,350,000
+max_tokens: 256
+requires_mcp: false
+oracle:
+  kind: composite
+expected_output: 2,350,000
