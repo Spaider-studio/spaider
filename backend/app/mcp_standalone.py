@@ -63,6 +63,7 @@ async def lifespan(_: FastAPI):
     is healthy. Mirrors the relevant slice of ``app.main.lifespan``.
     """
     from app import main as _app_main
+    from app.api.v1.mcp_server import mcp_session_manager
     from app.services.graph_service import GraphService
 
     try:
@@ -76,14 +77,18 @@ async def lifespan(_: FastAPI):
     except Exception as exc:  # noqa: BLE001
         logger.error("standalone: GraphService init failed: %s", exc)
 
-    try:
-        yield
-    finally:
-        if _app_main._graph_service is not None:
-            try:
-                await _app_main._graph_service.close()
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("standalone: GraphService close error: %s", exc)
+    # The Streamable HTTP session manager must run for the app's lifetime, same
+    # as in app.main — without it `mcp_app` has no manager to hand requests to.
+    async with mcp_session_manager.run():
+        logger.info("standalone: MCP Streamable HTTP session manager started")
+        try:
+            yield
+        finally:
+            if _app_main._graph_service is not None:
+                try:
+                    await _app_main._graph_service.close()
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("standalone: GraphService close error: %s", exc)
 
 
 app = FastAPI(

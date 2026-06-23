@@ -17,17 +17,18 @@ tool body) which is where bugs would actually live.
 """
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from fastapi import HTTPException
 
 from app.api.v1 import mcp_server as mcp_module
 from app.api.v1.mcp_server import (
     _AGENT_ID,
-    _resolve_agent_id,
+    _bearer_token_from_scope,
     call_tool,
     list_tools,
+    mcp_app,
 )
 from app.models.schemas import GraphPayload, Node
 
@@ -72,49 +73,92 @@ async def test_list_tools_returns_read_and_write_set():
 
 
 # ---------------------------------------------------------------------------
-# 2. Auth
+# 2. Auth — the Streamable HTTP ASGI wrapper (`mcp_app`) resolves the bearer
+#    token to an agent_id, binds it to the ContextVar, then delegates. We test
+#    the wrapper directly with fake ASGI scope/send rather than the SDK's
+#    session manager (which ships its own transport tests).
 # ---------------------------------------------------------------------------
 
 
-def _request_with_header(value: str | None):
-    """Minimal fake Request object with a `.headers` mapping."""
-    class _FakeRequest:
-        def __init__(self, headers: dict[str, str]) -> None:
-            self.headers = headers
-    return _FakeRequest({} if value is None else {"Authorization": value})
+def _http_scope(auth: str | None = None) -> dict:
+    """A minimal ASGI http scope, optionally carrying an Authorization header."""
+    headers = [] if auth is None else [(b"authorization", auth.encode("latin-1"))]
+    return {"type": "http", "method": "POST", "path": "/api/v1/mcp", "headers": headers}
+
+
+def _capturing_send():
+    sent: list[dict] = []
+
+    async def send(message):
+        sent.append(message)
+
+    return send, sent
+
+
+async def _noop_receive():
+    return {"type": "http.request", "body": b"", "more_body": False}
+
+
+def test_bearer_token_from_scope_parses_and_rejects():
+    assert _bearer_token_from_scope(_http_scope("Bearer sk-abc")) == "sk-abc"
+    assert _bearer_token_from_scope(_http_scope("Bearer    ")) is None  # empty after strip
+    assert _bearer_token_from_scope(_http_scope(None)) is None
+    assert _bearer_token_from_scope(_http_scope("Basic xyz")) is None  # wrong scheme
 
 
 @pytest.mark.asyncio
-async def test_resolve_agent_id_missing_header_raises_401():
-    with pytest.raises(HTTPException) as exc:
-        await _resolve_agent_id(_request_with_header(None))
-    assert exc.value.status_code == 401
+async def test_mcp_app_missing_header_sends_401_without_delegating():
+    send, sent = _capturing_send()
+    with patch.object(
+        mcp_module.mcp_session_manager, "handle_request", new=AsyncMock()
+    ) as handle:
+        await mcp_app(_http_scope(None), _noop_receive, send)
+    assert sent[0]["status"] == 401
+    handle.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_resolve_agent_id_empty_token_raises_401():
-    with pytest.raises(HTTPException) as exc:
-        await _resolve_agent_id(_request_with_header("Bearer "))
-    assert exc.value.status_code == 401
+async def test_mcp_app_empty_token_sends_401():
+    send, sent = _capturing_send()
+    with patch.object(mcp_module.mcp_session_manager, "handle_request", new=AsyncMock()):
+        await mcp_app(_http_scope("Bearer "), _noop_receive, send)
+    assert sent[0]["status"] == 401
 
 
 @pytest.mark.asyncio
-async def test_resolve_agent_id_invalid_token_raises_401():
+async def test_mcp_app_invalid_token_sends_401():
     auth_mock = AsyncMock()
     auth_mock.verify_token = AsyncMock(side_effect=ValueError("nope"))
-    with patch.object(mcp_module, "_get_auth_service", return_value=auth_mock):
-        with pytest.raises(HTTPException) as exc:
-            await _resolve_agent_id(_request_with_header("Bearer sk-bogus"))
-    assert exc.value.status_code == 401
+    send, sent = _capturing_send()
+    with patch.object(mcp_module, "_get_auth_service", return_value=auth_mock), patch.object(
+        mcp_module.mcp_session_manager, "handle_request", new=AsyncMock()
+    ) as handle:
+        await mcp_app(_http_scope("Bearer sk-bogus"), _noop_receive, send)
+    assert sent[0]["status"] == 401
+    handle.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_resolve_agent_id_returns_sub_from_payload():
+async def test_mcp_app_valid_token_binds_agent_id_then_resets():
+    """The decisive isolation test: the agent_id must be visible to the
+    delegated handler (proving the ContextVar reaches the tool callbacks) and
+    cleared again once the request returns."""
     auth_mock = AsyncMock()
     auth_mock.verify_token = AsyncMock(return_value={"sub": "agent-123", "tenant_id": "default"})
-    with patch.object(mcp_module, "_get_auth_service", return_value=auth_mock):
-        agent_id = await _resolve_agent_id(_request_with_header("Bearer sk-real"))
-    assert agent_id == "agent-123"
+    seen: dict[str, object] = {}
+
+    async def fake_handle_request(scope, receive, send):
+        seen["agent_id"] = _AGENT_ID.get()
+
+    send, sent = _capturing_send()
+    with patch.object(mcp_module, "_get_auth_service", return_value=auth_mock), patch.object(
+        mcp_module.mcp_session_manager, "handle_request", new=fake_handle_request
+    ):
+        await mcp_app(_http_scope("Bearer sk-real"), _noop_receive, send)
+
+    assert seen["agent_id"] == "agent-123"  # contextvar propagated into the handler
+    assert sent == []                       # no 401 emitted; the handler owns the response
+    assert _AGENT_ID.get() is None          # reset after the request returns
 
 
 # ---------------------------------------------------------------------------
@@ -262,7 +306,7 @@ async def test_call_tool_query_appends_node_ids_trailer_for_feedback():
     assert "Node IDs (for feedback): " in body
     # Trailer should list every retrieved node id, in subgraph order.
     trailer_line = next(
-        l for l in body.splitlines() if l.startswith("Node IDs (for feedback):")
+        line for line in body.splitlines() if line.startswith("Node IDs (for feedback):")
     )
     ids_part = trailer_line.split(":", 1)[1].strip()
     assert ids_part == "fact-1, ent-1, ent-2"
@@ -287,7 +331,7 @@ async def test_call_tool_query_caps_node_id_trailer_at_50():
         contents = await call_tool("spaider.query", {"question": "q"})
     body = contents[0].text
     trailer_line = next(
-        l for l in body.splitlines() if l.startswith("Node IDs (for feedback):")
+        line for line in body.splitlines() if line.startswith("Node IDs (for feedback):")
     )
     ids_part = trailer_line.split(":", 1)[1].strip()
     assert len(ids_part.split(",")) == 50
@@ -479,8 +523,8 @@ async def test_call_tool_ingest_fact_rejects_non_object_metadata():
 
 @pytest.mark.asyncio
 async def test_call_tool_ingest_fact_requires_agent_context():
-    """Defensive: writes must never go to the wrong agent. If the SSE
-    wiring forgot to set the contextvar we fail closed, never silently
+    """Defensive: writes must never go to the wrong agent. If the ASGI auth
+    wrapper forgot to set the contextvar we fail closed, never silently
     write under a default identity."""
     # _AGENT_ID is None per the autouse fixture
     with pytest.raises(ValueError):
@@ -512,7 +556,7 @@ def test_query_service_factory_passes_graph_service_dependency():
 
 @pytest.mark.asyncio
 async def test_call_tool_without_agent_context_raises():
-    """Defensive: if the SSE wiring ever forgets to set the contextvar,
+    """Defensive: if the ASGI auth wrapper ever forgets to set the contextvar,
     we fail loudly rather than serve cross-agent data."""
     # _AGENT_ID is None per the autouse fixture
     with pytest.raises(ValueError):

@@ -93,13 +93,13 @@ cat <<EOF
 ----------------------------------------------------------------
   Agent name : ${AGENT_NAME}
   API key    : ${api_key}
-  MCP URL    : http://localhost:${MCP_PORT}/api/v1/mcp/sse
+  MCP URL    : http://localhost:${MCP_PORT}/api/v1/mcp
 ================================================================
 
 Next step — ingest the corpus:
 
   export SPAIDER_API_KEY=${api_key}
-  export SPAIDER_MCP_URL=http://localhost:${MCP_PORT}/api/v1/mcp/sse
+  export SPAIDER_MCP_URL=http://localhost:${MCP_PORT}/api/v1/mcp
   benchmarks/.venv/bin/python -m benchmarks.seed \\
       --corpus benchmarks/corpus/acmeai_30d.yaml
 

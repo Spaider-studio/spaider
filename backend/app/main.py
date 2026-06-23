@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -167,6 +167,7 @@ _kafka_producer = None
 _redis_client = None
 _analytics_service = None
 _swarm_listener_task = None
+_mcp_exit_stack: "AsyncExitStack | None" = None
 
 
 # ---------------------------------------------------------------------------
@@ -178,6 +179,7 @@ _swarm_listener_task = None
 async def lifespan(app: FastAPI):
     """Startup and shutdown hooks."""
     global _graph_service, _kafka_producer, _redis_client, _analytics_service, _swarm_listener_task
+    global _mcp_exit_stack
 
     # --- Startup ---
 
@@ -286,9 +288,32 @@ async def lifespan(app: FastAPI):
             "ok" if _graph_service else "unavailable",
         )
 
+    # 7. MCP Streamable HTTP session manager. The manager owns an internal
+    #    task group that must stay open for the app's lifetime (one instance per
+    #    process, can't be reused after its run() closes). Only started when the
+    #    MCP surface is enabled — mirrors the mount gate below.
+    if settings.spaider_mcp_enabled:
+        try:
+            from app.api.v1.mcp_server import mcp_session_manager
+            _mcp_exit_stack = AsyncExitStack()
+            await _mcp_exit_stack.enter_async_context(mcp_session_manager.run())
+            logger.info("MCP Streamable HTTP session manager started")
+        except Exception as exc:  # noqa: BLE001
+            logger.error("MCP session manager failed to start: %s", exc)
+            _mcp_exit_stack = None
+
     yield
 
     # --- Shutdown ---
+
+    # MCP session manager first — drains in-flight streams before the data layer
+    # closes underneath it.
+    if _mcp_exit_stack is not None:
+        try:
+            await _mcp_exit_stack.aclose()
+            logger.info("MCP session manager stopped")
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("MCP session manager stop error: %s", exc)
 
     # Cancel background tasks in reverse startup order
     if _swarm_listener_task is not None:

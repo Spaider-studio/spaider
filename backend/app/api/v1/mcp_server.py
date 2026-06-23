@@ -9,15 +9,17 @@ memory.
 
 Architecture
 ------------
-- Mounted under ``/api/v1/mcp`` in ``app/api/router.py``.
-- Two routes:
-    GET  /api/v1/mcp/sse        — opens an SSE stream (long-lived).
-    POST /api/v1/mcp/messages/  — receives client→server JSON-RPC messages.
-- Auth is HTTP-layer: the GET request must carry
+- Mounted under ``/api/v1/mcp`` in ``app/main.py`` (and ``app/mcp_standalone.py``).
+- A single **Streamable HTTP** endpoint (the modern MCP transport): clients POST
+  JSON-RPC to ``/api/v1/mcp`` and may open a GET stream on the same URL. Served
+  by ``StreamableHTTPSessionManager`` in stateless mode.
+- Auth is HTTP-layer: every request must carry
   ``Authorization: Bearer <api-key>``. The key resolves to an agent_id via
   ``AuthService.verify_token`` (already supports ``sk-…`` raw API keys).
   The agent_id is then bound to a ``contextvars.ContextVar`` so the per-tool
   handlers can read it without leaking it through the MCP message envelope.
+- The session manager's ``run()`` context must be entered in the host app's
+  lifespan (done in ``app.main`` and ``app.mcp_standalone``).
 - Same process as the main FastAPI app — reuses ``QueryService``,
   ``GraphService`` and ``AuthService``. No new datastore.
 
@@ -45,7 +47,8 @@ Per-developer setup
        {
          "mcpServers": {
            "spaider": {
-             "url":     "http://localhost:8000/api/v1/mcp/sse",
+             "type":    "http",
+             "url":     "http://localhost:8000/api/v1/mcp",
              "headers": {"Authorization": "Bearer sk-..."}
            }
          }
@@ -58,17 +61,13 @@ Per-developer setup
 from __future__ import annotations
 
 import contextvars
+import json
 import logging
 from typing import Any, Optional
 
 import mcp.types as mcp_types
-from fastapi import HTTPException
 from mcp.server.lowlevel import Server
-from mcp.server.sse import SseServerTransport
-from starlette.applications import Starlette
-from starlette.requests import Request
-from starlette.responses import Response
-from starlette.routing import Mount, Route
+from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 
 from app.services.auth_service import AuthService
 from app.services.graph_service import GraphService
@@ -76,9 +75,9 @@ from app.services.query_service import QueryService
 
 logger = logging.getLogger(__name__)
 
-# Per-request agent_id binding. Set in the SSE handler after auth, read
-# inside the tool callbacks. ContextVar (not a global) so concurrent
-# connections don't trample each other's identity.
+# Per-request agent_id binding. Set in the ASGI auth wrapper after the bearer
+# token is verified, read inside the tool callbacks. ContextVar (not a global)
+# so concurrent requests don't trample each other's identity.
 _AGENT_ID: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
     "spaider_mcp_agent_id", default=None,
 )
@@ -268,8 +267,8 @@ async def list_tools() -> list[mcp_types.Tool]:
 
 @mcp_server.call_tool()
 async def call_tool(name: str, arguments: dict[str, Any]) -> list[mcp_types.TextContent]:
-    """Dispatch tool calls to the underlying services. Auth was checked
-    at SSE-open time; here we just read the agent_id contextvar."""
+    """Dispatch tool calls to the underlying services. Auth was checked in the
+    ASGI wrapper (`mcp_app`); here we just read the agent_id contextvar."""
     agent_id = _AGENT_ID.get()
     if agent_id is None:
         raise ValueError("Tool called without authenticated agent_id (auth bug?)")
@@ -459,80 +458,87 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[mcp_types.Text
 
 
 # ---------------------------------------------------------------------------
-# SSE transport wired into FastAPI
+# Streamable HTTP transport wired into FastAPI
 # ---------------------------------------------------------------------------
 
-# The transport's POST path must be reachable from the SSE handler — the
-# server announces it to the client as a *relative* URL. Keep the value
-# matching the Mount path inside `mcp_app` below; the absolute URL the
-# client ends up POSTing to is `<sse_url's parent>/messages/?session_id=…`,
-# i.e. mount-prefix + this path. If the value has the full prefix in it,
-# resolution doubles up (`/api/v1/mcp/api/v1/mcp/messages/` 404).
-_sse_transport = SseServerTransport("/messages/")
+# One session manager per process (an SDK requirement — it can't be reused once
+# its run() context has closed). `stateless=True` is deliberate: each HTTP
+# request is handled independently and the MCP server loop runs *inside* the
+# request's task, so the `_AGENT_ID` ContextVar we set just before
+# `handle_request` propagates into the tool callbacks (per-agent isolation). A
+# stateful manager spawns the session task once and would never see a later
+# request's identity. These four tools need no cross-request session, server
+# push, or resumability, so stateless is both correct and simpler.
+mcp_session_manager = StreamableHTTPSessionManager(
+    app=mcp_server,
+    event_store=None,
+    json_response=False,
+    stateless=True,
+)
 
 
-async def _resolve_agent_id(request: Request) -> str:
-    """Extract agent_id from the bearer token. 401 on missing/invalid."""
-    header = request.headers.get("Authorization", "")
-    if not header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing Bearer token")
-    token = header[len("Bearer "):].strip()
+def _bearer_token_from_scope(scope: dict) -> Optional[str]:
+    """Pull the raw bearer token out of the ASGI scope headers, or None."""
+    for key, value in scope.get("headers", []):
+        if key == b"authorization":
+            raw = value.decode("latin-1")
+            if raw.startswith("Bearer "):
+                return raw[len("Bearer "):].strip() or None
+            return None
+    return None
+
+
+async def _send_json_401(send, detail: str) -> None:
+    """Emit a 401 straight onto the ASGI channel (no Starlette Request needed)."""
+    body = json.dumps({"detail": detail}).encode()
+    await send({
+        "type": "http.response.start",
+        "status": 401,
+        "headers": [
+            (b"content-type", b"application/json"),
+            (b"content-length", str(len(body)).encode()),
+            (b"www-authenticate", b"Bearer"),
+        ],
+    })
+    await send({"type": "http.response.body", "body": body})
+
+
+async def mcp_app(scope, receive, send) -> None:
+    """ASGI entrypoint for the Streamable HTTP MCP endpoint.
+
+    Auth happens here: the bearer token is resolved to an agent_id and bound to
+    the `_AGENT_ID` ContextVar *before* handing the request to the session
+    manager. Because the manager is stateless, the MCP server loop runs in a
+    task spawned within this request — inheriting the context — so the tool
+    callbacks (which read `_AGENT_ID.get()`) execute in the right agent's
+    namespace.
+
+    Mounted at `/api/v1/mcp` by both `app.main` and `app.mcp_standalone`. The
+    session manager's `run()` lifespan must be active (entered in those apps'
+    lifespans) before any request arrives.
+    """
+    if scope["type"] != "http":
+        # The streamable transport is HTTP-only; let the manager reject anything
+        # else (mounted sub-apps never receive the lifespan scope).
+        await mcp_session_manager.handle_request(scope, receive, send)
+        return
+
+    token = _bearer_token_from_scope(scope)
     if not token:
-        raise HTTPException(status_code=401, detail="Empty Bearer token")
+        await _send_json_401(send, "Missing Bearer token")
+        return
     try:
         payload = await _get_auth_service().verify_token(token)
     except Exception as exc:  # noqa: BLE001 — degrade to 401 on any auth error
-        raise HTTPException(status_code=401, detail=f"Invalid token: {exc}") from exc
+        await _send_json_401(send, f"Invalid token: {exc}")
+        return
     agent_id = payload.get("sub") if isinstance(payload, dict) else None
     if not agent_id:
-        raise HTTPException(status_code=401, detail="Token has no agent_id")
-    return agent_id
+        await _send_json_401(send, "Token has no agent_id")
+        return
 
-
-async def mcp_sse_endpoint(request: Request) -> Response:
-    """Open the SSE stream. Auth happens here; agent_id is bound to a
-    ContextVar that the tool callbacks read.
-
-    Returns an empty Response after the stream closes so Starlette's
-    Route handler doesn't crash with ``TypeError: 'NoneType' object is
-    not callable`` while trying to call the (None) return value as an
-    ASGI app. The actual response was already sent inside
-    ``_sse_transport.connect_sse``; this trailing Response is a no-op
-    on the wire because the connection is closed by the time we get here.
-    """
-    agent_id = await _resolve_agent_id(request)
-    token = _AGENT_ID.set(agent_id)
+    ctx_token = _AGENT_ID.set(agent_id)
     try:
-        async with _sse_transport.connect_sse(
-            request.scope, request.receive, request._send,  # type: ignore[attr-defined]
-        ) as (read_stream, write_stream):
-            await mcp_server.run(
-                read_stream,
-                write_stream,
-                mcp_server.create_initialization_options(),
-            )
+        await mcp_session_manager.handle_request(scope, receive, send)
     finally:
-        _AGENT_ID.reset(token)
-    return Response()
-
-
-# Build a self-contained Starlette ASGI sub-app rather than a FastAPI
-# APIRouter. Why: FastAPI's `include_router(prefix=...)` plus
-# Starlette's `Mount` interact badly — the trailing-slash + query-string
-# URL `/messages/?session_id=…` that the SSE transport advertises ends
-# up 404'ing because the prefix-stripping doesn't quite hand the
-# remainder to the Mount the way Starlette expects.
-#
-# Mounting a clean Starlette sub-app sidesteps that whole class of bug:
-# the routes inside it route exactly as if they were the top-level app.
-#
-# Routes:
-#   /sse        — Route. The handler hands the underlying ASGI primitives
-#                 to _sse_transport.connect_sse which writes the response.
-#   /messages/  — Mount, NOT Route. handle_post_message is an ASGI app
-#                 with signature (scope, receive, send), not (request),
-#                 so it must be mounted, not registered as an endpoint.
-mcp_app = Starlette(routes=[
-    Route("/sse", mcp_sse_endpoint, methods=["GET"]),
-    Mount("/messages/", app=_sse_transport.handle_post_message),
-])
+        _AGENT_ID.reset(ctx_token)

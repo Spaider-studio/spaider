@@ -165,7 +165,7 @@ class Settings(BaseSettings):
         ),
     )
 
-    # MCP server (SpAIder-as-MCP-server, exposed at /api/v1/mcp/sse).
+    # MCP server (SpAIder-as-MCP-server, Streamable HTTP at /api/v1/mcp).
     # Set to false to skip mounting the MCP routes entirely — useful when
     # ops policy requires LLM agents to reach SpAIder only through the
     # REST API, or when the deployment doesn't issue agent API keys to

@@ -134,14 +134,16 @@ The `ConnectorScheduler` runs inside `backend-worker` and polls PostgreSQL for d
 
 ## MCP Server
 
-SpAIder exposes itself over the [Model Context Protocol](https://modelcontextprotocol.io/), so any MCP-capable client (Claude Code, Cursor, custom LLM agents) can use SpAIder as agent-scoped, durable memory without writing HTTP glue.
+SpAIder exposes itself over the [Model Context Protocol](https://modelcontextprotocol.io/), so any MCP-capable client (Claude Code, Cursor, OpenCode, custom LLM agents) can use SpAIder as agent-scoped, durable memory without writing HTTP glue.
+
+It speaks the modern **Streamable HTTP** transport on a single endpoint:
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/v1/mcp/sse` | Open the long-lived SSE stream (per-API-key auth via `Authorization: Bearer`) |
-| `POST` | `/api/v1/mcp/messages/` | Client→server JSON-RPC messages (managed by the MCP SDK) |
+| `POST` | `/api/v1/mcp` | Client→server JSON-RPC (per-API-key auth via `Authorization: Bearer`) |
+| `GET` | `/api/v1/mcp` | Optional server→client event stream on the same URL |
 
-Three tools are exposed: `spaider.query`, `spaider.list_recent`, `spaider.ingest_fact`. Tool calls execute in the API key's agent namespace; different keys see disjoint graphs.
+Four tools are exposed: `spaider.query`, `spaider.list_recent`, `spaider.ingest_fact`, `spaider.feedback`. Tool calls execute in the API key's agent namespace; different keys see disjoint graphs.
 
 - **Disabling the surface.** Set `SPAIDER_MCP_ENABLED=false` to skip mounting the routes entirely. Defaults to enabled.
 - **Long-lived deployments.** Restarting `backend-api` drops connected MCP sessions. `make mcp-server-host` runs the MCP sub-app as a standalone host-side process on port 8001 against the same Redis/Neo4j, surviving rebuilds. See `scripts/dev/setup_mcp_dev_agent.sh`.

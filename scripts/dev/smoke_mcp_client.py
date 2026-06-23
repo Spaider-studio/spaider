@@ -3,19 +3,20 @@ End-to-end MCP client smoke against a running SpAIder MCP server.
 
 Walks the full handshake a real MCP client would do:
 
-  1. Open SSE stream with Bearer token.
+  1. Open a Streamable HTTP connection with Bearer token.
   2. Send `initialize` request.
-  3. Send `tools/list` — expects three tools (read x2 + write).
+  3. Send `tools/list` — expects four tools (read x2 + write + feedback).
   4. Call `spaider.list_recent` (read-only; works on an empty graph).
   5. Call `spaider.ingest_fact` (write path); confirms a follow-up
      `spaider.list_recent` now sees the freshly-ingested text.
 
 Why
 ---
-Unit tests (#64's `tests/api/test_mcp_server.py`) mock the auth + query
+The unit tests in `tests/api/test_mcp_server.py` mock the auth + query
 services. They prove the handler logic is right. They do **not** prove
-the SSE transport actually carries JSON-RPC the way real clients expect.
-This script closes that gap with a real `mcp.client.sse` round-trip.
+the Streamable HTTP transport actually carries JSON-RPC the way real clients
+expect. This script closes that gap with a real `mcp.client.streamable_http`
+round-trip.
 
 Usage
 -----
@@ -29,7 +30,7 @@ Usage
 Environment
 -----------
 SPAIDER_API_KEY  required, the dev agent's API key
-SPAIDER_MCP_URL  optional; defaults to http://localhost:8001/api/v1/mcp/sse
+SPAIDER_MCP_URL  optional; defaults to http://localhost:8001/api/v1/mcp
                  (host-side standalone). Use http://localhost:8000/... for
                  the compose backend-api.
 """
@@ -40,7 +41,7 @@ import os
 import sys
 
 from mcp import ClientSession
-from mcp.client.sse import sse_client
+from mcp.client.streamable_http import streamablehttp_client
 
 
 async def main() -> int:
@@ -51,13 +52,15 @@ async def main() -> int:
         return 2
 
     url = os.environ.get(
-        "SPAIDER_MCP_URL", "http://localhost:8001/api/v1/mcp/sse",
+        "SPAIDER_MCP_URL", "http://localhost:8001/api/v1/mcp",
     )
     headers = {"Authorization": f"Bearer {api_key}"}
 
     print(f"-> connecting to {url}")
-    async with sse_client(url, headers=headers) as streams:
-        async with ClientSession(*streams) as session:
+    # streamablehttp_client yields (read, write, get_session_id); ClientSession
+    # only needs the first two streams.
+    async with streamablehttp_client(url, headers=headers) as (read, write, _):
+        async with ClientSession(read, write) as session:
             print("-> initialize")
             init = await session.initialize()
             print(f"   server: {init.serverInfo.name} v{init.serverInfo.version}")

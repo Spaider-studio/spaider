@@ -142,7 +142,7 @@ context-stuffing's accuracy at a fraction of the cost.)
 ```bash
 make dev                                   # stack live: ./backend bind-mount + --reload
 scripts/dev/setup_bench_agent.sh hotpotqa  # prints SPAIDER_API_KEY
-export SPAIDER_API_KEY=<key> SPAIDER_MCP_URL=http://localhost:8000/api/v1/mcp/sse
+export SPAIDER_API_KEY=<key> SPAIDER_MCP_URL=http://localhost:8000/api/v1/mcp
 benchmarks/.venv/bin/python -m benchmarks.seed --corpus benchmarks/corpus/hotpotqa_haystack.yaml --concurrency 4
 
 export LLM_PROVIDER=openai LLM_MODEL=gpt-4o-mini LLM_API_KEY=<openai-key>

@@ -97,7 +97,7 @@ cat <<EOF
 ----------------------------------------------------------------
   Agent name : ${AGENT_NAME}
   API key    : ${api_key}
-  MCP URL    : http://localhost:${MCP_PORT}/api/v1/mcp/sse
+  MCP URL    : http://localhost:${MCP_PORT}/api/v1/mcp
   (port 8001 = host-side standalone; 8000 = compose backend-api)
 ================================================================
 
@@ -106,19 +106,21 @@ Add to ~/.claude/.mcp.json (merge with existing mcpServers):
 {
   "mcpServers": {
     "spaider": {
-      "url":     "http://localhost:${MCP_PORT}/api/v1/mcp/sse",
+      "type":    "http",
+      "url":     "http://localhost:${MCP_PORT}/api/v1/mcp",
       "headers": {"Authorization": "Bearer ${api_key}"}
     }
   }
 }
 
-Quick sanity probe (read-only, no LLM call):
+Quick sanity probe (a bare GET without a session is rejected — that's expected;
+a 401 means auth works, a 4xx/200 means the endpoint is live):
 
-  curl -sN -m 5 \\
+  curl -s -o /dev/null -w "%{http_code}\\n" -m 5 \\
     -H "Authorization: Bearer ${api_key}" \\
-    "http://localhost:${MCP_PORT}/api/v1/mcp/sse" | head -3
+    "http://localhost:${MCP_PORT}/api/v1/mcp"
 
-  # Should print "event: endpoint" and a /messages/ URL.
-  # Cancel with Ctrl-C; the SSE stream stays open.
+  # For a full round-trip use: SPAIDER_API_KEY=${api_key} \\
+  #   python scripts/dev/smoke_mcp_client.py
 
 EOF
