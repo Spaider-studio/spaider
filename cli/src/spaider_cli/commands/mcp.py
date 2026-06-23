@@ -13,7 +13,9 @@ failure-mode etiquette.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 import typer
 from rich.console import Console
@@ -26,7 +28,7 @@ console = Console()
 err_console = Console(stderr=True)
 
 
-DEFAULT_MCP_URL = "http://localhost:8000/api/v1/mcp/sse"
+DEFAULT_MCP_URL = "http://localhost:8000/api/v1/mcp"
 
 
 @app.command("install")
@@ -57,14 +59,14 @@ def install(
     client: str = typer.Option(
         "claude-code",
         "--for",
-        help="Which MCP client to install for: claude-code (default) or cursor.",
+        help="Which MCP client to install for: claude-code (default), opencode, or cursor.",
     ),
     scope: str = typer.Option(
         "user",
         "--scope",
         help=(
-            "claude-code only. user = global ~/.claude (default; same agent "
-            "memory in every repo). project = write ./.mcp.json so THIS repo "
+            "claude-code / opencode only. user = global config (default; same "
+            "agent memory in every repo). project = write into THIS repo so it "
             "uses its own agent memory, overriding the global one."
         ),
     ),
@@ -96,30 +98,24 @@ def install(
             )
             raise typer.Exit(code=1)
 
-    # Dispatch to the right client.
-    if client == "claude-code":
-        if scope not in ("user", "project"):
-            err_console.print(
-                f"[red]✗[/] unsupported --scope '{scope}'. Supported: user, project."
-            )
-            raise typer.Exit(code=2)
-        report = mcp_lib.install_for_claude_code(
-            url=url, api_key=resolved_key, scope=scope, project_root=Path.cwd(),
-        )
-        _report_claude_code(report=report, agent=resolved_agent, scope=scope)
-    elif client == "cursor":
-        report = mcp_lib.install_for_cursor(
-            project_root=Path.cwd(),
-            url=url,
-            api_key=resolved_key,
-        )
-        _report_cursor(report=report, agent=resolved_agent)
-    else:
+    # Dispatch via the target registry (see _TARGETS at the bottom).
+    spec = _TARGETS.get(client)
+    if spec is None:
         err_console.print(
             f"[red]✗[/] unsupported --for value '{client}'. "
-            "Supported: claude-code, cursor."
+            f"Supported: {', '.join(_TARGETS)}."
         )
         raise typer.Exit(code=2)
+    if spec.scoped and scope not in ("user", "project"):
+        err_console.print(
+            f"[red]✗[/] unsupported --scope '{scope}'. Supported: user, project."
+        )
+        raise typer.Exit(code=2)
+
+    report = spec.install(
+        url=url, api_key=resolved_key, scope=scope, project_root=Path.cwd(),
+    )
+    spec.report(report=report, agent=resolved_agent, scope=scope)
 
 
 # ---------------------------------------------------------------------------
@@ -180,7 +176,7 @@ def _report_claude_code(
     )
 
 
-def _report_cursor(*, report: mcp_lib.InstallReport, agent: str) -> None:
+def _report_cursor(*, report: mcp_lib.InstallReport, agent: str, scope: str = "user") -> None:
     console.print()
     console.print("[bold green]✓[/] SpAIder rules installed for Cursor")
     console.print(f"  agent     : [bold]{agent}[/]")
@@ -191,3 +187,72 @@ def _report_cursor(*, report: mcp_lib.InstallReport, agent: str) -> None:
     console.print(
         "[yellow]Reload the Cursor window[/] so it picks up the updated .cursorrules."
     )
+
+
+def _report_opencode(
+    *, report: mcp_lib.InstallReport, agent: str, scope: str = "user",
+) -> None:
+    console.print()
+    console.print("[bold green]✓[/] SpAIder MCP installed for OpenCode")
+    console.print(f"  agent     : [bold]{agent}[/]")
+    console.print(f"  scope     : [bold]{scope}[/]" + (
+        "  [dim](this repo only)[/]" if scope == "project" else "  [dim](global)[/]"
+    ))
+    console.print(f"  config    : {report.config_path}")
+    if report.config_backup:
+        console.print(f"  backup of : [dim]{report.config_backup}[/]")
+    if report.skill_path:
+        console.print(f"  guidance  : {report.skill_path}  [dim](AGENTS.md)[/]")
+    if report.skill_backup:
+        console.print(f"  backup of : [dim]{report.skill_backup}[/]")
+    if scope == "project":
+        console.print()
+        console.print(
+            "[yellow]![/] [bold]opencode.json[/] holds a secret Bearer token; add it "
+            "to this repo's [bold].gitignore[/] so it is never committed."
+        )
+    console.print()
+    console.print(
+        "[yellow]Restart OpenCode[/] so it picks up the new MCP server. "
+        "Tip: OpenCode runs on local models too. Point it at an Ollama model "
+        "for a fully self-hosted, no-API-key setup."
+    )
+
+
+# ---------------------------------------------------------------------------
+# Target registry. Adding an MCP client is one entry here; `scoped` controls
+# whether `--scope user|project` applies; `install` adapts the common kwargs to
+# the target's installer; `report` prints the result.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class _TargetSpec:
+    scoped: bool
+    install: Callable[..., mcp_lib.InstallReport]
+    report: Callable[..., None]
+
+
+_TARGETS: dict[str, _TargetSpec] = {
+    "claude-code": _TargetSpec(
+        scoped=True,
+        install=lambda *, url, api_key, scope, project_root: mcp_lib.install_for_claude_code(
+            url=url, api_key=api_key, scope=scope, project_root=project_root,
+        ),
+        report=_report_claude_code,
+    ),
+    "opencode": _TargetSpec(
+        scoped=True,
+        install=lambda *, url, api_key, scope, project_root: mcp_lib.install_for_opencode(
+            url=url, api_key=api_key, scope=scope, project_root=project_root,
+        ),
+        report=_report_opencode,
+    ),
+    "cursor": _TargetSpec(
+        scoped=False,
+        install=lambda *, url, api_key, scope, project_root: mcp_lib.install_for_cursor(
+            project_root=project_root, url=url, api_key=api_key,
+        ),
+        report=_report_cursor,
+    ),
+}

@@ -65,6 +65,36 @@ def claude_code_paths(
     )
 
 
+def opencode_paths(
+    *,
+    scope: str = "user",
+    home: Path | None = None,
+    project_root: Path | None = None,
+) -> ClientPaths:
+    """Paths for OpenCode.
+
+    OpenCode reads MCP servers from ``opencode.json``: globally at
+    ``~/.config/opencode/opencode.json`` (``scope="user"``, default) or
+    per-project at ``<root>/opencode.json`` (``scope="project"``). Agent
+    guidance goes in ``AGENTS.md`` (the project root for project scope, the
+    global config dir otherwise).
+    """
+    if scope == "project":
+        root = project_root or Path.cwd()
+        return ClientPaths(
+            name="opencode",
+            mcp_config=root / "opencode.json",
+            skill_file=root / "AGENTS.md",
+        )
+    home = home or Path.home()
+    cfg_dir = home / ".config" / "opencode"
+    return ClientPaths(
+        name="opencode",
+        mcp_config=cfg_dir / "opencode.json",
+        skill_file=cfg_dir / "AGENTS.md",
+    )
+
+
 def cursor_paths(project_root: Path) -> ClientPaths:
     """Paths for Cursor (per-project ``.cursorrules``).
 
@@ -96,8 +126,13 @@ def read_packaged_skill(filename: str = "claude_code.md") -> str:
 
 
 def _spaider_server_entry(url: str, api_key: str) -> dict[str, Any]:
-    """The mcpServers block that we add for SpAIder."""
+    """The mcpServers block that we add for SpAIder.
+
+    ``type: "http"`` selects the Streamable HTTP transport, the modern MCP
+    transport SpAIder's backend serves at ``/api/v1/mcp``.
+    """
     return {
+        "type": "http",
         "url": url,
         "headers": {"Authorization": f"Bearer {api_key}"},
     }
@@ -119,6 +154,36 @@ def merge_mcp_server(
     servers = dict(merged.get("mcpServers") or {})
     servers[server_name] = _spaider_server_entry(url=url, api_key=api_key)
     merged["mcpServers"] = servers
+    return merged
+
+
+def _opencode_server_entry(url: str, api_key: str) -> dict[str, Any]:
+    """The ``opencode.json`` ``mcp.<name>`` block for SpAIder.
+
+    OpenCode uses ``type: "remote"`` for HTTP/Streamable-HTTP MCP servers
+    (vs ``"local"`` stdio servers); ``enabled: true`` registers it.
+    """
+    return {
+        "type": "remote",
+        "url": url,
+        "enabled": True,
+        "headers": {"Authorization": f"Bearer {api_key}"},
+    }
+
+
+def merge_opencode_server(
+    existing: dict[str, Any] | None,
+    *,
+    server_name: str = "spaider",
+    url: str,
+    api_key: str,
+) -> dict[str, Any]:
+    """Merge the SpAIder entry into an ``opencode.json`` dict (top-level ``mcp``
+    key), preserving every other server and unrelated keys. Pure function."""
+    merged: dict[str, Any] = dict(existing or {})
+    servers = dict(merged.get("mcp") or {})
+    servers[server_name] = _opencode_server_entry(url=url, api_key=api_key)
+    merged["mcp"] = servers
     return merged
 
 
@@ -282,4 +347,79 @@ def install_for_cursor(
         config_backup=config_backup,
         skill_path=None,
         skill_backup=None,
+    )
+
+
+# ---------------------------------------------------------------------------
+# OpenCode
+# ---------------------------------------------------------------------------
+
+_SPAIDER_BLOCK_START = "<!-- spaider:start (managed by `spaider mcp install`) -->"
+_SPAIDER_BLOCK_END = "<!-- spaider:end -->"
+
+
+def upsert_marked_block(path: Path, inner: str) -> Path | None:
+    """Idempotently write a SpAIder-delimited block into a markdown file.
+
+    Missing file → create with just the block. Existing file with our markers →
+    replace what's between them (preserving the user's surrounding content).
+    Existing file without markers → append. Returns the backup path (or None).
+    """
+    block = f"{_SPAIDER_BLOCK_START}\n{inner.rstrip()}\n{_SPAIDER_BLOCK_END}\n"
+    if not path.exists():
+        atomic_write_text(path, block)
+        return None
+    existing = path.read_text(encoding="utf-8")
+    backup = backup_if_exists(path)
+    if _SPAIDER_BLOCK_START in existing and _SPAIDER_BLOCK_END in existing:
+        pre = existing.split(_SPAIDER_BLOCK_START, 1)[0].rstrip()
+        post = existing.split(_SPAIDER_BLOCK_END, 1)[1].lstrip("\n")
+        new = block
+        if pre:
+            new = pre + "\n\n" + new
+        if post.strip():
+            new = new + "\n" + post
+    else:
+        new = existing.rstrip() + "\n\n" + block
+    atomic_write_text(path, new)
+    return backup
+
+
+def install_for_opencode(
+    *,
+    url: str,
+    api_key: str,
+    scope: str = "user",
+    home: Path | None = None,
+    project_root: Path | None = None,
+) -> InstallReport:
+    """Idempotently install SpAIder into OpenCode.
+
+    Writes two things (see :func:`opencode_paths`):
+    1. An ``mcp.spaider`` entry in ``opencode.json`` (Streamable HTTP, Bearer
+       auth), non-destructively merged so other servers survive.
+    2. A SpAIder guidance block in ``AGENTS.md``, delimited by stable markers so
+       re-running replaces it in place rather than duplicating.
+    """
+    paths = opencode_paths(scope=scope, home=home, project_root=project_root)
+
+    existing = read_mcp_config(paths.mcp_config)
+    merged = merge_opencode_server(existing, url=url, api_key=api_key)
+    config_backup = backup_if_exists(paths.mcp_config)
+    atomic_write_json(paths.mcp_config, merged)
+
+    assert paths.skill_file is not None  # opencode always has an AGENTS.md slot
+    guidance = (
+        "# SpAIder memory\n\n"
+        "SpAIder is wired in as the `spaider` MCP server. Use its tools for "
+        "durable, queryable memory across sessions.\n\n"
+        + read_packaged_skill("claude_code.md").rstrip()
+    )
+    skill_backup = upsert_marked_block(paths.skill_file, guidance)
+
+    return InstallReport(
+        config_path=paths.mcp_config,
+        config_backup=config_backup,
+        skill_path=paths.skill_file,
+        skill_backup=skill_backup,
     )

@@ -200,7 +200,7 @@ def run(
 
     console.print("\n[bold]Installing MCP into Claude Code[/]")
     report = mcp_lib.install_for_claude_code(
-        url="http://localhost:8000/api/v1/mcp/sse",
+        url="http://localhost:8000/api/v1/mcp",
         api_key=agent_key,
     )
     console.print(f"  [green]✓[/] {report.config_path}")

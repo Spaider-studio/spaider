@@ -28,12 +28,14 @@ class TestMergeMcpServer:
     def test_empty_existing_creates_servers_block(self):
         merged = mcp_lib.merge_mcp_server(
             existing={},
-            url="http://localhost:8000/api/v1/mcp/sse",
+            url="http://localhost:8000/api/v1/mcp",
             api_key="sk-test",
         )
         assert "mcpServers" in merged
         assert "spaider" in merged["mcpServers"]
-        assert merged["mcpServers"]["spaider"]["url"].endswith("/mcp/sse")
+        assert merged["mcpServers"]["spaider"]["url"].endswith("/mcp")
+        # Streamable HTTP transport: Claude Code reads `type: "http"`.
+        assert merged["mcpServers"]["spaider"]["type"] == "http"
         assert merged["mcpServers"]["spaider"]["headers"]["Authorization"] == "Bearer sk-test"
 
     def test_preserves_other_servers(self):
@@ -45,7 +47,7 @@ class TestMergeMcpServer:
         }
         merged = mcp_lib.merge_mcp_server(
             existing=existing,
-            url="http://localhost:8000/api/v1/mcp/sse",
+            url="http://localhost:8000/api/v1/mcp",
             api_key="sk-test",
         )
         assert set(merged["mcpServers"]) == {"filesystem", "github", "spaider"}
@@ -54,17 +56,17 @@ class TestMergeMcpServer:
         existing = {"mcpServers": {"spaider": {"url": "stale", "headers": {}}}}
         merged = mcp_lib.merge_mcp_server(
             existing=existing,
-            url="http://localhost:8000/api/v1/mcp/sse",
+            url="http://localhost:8000/api/v1/mcp",
             api_key="sk-new",
         )
-        assert merged["mcpServers"]["spaider"]["url"].endswith("/mcp/sse")
+        assert merged["mcpServers"]["spaider"]["url"].endswith("/mcp")
         assert merged["mcpServers"]["spaider"]["headers"]["Authorization"] == "Bearer sk-new"
 
     def test_preserves_top_level_keys(self):
         existing = {"someUnrelatedKey": True, "mcpServers": {}}
         merged = mcp_lib.merge_mcp_server(
             existing=existing,
-            url="http://localhost:8000/api/v1/mcp/sse",
+            url="http://localhost:8000/api/v1/mcp",
             api_key="sk-test",
         )
         assert merged["someUnrelatedKey"] is True
@@ -119,7 +121,7 @@ class TestReadMcpConfig:
 class TestInstallForClaudeCode:
     def test_fresh_install_creates_files(self, tmp_path: Path):
         report = mcp_lib.install_for_claude_code(
-            url="http://localhost:8000/api/v1/mcp/sse",
+            url="http://localhost:8000/api/v1/mcp",
             api_key="sk-fresh",
             home=tmp_path,
         )
@@ -143,7 +145,7 @@ class TestInstallForClaudeCode:
         skill.write_text("OLD SKILL CONTENT")
 
         report = mcp_lib.install_for_claude_code(
-            url="http://localhost:8000/api/v1/mcp/sse",
+            url="http://localhost:8000/api/v1/mcp",
             api_key="sk-second",
             home=tmp_path,
         )
@@ -172,7 +174,7 @@ class TestClaudeCodeScope:
 
     def test_install_project_scope_writes_repo_files(self, tmp_path: Path):
         report = mcp_lib.install_for_claude_code(
-            url="http://localhost:8000/api/v1/mcp/sse",
+            url="http://localhost:8000/api/v1/mcp",
             api_key="sk-proj",
             scope="project",
             project_root=tmp_path,
@@ -195,7 +197,7 @@ class TestInstallForCursor:
     def test_fresh_install_writes_cursorrules(self, tmp_path: Path):
         report = mcp_lib.install_for_cursor(
             project_root=tmp_path,
-            url="http://localhost:8000/api/v1/mcp/sse",
+            url="http://localhost:8000/api/v1/mcp",
             api_key="sk-cursor",
         )
         assert report.config_backup is None
@@ -209,7 +211,7 @@ class TestInstallForCursor:
 
         report = mcp_lib.install_for_cursor(
             project_root=tmp_path,
-            url="http://localhost:8000/api/v1/mcp/sse",
+            url="http://localhost:8000/api/v1/mcp",
             api_key="sk-cursor",
         )
         content = report.config_path.read_text()
@@ -217,6 +219,74 @@ class TestInstallForCursor:
         assert "use snake_case" in content
         assert "spaider" in content.lower()
         assert report.config_backup is not None    # backup created
+
+
+# ---------------------------------------------------------------------------
+# install_for_opencode orchestration
+# ---------------------------------------------------------------------------
+
+
+class TestInstallForOpencode:
+    def test_fresh_install_writes_opencode_json_and_agents(self, tmp_path: Path):
+        report = mcp_lib.install_for_opencode(
+            url="http://localhost:8000/api/v1/mcp",
+            api_key="sk-oc",
+            home=tmp_path,
+        )
+        # opencode.json under the global config dir, with a remote mcp entry.
+        assert report.config_path == tmp_path / ".config" / "opencode" / "opencode.json"
+        data = json.loads(report.config_path.read_text())
+        entry = data["mcp"]["spaider"]
+        assert entry["type"] == "remote"
+        assert entry["enabled"] is True
+        assert entry["url"].endswith("/mcp")
+        assert entry["headers"]["Authorization"] == "Bearer sk-oc"
+        # AGENTS.md carries the guidance block.
+        assert report.skill_path == tmp_path / ".config" / "opencode" / "AGENTS.md"
+        agents = report.skill_path.read_text()
+        assert "spaider.query" in agents
+        assert "spaider:start" in agents  # managed-block marker
+
+    def test_preserves_other_servers_and_user_agents_content(self, tmp_path: Path):
+        cfg_dir = tmp_path / ".config" / "opencode"
+        cfg_dir.mkdir(parents=True)
+        (cfg_dir / "opencode.json").write_text(
+            json.dumps({"mcp": {"other": {"type": "local", "command": ["x"]}}})
+        )
+        (cfg_dir / "AGENTS.md").write_text("# My project rules\nuse tabs\n")
+
+        report = mcp_lib.install_for_opencode(
+            url="http://localhost:8000/api/v1/mcp", api_key="sk-oc2", home=tmp_path,
+        )
+        data = json.loads(report.config_path.read_text())
+        assert set(data["mcp"]) == {"other", "spaider"}     # other server preserved
+        agents = report.skill_path.read_text()
+        assert "My project rules" in agents                 # user content preserved
+        assert "use tabs" in agents
+        assert "spaider.query" in agents
+        assert report.config_backup is not None
+
+    def test_reinstall_is_idempotent_single_block(self, tmp_path: Path):
+        for _ in range(2):
+            report = mcp_lib.install_for_opencode(
+                url="http://localhost:8000/api/v1/mcp", api_key="sk-oc", home=tmp_path,
+            )
+        agents = report.skill_path.read_text()
+        # The managed block must appear exactly once, not duplicated per run.
+        assert agents.count("spaider:start") == 1
+        # And exactly one spaider server entry.
+        data = json.loads(report.config_path.read_text())
+        assert list(data["mcp"]) == ["spaider"]
+
+    def test_project_scope_writes_repo_root_files(self, tmp_path: Path):
+        report = mcp_lib.install_for_opencode(
+            url="http://localhost:8000/api/v1/mcp",
+            api_key="sk-ocp",
+            scope="project",
+            project_root=tmp_path,
+        )
+        assert report.config_path == tmp_path / "opencode.json"
+        assert report.skill_path == tmp_path / "AGENTS.md"
 
 
 # ---------------------------------------------------------------------------
@@ -266,6 +336,19 @@ class TestMcpInstallCommand:
             result = runner.invoke(app, ["mcp", "install"])
         assert result.exit_code == 1
         assert "connection refused" in result.output or "could not resolve" in result.output
+
+    def test_install_for_opencode_writes_config(self, tmp_path: Path, monkeypatch):
+        monkeypatch.setenv("HOME", str(tmp_path))
+        result = runner.invoke(
+            app,
+            ["mcp", "install", "--api-key", "sk-oc", "--for", "opencode"],
+        )
+        assert result.exit_code == 0, result.output
+        cfg = tmp_path / ".config" / "opencode" / "opencode.json"
+        data = json.loads(cfg.read_text())
+        assert data["mcp"]["spaider"]["headers"]["Authorization"] == "Bearer sk-oc"
+        assert data["mcp"]["spaider"]["type"] == "remote"
+        assert "OpenCode" in result.output
 
     def test_install_for_unsupported_client_fails(self, tmp_path: Path, monkeypatch):
         monkeypatch.setenv("HOME", str(tmp_path))

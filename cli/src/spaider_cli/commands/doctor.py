@@ -181,6 +181,27 @@ def check_skill_file(home: Path | None = None) -> CheckResult:
     return _ok("~/.claude/skills/spaider.md", "loaded by Claude Code at session start")
 
 
+def check_opencode_config(home: Path | None = None) -> CheckResult:
+    """OpenCode is an optional target; absent is fine, not a warning."""
+    home = home or Path.home()
+    path = home / ".config" / "opencode" / "opencode.json"
+    if not path.exists():
+        return _ok(
+            "~/.config/opencode/opencode.json",
+            "not configured (optional; `spaider mcp install --for opencode` to add)",
+        )
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return _fail("~/.config/opencode/opencode.json", f"malformed JSON: {exc}")
+    if "spaider" not in (data.get("mcp") or {}):
+        return _warn(
+            "~/.config/opencode/opencode.json",
+            "exists but has no SpAIder entry. Run `spaider mcp install --for opencode`.",
+        )
+    return _ok("~/.config/opencode/opencode.json", "SpAIder entry present")
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
@@ -205,6 +226,7 @@ def run(
     results.append(check_embedding_dimensions())
     results.append(check_mcp_config())
     results.append(check_skill_file())
+    results.append(check_opencode_config())
 
     table = Table(title="SpAIder doctor", header_style="bold cyan")
     table.add_column("Check")
