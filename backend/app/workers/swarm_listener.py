@@ -170,10 +170,10 @@ async def _heartbeat_loop(
     )
     while True:
         try:
-            await redis_client.setex(
+            await redis_client.set(
                 name=f"agent_status:{agent_id}",
-                time=_HEARTBEAT_TTL_S,
                 value="online",
+                ex=_HEARTBEAT_TTL_S,
             )
             logger.debug("SwarmPulse | pulse sent — agent_id=%s", agent_id)
         except asyncio.CancelledError:

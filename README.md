@@ -14,7 +14,7 @@
   <sub><i>The Neural Multiverse. Each cluster is one agent's knowledge graph, entities and relations laid out live.</i></sub>
 </p>
 
-SpAIder gives every AI agent a persistent, queryable knowledge graph. Agents ingest unstructured text, SpAIder extracts structured knowledge, and answers are grounded in a live graph of entities and relationships rather than raw document retrieval. **MCP-native**: drop into Claude Code, Cursor, or any MCP client with one command. No SDK, no glue code.
+SpAIder gives every AI agent a persistent, queryable knowledge graph. Agents ingest unstructured text, SpAIder extracts structured knowledge, and answers are grounded in a live graph of entities and relationships rather than raw document retrieval. **MCP-native**: drop into Claude Code, Cursor, OpenCode, or any MCP client with one command. No SDK, no glue code. **100% open-source-capable**: every model step (LLM *and* embeddings) runs on local Ollama with no API key (see [Run fully local](#run-fully-local)).
 
 <p align="center">
   <b>97% accurate on data the model has never seen, at one flat cost that doesn't grow with your knowledge base.</b>
@@ -116,10 +116,10 @@ ClickHouse (:8123) stores analytics and audit logs. See [docs/operations.md](doc
 git clone https://github.com/Spaider-studio/spaider.git
 cd spaider
 pip install -e ./cli         # or pipx install ./cli (recommended)
-spaider init                 # interactive setup wizard (work in progress)
+spaider init                 # interactive setup wizard
 ```
 
-That's the whole flow. `spaider init` checks Docker, prompts for your LLM provider (OpenAI / Anthropic / Ollama) and validates the key, generates the JWT/connector/Neo4j secrets, writes `.env`, brings up `backend-api`, provisions a personal `dev-<USER>` agent, and writes `~/.claude/.mcp.json` + `~/.claude/skills/spaider.md` so Claude Code reflexively reaches for SpAIder. Restart Claude Code and you're done. (Re-running is safe: existing secrets are preserved.)
+That's the whole flow. `spaider init` checks Docker, prompts for your LLM provider (OpenAI / Anthropic / Ollama) and validates the credentials (Ollama needs none), generates the JWT/connector/Neo4j secrets, writes `.env`, brings up `backend-api`, provisions a personal `dev-<USER>` agent, and writes `~/.claude/.mcp.json` + `~/.claude/skills/spaider.md` so Claude Code reflexively reaches for SpAIder. Restart Claude Code and you're done. (Re-running is safe: existing secrets are preserved.)
 
 Run `spaider doctor` any time for a read-only audit of the install.
 
@@ -127,12 +127,37 @@ Run `spaider doctor` any time for a read-only audit of the install.
 
 ```bash
 git clone https://github.com/Spaider-studio/spaider.git && cd spaider
-cp .env.example .env          # set LLM_API_KEY (or leave empty for Ollama)
+cp .env.example .env          # defaults to local Ollama (LLM + embeddings, no key)
 docker compose pull           # fetch ghcr.io/spaider-studio/spaider-* images
-docker compose up -d          # pin a release with SPAIDER_VERSION=0.1.0
+docker compose up -d          # latest by default; pin with SPAIDER_VERSION=<x.y.z>
 ```
 
 The default compose builds the app images from source (`docker compose up --build`); the lines above pull the prebuilt images from GHCR instead.
+
+### Wire it into your coding agent
+
+`spaider init` wires Claude Code automatically. For other MCP clients, one command writes the config (Streamable HTTP endpoint + your agent's bearer token):
+
+```bash
+spaider mcp install --for claude-code   # ~/.claude/.mcp.json  (default)
+spaider mcp install --for opencode      # ~/.config/opencode/opencode.json + AGENTS.md
+spaider mcp install --for cursor        # ./.cursorrules
+```
+
+All three point at the same backend (`http://localhost:8000/api/v1/mcp`); each agent then sees the `spaider.*` tools. `spaider doctor` reports which agents are wired up.
+
+### Run fully local
+
+SpAIder is provider-agnostic end to end. **No model step is pinned to a proprietary API.** The shipped `.env.example` defaults to local [Ollama](https://ollama.com) for **both** the LLM and embeddings, so the whole stack runs offline with no API key:
+
+```bash
+ollama pull qwen3.5:9b           # LLM (or gemma4:e4b)
+ollama pull embeddinggemma:300m  # embeddings (768-dim)
+cp .env.example .env             # already defaults to the two models above
+docker compose up -d
+```
+
+Pair it with [OpenCode](https://opencode.ai) (which also runs on Ollama) for a 100% self-hosted agent + memory stack. Switch any step to OpenAI/Anthropic by uncommenting the cloud block in `.env`. One caveat: `EMBEDDING_DIMENSIONS` must match your embedder (Ollama `embeddinggemma` = 768, OpenAI `text-embedding-3-small` = 1536) and be set **before the first ingest** (it sizes the Neo4j vector index). See [docs/opencode.md](docs/opencode.md) for the OpenCode walkthrough.
 
 <details>
 <summary><b>Manual install</b> (advanced)</summary>

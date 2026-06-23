@@ -135,6 +135,21 @@ jobs:
           s = p.read_text()
           key = base64.b64encode(secrets.token_bytes(32)).decode()
           s = re.sub(r"(?m)^CONNECTOR_SECRET_KEY=.*$", f"CONNECTOR_SECRET_KEY={key}", s)
+          # Pin a deterministic model config for the test suite. The shipped
+          # .env.example defaults to local Ollama (LLM + 768-dim embeddings) for
+          # a no-key onboarding, but the test suite is written against a 1536-dim
+          # OpenAI setup (e.g. the entity-resolver dimension-mismatch tests), so
+          # force that here regardless of the onboarding default.
+          for pat, repl in [
+              (r"(?m)^LLM_PROVIDER=.*$", "LLM_PROVIDER=openai"),
+              (r"(?m)^LLM_MODEL=.*$", "LLM_MODEL=gpt-4o-mini"),
+              (r"(?m)^LLM_BASE_URL=.*$", "LLM_BASE_URL="),
+              (r"(?m)^EMBEDDING_PROVIDER=.*$", "EMBEDDING_PROVIDER=openai"),
+              (r"(?m)^EMBEDDING_MODEL=.*$", "EMBEDDING_MODEL=text-embedding-3-small"),
+              (r"(?m)^EMBEDDING_BASE_URL=.*$", "EMBEDDING_BASE_URL="),
+              (r"(?m)^EMBEDDING_DIMENSIONS=.*$", "EMBEDDING_DIMENSIONS=1536"),
+          ]:
+              s = re.sub(pat, repl, s)
           llm = os.environ.get("OPENAI_API_KEY", "")
           if llm:
               s = re.sub(r"(?m)^LLM_API_KEY=.*$", f"LLM_API_KEY={llm}", s)

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "spaider-cli"
-version = "0.1.1"
+version = "0.1.2"
 description = "SpAIder install wizard, agent management, and Claude Code skill installer"
 readme = "README.md"
 requires-python = ">=3.11"

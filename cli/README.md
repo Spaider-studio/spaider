@@ -19,13 +19,13 @@ spaider init
 | `spaider init` | ✅ One-shot setup wizard |
 | `spaider doctor` | ✅ Read-only health audit |
 | `spaider agent create / list / rotate-key / delete` | ✅ |
-| `spaider mcp install` | ✅ Claude Code + Cursor |
+| `spaider mcp install` | ✅ Claude Code + OpenCode + Cursor |
 
 ## What it does
 
 1. **`spaider init`**: one command from clone to a working, MCP-integrated stack:
    - Detect Docker (CLI + daemon).
-   - Prompt for the LLM provider (OpenAI / Anthropic / Ollama) and **validate the key** with a live probe.
+   - Prompt for the LLM provider (OpenAI / Anthropic / Ollama) and **validate the credentials** with a live probe (Ollama needs no key; it checks the daemon is reachable). Choosing Ollama configures local embeddings too, for a no-API-key stack.
    - Generate the secrets you shouldn't have to type (JWT, connector key, Neo4j password) and write `.env`. **Re-run safe**: existing secrets are preserved, never regenerated, so re-running never locks the stack out of its own database.
    - Start the Docker stack and wait for `/health`.
    - Provision a `dev-${USER}` agent (or `--agent <name>`) and capture its key.
@@ -34,7 +34,7 @@ spaider init
    Flags: `--provider`, `--llm-key`, `--llm-base-url`, `--skip-docker`, `--skip-mcp`, `--agent`.
 2. **`spaider doctor`**: read-only audit covering Docker, `.env`, LLM key, backend `/health`, embedding-dimension consistency, and the `~/.claude` MCP + skill wiring. Exit 0 when all green/warn, 1 on a blocking failure.
 3. **`spaider agent ...`**: create / list / rotate-key / delete agents against the REST API (resolves agents by name).
-4. **`spaider mcp install`**: non-destructively merge SpAIder into your MCP client config (`--for claude-code` | `cursor`, `--scope user` | `project`); also writes the agent-side skill file so LLMs reflexively know when to call SpAIder.
+4. **`spaider mcp install`**: non-destructively merge SpAIder into your MCP client config (`--for claude-code` | `opencode` | `cursor`, `--scope user` | `project`); also writes the agent-side skill/guidance file so LLMs reflexively know when to call SpAIder. Targets the modern Streamable HTTP endpoint (`/api/v1/mcp`).
 
 ## The skill file
 

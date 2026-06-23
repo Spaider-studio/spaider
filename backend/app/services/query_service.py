@@ -601,10 +601,10 @@ class QueryService:
                     "edges": [e.model_dump() for e in result.subgraph.edges],
                 },
             }
-            await redis.setex(
+            await redis.set(
                 self._cache_key(result.question, agent_id),
-                _CACHE_TTL,
                 json.dumps(payload),
+                ex=_CACHE_TTL,
             )
         except Exception:
             pass

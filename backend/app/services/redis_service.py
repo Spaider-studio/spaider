@@ -360,10 +360,10 @@ class WorkingMemoryService:
         """
         try:
             import json as _json
-            await self._redis.setex(
+            await self._redis.set(
                 name=self._key(session_id),
-                time=ttl_sec,
                 value=_json.dumps(messages),
+                ex=ttl_sec,
             )
             logger.debug(
                 "WorkingMemory | stored %d message(s) for session=%s (ttl=%ds)",
