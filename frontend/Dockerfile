@@ -8,7 +8,12 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-ARG BACKEND_API_URL=http://localhost:8000/api
+# Next.js bakes the rewrite destination (next.config.mjs) into the build, so
+# this must point at the backend as seen FROM the frontend container, not the
+# host. In the compose stack that is the Kong gateway service. localhost would
+# resolve to the frontend container itself (ECONNREFUSED). Override at build
+# time for other topologies.
+ARG BACKEND_API_URL=http://kong:8000/api
 ENV BACKEND_API_URL=${BACKEND_API_URL}
 RUN npm run build
 
