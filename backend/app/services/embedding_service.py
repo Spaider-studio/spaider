@@ -75,10 +75,10 @@ class EmbeddingService:
     async def _set_cached(self, text: str, embedding: list[float]) -> None:
         try:
             redis = await self._get_redis()
-            await redis.setex(
+            await redis.set(
                 self._cache_key(text),
-                _CACHE_TTL,
                 json.dumps(embedding),
+                ex=_CACHE_TTL,
             )
         except Exception as exc:
             logger.warning("Redis cache SET failed: %s", exc)

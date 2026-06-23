@@ -475,8 +475,8 @@ class SemanticCompressor:
                     for t in payload.nodes if t.id == e.target_id
                 ],
             }
-            await self._get_redis().setex(
-                self._cache_key(text), _LLM_CACHE_TTL, json.dumps(data)
+            await self._get_redis().set(
+                self._cache_key(text), json.dumps(data), ex=_LLM_CACHE_TTL
             )
             logger.debug("LLM cache SET for text length=%d (TTL=%ds)", len(text), _LLM_CACHE_TTL)
         except Exception as exc:
