@@ -55,7 +55,7 @@ jobs:
             context: ./frontend
             dockerfile: ./frontend/Dockerfile
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up QEMU
         # Enables cross-building the linux/arm64 leg on the amd64 runner.
