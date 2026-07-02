@@ -56,6 +56,11 @@ class SeqTask:
     title: str
     corpus: list[str]
     probes: list[Probe]
+    # Number of consolidation cycles to run AFTER ingesting this task, before
+    # the next one. Simulates the passage of time: an untouched fact ages
+    # (its edges decay each cycle) while a later contradicting fact stays
+    # fresh. 0 = none. Only meaningful in "on" mode (off ignores decay).
+    consolidate_after: int = 0
 
 
 @dataclass
@@ -80,7 +85,10 @@ def load_sequence(path: Path) -> Sequence:
             raise ValueError(f"{path}: task '{t['id']}' has an empty corpus")
         if not probes:
             raise ValueError(f"{path}: task '{t['id']}' has no probes")
-        tasks.append(SeqTask(id=t["id"], title=t["title"], corpus=list(t["corpus"]), probes=probes))
+        tasks.append(SeqTask(
+            id=t["id"], title=t["title"], corpus=list(t["corpus"]), probes=probes,
+            consolidate_after=int(t.get("consolidate_after", 0)),
+        ))
     if len(tasks) < 2:
         raise ValueError(f"{path}: a sequence needs at least 2 tasks to measure forgetting")
     ids = [t.id for t in tasks]
@@ -146,6 +154,18 @@ async def _set_memory_mode(client, base_url: str, agent_id: str, mode: str) -> N
         json={"memory_mode": mode},
     )
     resp.raise_for_status()
+
+
+async def _age(client, base_url: str, agent_id: str, cycles: int) -> None:
+    """Run `cycles` consolidation passes to age untouched facts (edge decay).
+
+    Each pass decays RELATION utility_weight by edge_decay_rate, so a fact that
+    is never re-queried loses synaptic strength over successive cycles. This is
+    a fast-forward of the passage of time (each cycle ~ one hibernation).
+    """
+    for _ in range(cycles):
+        resp = await client.post(f"{base_url}/agents/{agent_id}/consolidate-now")
+        resp.raise_for_status()
 
 
 def _query_cache_key(agent_id: str, question: str) -> str:
@@ -245,6 +265,10 @@ async def run_sequence(
                 # b. ingest this task's corpus.
                 for fact in task.corpus:
                     await _ingest(client, base_url, key, agent_id, fact)
+                # b'. optionally age this task's facts (decay via consolidation)
+                #     before the next task's contradicting facts arrive.
+                if task.consolidate_after:
+                    await _age(client, base_url, agent_id, task.consolidate_after)
                 # c. probe every task seen so far.
                 for j in range(i + 1):
                     matrix[i][j] = await _task_accuracy(

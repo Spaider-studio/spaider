@@ -1,0 +1,38 @@
+sequence_id: cl_aging_contradiction_v1
+description: >
+  The moat-revealing test. A stale fact is stated with NO date, then aged with
+  40 consolidation cycles (edge decay) so its synaptic strength drops, while
+  distractor facts fill the graph. Then a contradicting fact arrives fresh, also
+  with no date. Probing "who is the chief executive?" cannot be resolved by the
+  reader (no dates to reason "most recent"), so the answer depends purely on what
+  RETRIEVAL surfaces at a small top-k. If synaptic ranking (on) surfaces the
+  fresh fact and classic retrieval (off) surfaces the aged stale one, that is a
+  win attributable to the moat. Run with --memory-mode on vs off, small --top-k.
+
+tasks:
+  - id: seed
+    title: "Stale fact + distractors (then aged)"
+    corpus:
+      - "Idris Kane is the chief executive of Zephyr Systems."
+      - "Zephyr Systems is headquartered in Lisbon."
+      - "The Lumen speech model was built by Zephyr Systems."
+      - "Pulsar is the inference cluster used by Zephyr Systems."
+      - "Kofi Adjei manages the Pulsar cluster."
+      - "Sana Okafor leads the research group at Zephyr Systems."
+      - "Beam is the analytics product made by Zephyr Systems."
+      - "Zephyr Systems partners with the Halden Observatory."
+      - "The Zephyr Systems staff canteen is on the third floor."
+    # Age the seed facts: 40 hibernation cycles decay their edges while the
+    # correction below stays fresh. Only affects "on" mode (off ignores decay).
+    consolidate_after: 40
+    probes:
+      - question: "Where is Zephyr Systems headquartered?"
+        expected_output: "Lisbon"
+
+  - id: correction
+    title: "Contradicting fact (fresh, no date)"
+    corpus:
+      - "Priya Nair is the chief executive of Zephyr Systems."
+    probes:
+      - question: "Who is the chief executive of Zephyr Systems?"
+        expected_output: "Priya Nair"
