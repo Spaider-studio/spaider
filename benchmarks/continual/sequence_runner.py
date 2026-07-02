@@ -22,8 +22,8 @@ HotpotQA-style scorers in ``runner.py`` (lazy-imported so this module loads with
 no heavy deps for offline validation).
 
 Usage:
-    python -m benchmarks.sequence_runner --sequence benchmarks/sequences/example_org_products.yaml
-    python -m benchmarks.sequence_runner --sequence <path> --dry-run   # validate only, no stack
+    python -m benchmarks.continual.sequence_runner --sequence benchmarks/continual/sequences/example_org_products.yaml
+    python -m benchmarks.continual.sequence_runner --sequence <path> --dry-run   # validate only, no stack
 """
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ from typing import Callable, Optional
 import yaml
 from pydantic import BaseModel, Field
 
-from benchmarks.cl_metrics import compute_cl_metrics
+from benchmarks.continual.cl_metrics import compute_cl_metrics
 
 # ---------------------------------------------------------------------------
 # Sequence schema (2a)

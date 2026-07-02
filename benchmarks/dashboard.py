@@ -291,8 +291,8 @@ def main() -> None:
         if not cl_reports:
             st.info(
                 "No continual-learning runs yet. Run: "
-                "`python -m benchmarks.sequence_runner --sequence "
-                "benchmarks/sequences/example_org_products.yaml`"
+                "`python -m benchmarks.continual.sequence_runner --sequence "
+                "benchmarks/continual/sequences/example_org_products.yaml`"
             )
         else:
             rows = []

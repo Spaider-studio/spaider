@@ -13,7 +13,7 @@ Usage:
     python -m benchmarks.community_compare \
         --label "HotpotQA (public)=benchmarks/runs_hotpotqa" \
         --label "AcmeAI (private)=benchmarks/runs_acmeai" \
-        --out benchmarks/COMPARISON.md --chart benchmarks/comparison.png
+        --out benchmarks/reports/COMPARISON.md --chart benchmarks/reports/comparison.png
 """
 from __future__ import annotations
 
@@ -30,8 +30,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--label", action="append", required=True,
                     help='repeatable "Label=runs_dir"')
-    ap.add_argument("--out", default="benchmarks/COMPARISON.md")
-    ap.add_argument("--chart", default="benchmarks/comparison.png")
+    ap.add_argument("--out", default="benchmarks/reports/COMPARISON.md")
+    ap.add_argument("--chart", default="benchmarks/reports/comparison.png")
     args = ap.parse_args()
 
     corpora = []

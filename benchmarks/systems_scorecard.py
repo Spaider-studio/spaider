@@ -13,7 +13,7 @@ with a paired-bootstrap CI and a significance flag.
 
 Usage:
     python -m benchmarks.systems_scorecard --runs benchmarks/runs \\
-        --out benchmarks/COMPARISON_SYSTEMS.md [--baseline vanilla] [--vs spaider-fixed]
+        --out benchmarks/reports/COMPARISON_SYSTEMS.md [--baseline vanilla] [--vs spaider-fixed]
 """
 from __future__ import annotations
 
@@ -185,8 +185,8 @@ def to_markdown(sc: dict) -> str:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--runs", default="benchmarks/runs")
-    ap.add_argument("--out", default="benchmarks/COMPARISON_SYSTEMS.md")
-    ap.add_argument("--json", default="benchmarks/comparison_systems.json")
+    ap.add_argument("--out", default="benchmarks/reports/COMPARISON_SYSTEMS.md")
+    ap.add_argument("--json", default="benchmarks/reports/comparison_systems.json")
     ap.add_argument("--baseline", default="vanilla", help="arm to lift against")
     ap.add_argument("--vs", default="spaider-fixed", help="second reference arm for lifts")
     args = ap.parse_args()

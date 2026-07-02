@@ -5,7 +5,7 @@
   <a href="https://github.com/Spaider-studio/spaider/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Spaider-studio/spaider/actions/workflows/ci.yml/badge.svg?branch=main"></a>
   <img alt="MCP-native" src="https://img.shields.io/badge/MCP-native-violet">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-blue">
-  <a href="benchmarks/COMPARISON.md"><img alt="Benchmarks" src="https://img.shields.io/badge/benchmarks-public-green"></a>
+  <a href="benchmarks/reports/COMPARISON.md"><img alt="Benchmarks" src="https://img.shields.io/badge/benchmarks-public-green"></a>
 </p>
 
 <p align="center">
@@ -54,7 +54,7 @@ Benchmarked on **24 HotpotQA** multi-hop questions + a **16-question private cor
 
 On **private data the LLM has never seen**, the bare LLM scores **0.00 on every metric** and SpAIder lifts semantic correctness to **0.97**. That is the entire value of the memory. Even on public trivia the LLM already half-knows, grounding the answer in retrieved facts still lifts it markedly (0.43 → 0.77).
 
-<sub>**Head-to-head:** on identical corpora, questions and an independent gpt-4o judge, SpAIder is **statistically tied with Mem0 and Cognee** — every system-vs-system difference falls within its 95% CI — while all three beat a bare model by a wide margin on private data. Full reproducible table (3 corpora, both retrieval-isolated and native modes): [benchmarks/COMPARISON_SYSTEMS.md](benchmarks/COMPARISON_SYSTEMS.md).</sub>
+<sub>**Head-to-head:** on identical corpora, questions and an independent gpt-4o judge, SpAIder is **statistically tied with Mem0 and Cognee** — every system-vs-system difference falls within its 95% CI — while all three beat a bare model by a wide margin on private data. Full reproducible table (3 corpora, both retrieval-isolated and native modes): [benchmarks/reports/COMPARISON_SYSTEMS.md](benchmarks/reports/COMPARISON_SYSTEMS.md).</sub>
 
 ### Cost: flat as your knowledge base grows
 
@@ -71,7 +71,7 @@ Getting from **0.00 to 0.97** means grounding the answer in your data. The brute
 
 So on a private knowledge base of any real size, SpAIder is both **more accurate than the model alone** (0.97 vs 0.00) **and cheaper than stuffing the corpus**, and it keeps working where context-stuffing cannot.
 
-→ Full results: **[benchmarks/COMPARISON.md](benchmarks/COMPARISON.md)** · per-corpus [HotpotQA](benchmarks/scorecard_hotpotqa.md) / [AcmeAI](benchmarks/scorecard_acmeai.md) · token economics + methodology: **[docs/token-economics.md](docs/token-economics.md)** · reproduce with `make bench-scorecard`.
+→ Full results: **[benchmarks/reports/COMPARISON.md](benchmarks/reports/COMPARISON.md)** · per-corpus [HotpotQA](benchmarks/reports/scorecard_hotpotqa.md) / [AcmeAI](benchmarks/reports/scorecard_acmeai.md) · token economics + methodology: **[docs/token-economics.md](docs/token-economics.md)** · reproduce with `make bench-scorecard`.
 
 ### Continual learning: does it forget?
 
@@ -79,7 +79,7 @@ Memory systems are sold on ingest and recall, but nobody reports what happens to
 
 On the example sequences (invented private corpora the model cannot know), SpAIder retains **~89% of earlier-task accuracy** after learning new tasks, with **near-zero average forgetting**, and occasionally *positive* backward transfer (later learning reinforcing an earlier fact).
 
-- Run one: `python -m benchmarks.sequence_runner --sequence benchmarks/sequences/example_org_products.yaml`
+- Run one: `python -m benchmarks.continual.sequence_runner --sequence benchmarks/continual/sequences/example_org_products.yaml`
 - A/B the synaptic engine against classic retrieval, per agent: `--memory-mode on|off`
 - Results render in the dashboard's **Continual learning** tab (accuracy matrix + forgetting/transfer).
 

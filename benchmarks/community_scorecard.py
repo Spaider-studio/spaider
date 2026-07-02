@@ -223,7 +223,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--runs", default="benchmarks/runs")
     ap.add_argument("--out", default="benchmarks/COMMUNITY_SCORECARD.md")
-    ap.add_argument("--json", default="benchmarks/community_scorecard.json")
+    ap.add_argument("--json", default="benchmarks/reports/community_scorecard.json")
     ap.add_argument("--chart", default="benchmarks/scorecard.png")
     args = ap.parse_args()
     sc = build(args.runs)
