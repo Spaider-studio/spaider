@@ -100,6 +100,18 @@ def _load_runs(runs_dir: Path) -> pd.DataFrame:
     return df.sort_values("started_at").reset_index(drop=True)
 
 
+@st.cache_data(ttl=30)
+def _load_cl_reports(runs_dir: Path) -> list[dict]:
+    """Load continual-learning summaries written by benchmarks/sequence_runner.py."""
+    reports: list[dict] = []
+    for fp in sorted(runs_dir.glob("cl_*.json")):
+        try:
+            reports.append(json.loads(fp.read_text(encoding="utf-8")))
+        except Exception:
+            continue
+    return reports
+
+
 def _latest_summary(
     df: pd.DataFrame, *, group_by_category: bool, group_by_model: bool = True,
 ) -> pd.DataFrame:
@@ -200,8 +212,8 @@ def main() -> None:
         st.warning("No runs match the selected filters.")
         return
 
-    summary, scorecard, detail = st.tabs(
-        ["Latest summary", "DeepEval scorecard", "Per-task detail"]
+    summary, scorecard, cl, detail = st.tabs(
+        ["Latest summary", "DeepEval scorecard", "Continual learning", "Per-task detail"]
     )
 
     # ── Tab 1: Latest summary ──────────────────────────────────────────────
@@ -264,7 +276,71 @@ def main() -> None:
                 use_container_width=True, hide_index=True,
             )
 
-    # ── Tab 3: Per-task detail ─────────────────────────────────────────────
+    # ── Tab 3: Continual learning (forgetting + transfer) ──────────────────
+    with cl:
+        st.subheader("Continual learning — forgetting & transfer")
+        st.caption(
+            "Ordered task sequences: ingest a task, then re-probe earlier tasks. "
+            "**Forgetting** = accuracy lost on earlier tasks after later ingests "
+            "(lower is better; <=0 means none). **BWT** backward transfer (>0: later "
+            "learning helped earlier tasks); **FWT** forward transfer (>0: earlier "
+            "learning helped a task before it was ingested). "
+            "Source: `benchmarks/runs/cl_*.json` (see `benchmarks/sequence_runner.py`)."
+        )
+        cl_reports = _load_cl_reports(RUNS_DIR)
+        if not cl_reports:
+            st.info(
+                "No continual-learning runs yet. Run: "
+                "`python -m benchmarks.sequence_runner --sequence "
+                "benchmarks/sequences/example_org_products.yaml`"
+            )
+        else:
+            rows = []
+            for res in cl_reports:
+                r = res["report"]
+                fwt = r["forward_transfer"]
+                rows.append({
+                    "sequence": res["sequence_id"],
+                    "metric": res.get("metric", "f1"),
+                    "tasks": len(r["task_ids"]),
+                    "final_acc": r["final_accuracy"],
+                    "avg_forgetting": r["average_forgetting"],
+                    "bwt": r["backward_transfer"],
+                    "fwt": float("nan") if fwt is None else fwt,
+                })
+            summary_df = pd.DataFrame(rows).sort_values("sequence")
+            st.dataframe(
+                summary_df.style.format({
+                    "final_acc": "{:.3f}", "avg_forgetting": "{:+.3f}",
+                    "bwt": "{:+.3f}", "fwt": "{:+.3f}",
+                }, na_rep="n/a"),
+                use_container_width=True, hide_index=True,
+            )
+            for res in cl_reports:
+                r = res["report"]
+                ids = r["task_ids"]
+                with st.expander(f"{res['sequence_id']} — accuracy matrix & per-task"):
+                    st.markdown("**Accuracy matrix** — row = after ingesting task; column = task probed")
+                    # Pre-format to strings so unlearned cells (JSON null) render
+                    # as a clean dash rather than "None" (na_rep only catches NaN).
+                    mdf = pd.DataFrame(
+                        [["-" if v is None else f"{v:.2f}" for v in row] for row in r["accuracy_matrix"]],
+                        index=[f"after {t}" for t in ids],
+                        columns=ids,
+                    )
+                    st.dataframe(mdf, use_container_width=True)
+                    pt = pd.DataFrame({
+                        "task": ids,
+                        "final": [f"{r['per_task_final'][t]:.3f}" for t in ids],
+                        "forgetting": [
+                            "-" if r["per_task_forgetting"].get(t) is None
+                            else f"{r['per_task_forgetting'][t]:+.3f}"
+                            for t in ids
+                        ],
+                    })
+                    st.dataframe(pt, use_container_width=True, hide_index=True)
+
+    # ── Tab 4: Per-task detail ─────────────────────────────────────────────
     with detail:
         st.subheader("Per-task drill-down")
         task_ids = sorted(df["task_id"].unique())

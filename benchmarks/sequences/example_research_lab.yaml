@@ -1,0 +1,51 @@
+sequence_id: cl_research_lab_v1
+description: >
+  A second, independent continual-learning sequence over a different invented,
+  private corpus (a fictional research lab). Confirms the harness generalizes
+  beyond the org/products sequence and gives a second forgetting/transfer data
+  point. Entity overlap across tasks (Halden, Meridian) is deliberate so later
+  ingests can interfere with earlier answers.
+
+tasks:
+  - id: instruments
+    title: "Instruments and hardware"
+    corpus:
+      - "The Halden Observatory operates a telescope named Meridian."
+      - "The Meridian telescope has a 4.2 metre primary mirror."
+      - "Halden Observatory is located on Mount Cael."
+      - "The Meridian telescope was commissioned in 2022."
+    probes:
+      - question: "What is the name of the telescope at Halden Observatory?"
+        expected_output: "Meridian"
+      - question: "How large is the Meridian telescope's primary mirror?"
+        expected_output: "4.2 metre"
+      - question: "On which mountain is Halden Observatory located?"
+        expected_output: "Mount Cael"
+
+  - id: experiments
+    title: "Experiments and findings"
+    corpus:
+      - "The Meridian telescope discovered the exoplanet Tarsis-9 in 2024."
+      - "Tarsis-9 orbits the star Belen."
+      - "The Belen survey was funded by the Orwin Foundation."
+    probes:
+      - question: "Which exoplanet did the Meridian telescope discover?"
+        expected_output: "Tarsis-9"
+      - question: "Which star does Tarsis-9 orbit?"
+        expected_output: "Belen"
+      - question: "Who funded the Belen survey?"
+        expected_output: "Orwin Foundation"
+
+  - id: personnel
+    title: "People and roles"
+    corpus:
+      - "Dr. Sana Okafor is the lead astronomer at Halden Observatory."
+      - "Halden Observatory is directed by Dr. Emil Rourke."
+      - "Dr. Sana Okafor led the team that discovered Tarsis-9."
+    probes:
+      - question: "Who is the lead astronomer at Halden Observatory?"
+        expected_output: "Sana Okafor"
+      - question: "Who directs Halden Observatory?"
+        expected_output: "Emil Rourke"
+      - question: "Who led the team that discovered Tarsis-9?"
+        expected_output: "Sana Okafor"

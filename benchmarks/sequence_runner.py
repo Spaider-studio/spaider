@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -138,7 +139,24 @@ async def _ingest(client, base_url: str, key: str, agent_id: str, text: str) -> 
     resp.raise_for_status()
 
 
-async def _query(client, base_url: str, key: str, agent_id: str, question: str) -> str:
+def _query_cache_key(agent_id: str, question: str) -> str:
+    """Mirror backend QueryService._cache_key so the harness can bust it.
+
+    A continual-learning run probes the same question at different knowledge
+    states on one agent; without busting, the empty-graph baseline answer would
+    be served from cache after ingestion. Kept in lockstep with query_service.py.
+    """
+    h = hashlib.sha256(f"{agent_id}:{question.strip().lower()}".encode()).hexdigest()[:16]
+    return f"spaider:query:cache:{h}"
+
+
+async def _query(client, base_url: str, key: str, agent_id: str, question: str, rds=None) -> str:
+    # Force a fresh read: the same question is probed at different graph states.
+    if rds is not None:
+        try:
+            await rds.delete(_query_cache_key(agent_id, question))
+        except Exception:
+            pass  # a stale cache would only understate learning; never fatal
     resp = await client.post(
         f"{base_url}/query",
         headers={"Authorization": f"Bearer {key}"},
@@ -151,11 +169,12 @@ async def _query(client, base_url: str, key: str, agent_id: str, question: str) 
 
 
 async def _task_accuracy(
-    client, base_url: str, key: str, agent_id: str, task: SeqTask, scorer: Callable[[str, str], float]
+    client, base_url: str, key: str, agent_id: str, task: SeqTask,
+    scorer: Callable[[str, str], float], rds=None,
 ) -> float:
     scores: list[float] = []
     for probe in task.probes:
-        answer = await _query(client, base_url, key, agent_id, probe.question)
+        answer = await _query(client, base_url, key, agent_id, probe.question, rds=rds)
         scores.append(scorer(answer, probe.expected_output))
     return sum(scores) / len(scores) if scores else 0.0
 
@@ -166,18 +185,34 @@ async def _task_accuracy(
 
 
 async def run_sequence(
-    seq: Sequence, base_url: str, metric: str, tenant: str, keep_agent: bool
+    seq: Sequence, base_url: str, metric: str, tenant: str, keep_agent: bool,
+    redis_url: Optional[str] = None,
 ) -> dict:
     import httpx  # lazy: only needed for a live run
 
     scorer = _get_scorer(metric)
     t = len(seq.tasks)
+
+    # Optional cache-busting client: the query cache is keyed by (agent, question)
+    # and would otherwise serve the empty-graph baseline answer after ingestion.
+    rds = None
+    if redis_url:
+        try:
+            import redis.asyncio as aioredis
+
+            rds = aioredis.from_url(redis_url, decode_responses=True)
+            await rds.ping()
+        except Exception as exc:
+            print(f"WARNING: could not reach Redis at {redis_url} ({exc}); "
+                  "results may be understated by stale query cache.")
+            rds = None
+
     async with httpx.AsyncClient(timeout=180.0) as client:
         agent_id, key = await _create_agent(client, base_url, f"cl-{seq.sequence_id}", tenant)
         try:
             # 1. Cold baseline on the empty graph.
             baseline = [
-                await _task_accuracy(client, base_url, key, agent_id, task, scorer)
+                await _task_accuracy(client, base_url, key, agent_id, task, scorer, rds=rds)
                 for task in seq.tasks
             ]
 
@@ -188,20 +223,22 @@ async def run_sequence(
             for i, task in enumerate(seq.tasks):
                 # a. forward-transfer probe: task i before it is ingested.
                 if i >= 1:
-                    pre[i] = await _task_accuracy(client, base_url, key, agent_id, task, scorer)
+                    pre[i] = await _task_accuracy(client, base_url, key, agent_id, task, scorer, rds=rds)
                 # b. ingest this task's corpus.
                 for fact in task.corpus:
                     await _ingest(client, base_url, key, agent_id, fact)
                 # c. probe every task seen so far.
                 for j in range(i + 1):
                     matrix[i][j] = await _task_accuracy(
-                        client, base_url, key, agent_id, seq.tasks[j], scorer
+                        client, base_url, key, agent_id, seq.tasks[j], scorer, rds=rds
                     )
 
             report = compute_cl_metrics([x.id for x in seq.tasks], matrix, baseline, pre=pre)
         finally:
             if not keep_agent:
                 await _delete_agent(client, base_url, agent_id)
+            if rds is not None:
+                await rds.aclose()
 
     return {
         "sequence_id": seq.sequence_id,
@@ -243,6 +280,12 @@ def main() -> int:
     p.add_argument("--metric", default="f1", choices=["f1", "em", "rouge"], help="per-probe accuracy metric")
     p.add_argument("--tenant", default="default", help="tenant_id for the throwaway agent")
     p.add_argument("--keep-agent", action="store_true", help="do not delete the agent after the run")
+    p.add_argument(
+        "--redis-url",
+        default="redis://localhost:6379",
+        help="Redis URL for busting the query cache so re-probes read fresh state; "
+             "set to empty to disable (risks stale, understated results)",
+    )
     p.add_argument("--runs", default="benchmarks/runs", help="output dir for the summary JSON")
     p.add_argument("--dry-run", action="store_true", help="validate the sequence and print the plan; no stack calls")
     args = p.parse_args()
@@ -257,7 +300,10 @@ def main() -> int:
         return 0
 
     result = asyncio.run(
-        run_sequence(seq, args.base_url, args.metric, args.tenant, args.keep_agent)
+        run_sequence(
+            seq, args.base_url, args.metric, args.tenant, args.keep_agent,
+            redis_url=args.redis_url or None,
+        )
     )
     _print_summary(result)
 
