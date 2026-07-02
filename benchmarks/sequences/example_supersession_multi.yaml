@@ -1,0 +1,42 @@
+sequence_id: cl_supersession_multi_v1
+description: >
+  Harder supersession test: TWO functional updates (CEO, headquarters) plus
+  multi-valued controls that must survive (two products, an employee whose role
+  is not the CEO). Measures staleness on the two updates (current value present,
+  stale absent) and F1 on the controls (they must still be retrievable — a wrong
+  supersession would drop them). Exercises both edge directions: CEO update is
+  same-relation/same-object/different-subject; HQ update is
+  same-relation/same-subject/different-object.
+
+tasks:
+  - id: seed
+    title: "Initial functional facts + multi-valued controls"
+    corpus:
+      - "Idris Kane is the chief executive of Zephyr Systems."
+      - "Zephyr Systems is headquartered in Lisbon."
+      - "Zephyr Systems makes the Lumen speech model."
+      - "Zephyr Systems makes the Beam analytics product."
+      - "Kofi Adjei is a software engineer at Zephyr Systems."
+    probes:
+      - question: "What speech model does Zephyr Systems make?"
+        expected_output: "Lumen"
+      - question: "What does Kofi Adjei do at Zephyr Systems?"
+        expected_output: "engineer"
+
+  - id: update_ceo
+    title: "New CEO supersedes the old"
+    corpus:
+      - "Priya Nair is the chief executive of Zephyr Systems."
+    probes:
+      - question: "Who is the chief executive of Zephyr Systems?"
+        expected_output: "Priya Nair"
+        stale: "Idris Kane"
+
+  - id: update_hq
+    title: "Headquarters relocation supersedes the old location"
+    corpus:
+      - "Zephyr Systems is now headquartered in Berlin."
+    probes:
+      - question: "Where is Zephyr Systems headquartered?"
+        expected_output: "Berlin"
+        stale: "Lisbon"

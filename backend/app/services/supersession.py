@@ -33,12 +33,19 @@ from app.lib.litellm_retry import acompletion_with_retry
 logger = logging.getLogger(__name__)
 
 
+# Candidates share an entity endpoint with the new edge (either end), regardless
+# of the relation TYPE. This is deliberately broad: SpAIder's predicates are
+# inconsistent ("headquartered in" vs "relocated to"), so requiring the same
+# relation misses real updates. The LLM judge does the discrimination; this query
+# only narrows to "facts about a shared entity" and caps the count.
 _CANDIDATE_CYPHER = """
-MATCH (a:SpaiderNode {agent_id: $aid})-[r:RELATION {relation: $rel}]->(b:SpaiderNode {agent_id: $aid})
+MATCH (a:SpaiderNode {agent_id: $aid})-[r:RELATION]->(b:SpaiderNode {agent_id: $aid})
 WHERE NOT coalesce(r.superseded, false)
   AND r.id <> $new_id
-  AND ((a.id = $src AND b.id <> $tgt) OR (b.id = $tgt AND a.id <> $src))
-RETURN r.id AS edge_id, a.label AS subj, b.label AS obj, coalesce(r.properties, '{}') AS props
+  AND coalesce(r.relation, '') <> 'MENTIONS'
+  AND (a.id IN [$src, $tgt] OR b.id IN [$src, $tgt])
+RETURN r.id AS edge_id, a.label AS subj, coalesce(r.relation, 'RELATED') AS rel,
+       b.label AS obj, coalesce(r.properties, '{}') AS props
 LIMIT $max
 """
 
@@ -136,13 +143,13 @@ async def resolve_supersession(driver, agent_id: str, resolved_payload) -> int:
             async with driver.session() as session:
                 result = await session.run(
                     _CANDIDATE_CYPHER,
-                    aid=agent_id, rel=rel, src=src, tgt=tgt, new_id=edge.id,
+                    aid=agent_id, src=src, tgt=tgt, new_id=edge.id,
                     max=settings.supersession_max_candidates,
                 )
                 candidates = [
                     {
                         "edge_id": r["edge_id"],
-                        "text": _edge_text(r["props"], r["subj"], r["obj"], rel),
+                        "text": _edge_text(r["props"], r["subj"], r["obj"], r["rel"]),
                     }
                     async for r in result
                 ]
