@@ -1,0 +1,39 @@
+sequence_id: cl_aging_reinforced_v1
+description: >
+  The moat's full mechanism: use reinforces, disuse forgets. The seed task
+  states a stale fact (Idris Kane is CEO, no date) plus a still-relevant fact
+  (HQ is Lisbon) and distractors. During aging, the harness re-queries the
+  seed task's probe (HQ) every cycle, so in "on" mode the HQ fact is implicitly
+  reinforced and stays above the forget threshold, while the CEO fact (never
+  probed) only decays. Then a fresh contradicting CEO fact arrives. In "on"
+  mode the aged, un-reinforced stale CEO fact should fall below the 0.3 forget
+  threshold and become invisible, so retrieval surfaces only the fresh answer;
+  in "off" mode (classic retrieval, no forget filter) the stale fact stays
+  visible and the answer is confused. Run with accelerated knobs
+  (edge_decay_rate=0.9, hebbian_step_implicit=0.2) so ~15 cycles compress the
+  use/disuse timescale. Compare --memory-mode on vs off at small --top-k.
+
+tasks:
+  - id: seed
+    title: "Stale CEO fact + a kept fact + distractors (then aged)"
+    corpus:
+      - "Idris Kane is the chief executive of Zephyr Systems."
+      - "Zephyr Systems is headquartered in Lisbon."
+      - "The Lumen speech model was built by Zephyr Systems."
+      - "Pulsar is the inference cluster used by Zephyr Systems."
+      - "Kofi Adjei manages the Pulsar cluster."
+      - "Sana Okafor leads the research group at Zephyr Systems."
+      - "Beam is the analytics product made by Zephyr Systems."
+      - "Zephyr Systems partners with the Halden Observatory."
+    consolidate_after: 15
+    probes:
+      - question: "Where is Zephyr Systems headquartered?"
+        expected_output: "Lisbon"
+
+  - id: correction
+    title: "Contradicting CEO fact (fresh, no date)"
+    corpus:
+      - "Priya Nair is the chief executive of Zephyr Systems."
+    probes:
+      - question: "Who is the chief executive of Zephyr Systems?"
+        expected_output: "Priya Nair"

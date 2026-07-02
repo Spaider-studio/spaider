@@ -156,14 +156,23 @@ async def _set_memory_mode(client, base_url: str, agent_id: str, mode: str) -> N
     resp.raise_for_status()
 
 
-async def _age(client, base_url: str, agent_id: str, cycles: int) -> None:
-    """Run `cycles` consolidation passes to age untouched facts (edge decay).
+async def _age(
+    client, base_url: str, key: str, agent_id: str, cycles: int,
+    reinforce: Optional[list] = None, rds=None, top_k=None,
+) -> None:
+    """Simulate the passage of time: each cycle re-queries the still-relevant
+    facts (so in "on" mode they get implicitly reinforced) and then runs a
+    consolidation pass (so every edge decays).
 
-    Each pass decays RELATION utility_weight by edge_decay_rate, so a fact that
-    is never re-queried loses synaptic strength over successive cycles. This is
-    a fast-forward of the passage of time (each cycle ~ one hibernation).
+    The net effect is the moat's whole point: facts that keep being used are
+    reinforced and stay above the forget threshold, while a fact nobody queries
+    only decays and eventually drops below it. ``reinforce`` is the list of
+    probes to keep warm (typically the task's own stable-fact probes); the
+    contradicted fact has no probe here, so it is never reinforced.
     """
     for _ in range(cycles):
+        for probe in reinforce or []:
+            await _query(client, base_url, key, agent_id, probe.question, rds=rds, top_k=top_k)
         resp = await client.post(f"{base_url}/agents/{agent_id}/consolidate-now")
         resp.raise_for_status()
 
@@ -265,10 +274,15 @@ async def run_sequence(
                 # b. ingest this task's corpus.
                 for fact in task.corpus:
                     await _ingest(client, base_url, key, agent_id, fact)
-                # b'. optionally age this task's facts (decay via consolidation)
-                #     before the next task's contradicting facts arrive.
+                # b'. optionally age this task: each cycle re-queries this task's
+                #     stable probes (reinforcing them in "on" mode) then decays
+                #     every edge, so an un-probed contradicted fact fades while
+                #     the still-used facts are kept.
                 if task.consolidate_after:
-                    await _age(client, base_url, agent_id, task.consolidate_after)
+                    await _age(
+                        client, base_url, key, agent_id, task.consolidate_after,
+                        reinforce=task.probes, rds=rds, top_k=top_k,
+                    )
                 # c. probe every task seen so far.
                 for j in range(i + 1):
                     matrix[i][j] = await _task_accuracy(
