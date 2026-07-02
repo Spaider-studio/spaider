@@ -31,11 +31,11 @@ import argparse
 import asyncio
 import hashlib
 import json
-from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Callable, Optional
 
 import yaml
+from pydantic import BaseModel, Field
 
 from benchmarks.cl_metrics import compute_cl_metrics
 
@@ -44,8 +44,7 @@ from benchmarks.cl_metrics import compute_cl_metrics
 # ---------------------------------------------------------------------------
 
 
-@dataclass
-class Probe:
+class Probe(BaseModel):
     question: str
     expected_output: str
     # Optional: a value that must NOT appear in the answer (the superseded /
@@ -54,8 +53,7 @@ class Probe:
     stale: Optional[str] = None
 
 
-@dataclass
-class SeqTask:
+class SeqTask(BaseModel):
     id: str
     title: str
     corpus: list[str]
@@ -67,11 +65,10 @@ class SeqTask:
     consolidate_after: int = 0
 
 
-@dataclass
-class Sequence:
+class Sequence(BaseModel):
     sequence_id: str
-    description: str
-    tasks: list[SeqTask] = field(default_factory=list)
+    description: str = ""
+    tasks: list[SeqTask] = Field(default_factory=list)
 
 
 def load_sequence(path: Path) -> Sequence:
@@ -333,7 +330,7 @@ async def run_sequence(
         "top_k": top_k,
         "agent_id": agent_id,
         "kept_agent": keep_agent,
-        "report": asdict(report),
+        "report": report.model_dump(),
     }
 
 

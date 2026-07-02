@@ -31,21 +31,21 @@ These are deliberately metric-agnostic: the caller decides what "accuracy" is
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import Optional
 
+from pydantic import BaseModel, Field
 
-@dataclass
-class CLReport:
+
+class CLReport(BaseModel):
     task_ids: list[str]
     final_accuracy: float
     average_forgetting: float
     backward_transfer: float
     forward_transfer: Optional[float]
-    per_task_final: dict[str, float] = field(default_factory=dict)
-    per_task_forgetting: dict[str, float] = field(default_factory=dict)
-    accuracy_matrix: list[list[Optional[float]]] = field(default_factory=list)
-    baseline: list[float] = field(default_factory=list)
+    per_task_final: dict[str, float] = Field(default_factory=dict)
+    per_task_forgetting: dict[str, float] = Field(default_factory=dict)
+    accuracy_matrix: list[list[Optional[float]]] = Field(default_factory=list)
+    baseline: list[float] = Field(default_factory=list)
 
 
 def _mean(xs: list[float]) -> float:
