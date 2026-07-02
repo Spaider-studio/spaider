@@ -1,0 +1,39 @@
+sequence_id: cl_updates_v1
+description: >
+  A continual-learning sequence with contradictions/updates on a private corpus.
+  Later tasks OVERWRITE earlier facts (CEO change, product rename). Earlier tasks
+  probe only STABLE facts (founding year/city, never updated) so the forgetting
+  matrix stays valid; the update tasks probe the CURRENT value, so their accuracy
+  measures staleness resistance: does the system return the up-to-date answer, or
+  the stale original? This is where memory dynamics (fresh-fact energy, decay,
+  reinforcement) should beat a naive append-only store. Run with --memory-mode on
+  vs off to attribute any difference to the synaptic engine.
+
+tasks:
+  - id: founding
+    title: "Founding facts (stable)"
+    corpus:
+      - "Zephyr Systems was founded in 2019 in the city of Lisbon."
+      - "In 2019, Idris Kane became the first CEO of Zephyr Systems."
+      - "Zephyr Systems' first product was the Lumen speech model."
+    probes:
+      - question: "What year was Zephyr Systems founded?"
+        expected_output: "2019"
+      - question: "In which city was Zephyr Systems founded?"
+        expected_output: "Lisbon"
+
+  - id: leadership_change
+    title: "CEO update (overwrites founding CEO)"
+    corpus:
+      - "In 2026, Priya Nair replaced Idris Kane as the CEO of Zephyr Systems."
+    probes:
+      - question: "Who is the current CEO of Zephyr Systems?"
+        expected_output: "Priya Nair"
+
+  - id: product_rename
+    title: "Product rename (overwrites first product name)"
+    corpus:
+      - "In 2027, Zephyr Systems renamed the Lumen speech model to Aria."
+    probes:
+      - question: "What is the current name of Zephyr Systems' speech model?"
+        expected_output: "Aria"

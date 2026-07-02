@@ -139,6 +139,15 @@ async def _ingest(client, base_url: str, key: str, agent_id: str, text: str) -> 
     resp.raise_for_status()
 
 
+async def _set_memory_mode(client, base_url: str, agent_id: str, mode: str) -> None:
+    """Set the agent's synaptic memory mode (on|off) for the baseline A/B."""
+    resp = await client.post(
+        f"{base_url}/agents/{agent_id}/memory-mode",
+        json={"memory_mode": mode},
+    )
+    resp.raise_for_status()
+
+
 def _query_cache_key(agent_id: str, question: str) -> str:
     """Mirror backend QueryService._cache_key so the harness can bust it.
 
@@ -150,17 +159,22 @@ def _query_cache_key(agent_id: str, question: str) -> str:
     return f"spaider:query:cache:{h}"
 
 
-async def _query(client, base_url: str, key: str, agent_id: str, question: str, rds=None) -> str:
+async def _query(
+    client, base_url: str, key: str, agent_id: str, question: str, rds=None, top_k=None
+) -> str:
     # Force a fresh read: the same question is probed at different graph states.
     if rds is not None:
         try:
             await rds.delete(_query_cache_key(agent_id, question))
         except Exception:
             pass  # a stale cache would only understate learning; never fatal
+    body = {"agent_id": agent_id, "question": question}
+    if top_k is not None:
+        body["top_k"] = top_k
     resp = await client.post(
         f"{base_url}/query",
         headers={"Authorization": f"Bearer {key}"},
-        json={"agent_id": agent_id, "question": question},
+        json=body,
     )
     resp.raise_for_status()
     d = resp.json()
@@ -170,11 +184,11 @@ async def _query(client, base_url: str, key: str, agent_id: str, question: str, 
 
 async def _task_accuracy(
     client, base_url: str, key: str, agent_id: str, task: SeqTask,
-    scorer: Callable[[str, str], float], rds=None,
+    scorer: Callable[[str, str], float], rds=None, top_k=None,
 ) -> float:
     scores: list[float] = []
     for probe in task.probes:
-        answer = await _query(client, base_url, key, agent_id, probe.question, rds=rds)
+        answer = await _query(client, base_url, key, agent_id, probe.question, rds=rds, top_k=top_k)
         scores.append(scorer(answer, probe.expected_output))
     return sum(scores) / len(scores) if scores else 0.0
 
@@ -186,7 +200,7 @@ async def _task_accuracy(
 
 async def run_sequence(
     seq: Sequence, base_url: str, metric: str, tenant: str, keep_agent: bool,
-    redis_url: Optional[str] = None,
+    redis_url: Optional[str] = None, memory_mode: str = "on", top_k: Optional[int] = None,
 ) -> dict:
     import httpx  # lazy: only needed for a live run
 
@@ -208,11 +222,15 @@ async def run_sequence(
             rds = None
 
     async with httpx.AsyncClient(timeout=180.0) as client:
-        agent_id, key = await _create_agent(client, base_url, f"cl-{seq.sequence_id}", tenant)
+        agent_id, key = await _create_agent(client, base_url, f"cl-{seq.sequence_id}-{memory_mode}", tenant)
+        # Baseline A/B: hold ingest/graph/embeddings constant, vary only the
+        # synaptic engine (on = decay + reinforcement + synaptic scoring; off =
+        # classic retrieval), so any difference is attributable to the moat.
+        await _set_memory_mode(client, base_url, agent_id, memory_mode)
         try:
             # 1. Cold baseline on the empty graph.
             baseline = [
-                await _task_accuracy(client, base_url, key, agent_id, task, scorer, rds=rds)
+                await _task_accuracy(client, base_url, key, agent_id, task, scorer, rds=rds, top_k=top_k)
                 for task in seq.tasks
             ]
 
@@ -223,14 +241,14 @@ async def run_sequence(
             for i, task in enumerate(seq.tasks):
                 # a. forward-transfer probe: task i before it is ingested.
                 if i >= 1:
-                    pre[i] = await _task_accuracy(client, base_url, key, agent_id, task, scorer, rds=rds)
+                    pre[i] = await _task_accuracy(client, base_url, key, agent_id, task, scorer, rds=rds, top_k=top_k)
                 # b. ingest this task's corpus.
                 for fact in task.corpus:
                     await _ingest(client, base_url, key, agent_id, fact)
                 # c. probe every task seen so far.
                 for j in range(i + 1):
                     matrix[i][j] = await _task_accuracy(
-                        client, base_url, key, agent_id, seq.tasks[j], scorer, rds=rds
+                        client, base_url, key, agent_id, seq.tasks[j], scorer, rds=rds, top_k=top_k
                     )
 
             report = compute_cl_metrics([x.id for x in seq.tasks], matrix, baseline, pre=pre)
@@ -243,6 +261,8 @@ async def run_sequence(
     return {
         "sequence_id": seq.sequence_id,
         "metric": metric,
+        "memory_mode": memory_mode,
+        "top_k": top_k,
         "agent_id": agent_id,
         "kept_agent": keep_agent,
         "report": asdict(report),
@@ -256,7 +276,11 @@ async def run_sequence(
 
 def _print_summary(result: dict) -> None:
     r = result["report"]
-    print(f"\nSequence: {result['sequence_id']}  (metric={result['metric']})")
+    tk = result.get("top_k")
+    tk_str = f", top_k={tk}" if tk else ""
+    mode = result.get("memory_mode", "on")
+    print(f"\nSequence: {result['sequence_id']}  "
+          f"(metric={result['metric']}, memory={mode}{tk_str})")
     print("-" * 60)
     print(f"  Final accuracy (ACC):   {r['final_accuracy']:.3f}")
     print(f"  Average forgetting:     {r['average_forgetting']:.3f}  (lower is better; <=0 = none)")
@@ -278,6 +302,10 @@ def main() -> int:
     p.add_argument("--sequence", required=True, help="path to a sequence YAML")
     p.add_argument("--base-url", default="http://localhost:8000/api/v1", help="SpAIder REST base URL")
     p.add_argument("--metric", default="f1", choices=["f1", "em", "rouge"], help="per-probe accuracy metric")
+    p.add_argument("--memory-mode", default="on", choices=["on", "off"],
+                   help="synaptic memory mode for the run's agent (baseline A/B: on vs off)")
+    p.add_argument("--top-k", type=int, default=None,
+                   help="retrieval depth per query; a small value stresses ranking (where decay matters)")
     p.add_argument("--tenant", default="default", help="tenant_id for the throwaway agent")
     p.add_argument("--keep-agent", action="store_true", help="do not delete the agent after the run")
     p.add_argument(
@@ -302,14 +330,14 @@ def main() -> int:
     result = asyncio.run(
         run_sequence(
             seq, args.base_url, args.metric, args.tenant, args.keep_agent,
-            redis_url=args.redis_url or None,
+            redis_url=args.redis_url or None, memory_mode=args.memory_mode, top_k=args.top_k,
         )
     )
     _print_summary(result)
 
     runs_dir = Path(args.runs)
     runs_dir.mkdir(parents=True, exist_ok=True)
-    out = runs_dir / f"cl_{seq.sequence_id}_{args.metric}.json"
+    out = runs_dir / f"cl_{seq.sequence_id}_{args.metric}_{args.memory_mode}.json"
     out.write_text(json.dumps(result, indent=2))
     print(f"\nWrote {out}")
     return 0

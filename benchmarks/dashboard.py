@@ -301,6 +301,7 @@ def main() -> None:
                 fwt = r["forward_transfer"]
                 rows.append({
                     "sequence": res["sequence_id"],
+                    "memory": res.get("memory_mode", "on"),
                     "metric": res.get("metric", "f1"),
                     "tasks": len(r["task_ids"]),
                     "final_acc": r["final_accuracy"],
@@ -308,7 +309,7 @@ def main() -> None:
                     "bwt": r["backward_transfer"],
                     "fwt": float("nan") if fwt is None else fwt,
                 })
-            summary_df = pd.DataFrame(rows).sort_values("sequence")
+            summary_df = pd.DataFrame(rows).sort_values(["sequence", "memory"])
             st.dataframe(
                 summary_df.style.format({
                     "final_acc": "{:.3f}", "avg_forgetting": "{:+.3f}",
@@ -319,7 +320,7 @@ def main() -> None:
             for res in cl_reports:
                 r = res["report"]
                 ids = r["task_ids"]
-                with st.expander(f"{res['sequence_id']} — accuracy matrix & per-task"):
+                with st.expander(f"{res['sequence_id']} [{res.get('memory_mode', 'on')}] — accuracy matrix & per-task"):
                     st.markdown("**Accuracy matrix** — row = after ingesting task; column = task probed")
                     # Pre-format to strings so unlearned cells (JSON null) render
                     # as a clean dash rather than "None" (na_rep only catches NaN).
