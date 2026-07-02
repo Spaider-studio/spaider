@@ -797,6 +797,7 @@ class QueryService:
                       AND a.agent_id IN $allowed AND b.agent_id IN $allowed
                       AND coalesce(a.clearance_level, $cd) <= $clr
                       AND coalesce(b.clearance_level, $cd) <= $clr
+                      AND NOT coalesce(r.superseded, false)
                     RETURN DISTINCT a.label AS src,
                            coalesce(r.relation, 'RELATED_TO') AS rel,
                            b.label AS tgt
@@ -890,6 +891,7 @@ class QueryService:
                     YIELD node AS n, score
                     WHERE n.agent_id IN $allowed_agent_ids
                       AND NOT n:SystemAgent
+                      AND NOT coalesce(n.superseded, false)
                       AND coalesce(n.clearance_level, $clearance_default) <= $agent_clearance
                     RETURN n.id         AS node_id,
                            n.label      AS label,
@@ -1038,6 +1040,7 @@ class QueryService:
                     YIELD node AS n, score
                     WHERE n.agent_id IN $allowed_agent_ids
                       AND NOT n:SystemAgent
+                      AND NOT coalesce(n.superseded, false)
                       AND coalesce(n.clearance_level, $clearance_default) <= $agent_clearance
                     OPTIONAL MATCH (n)-[r:RELATION]->()
                     WITH n, avg(coalesce(r.utility_weight, 1.0)) AS avg_u

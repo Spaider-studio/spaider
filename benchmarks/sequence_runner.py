@@ -48,6 +48,10 @@ from benchmarks.cl_metrics import compute_cl_metrics
 class Probe:
     question: str
     expected_output: str
+    # Optional: a value that must NOT appear in the answer (the superseded /
+    # stale answer). Used by the "staleness" metric to score "returns the
+    # current value AND not the stale one".
+    stale: Optional[str] = None
 
 
 @dataclass
@@ -80,7 +84,10 @@ def load_sequence(path: Path) -> Sequence:
         for key in ("id", "title", "corpus", "probes"):
             if key not in t:
                 raise ValueError(f"{path}: task #{i} missing '{key}'")
-        probes = [Probe(question=p["question"], expected_output=p["expected_output"]) for p in t["probes"]]
+        probes = [
+            Probe(question=p["question"], expected_output=p["expected_output"], stale=p.get("stale"))
+            for p in t["probes"]
+        ]
         if not t["corpus"]:
             raise ValueError(f"{path}: task '{t['id']}' has an empty corpus")
         if not probes:
@@ -113,6 +120,19 @@ def _get_scorer(metric: str) -> Callable[[str, str], float]:
     if metric not in table:
         raise ValueError(f"unknown metric '{metric}' (choose from {sorted(table)})")
     return table[metric]
+
+
+def _staleness_score(answer: str, probe: "Probe") -> float:
+    """1.0 iff the answer contains the current value AND NOT the stale one.
+
+    A direct measure of update adoption: the whole point of supersession is that
+    the retired answer stops showing up. Case-insensitive substring match; when a
+    probe has no ``stale`` value this degrades to "current value present".
+    """
+    a = answer.lower()
+    has_current = probe.expected_output.lower() in a
+    has_stale = bool(probe.stale) and probe.stale.lower() in a
+    return 1.0 if has_current and not has_stale else 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -213,12 +233,15 @@ async def _query(
 
 async def _task_accuracy(
     client, base_url: str, key: str, agent_id: str, task: SeqTask,
-    scorer: Callable[[str, str], float], rds=None, top_k=None,
+    scorer: Optional[Callable[[str, str], float]], rds=None, top_k=None, staleness=False,
 ) -> float:
     scores: list[float] = []
     for probe in task.probes:
         answer = await _query(client, base_url, key, agent_id, probe.question, rds=rds, top_k=top_k)
-        scores.append(scorer(answer, probe.expected_output))
+        if staleness:
+            scores.append(_staleness_score(answer, probe))
+        else:
+            scores.append(scorer(answer, probe.expected_output))
     return sum(scores) / len(scores) if scores else 0.0
 
 
@@ -233,7 +256,8 @@ async def run_sequence(
 ) -> dict:
     import httpx  # lazy: only needed for a live run
 
-    scorer = _get_scorer(metric)
+    is_stale = metric == "staleness"
+    scorer = None if is_stale else _get_scorer(metric)
     t = len(seq.tasks)
 
     # Optional cache-busting client: the query cache is keyed by (agent, question)
@@ -259,7 +283,10 @@ async def run_sequence(
         try:
             # 1. Cold baseline on the empty graph.
             baseline = [
-                await _task_accuracy(client, base_url, key, agent_id, task, scorer, rds=rds, top_k=top_k)
+                await _task_accuracy(
+                    client, base_url, key, agent_id, task, scorer,
+                    rds=rds, top_k=top_k, staleness=is_stale,
+                )
                 for task in seq.tasks
             ]
 
@@ -270,7 +297,10 @@ async def run_sequence(
             for i, task in enumerate(seq.tasks):
                 # a. forward-transfer probe: task i before it is ingested.
                 if i >= 1:
-                    pre[i] = await _task_accuracy(client, base_url, key, agent_id, task, scorer, rds=rds, top_k=top_k)
+                    pre[i] = await _task_accuracy(
+                        client, base_url, key, agent_id, task, scorer,
+                        rds=rds, top_k=top_k, staleness=is_stale,
+                    )
                 # b. ingest this task's corpus.
                 for fact in task.corpus:
                     await _ingest(client, base_url, key, agent_id, fact)
@@ -286,7 +316,7 @@ async def run_sequence(
                 # c. probe every task seen so far.
                 for j in range(i + 1):
                     matrix[i][j] = await _task_accuracy(
-                        client, base_url, key, agent_id, seq.tasks[j], scorer, rds=rds, top_k=top_k
+                        client, base_url, key, agent_id, seq.tasks[j], scorer, rds=rds, top_k=top_k, staleness=is_stale
                     )
 
             report = compute_cl_metrics([x.id for x in seq.tasks], matrix, baseline, pre=pre)
@@ -339,7 +369,8 @@ def main() -> int:
     p = argparse.ArgumentParser(description="SpAIder continual-learning (forgetting + transfer) benchmark")
     p.add_argument("--sequence", required=True, help="path to a sequence YAML")
     p.add_argument("--base-url", default="http://localhost:8000/api/v1", help="SpAIder REST base URL")
-    p.add_argument("--metric", default="f1", choices=["f1", "em", "rouge"], help="per-probe accuracy metric")
+    p.add_argument("--metric", default="f1", choices=["f1", "em", "rouge", "staleness"],
+                   help="per-probe metric; 'staleness' = current value present AND stale value absent")
     p.add_argument("--memory-mode", default="on", choices=["on", "off"],
                    help="synaptic memory mode for the run's agent (baseline A/B: on vs off)")
     p.add_argument("--top-k", type=int, default=None,

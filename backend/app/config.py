@@ -273,6 +273,24 @@ class Settings(BaseSettings):
         description="Max agents consolidated concurrently per scheduler tick.",
     )
 
+    # ------------------------------------------------------------------
+    # Ingest-time supersession (contradiction / update resolution)
+    #
+    # When a newly ingested fact updates a functional relationship (a company's
+    # current CEO, a headquarters, a person's employer), an LLM judges which
+    # prior fact it replaces and the prior fact + its FACT node are marked
+    # superseded and excluded from retrieval. Off by default (adds one LLM call
+    # per ingest that finds a candidate, and it can mislabel; opt in explicitly).
+    # ------------------------------------------------------------------
+    supersession_enabled: bool = Field(
+        default=False,
+        description="Enable ingest-time semantic supersession of updated facts. Env: SUPERSESSION_ENABLED.",
+    )
+    supersession_max_candidates: int = Field(
+        default=10,
+        description="Max prior facts considered as supersession candidates per new edge.",
+    )
+
     # Alchemist Pass — Tier 3 proactive knowledge-graph completion.
     # Off by default; set CONSOLIDATION_PROPOSE_EDGES=true to activate.
     # The cosine band [cosine_min, cosine_max] targets pairs that are

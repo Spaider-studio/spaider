@@ -414,6 +414,15 @@ async def ingest_text_sync(request: IngestRequest):
         nodes_merged = result.nodes_merged
         nodes_created = result.nodes_created
 
+        # 4b. Ingest-time supersession: if this update replaces a prior functional
+        # fact (new CEO, moved HQ), mark the stale fact + its FACT node superseded
+        # so retrieval stops returning the contradiction. No-op unless enabled.
+        try:
+            from app.services.supersession import resolve_supersession
+            await resolve_supersession(graph._driver, request.agent_id, resolved_payload)
+        except Exception as exc:  # noqa: BLE001 — never fail an ingest on this
+            logger.warning("supersession skipped for agent=%s: %s", request.agent_id, exc)
+
         # Replay: graph state mutated — capture node IDs now (while resolved_payload
         # is in scope) but defer sort + SHA-256 into the background task so the
         # CPU work doesn't add to request latency.
