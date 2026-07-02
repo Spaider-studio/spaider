@@ -62,6 +62,7 @@ class ConsolidationReport:
     merged_duplicates: int = 0
     agents_scanned: int = 0
     proposed_edges: int = 0
+    decayed_edges: int = 0
     error: str | None = None
 
     @property
@@ -87,6 +88,7 @@ async def run_consolidation(driver) -> ConsolidationReport:
         report.agents_scanned = scanned
         if settings.consolidation_propose_edges:
             report.proposed_edges = await _run_alchemist_pass(driver)
+        report.decayed_edges = await _decay_edges(driver)
         await _log_stats(driver)
     except Exception as exc:  # noqa: BLE001
         logger.exception("Reflection Engine: consolidation error — %s", exc)
@@ -104,6 +106,39 @@ async def run_consolidation(driver) -> ConsolidationReport:
         )
 
     return report
+
+
+# --------------------------------------------------------------------------
+# Pass 5 — Edge decay (Hebbian counterweight)
+#
+# Multiplicatively decays every RELATION edge's utility_weight toward the 0.1
+# floor. This is the disuse side of the synapse: edges that keep getting used
+# are re-reinforced (implicitly on grounded queries, explicitly via feedback)
+# and stay strong; edges that stop being used drift down and eventually fall
+# below the forget threshold and out of retrieval. Skipped when the rate is
+# >= 1.0 (decay disabled).
+# --------------------------------------------------------------------------
+
+
+async def _decay_edges(driver) -> int:
+    """Decay all RELATION utility_weights by ``settings.edge_decay_rate`` (floored 0.1)."""
+    rate = settings.edge_decay_rate
+    if rate >= 1.0:
+        return 0
+    cypher = """
+    MATCH ()-[r:RELATION]->()
+    WITH r, coalesce(r.utility_weight, 1.0) AS w
+    WITH r, w, CASE WHEN w * $rate < 0.1 THEN 0.1 ELSE w * $rate END AS new_w
+    WHERE new_w <> w
+    SET r.utility_weight = new_w
+    RETURN count(r) AS decayed
+    """
+    async with driver.session() as session:
+        result = await session.run(cypher, rate=rate)
+        record = await result.single()
+        decayed = int(record["decayed"]) if record else 0
+    logger.info("Reflection Engine [pass 5]: decayed %d edge(s) by x%.3f", decayed, rate)
+    return decayed
 
 
 # --------------------------------------------------------------------------

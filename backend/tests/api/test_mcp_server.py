@@ -60,7 +60,8 @@ async def test_list_tools_returns_read_and_write_set():
         "spaider.query",
         "spaider.list_recent",
         "spaider.ingest_fact",
-        "spaider.feedback", #
+        "spaider.feedback",
+        "spaider.status",
     ]
     # Schemas must declare required fields.
     query_tool = next(t for t in tools if t.name == "spaider.query")

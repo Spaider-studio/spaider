@@ -12,6 +12,7 @@ import {
 import { importAgentGraph } from "@/lib/api";
 import type { Agent, AgentImportResponse } from "@/lib/types";
 import { useToast } from "@/components/shared/Toast";
+import HibernationCadence from "@/components/shared/HibernationCadence";
 import AgentCard from "./AgentCard";
 
 // ---------------------------------------------------------------------------
@@ -199,6 +200,12 @@ export default function AgentDetail({ agent, onDelete, onRotate }: Props) {
 
           {/* Right: controls */}
           <div className="flex items-center gap-3 flex-wrap">
+
+            {/* Autonomous consolidation cadence + manual trigger */}
+            <HibernationCadence agentId={agent.id} />
+
+            {/* Divider */}
+            <span className="w-px h-4 bg-[#2A2A35]" />
 
             {/* Include-embeddings checkbox */}
             <label className="flex items-center gap-1.5 cursor-pointer select-none group">

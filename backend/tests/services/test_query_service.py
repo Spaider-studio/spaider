@@ -76,6 +76,7 @@ def _make_query_service() -> tuple[QueryService, MagicMock, MagicMock]:
 
     # cognitive stub
     mock_cognitive.boost_nodes = AsyncMock(return_value=None)
+    mock_cognitive.reinforce_edges = AsyncMock(return_value=None)
 
     svc = QueryService.__new__(QueryService)
     svc._graph = mock_graph
@@ -92,9 +93,9 @@ def _make_query_service() -> tuple[QueryService, MagicMock, MagicMock]:
 
 @pytest.fixture(autouse=True)
 def _patch_engine_and_swarm(monkeypatch):
-    """Make engine version and swarm context deterministic across all tests."""
-    async def _engine_v1(self):
-        return "v1"
+    """Make memory mode and swarm context deterministic across all tests."""
+    async def _memory_off(self, agent_id):
+        return "off"
 
     async def _clearance(self, agent_id):
         return 5  # admin — no clearance filtering
@@ -102,7 +103,7 @@ def _patch_engine_and_swarm(monkeypatch):
     async def _swarm(self, target_agent_id, query, agent_clearance=1, top_k=None):
         return "Swarm context text.", ["agent-1"]
 
-    monkeypatch.setattr(QueryService, "_get_engine_version", _engine_v1)
+    monkeypatch.setattr(QueryService, "_get_memory_mode", _memory_off)
     monkeypatch.setattr(QueryService, "_get_agent_clearance", _clearance)
     monkeypatch.setattr(QueryService, "retrieve_swarm_context", _swarm)
     monkeypatch.setattr(QueryService, "_cache_get", AsyncMock(return_value=None))
@@ -477,9 +478,9 @@ class TestV2ManagedForgetting:
         # ── Service in V2 mode ────────────────────────────────────────────────
         svc, mock_graph, _ = _make_query_service()
 
-        # Override the autouse fixture's V1 engine patch
+        # Override the autouse fixture's "off" memory-mode patch with "on"
         monkeypatch.setattr(
-            QueryService, "_get_engine_version", AsyncMock(return_value="v2")
+            QueryService, "_get_memory_mode", AsyncMock(return_value="on")
         )
         monkeypatch.setattr(
             QueryService,

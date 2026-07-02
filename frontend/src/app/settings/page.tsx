@@ -81,7 +81,7 @@ export default function SettingsPage() {
               <div className="grid grid-cols-2 gap-4">
                 {[
                   { label: "Application", value: "SpAIder" },
-                  { label: "Version", value: "1.0.0" },
+                  { label: "Version", value: "0.1.1" },
                   { label: "Backend", value: "FastAPI + Neo4j" },
                   { label: "Streaming", value: "Apache Kafka" },
                 ].map((item) => (
@@ -102,18 +102,13 @@ export default function SettingsPage() {
             <Section title="API Configuration" icon={<Settings className="w-4 h-4" />}>
               <div className="flex flex-col gap-3">
                 <ConfigRow
-                  label="Backend URL"
+                  label="API Endpoint"
                   value={process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1"}
                   hint="Set NEXT_PUBLIC_API_URL in your .env file"
                 />
-                <ConfigRow
-                  label="Default Agent ID"
-                  value={process.env.NEXT_PUBLIC_DEFAULT_AGENT_ID ?? "default"}
-                  hint="Set NEXT_PUBLIC_DEFAULT_AGENT_ID in your .env file"
-                />
               </div>
               <a
-                href="https://github.com/your-org/spaider"
+                href="https://github.com/Spaider-studio/spaider"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-4 flex items-center gap-2 text-xs text-[#3B82F6] hover:text-[#60A5FA] transition-colors"

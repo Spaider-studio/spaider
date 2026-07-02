@@ -262,6 +262,17 @@ async def list_tools() -> list[mcp_types.Tool]:
                 "required": ["used_node_ids", "success"],
             },
         ),
+        mcp_types.Tool(
+            name="spaider.status",
+            description=(
+                "Read the calling agent's memory configuration (READ-ONLY). "
+                "Returns its synaptic memory mode (on/off), autonomous "
+                "consolidation cadence + last run, and clearance level. These "
+                "settings are governed by a human operator in the Studio; this "
+                "tool only reports them and cannot change them."
+            ),
+            inputSchema={"type": "object", "properties": {}},
+        ),
     ]
 
 
@@ -272,6 +283,37 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[mcp_types.Text
     agent_id = _AGENT_ID.get()
     if agent_id is None:
         raise ValueError("Tool called without authenticated agent_id (auth bug?)")
+
+    if name == "spaider.status":
+        graph = _get_graph_service()
+        async with graph._driver.session() as session:
+            result = await session.run(
+                """
+                MATCH (a:SystemAgent {agent_id: $aid})
+                RETURN coalesce(a.memory_mode, 'on') AS memory_mode,
+                       coalesce(a.consolidation_interval_hours, 0) AS interval_hours,
+                       toString(a.last_consolidated_at) AS last_consolidated_at,
+                       coalesce(a.clearance_level, 1) AS clearance_level
+                """,
+                aid=agent_id,
+            )
+            rec = await result.single()
+        if rec is None:
+            text = f"No SystemAgent record found for agent {agent_id}."
+        else:
+            hrs = int(rec["interval_hours"])
+            cadence = {0: "off", 1: "hourly", 24: "daily", 168: "weekly"}.get(
+                hrs, f"every {hrs}h"
+            )
+            text = (
+                f"Agent: {agent_id}\n"
+                f"Synaptic memory: {rec['memory_mode']}\n"
+                f"Consolidation cadence: {cadence}\n"
+                f"Last consolidated: {rec['last_consolidated_at'] or 'never'}\n"
+                f"Clearance level: L{int(rec['clearance_level'])}\n"
+                "(These settings are managed in the Studio; this tool is read-only.)"
+            )
+        return [mcp_types.TextContent(type="text", text=text)]
 
     if name == "spaider.query":
         question = arguments.get("question")

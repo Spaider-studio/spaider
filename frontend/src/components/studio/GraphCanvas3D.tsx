@@ -3,7 +3,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import type { GraphNode, GraphEdge } from "@/lib/types";
 import { NODE_TYPE_COLORS } from "@/lib/constants";
-import { useEngine } from "@/context/EngineContext";
+import { useMemoryMode } from "@/context/MemoryModeContext";
 
 interface Props {
   nodes: GraphNode[];
@@ -73,9 +73,9 @@ export default function GraphCanvas3D({
 
   // Engine version ref — readable inside force-graph callbacks every frame
   // without needing to re-initialise the graph object.
-  const { engineVersion } = useEngine();
-  const engineVersionRef = useRef(engineVersion);
-  engineVersionRef.current = engineVersion;
+  const { memoryMode } = useMemoryMode();
+  const memoryModeRef = useRef(memoryMode);
+  memoryModeRef.current = memoryMode;
 
   nodesRef.current = nodes;
   edgesRef.current = edges;
@@ -84,7 +84,7 @@ export default function GraphCanvas3D({
     const selectedId = selectedNodeIdRef.current;
     const neighbors = selectedId ? getNeighborIds(selectedId, edgesRef.current) : null;
     const hasHighlights = highlightedIds.size > 0;
-    const isV2 = engineVersionRef.current === "v2";
+    const isOn = memoryModeRef.current === "on";
 
     return {
       nodes: nodesRef.current.map((n) => {
@@ -117,7 +117,7 @@ export default function GraphCanvas3D({
         const tgt = e.target as string;
         const isBridge = e.type === "SHARES_KNOWLEDGE_WITH";
         const weight = e.utility_weight ?? 1.0;
-        const isStrongSynapse = isV2 && weight > 1.5;
+        const isStrongSynapse = isOn && weight > 1.5;
         const isActive = neighbors
           ? neighbors.has(src) && neighbors.has(tgt)
           : true;
@@ -193,11 +193,11 @@ export default function GraphCanvas3D({
         .linkLabel((l: any) => l.relation)
         .linkOpacity(0.6)
         // ── V2 Cognitive Graph: edge width = synapse strength ─────────────
-        // engineVersionRef is read every frame (callbacks are called per-link
+        // memoryModeRef is read every frame (callbacks are called per-link
         // by the force-graph renderer), so no re-init needed on toggle.
         .linkWidth((l: any) => {
           if (l.__isBridge) return 1.5;
-          if (engineVersionRef.current === "v2") {
+          if (memoryModeRef.current === "on") {
             return Math.max(1, (l.__weight ?? 1) * 1.5);
           }
           return 1;
@@ -207,17 +207,17 @@ export default function GraphCanvas3D({
         // V2: bridges + strong synapses (weight > 1.5)
         .linkDirectionalParticles((l: any) => {
           if (l.__isBridge) return 4;
-          if (engineVersionRef.current === "v2" && l.__isStrongSynapse) return 2;
+          if (memoryModeRef.current === "on" && l.__isStrongSynapse) return 2;
           return 0;
         })
         .linkDirectionalParticleSpeed((l: any) => {
           if (l.__isBridge) return 0.01;
-          if (engineVersionRef.current === "v2" && l.__isStrongSynapse) return 0.008;
+          if (memoryModeRef.current === "on" && l.__isStrongSynapse) return 0.008;
           return 0;
         })
         .linkDirectionalParticleWidth((l: any) => {
           if (l.__isBridge) return 2;
-          if (engineVersionRef.current === "v2" && l.__isStrongSynapse) return 1.5;
+          if (memoryModeRef.current === "on" && l.__isStrongSynapse) return 1.5;
           return 0;
         })
         .linkDirectionalParticleColor((l: any) => l.__particleColor)
@@ -338,7 +338,7 @@ export default function GraphCanvas3D({
         // d3Force may not be available in all versions — silent fallback
       }
     }
-  }, [buildGraphData, nodes, edges, engineVersion, selectedNodeId]);
+  }, [buildGraphData, nodes, edges, memoryMode, selectedNodeId]);
 
   return (
     <div className="relative w-full h-full">

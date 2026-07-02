@@ -34,8 +34,8 @@ async def run_graph_migrations(driver) -> None:
     Idempotent startup migrations applied once per boot.
 
     Migration 1 — SystemSettings singleton:
-        Ensures the global settings node exists with all required fields
-        including the new `engine_version` property (defaults to "v1").
+        Ensures the global settings node exists with its `auto_reflection`
+        field. (Retrieval engine selection is now per-agent, not global.)
 
     Migration 2 — Synapse weights:
         Backfills `utility_weight = 1.0` on every relationship that was
@@ -57,14 +57,10 @@ async def run_graph_migrations(driver) -> None:
     """
     migrations = [
         (
-            "SystemSettings bootstrap (engine_version)",
+            "SystemSettings bootstrap (auto_reflection)",
             """
             MERGE (s:SystemSettings {id: "global"})
-            ON CREATE SET
-                s.auto_reflection = false,
-                s.engine_version  = "v1"
-            ON MATCH SET
-                s.engine_version = coalesce(s.engine_version, "v1")
+            ON CREATE SET s.auto_reflection = false
             """,
             {},
         ),
@@ -265,6 +261,17 @@ async def lifespan(app: FastAPI):
     from app.scheduler import start_connector_scheduler
     _scheduler_task = asyncio.create_task(start_connector_scheduler(), name="connector-scheduler")
     logger.info("Connector scheduler started")
+
+    # 5b. Hibernation scheduler — per-agent, frequency-driven consolidation.
+    #     Safe to always start: every agent defaults to interval 0 (off), so
+    #     the loop is a no-op until an agent opts into a cadence.
+    if _graph_service is not None and settings.consolidation_scheduler_enabled:
+        from app.workers.rem_sleep_worker import REMSleepWorker
+        _hibernation_worker = REMSleepWorker(_graph_service._driver)
+        _hibernation_task = asyncio.create_task(
+            _hibernation_worker.run(), name="hibernation-scheduler"
+        )
+        logger.info("Hibernation scheduler started")
 
     # 6. Swarm Listener — Stigmergic Event Consumer (non-blocking)
     # Only started when both Redis and Neo4j are available, as the listener

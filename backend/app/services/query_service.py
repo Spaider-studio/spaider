@@ -53,7 +53,9 @@ _WRITE_KEYWORDS = re.compile(
 )
 
 _CACHE_TTL = 300              # 5 minutes
-_V2_FORGET_THRESHOLD = 0.3    # edges below this are invisible in V2 mode
+# Synaptic score below which nodes/edges are invisible in synaptic (v2) modes.
+# Configurable via settings.cognitive_forget_threshold; default preserves 0.3.
+_V2_FORGET_THRESHOLD = settings.cognitive_forget_threshold
 _DEFAULT_TOP_K = 8            # default seed nodes for vector/text search
 _MMR_FETCH_N = 40             # candidate pool size fetched from Neo4j for MMR
 # Diverse subset returned after MMR filtering. Retrieval depth is the single
@@ -392,7 +394,11 @@ class QueryService:
         self._graph = graph_service
         self._embedding = embedding_service or EmbeddingService()
         self._redis = None
-        self._cognitive = CognitiveGraphService(driver=graph_service._driver)
+        self._cognitive = CognitiveGraphService(
+            driver=graph_service._driver,
+            base_decay=settings.cognitive_base_decay,
+            consolidation_factor=settings.cognitive_consolidation_factor,
+        )
 
     # ------------------------------------------------------------------
     # Diplomat Protocol — resolve agent clearance level
@@ -610,27 +616,35 @@ class QueryService:
             pass
 
     # ------------------------------------------------------------------
-    # Engine version check
+    # Per-agent memory mode (replaces the old global engine_version flag)
     # ------------------------------------------------------------------
 
-    async def _get_engine_version(self) -> str:
+    async def _get_memory_mode(self, agent_id: str) -> str:
         """
-        Read the active engine version from Neo4j SystemSettings.
-        Falls back to "v1" on any error — never blocks the query pipeline.
+        Read the target agent's memory mode from its SystemAgent node.
+
+        Returns ``off`` or ``on``. ``off`` uses classic retrieval; ``on`` uses
+        the synaptic retrieval path and auto-reinforces the edges a grounded
+        answer used (explicit spaider.feedback applies in either mode). Falls
+        back to ``settings.default_memory_mode`` on a missing property or any
+        error — never blocks the query pipeline.
         """
         try:
             async with self._graph._driver.session() as session:
                 result = await session.run(
                     """
-                    MATCH (s:SystemSettings {id: "global"})
-                    RETURN coalesce(s.engine_version, "v1") AS engine_version
-                    """
+                    MATCH (a:SystemAgent {agent_id: $agent_id})
+                    RETURN coalesce(a.memory_mode, $default) AS mode
+                    """,
+                    agent_id=agent_id,
+                    default=settings.default_memory_mode,
                 )
                 record = await result.single()
-                return record["engine_version"] if record else "v1"
+                mode = record["mode"] if record else settings.default_memory_mode
+                return mode if mode in ("off", "on") else settings.default_memory_mode
         except Exception as exc:
-            logger.warning("Could not read engine_version, defaulting to v1: %s", exc)
-            return "v1"
+            logger.warning("Could not read memory_mode, defaulting: %s", exc)
+            return settings.default_memory_mode
 
     # ------------------------------------------------------------------
     # Question decomposition — router LLM call that splits multi-entity
@@ -1350,11 +1364,13 @@ class QueryService:
         else:
             subqueries = [question]
 
-        sq_embeddings, engine_version, agent_clearance = await asyncio.gather(
+        sq_embeddings, memory_mode, agent_clearance = await asyncio.gather(
             asyncio.gather(*[self._embedding.embed(sq) for sq in subqueries]),
-            self._get_engine_version(),
+            self._get_memory_mode(agent_id),
             self._get_agent_clearance(agent_id),
         )
+        # off -> classic retrieval; explicit/implicit -> synaptic (v2) retrieval.
+        use_v2 = memory_mode != "off"
         # Hybrid seed retrieval per sub-question: dense vector search AND
         # keyword fulltext search run in parallel, fused with reciprocal-rank
         # fusion. Each catches what the other misses — vectors get paraphrase,
@@ -1376,7 +1392,7 @@ class QueryService:
 
         # Swarm context retrieved once from the original question (not re-queried
         # per iteration — swarm text enriches synthesis but is not node-accumulative).
-        if engine_version == "v2":
+        if use_v2:
             swarm_context, involved_agents = await self.retrieve_swarm_context_v2(
                 target_agent_id=agent_id,
                 query=question,
@@ -1456,7 +1472,7 @@ class QueryService:
                         if node_clearance <= agent_clearance:
                             cumulative_nodes[n.id] = n  # O(1) insert + dedup
                     for e in exp.edges:
-                        if engine_version == "v2":
+                        if use_v2:
                             src = cumulative_nodes.get(e.source_id)
                             if _synaptic_score_py(e.utility_weight, src) < _V2_FORGET_THRESHOLD:
                                 continue
@@ -1536,7 +1552,7 @@ class QueryService:
         answer = await self._answer_with_context(
             question, merged_context,
             is_swarm=is_swarm,
-            v2_mode=(engine_version == "v2"),
+            v2_mode=use_v2,
         )
 
         # ── 6b. Concise answer span (factoid questions) ───────────────────────
@@ -1548,6 +1564,16 @@ class QueryService:
         _labels = {nid: getattr(n, "label", "") for nid, n in cumulative_nodes.items()}
         asyncio.create_task(self._cognitive.boost_nodes(_boosted))
         asyncio.create_task(self._publish_pheromone(_boosted, agent_id, _labels))
+
+        # Implicit Hebbian reinforcement: in "on" mode a grounded, confident
+        # answer strengthens the edges among the nodes it actually used (disuse
+        # decays them during consolidation). Fire-and-forget, small step;
+        # explicit spaider.feedback still applies a larger nudge on top.
+        _confidence = verifier_result.confidence if verifier_result else 1.0
+        if memory_mode == "on" and _confidence >= settings.implicit_confidence_threshold:
+            asyncio.create_task(
+                self._cognitive.reinforce_edges(_boosted, settings.hebbian_step_implicit)
+            )
 
         result = QueryResult(
             question=question,
@@ -1563,8 +1589,8 @@ class QueryService:
         await self._cache_set(result, agent_id)
 
         logger.info(
-            "query_nl | agent=%s engine=%s swarm=%s iter=%d re_query=%s confidence=%.2f",
-            agent_id, engine_version, is_swarm,
+            "query_nl | agent=%s mode=%s swarm=%s iter=%d re_query=%s confidence=%.2f",
+            agent_id, memory_mode, is_swarm,
             result.iterations_used, result.re_query_happened, result.confidence_score,
         )
         return result
@@ -1573,7 +1599,7 @@ class QueryService:
         self, question: str, agent_id: str, top_k: Optional[int] = None
     ) -> AsyncIterator[str]:
         """
-        Streaming swarm-RAG — V1 or V2 routing based on engine_version.
+        Streaming swarm-RAG — classic or synaptic routing based on the agent's memory_mode.
         Yields tokens as they arrive; V2 enriches context before streaming.
         """
         import asyncio
@@ -1585,15 +1611,17 @@ class QueryService:
 
         q_embedding = await self._embedding.embed(question)
 
-        engine_version, agent_clearance, seed_nodes = await asyncio.gather(
-            self._get_engine_version(),
+        memory_mode, agent_clearance, seed_nodes = await asyncio.gather(
+            self._get_memory_mode(agent_id),
             self._get_agent_clearance(agent_id),
             self._graph.vector_search(
                 embedding=q_embedding, agent_id=agent_id, top_k=top_k or _DEFAULT_TOP_K
             ),
         )
+        # off -> classic retrieval; explicit/implicit -> synaptic (v2) retrieval.
+        use_v2 = memory_mode != "off"
 
-        if engine_version == "v2":
+        if use_v2:
             swarm_context, involved_agents = await self.retrieve_swarm_context_v2(
                 target_agent_id=agent_id,
                 query=question,
@@ -1636,7 +1664,7 @@ class QueryService:
                     if node_clearance <= agent_clearance:
                         subgraph_nodes[n.id] = n
                 for e in exp.edges:
-                    if engine_version == "v2":
+                    if use_v2:
                         src = subgraph_nodes.get(e.source_id)
                         if _synaptic_score_py(e.utility_weight, src) < _V2_FORGET_THRESHOLD:
                             continue
@@ -1678,7 +1706,7 @@ class QueryService:
         async for token in self._stream_answer(
             question, merged_context,
             is_swarm=is_swarm,
-            v2_mode=(engine_version == "v2"),
+            v2_mode=use_v2,
         ):
             full_answer += token
             yield token

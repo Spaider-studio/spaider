@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/shared/Toast";
-import { EngineProvider } from "@/context/EngineContext";
+import { MemoryModeProvider } from "@/context/MemoryModeContext";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -38,9 +38,9 @@ export default function RootLayout({
         className={`${inter.variable} font-sans bg-[#0A0A0F] text-[#E4E4E7] min-h-screen antialiased`}
       >
         <ToastProvider>
-          <EngineProvider>
+          <MemoryModeProvider>
             {children}
-          </EngineProvider>
+          </MemoryModeProvider>
         </ToastProvider>
       </body>
     </html>

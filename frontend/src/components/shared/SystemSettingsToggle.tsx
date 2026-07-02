@@ -98,14 +98,14 @@ export default function SystemSettingsToggle() {
             {enabled && (
               <span className="flex items-center gap-1 text-[10px] text-green-400 animate-pulse">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
-                🧠 Autonomous Sleep Cycle Active
+                🧠 Autonomous Consolidation Active
               </span>
             )}
           </div>
           <p className="text-[11px] text-[#6B7280] leading-tight">
             {enabled
-              ? "Memory consolidation runs every 5 minutes — pruning orphans, fusing duplicates."
-              : "Hippocampus is dormant. Enable to begin automatic memory consolidation."}
+              ? "Scheduled consolidation is active — pruning orphans, fusing duplicates, and decaying unused synapses."
+              : "Hippocampus is dormant. Enable to begin scheduled memory consolidation."}
           </p>
         </div>
       </div>

@@ -3,19 +3,21 @@ System Settings API — global admin controls for the SpAIder platform.
 
 Endpoints
 ---------
-GET  /api/v1/system/settings            → read global settings (auto_reflection, engine_version)
+GET  /api/v1/system/settings            → read global settings (auto_reflection)
 POST /api/v1/system/settings/reflection → toggle autonomous reflection engine (kill-switch)
-POST /api/v1/system/settings/engine     → switch engine version ("v1" | "v2")
 POST /api/v1/system/consolidate → trigger graph_maintenance DAG via Airflow REST
+
+Retrieval engine selection is no longer global — it is a per-agent memory mode
+(SystemAgent.memory_mode: off | on), set via POST /api/v1/agents/{id}/memory-mode.
 """
 from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import Literal, Optional
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel
 
 from app.config import settings
 
@@ -30,22 +32,10 @@ router = APIRouter()
 
 class SystemSettingsResponse(BaseModel):
     auto_reflection: bool
-    engine_version: Literal["v1", "v2"]
 
 
 class ReflectionToggle(BaseModel):
     enabled: bool
-
-
-class EngineVersionToggle(BaseModel):
-    version: Literal["v1", "v2"]
-
-    @field_validator("version")
-    @classmethod
-    def version_must_be_valid(cls, v: str) -> str:
-        if v not in ("v1", "v2"):
-            raise ValueError('engine version must be "v1" or "v2"')
-        return v
 
 
 # ---------------------------------------------------------------------------
@@ -64,38 +54,22 @@ def _get_driver():
 # Cypher statements
 # ---------------------------------------------------------------------------
 
-# Idempotent singleton creation — sets both fields on first call only.
+# Idempotent singleton creation.
 _INIT_CYPHER = """
 MERGE (s:SystemSettings {id: "global"})
-ON CREATE SET
-    s.auto_reflection = false,
-    s.engine_version  = "v1"
-RETURN
-    s.auto_reflection AS auto_reflection,
-    coalesce(s.engine_version, "v1") AS engine_version
+ON CREATE SET s.auto_reflection = false
+RETURN s.auto_reflection AS auto_reflection
 """
 
 _GET_CYPHER = """
 MATCH (s:SystemSettings {id: "global"})
-RETURN
-    s.auto_reflection AS auto_reflection,
-    coalesce(s.engine_version, "v1") AS engine_version
+RETURN s.auto_reflection AS auto_reflection
 """
 
 _SET_REFLECTION_CYPHER = """
 MATCH (s:SystemSettings {id: "global"})
 SET s.auto_reflection = $enabled
-RETURN
-    s.auto_reflection AS auto_reflection,
-    coalesce(s.engine_version, "v1") AS engine_version
-"""
-
-_SET_ENGINE_CYPHER = """
-MATCH (s:SystemSettings {id: "global"})
-SET s.engine_version = $version
-RETURN
-    s.auto_reflection AS auto_reflection,
-    s.engine_version  AS engine_version
+RETURN s.auto_reflection AS auto_reflection
 """
 
 
@@ -116,12 +90,9 @@ async def _ensure_settings_node() -> SystemSettingsResponse:
 
     if record is None:
         # Should never happen with MERGE, but guard anyway
-        return SystemSettingsResponse(auto_reflection=False, engine_version="v1")
+        return SystemSettingsResponse(auto_reflection=False)
 
-    return SystemSettingsResponse(
-        auto_reflection=bool(record["auto_reflection"]),
-        engine_version=record["engine_version"] or "v1",
-    )
+    return SystemSettingsResponse(auto_reflection=bool(record["auto_reflection"]))
 
 
 async def _read_settings() -> SystemSettingsResponse:
@@ -137,10 +108,7 @@ async def _read_settings() -> SystemSettingsResponse:
     if record is None:
         return await _ensure_settings_node()
 
-    return SystemSettingsResponse(
-        auto_reflection=bool(record["auto_reflection"]),
-        engine_version=record["engine_version"] or "v1",
-    )
+    return SystemSettingsResponse(auto_reflection=bool(record["auto_reflection"]))
 
 
 # ---------------------------------------------------------------------------
@@ -156,7 +124,6 @@ async def get_system_settings():
 
     Returns:
         auto_reflection: Whether the autonomous Reflection Engine is active.
-        engine_version:  Active graph engine — "v1" (classic RAG) or "v2" (Cognitive Graph).
     """
     try:
         return await _ensure_settings_node()
@@ -201,51 +168,7 @@ async def set_reflection_toggle(body: ReflectionToggle):
     new_value = bool(record["auto_reflection"])
     logger.info("Reflection Engine toggled → %s", "ENABLED" if new_value else "DISABLED")
 
-    return SystemSettingsResponse(
-        auto_reflection=new_value,
-        engine_version=record["engine_version"] or "v1",
-    )
-
-
-@router.post("/settings/engine", response_model=SystemSettingsResponse)
-async def set_engine_version(body: EngineVersionToggle):
-    """
-    Switch the active graph engine between V1 and V2.
-
-    - **v1**: Classic RAG graph — all edges rendered with uniform width.
-    - **v2**: Cognitive Graph — edge width reflects `utility_weight` synapse strength.
-
-    The setting is persisted in Neo4j and immediately visible to all connected clients
-    via the EngineContext (frontend polls or reads on mount).
-    Returns 404 if the settings node is missing (call GET first to initialise).
-    """
-    driver = _get_driver()
-    try:
-        async with driver.session() as session:
-            result = await session.run(_SET_ENGINE_CYPHER, version=body.version)
-            record = await result.single()
-    except Exception as exc:
-        logger.exception("Failed to update engine version: %s", exc)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Could not update engine version in Neo4j: {exc}",
-        )
-
-    if record is None:
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                "SystemSettings node not found. "
-                "Call GET /api/v1/system/settings first to initialise it."
-            ),
-        )
-
-    logger.info("Engine version switched → %s", body.version.upper())
-
-    return SystemSettingsResponse(
-        auto_reflection=bool(record["auto_reflection"]),
-        engine_version=record["engine_version"] or "v1",
-    )
+    return SystemSettingsResponse(auto_reflection=new_value)
 
 
 # ---------------------------------------------------------------------------

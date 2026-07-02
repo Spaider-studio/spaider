@@ -177,6 +177,44 @@ class CognitiveGraphService:
             len(node_ids),
         )
 
+    # Implicit Hebbian reinforcement over co-retrieved edges. Fires when an
+    # agent in "on" mode produces a grounded, confident answer: the RELATION
+    # edges among the used nodes are strengthened by `step` (capped at 2.0).
+    # This mirrors the explicit spaider.feedback update but with a smaller step
+    # and no client call; disuse is undone by the decay pass in consolidation.
+    _REINFORCE_EDGES_CYPHER = """
+    UNWIND $node_ids AS src_id
+    UNWIND $node_ids AS tgt_id
+    WITH src_id, tgt_id WHERE src_id <> tgt_id
+    MATCH (a:SpaiderNode {id: src_id})-[r:RELATION]->(b:SpaiderNode {id: tgt_id})
+    WITH r, coalesce(r.utility_weight, 1.0) AS w
+    SET r.utility_weight = CASE WHEN w + $step >= 2.0 THEN 2.0 ELSE w + $step END
+    RETURN count(r) AS updated_count
+    """
+
+    async def reinforce_edges(self, node_ids: list[str], step: float) -> None:
+        """
+        Strengthen RELATION edges among ``node_ids`` by ``step`` (capped 2.0).
+
+        Fire-and-forget: errors are logged, never raised (must not disturb the
+        query path it is launched from). No-op for fewer than two nodes.
+        """
+        if not node_ids or len(node_ids) < 2 or step <= 0:
+            return
+        try:
+            async with self._driver.session() as session:
+                result = await session.run(
+                    self._REINFORCE_EDGES_CYPHER, node_ids=node_ids, step=step,
+                )
+                record = await result.single()
+                updated = int(record["updated_count"]) if record else 0
+            logger.debug(
+                "CognitiveGraphService.reinforce_edges: +%.3f on %d edge(s) over %d node(s)",
+                step, updated, len(node_ids),
+            )
+        except Exception as exc:  # noqa: BLE001 — background reinforcement must not crash
+            logger.warning("reinforce_edges failed: %s", exc)
+
     # ------------------------------------------------------------------
     # Graph initialisation
     # ------------------------------------------------------------------
