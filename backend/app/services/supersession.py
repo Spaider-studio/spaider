@@ -107,24 +107,10 @@ def _parse_superseded_ids(content: str, valid: set[str]) -> set[str]:
         return set()
 
 
-async def _judge(new_text: str, candidates: list[dict]) -> set[str]:
-    """Ask the LLM which candidate facts the new fact replaces. Conservative."""
-    numbered = "\n".join(f'- id={c["edge_id"]}: {c["text"]}' for c in candidates)
-    prompt = (
-        "A knowledge graph just received a NEW fact. Below are EXISTING facts that "
-        "share an entity and relation type with it. Mark an existing fact OUTDATED "
-        "ONLY IF the new fact REPLACES it: they state the same single-valued "
-        "attribute of the same entity with a changed value (e.g. a company's current "
-        "CEO, a headquarters city, a person's current employer). Do NOT mark it "
-        "outdated if both facts can be true at once (multiple products, multiple "
-        "employees, multiple skills, different kinds of location). When unsure, do "
-        "not mark it.\n\n"
-        f"NEW fact: {new_text}\n\n"
-        f"EXISTING facts:\n{numbered}\n\n"
-        'Reply with ONLY JSON: {"superseded_ids": ["<id>", ...]}  (empty list if none).'
-    )
+async def _llm_json(prompt: str) -> str:
+    """One temperature-0 completion via the configured judge model. '' on failure."""
     kwargs: dict = {
-        "model": settings.litellm_model,
+        "model": settings.supersession_judge_model or settings.litellm_model,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0,
     }
@@ -134,11 +120,79 @@ async def _judge(new_text: str, candidates: list[dict]) -> set[str]:
         kwargs["api_key"] = settings.llm_api_key
     try:
         resp = await acompletion_with_retry(**kwargs)
-        content = resp.choices[0].message.content
-        return _parse_superseded_ids(content, {c["edge_id"] for c in candidates})
-    except Exception as exc:  # noqa: BLE001 — supersession must never break ingest
-        logger.warning("supersession judge failed: %s", exc)
-        return set()
+        return resp.choices[0].message.content or ""
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("supersession llm call failed: %s", exc)
+        return ""
+
+
+async def _is_state_update(new_text: str) -> bool:
+    """Gate: only a CURRENT-STATE assertion can supersede a prior fact.
+
+    This is the cheap per-fact filter that kills the bulk of false positives on
+    real corpora, which are mostly EVENTS. An event (a merge, review, decision,
+    hire, message, bug) never invalidates a prior fact, so it never even looks
+    for supersession candidates. Conservative: unclear/parse-fail -> not a state.
+    """
+    prompt = (
+        "Does this sentence assert a CURRENT, SINGLE-VALUED STATE or ATTRIBUTE — "
+        "something with exactly one value at a time that a later fact could change "
+        "(a company's current CEO/leader, its current headquarters, a person's "
+        "current employer/title, a current status/version/owner)?\n"
+        "Answer NO if it instead describes an EVENT or action that happened at a "
+        "time (a merge, review, deployment, decision, hire, message, bug report, "
+        "config change) or a multi-valued fact. Past-tense actions are events.\n\n"
+        f"Sentence: {new_text}\n\n"
+        'Reply ONLY: {"is_state": true} or {"is_state": false}.'
+    )
+    content = await _llm_json(prompt)
+    try:
+        m = re.search(r"\{.*\}", content, re.DOTALL)
+        return bool(json.loads(m.group(0)).get("is_state", False)) if m else False
+    except Exception:
+        return False
+
+
+async def _judge(new_text: str, candidates: list[dict]) -> set[str]:
+    """Ask the LLM which candidate facts the new fact replaces. Conservative."""
+    numbered = "\n".join(f'- id={c["edge_id"]}: {c["text"]}' for c in candidates)
+    prompt = (
+        "You maintain a knowledge graph. A NEW fact just arrived. Below are EXISTING "
+        "facts that share an entity with it. Decide which existing facts (if any) the "
+        "new fact makes OUTDATED. Superseding a fact DELETES it, so be very "
+        "conservative.\n\n"
+        "A fact is outdated ONLY when the new fact states the SAME persistent, "
+        "single-valued ATTRIBUTE of the SAME entity with a CHANGED value — something "
+        "where only one value can be current at a time: current CEO/leader, current "
+        "headquarters/location, current employer, current job title, current status, "
+        "current version, current owner.\n\n"
+        "NEVER mark a fact outdated if it is:\n"
+        "  - an EVENT that happened at a point in time (a merge, a review, a "
+        "deployment, a meeting, a decision made on a date, a hire, a release, a bug "
+        "found, a config change). Later events NEVER supersede earlier ones, even "
+        "about the same person, repo, or thing.\n"
+        "  - a MULTI-VALUED relation where several values coexist (products a company "
+        "makes, PRs a person merged, people on a team, skills, customers, tickets).\n"
+        "  - merely about the same entity without stating the same single-valued "
+        "attribute.\n\n"
+        "If you cannot name the single-valued attribute that changed, return nothing.\n\n"
+        "Examples:\n"
+        '  NEW "Priya Nair is the CEO of Zephyr" vs "Idris Kane is the CEO of Zephyr" '
+        "-> outdated (current CEO changed).\n"
+        '  NEW "Zephyr is now headquartered in Berlin" vs "Zephyr is headquartered in '
+        'Lisbon" -> outdated (current HQ changed).\n'
+        '  NEW "Sara merged PR#216" vs "Sara merged PR#205" -> NOT outdated (two '
+        "separate events).\n"
+        '  NEW "Zephyr makes Beam" vs "Zephyr makes Lumen" -> NOT outdated (multiple '
+        "products coexist).\n"
+        '  NEW "Jin reviewed PR#252" vs "Marcus reviewed PR#254" -> NOT outdated '
+        "(separate reviews).\n\n"
+        f"NEW fact: {new_text}\n\n"
+        f"EXISTING facts:\n{numbered}\n\n"
+        'Reply with ONLY JSON: {"superseded_ids": ["<id>", ...]}  (empty list if none).'
+    )
+    content = await _llm_json(prompt)
+    return _parse_superseded_ids(content, {c["edge_id"] for c in candidates})
 
 
 async def resolve_supersession(driver, agent_id: str, resolved_payload) -> int:
@@ -150,6 +204,7 @@ async def resolve_supersession(driver, agent_id: str, resolved_payload) -> int:
         return 0
 
     total = 0
+    state_cache: dict[str, bool] = {}  # per-fact "is this a state assertion?"
     for edge in getattr(resolved_payload, "edges", []) or []:
         rel = getattr(edge, "relation", None)
         src = getattr(edge, "source_id", None)
@@ -162,6 +217,12 @@ async def resolve_supersession(driver, agent_id: str, resolved_payload) -> int:
             continue
         new_text = _edge_text(getattr(edge, "properties", None) or {}, "", "", rel)
         if not new_text:
+            continue
+        # Gate: only a current-state assertion can supersede anything. Events
+        # (the bulk of real corpora) never trigger a candidate search or judge.
+        if new_text not in state_cache:
+            state_cache[new_text] = await _is_state_update(new_text)
+        if not state_cache[new_text]:
             continue
         try:
             async with driver.session() as session:

@@ -290,6 +290,12 @@ class Settings(BaseSettings):
         default=10,
         description="Max prior facts considered as supersession candidates per new edge.",
     )
+    supersession_judge_model: str = Field(
+        default="",
+        description="Model for the supersession judge; empty = use litellm_model. A "
+                    "stronger model is more reliable at event-vs-update discrimination. "
+                    "Env: SUPERSESSION_JUDGE_MODEL.",
+    )
 
     # Alchemist Pass — Tier 3 proactive knowledge-graph completion.
     # Off by default; set CONSOLIDATION_PROPOSE_EDGES=true to activate.
