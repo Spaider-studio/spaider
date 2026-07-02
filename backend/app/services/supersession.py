@@ -62,6 +62,30 @@ SET f.superseded = true, f.superseded_by = $new_id
 RETURN count(f) AS facts_marked
 """
 
+# Neutralize the stale denormalized role. Extraction copies a role onto the
+# entity ("Idris Kane" -> description "Chief executive"); the person is NOT
+# superseded (he still exists), but that description is now stale and leaks into
+# the answer. For each superseded edge's endpoint entities, clear the
+# description IF it derives from the superseded fact AND no OTHER non-superseded
+# FACT still mentions that entity (guard against wiping a still-supported one).
+_NEUTRALIZE_CYPHER = """
+UNWIND $items AS item
+MATCH (a:SpaiderNode)-[r:RELATION {id: item.edge_id}]->(b:SpaiderNode)
+WITH [a, b] AS ents, item.text AS ftext
+UNWIND ents AS ent
+WITH DISTINCT ent, ftext
+WHERE ent.agent_id = $aid
+  AND coalesce(ent.type, '') <> 'FACT'
+  AND ent.description IS NOT NULL AND ent.description <> ''
+  AND toLower(ftext) CONTAINS toLower(ent.description)
+OPTIONAL MATCH (f:SpaiderNode {type: 'FACT'})-[:MENTIONS]->(ent)
+  WHERE NOT coalesce(f.superseded, false)
+WITH ent, count(f) AS other_facts
+WHERE other_facts = 0
+SET ent.description = null, ent.role_superseded = true
+RETURN count(ent) AS entities_neutralized
+"""
+
 
 def _edge_text(props, subj: str, obj: str, rel: str) -> str:
     """Best available human sentence for an edge: source_text > description > triple."""
@@ -166,6 +190,7 @@ async def resolve_supersession(driver, agent_id: str, resolved_payload) -> int:
             ]
             async with driver.session() as session:
                 await session.run(_MARK_CYPHER, items=items, new_id=edge.id, aid=agent_id)
+                await session.run(_NEUTRALIZE_CYPHER, items=items, aid=agent_id)
             total += len(items)
             logger.info(
                 "supersession: new edge %s superseded %d prior fact(s)", edge.id, len(items),

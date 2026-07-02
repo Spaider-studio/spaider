@@ -44,11 +44,17 @@ async def _run(args) -> dict:
     update_task_ids = [t.id for t in seq.tasks if any(p.stale for p in t.probes)]
     per_task: dict[str, list[float]] = {tid: [] for tid in update_task_ids}
 
+    skipped = 0
     for i in range(args.iterations):
-        result = await run_sequence(
-            seq, args.base_url, "staleness", args.tenant, keep_agent=False,
-            redis_url=args.redis_url or None, memory_mode=args.memory_mode, top_k=args.top_k,
-        )
+        try:
+            result = await run_sequence(
+                seq, args.base_url, "staleness", args.tenant, keep_agent=False,
+                redis_url=args.redis_url or None, memory_mode=args.memory_mode, top_k=args.top_k,
+            )
+        except Exception as exc:  # noqa: BLE001 — a transient timeout must not kill the batch
+            skipped += 1
+            print(f"  iter {i + 1}/{args.iterations}: SKIPPED ({type(exc).__name__})", flush=True)
+            continue
         report = result["report"]
         ids = report["task_ids"]
         matrix = report["accuracy_matrix"]

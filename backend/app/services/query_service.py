@@ -1899,6 +1899,11 @@ class QueryService:
             "comparison you have not derived from the data. "
             "Check the Relationships section: the answer "
             "is often the node connected to the question's subject. "
+            "Attribute a role, title, or attribute to a person or thing ONLY "
+            "when a fact explicitly states it. Never infer a role from an "
+            "entity merely appearing in the context. For a single-valued "
+            "attribute (a company's current CEO, a headquarters), name only the "
+            "one the facts support, not every candidate entity. "
             "Be factual. If the data doesn't contain the answer, say so."
             + v2_addendum
         )
