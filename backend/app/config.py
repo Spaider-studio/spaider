@@ -201,6 +201,78 @@ class Settings(BaseSettings):
         description="DAG id triggered by POST /api/v1/system/consolidate.",
     )
 
+    # ------------------------------------------------------------------
+    # Cognitive memory (the synaptic graph)
+    #
+    # Retrieval mode is per-agent (SystemAgent.memory_mode), and these are the
+    # global defaults + tuning knobs it reads. Two modes:
+    #   off  classic retrieval, no synaptic scoring, no auto-reinforcement
+    #   on   synaptic retrieval; a grounded answer auto-reinforces the edges it
+    #        used and disuse decays them, and explicit spaider.feedback still
+    #        applies on top (the default)
+    # Explicit feedback works in either mode; "on" adds automatic learning.
+    # The tuning defaults below preserve today's numbers.
+    # ------------------------------------------------------------------
+    default_memory_mode: str = Field(
+        default="on",
+        description="Default SystemAgent.memory_mode: off | on.",
+    )
+    cognitive_base_decay: float = Field(
+        default=0.05,
+        description="ACT-R baseline hourly energy decay (lambda_0). ~20h half-life.",
+    )
+    cognitive_consolidation_factor: float = Field(
+        default=0.5,
+        description="Consolidation strength per sqrt(retrieval_count); slows decay for used nodes.",
+    )
+    cognitive_forget_threshold: float = Field(
+        default=0.3,
+        description="Synaptic score below which nodes/edges are excluded from retrieval.",
+    )
+    hebbian_step_explicit: float = Field(
+        default=0.1,
+        description="utility_weight step for an explicit spaider.feedback call (capped [0.1, 2.0]).",
+    )
+    hebbian_step_implicit: float = Field(
+        default=0.02,
+        description="utility_weight step for implicit reinforcement on a grounded query.",
+    )
+    edge_decay_rate: float = Field(
+        default=0.99,
+        description="Multiplicative utility_weight decay per consolidation pass (floored at 0.1).",
+    )
+    implicit_confidence_threshold: float = Field(
+        default=0.5,
+        description="Minimum query confidence for implicit reinforcement to fire.",
+    )
+
+    # ------------------------------------------------------------------
+    # Per-agent hibernation (autonomous consolidation cadence)
+    #
+    # Each agent picks how often it consolidates (SystemAgent
+    # .consolidation_interval_hours; 0 = off). A background scheduler wakes
+    # every consolidation_scheduler_interval_s, finds agents whose interval
+    # has elapsed since last_consolidated_at, and runs the per-agent passes.
+    # Safe on by default: every agent defaults to 0 (off), so the loop is a
+    # no-op until an agent opts in.
+    # ------------------------------------------------------------------
+    consolidation_scheduler_enabled: bool = Field(
+        default=True,
+        description="Run the per-agent hibernation scheduler loop. Env: CONSOLIDATION_SCHEDULER_ENABLED.",
+    )
+    consolidation_scheduler_interval_s: int = Field(
+        default=300,
+        description="Seconds between hibernation scheduler ticks. Env: CONSOLIDATION_SCHEDULER_INTERVAL_S.",
+    )
+    default_consolidation_interval_hours: int = Field(
+        default=0,
+        description="Default SystemAgent.consolidation_interval_hours (0 = off).",
+    )
+    consolidation_max_concurrent_agents: int = Field(
+        default=4,
+        description="Max agents consolidated concurrently per scheduler tick.",
+    )
+
     # Alchemist Pass — Tier 3 proactive knowledge-graph completion.
     # Off by default; set CONSOLIDATION_PROPOSE_EDGES=true to activate.
     # The cosine band [cosine_min, cosine_max] targets pairs that are

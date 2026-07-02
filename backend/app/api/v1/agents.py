@@ -11,7 +11,9 @@ from typing import AsyncGenerator, Optional
 
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
+from app.config import settings
 from app.models.requests import AgentConnectRequest, AgentCreateRequest
 from app.models.responses import (
     AgentBridgeResponse,
@@ -346,9 +348,12 @@ async def create_agent(request: AgentCreateRequest):
         async with graph._driver.session() as _session:
             await _session.run(
                 "MATCH (a:SystemAgent {agent_id: $aid}) "
-                "SET a.clearance_level = $level",
+                "SET a.clearance_level = $level, a.memory_mode = $mode, "
+                "    a.consolidation_interval_hours = $interval",
                 aid=agent.id,
                 level=agent.clearance_level,
+                mode=settings.default_memory_mode,
+                interval=settings.default_consolidation_interval_hours,
             )
     except Exception as exc:
         logger.warning("Could not create SystemAgent node for %s: %s", agent.id, exc)
@@ -358,6 +363,181 @@ async def create_agent(request: AgentCreateRequest):
     # Return raw key exactly once in the response; the stored record holds only the hash.
     response_agent = agent.model_copy(update={"api_key": raw_key})
     return AgentResponse(success=True, agent=response_agent)
+
+
+class MemoryModeUpdate(BaseModel):
+    memory_mode: str  # "off" | "on"
+
+
+@router.post("/{agent_id}/memory-mode", response_model=APIResponse)
+async def set_memory_mode(agent_id: str, body: MemoryModeUpdate):
+    """
+    Switch an agent's memory mode at any time.
+
+    - ``on``  synaptic retrieval that learns from usage (auto-reinforcement +
+              decay) and still accepts explicit spaider.feedback.
+    - ``off`` classic retrieval, no synaptic scoring or auto-reinforcement.
+
+    Takes effect on the next query. Existing ``utility_weight`` values are
+    preserved across a switch (turning off freezes them; turning on resumes).
+    """
+    mode = body.memory_mode
+    if mode not in ("off", "on"):
+        raise HTTPException(status_code=422, detail="memory_mode must be 'off' or 'on'.")
+    try:
+        graph = _get_graph_service()
+        async with graph._driver.session() as _session:
+            result = await _session.run(
+                "MATCH (a:SystemAgent {agent_id: $aid}) SET a.memory_mode = $mode "
+                "RETURN a.agent_id AS aid",
+                aid=agent_id,
+                mode=mode,
+            )
+            record = await result.single()
+        if record is None:
+            raise HTTPException(
+                status_code=404, detail=f"No SystemAgent node for agent {agent_id}."
+            )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Could not set memory_mode: {exc}")
+
+    logger.info("Set memory_mode=%s for agent %s", mode, agent_id)
+    return APIResponse(
+        success=True,
+        message=f"memory_mode set to '{mode}'",
+        data={"memory_mode": mode},
+    )
+
+
+@router.get("/{agent_id}/memory-mode", response_model=APIResponse)
+async def get_memory_mode(agent_id: str):
+    """
+    Read an agent's current memory mode (``off`` | ``on``).
+
+    Falls back to the configured default when the SystemAgent node carries no
+    explicit value (e.g. an agent created before this field existed).
+    """
+    try:
+        graph = _get_graph_service()
+        async with graph._driver.session() as _session:
+            result = await _session.run(
+                "MATCH (a:SystemAgent {agent_id: $aid}) "
+                "RETURN coalesce(a.memory_mode, $default) AS mode",
+                aid=agent_id,
+                default=settings.default_memory_mode,
+            )
+            record = await result.single()
+        mode = record["mode"] if record else settings.default_memory_mode
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Could not read memory_mode: {exc}")
+
+    return APIResponse(success=True, message=mode, data={"memory_mode": mode})
+
+
+# ---------------------------------------------------------------------------
+# Per-agent hibernation (autonomous consolidation cadence)
+# ---------------------------------------------------------------------------
+
+
+class ConsolidationConfigUpdate(BaseModel):
+    interval_hours: int  # 0 = off; 1 = hourly, 24 = daily, 168 = weekly
+
+
+@router.get("/{agent_id}/consolidation", response_model=APIResponse)
+async def get_consolidation_config(agent_id: str):
+    """
+    Read an agent's hibernation cadence.
+
+    Returns ``interval_hours`` (0 = off) and ``last_consolidated_at`` (ISO
+    string or null). Falls back to the configured default when unset.
+    """
+    try:
+        graph = _get_graph_service()
+        async with graph._driver.session() as _session:
+            result = await _session.run(
+                "MATCH (a:SystemAgent {agent_id: $aid}) "
+                "RETURN coalesce(a.consolidation_interval_hours, $default) AS interval_hours, "
+                "       toString(a.last_consolidated_at) AS last_consolidated_at",
+                aid=agent_id,
+                default=settings.default_consolidation_interval_hours,
+            )
+            record = await result.single()
+        if record is None:
+            interval_hours = settings.default_consolidation_interval_hours
+            last = None
+        else:
+            interval_hours = int(record["interval_hours"])
+            last = record["last_consolidated_at"]
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Could not read consolidation config: {exc}")
+
+    return APIResponse(
+        success=True,
+        message=f"{interval_hours}h",
+        data={"interval_hours": interval_hours, "last_consolidated_at": last},
+    )
+
+
+@router.post("/{agent_id}/consolidation", response_model=APIResponse)
+async def set_consolidation_config(agent_id: str, body: ConsolidationConfigUpdate):
+    """
+    Set an agent's hibernation cadence.
+
+    ``interval_hours``: 0 = off, 1 = hourly, 24 = daily, 168 = weekly (any
+    value in [0, 8760] is accepted). The scheduler runs a per-agent pass once
+    the interval has elapsed since ``last_consolidated_at``.
+    """
+    hours = body.interval_hours
+    if hours < 0 or hours > 8760:
+        raise HTTPException(status_code=422, detail="interval_hours must be between 0 and 8760.")
+    try:
+        graph = _get_graph_service()
+        async with graph._driver.session() as _session:
+            result = await _session.run(
+                "MATCH (a:SystemAgent {agent_id: $aid}) "
+                "SET a.consolidation_interval_hours = $hours "
+                "RETURN a.agent_id AS aid",
+                aid=agent_id,
+                hours=hours,
+            )
+            record = await result.single()
+        if record is None:
+            raise HTTPException(
+                status_code=404, detail=f"No SystemAgent node for agent {agent_id}."
+            )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Could not set consolidation config: {exc}")
+
+    logger.info("Set consolidation_interval_hours=%d for agent %s", hours, agent_id)
+    return APIResponse(
+        success=True,
+        message=f"cadence set to {hours}h",
+        data={"interval_hours": hours},
+    )
+
+
+@router.post("/{agent_id}/consolidate-now", response_model=APIResponse)
+async def consolidate_now(agent_id: str):
+    """
+    Run a consolidation (hibernation) pass for one agent immediately.
+
+    Runs the same passes as the scheduled cadence (prune orphans, fuse
+    duplicates, decay unused synapses, optional inverse-edge proposal) and
+    stamps ``last_consolidated_at``.
+    """
+    try:
+        graph = _get_graph_service()
+        from app.workers.rem_sleep_worker import REMSleepWorker
+        worker = REMSleepWorker(graph._driver)
+        report = await worker.consolidate_agent_now(agent_id)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Consolidation failed: {exc}")
+
+    return APIResponse(success=True, message="consolidation complete", data=report)
 
 
 @router.post("/connect", response_model=AgentBridgeResponse)

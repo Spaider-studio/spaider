@@ -1,116 +1,68 @@
 """
-REM-Sleep Worker — per-agent idle-triggered consolidation.
+REM-Sleep Worker — per-agent, frequency-driven consolidation ("hibernation").
 
 Why this exists
 ---------------
 The default consolidation surface is the weekly Airflow DAG
-(``airflow/dags/graph_maintenance_dag.py``, cron ``"0 3 * * 0"``).
-That cadence wastes ~6.86 days out of every 7 — a personal agent
-that ingests heavily on Monday morning does not benefit from
-duplicate fusion or orphan pruning until the following Sunday at
-03:00 UTC, and all agents share the same window so heavy agents
-starve light ones.
+(``airflow/dags/graph_maintenance_dag.py``, cron ``"0 3 * * 0"``) that runs
+over the whole store at once. That cadence is one-size-fits-all: a heavy
+personal agent may want to consolidate daily while an archival agent is fine
+untouched for weeks.
 
-This worker fixes both: per-agent scheduling, idle-triggered
-(not cron-triggered). When an agent has been quiet for
-``_IDLE_THRESHOLD_HOURS`` it gets a sleep pass that prunes its
-orphans, fuses near-duplicates, and (optionally) runs the
-alchemist inverse pass.
+This worker gives every agent its OWN cadence. Each ``SystemAgent`` node
+carries ``consolidation_interval_hours`` (0 = off) and ``last_consolidated_at``.
+A background loop wakes every ``consolidation_scheduler_interval_s`` seconds,
+finds the agents whose interval has elapsed, and runs a per-agent sleep pass
+(prune orphans, fuse duplicates, decay unused synapses, optionally propose
+inverse edges), then stamps ``last_consolidated_at``.
 
-Status: V1 implementation. Gated off by default behind
-``REM_SLEEP_WORKER_ENABLED`` — see "Wiring" below. Designed to
-be invoked from the FastAPI startup lifespan or as a standalone
-process; this file defines the worker class only.
+Safe on by default: every agent defaults to interval 0 (off), so the loop is a
+no-op until an agent opts into a cadence (or a "consolidate now" is triggered).
 
-Wiring (out of scope for this commit)
--------------------------------------
-To enable, add to ``backend/app/main.py`` lifespan (or run as a
-sidecar process)::
+Wiring
+------
+Started from the FastAPI startup lifespan in ``backend/app/main.py`` when
+``settings.consolidation_scheduler_enabled`` is true::
 
-    if os.environ.get("REM_SLEEP_WORKER_ENABLED", "false").lower() == "true":
-        worker = REMSleepWorker(graph_service._driver)
-        asyncio.create_task(worker.run())
+    worker = REMSleepWorker(graph_service._driver)
+    asyncio.create_task(worker.run())
 
-Idle detection
---------------
-Today there is no ``last_query_at`` field per agent. As a proxy,
-this worker reads ``max(n.last_activation)`` across each agent's
-SpaiderNodes — that field is refreshed on every retrieval by
-``CognitiveGraphService.boost_nodes`` (see
-``backend/app/services/cognitive_engine.py``). An agent whose
-nodes have all been quiet for ``_IDLE_THRESHOLD_HOURS`` is
-treated as sleeping.
-
-Caveats:
-  • Agents that ingested heavily but never queried have stale
-    ``last_activation`` values — they'll trigger sleep early.
-    Acceptable for V1; a dedicated ``last_query_at`` Redis key
-    is in scope for Phase A.2 of the architecture proposal.
-  • An agent with zero nodes has ``last_activation = NULL`` and
-    is treated as "permanently sleeping" — the cypher below
-    excludes those via NOT NULL guard.
+The same class backs the manual per-agent trigger
+(``POST /api/v1/agents/{id}/consolidate-now``) via ``consolidate_agent_now``.
 """
 from __future__ import annotations
 
 import asyncio
 import logging
-import os
 from datetime import datetime, timedelta, timezone
 
-from app.lib.consolidation import _fuse_agent_duplicates, _propose_relations
+from app.config import settings
+from app.lib.consolidation import (
+    _ORPHAN_MIN_AGE_DAYS,
+    _fuse_agent_duplicates,
+    _propose_relations,
+)
 
 logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Tunables (env-overridable; same pattern as ``consolidation.py:52-53``)
-# ---------------------------------------------------------------------------
-
-# Feature flag. Default off — the worker is a no-op unless explicitly
-# enabled. See module docstring "Wiring" section for activation steps.
-_REM_SLEEP_WORKER_ENABLED = (
-    os.environ.get("REM_SLEEP_WORKER_ENABLED", "false").lower() == "true"
-)
-
-# How often the worker wakes to scan for idle agents (seconds).
-_LOOP_INTERVAL_SECONDS = int(os.environ.get("REM_SLEEP_LOOP_INTERVAL_S", "1800"))
-
-# An agent is "sleeping" when its most-recent ``n.last_activation`` is
-# older than this. Default: 4 hours.
-_IDLE_THRESHOLD_HOURS = int(os.environ.get("REM_SLEEP_IDLE_HOURS", "4"))
-
-# Minimum age (days) for an orphan node before it qualifies for pruning
-# inside a sleep pass. Mirrors ``ORPHAN_MIN_AGE_DAYS`` in
-# ``consolidation.py:52`` but is intentionally separate so operators can
-# tune sleep-time pruning more aggressively than the weekly DAG without
-# affecting the DAG's defaults.
-_SLEEP_ORPHAN_MIN_AGE_DAYS = int(
-    os.environ.get("REM_SLEEP_ORPHAN_MIN_AGE_DAYS", "7")
-)
-
-# Cap on concurrent agent sleep passes. Prevents a "thundering herd" if
-# 100 agents go idle simultaneously (e.g., after a Friday-evening lull).
-_MAX_CONCURRENT_AGENTS = int(os.environ.get("REM_SLEEP_MAX_CONCURRENCY", "4"))
-
-
-# ---------------------------------------------------------------------------
-# Per-agent orphan-prune (inline; ``consolidation.py:_prune_orphans`` is
-# global-scoped, no agent_id parameter). Mirrors that function's Cypher
-# shape exactly, with the agent_id WHERE clause added.
+# Per-agent passes (agent-scoped; the consolidation.py variants that carry an
+# agent_id are reused directly, and the two below add the scoping the global
+# passes lack).
 # ---------------------------------------------------------------------------
 
 
 async def _prune_agent_orphans(driver, agent_id: str) -> int:
     """Delete isolated SpaiderNodes for one agent older than the threshold.
 
-    Returns the number of nodes deleted. Safe to call concurrently with
-    other agents — every Cypher pattern is fully agent-scoped.
+    Returns the number of nodes deleted. Fully agent-scoped, so it is safe to
+    run concurrently with other agents.
     """
     cutoff_ms = int(
-        (datetime.now(timezone.utc) - timedelta(days=_SLEEP_ORPHAN_MIN_AGE_DAYS))
+        (datetime.now(timezone.utc) - timedelta(days=_ORPHAN_MIN_AGE_DAYS))
         .timestamp() * 1000
     )
-
     async with driver.session() as session:
         count_result = await session.run(
             """
@@ -140,8 +92,33 @@ async def _prune_agent_orphans(driver, agent_id: str) -> int:
                 agent_id=agent_id,
                 cutoff_ms=cutoff_ms,
             )
-
     return total
+
+
+async def _decay_agent_edges(driver, agent_id: str) -> int:
+    """Multiplicatively decay this agent's RELATION utility_weights (floored 0.1).
+
+    The disuse counterweight to implicit reinforcement, scoped to one agent so
+    it runs inside a per-agent sleep pass. No-op when the rate is >= 1.0.
+    """
+    rate = settings.edge_decay_rate
+    if rate >= 1.0:
+        return 0
+    async with driver.session() as session:
+        result = await session.run(
+            """
+            MATCH (:SpaiderNode {agent_id: $agent_id})-[r:RELATION]->(:SpaiderNode {agent_id: $agent_id})
+            WITH r, coalesce(r.utility_weight, 1.0) AS w
+            WITH r, w, CASE WHEN w * $rate < 0.1 THEN 0.1 ELSE w * $rate END AS new_w
+            WHERE new_w <> w
+            SET r.utility_weight = new_w
+            RETURN count(r) AS decayed
+            """,
+            agent_id=agent_id,
+            rate=rate,
+        )
+        record = await result.single()
+        return int(record["decayed"]) if record else 0
 
 
 # ---------------------------------------------------------------------------
@@ -150,7 +127,7 @@ async def _prune_agent_orphans(driver, agent_id: str) -> int:
 
 
 class REMSleepWorker:
-    """Idle-triggered, per-agent consolidation loop.
+    """Frequency-driven, per-agent consolidation loop.
 
     Lifecycle::
 
@@ -158,61 +135,42 @@ class REMSleepWorker:
         task = asyncio.create_task(worker.run())   # fire-and-forget
         ...
         worker.stop()                              # graceful shutdown
-        await task                                 # await loop exit
-
-    The ``run()`` coroutine is the long-lived loop. It iterates forever
-    (until ``stop()`` is called) and uses ``asyncio.sleep`` between
-    sweeps; it never blocks the event loop.
+        await task
     """
 
     def __init__(self, driver) -> None:
         self._driver = driver
         self._running: bool = False
-        # Tracks the last sleep-event timestamp per agent so we don't
-        # re-consolidate the same idle agent every loop tick. An agent
-        # gets at most one sleep pass per
-        # ``2 * _IDLE_THRESHOLD_HOURS`` window.
-        self._last_sleep_at: dict[str, datetime] = {}
 
     # ------------------------------------------------------------------
     # Public lifecycle
     # ------------------------------------------------------------------
 
     async def run(self) -> None:
-        """Run the consolidation loop until ``stop()`` is called.
+        """Run the hibernation loop until ``stop()`` is called.
 
-        Outermost try/except guarantees that a failure in any sweep
-        (one bad agent, an unreachable Neo4j, anything) cannot crash
-        the loop. The worker will log the exception and continue
-        sleeping until the next tick.
+        The outer try/except guarantees a failed sweep (a bad agent, an
+        unreachable Neo4j) never crashes the loop.
         """
-        if not _REM_SLEEP_WORKER_ENABLED:
+        if not settings.consolidation_scheduler_enabled:
             logger.info(
-                "REMSleepWorker: REM_SLEEP_WORKER_ENABLED is false — "
-                "worker is a no-op. Set the env var to 'true' to enable."
+                "REMSleepWorker: consolidation_scheduler_enabled is false — "
+                "hibernation scheduler is a no-op."
             )
             return
 
         self._running = True
+        interval = settings.consolidation_scheduler_interval_s
         logger.info(
-            "REMSleepWorker: starting | interval=%ds idle_hours=%d "
-            "orphan_age_days=%d max_concurrent=%d",
-            _LOOP_INTERVAL_SECONDS,
-            _IDLE_THRESHOLD_HOURS,
-            _SLEEP_ORPHAN_MIN_AGE_DAYS,
-            _MAX_CONCURRENT_AGENTS,
+            "REMSleepWorker: hibernation scheduler started | tick=%ds max_concurrent=%d",
+            interval, settings.consolidation_max_concurrent_agents,
         )
-
         while self._running:
             try:
                 await self._tick()
             except Exception as exc:  # noqa: BLE001
-                # A failure during the tick (e.g. Neo4j outage) must NOT
-                # crash the loop. Log with stack trace and continue.
-                logger.exception(
-                    "REMSleepWorker: tick failed — continuing | error=%s", exc,
-                )
-            await asyncio.sleep(_LOOP_INTERVAL_SECONDS)
+                logger.exception("REMSleepWorker: tick failed — continuing | error=%s", exc)
+            await asyncio.sleep(interval)
 
         logger.info("REMSleepWorker: stopped")
 
@@ -225,129 +183,96 @@ class REMSleepWorker:
     # ------------------------------------------------------------------
 
     async def _tick(self) -> None:
-        """Find idle agents and consolidate each one, bounded by a semaphore."""
-        idle_agent_ids = await self._find_idle_agents()
-        if not idle_agent_ids:
-            logger.debug("REMSleepWorker: no idle agents this tick")
+        """Find agents whose cadence has elapsed and consolidate each one."""
+        due = await self._find_due_agents()
+        if not due:
+            logger.debug("REMSleepWorker: no agents due this tick")
             return
 
-        logger.info(
-            "REMSleepWorker: %d idle agent(s) qualify for consolidation: %s",
-            len(idle_agent_ids), idle_agent_ids,
-        )
+        logger.info("REMSleepWorker: %d agent(s) due for consolidation: %s", len(due), due)
 
-        # Bound concurrency so a burst of idle agents doesn't saturate the
-        # Neo4j connection pool. Each ``_consolidate_agent`` call holds a
-        # session for the duration of its 3 sub-passes.
-        sem = asyncio.Semaphore(_MAX_CONCURRENT_AGENTS)
+        sem = asyncio.Semaphore(settings.consolidation_max_concurrent_agents)
 
         async def _run_with_sem(agent_id: str) -> None:
             async with sem:
                 await self._consolidate_agent(agent_id)
 
-        await asyncio.gather(
-            *[_run_with_sem(aid) for aid in idle_agent_ids],
-            return_exceptions=True,
-        )
+        await asyncio.gather(*[_run_with_sem(aid) for aid in due], return_exceptions=True)
 
-    async def _find_idle_agents(self) -> list[str]:
-        """Identify agents whose most-recent node activation is older than
-        the idle threshold AND who haven't been consolidated in the
-        current window.
+    async def _find_due_agents(self) -> list[str]:
+        """Agents with a cadence set whose interval has elapsed since last run.
 
-        Returns a list of agent_id strings.
+        ``last_consolidated_at`` NULL (never consolidated) always qualifies once
+        a cadence is set, so opting in triggers a first pass on the next tick.
         """
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=_IDLE_THRESHOLD_HOURS)
-        # In-memory dedupe window: skip agents we just consolidated.
-        dedupe_cutoff = datetime.now(timezone.utc) - timedelta(
-            hours=2 * _IDLE_THRESHOLD_HOURS,
-        )
-
         async with self._driver.session() as session:
             result = await session.run(
                 """
                 MATCH (a:SystemAgent)
                 WHERE a.agent_id IS NOT NULL
-                OPTIONAL MATCH (n:SpaiderNode {agent_id: a.agent_id})
-                WHERE n.last_activation IS NOT NULL AND NOT n:SystemAgent
+                  AND coalesce(a.consolidation_interval_hours, 0) > 0
                 WITH a.agent_id AS agent_id,
-                     max(n.last_activation) AS most_recent
-                WHERE most_recent IS NOT NULL
-                  AND datetime(most_recent) < datetime($cutoff)
+                     coalesce(a.consolidation_interval_hours, 0) AS interval_h,
+                     a.last_consolidated_at AS last_at
+                WHERE last_at IS NULL
+                   OR datetime(last_at) < datetime() - duration({hours: interval_h})
                 RETURN agent_id
-                """,
-                cutoff=cutoff.isoformat(),
+                """
             )
-            candidates: list[str] = [r["agent_id"] async for r in result]
+            return [r["agent_id"] async for r in result]
 
-        # In-memory dedupe: drop agents we already consolidated recently.
-        filtered = [
-            aid for aid in candidates
-            if self._last_sleep_at.get(aid, datetime.min.replace(tzinfo=timezone.utc))
-            < dedupe_cutoff
-        ]
-        return filtered
+    async def _consolidate_agent(self, agent_id: str) -> dict:
+        """Run prune → fuse → decay → (optional) propose for one agent, then
+        stamp ``last_consolidated_at``.
 
-    async def _consolidate_agent(self, agent_id: str) -> None:
-        """Run prune → fuse → (optional) propose for one agent.
-
-        A failure in any sub-pass is logged and swallowed so the
-        remaining passes (and remaining agents) still complete. The
-        worker loop guarantees this method never raises.
+        A failure in any sub-pass is logged and swallowed so the remaining
+        passes still run. Returns a small report dict (used by the manual
+        trigger endpoint).
         """
         logger.info("REMSleepWorker: consolidating agent=%s", agent_id)
-        sleep_started = datetime.now(timezone.utc)
+        pruned = fused = decayed = proposed = 0
 
-        pruned = fused = proposed = 0
-
-        # ── Pass 1: orphan prune (agent-scoped) ─────────────────────────
         try:
             pruned = await _prune_agent_orphans(self._driver, agent_id)
         except Exception as exc:  # noqa: BLE001
-            logger.exception(
-                "REMSleepWorker: orphan prune failed | agent=%s err=%s",
-                agent_id, exc,
-            )
+            logger.exception("REMSleepWorker: orphan prune failed | agent=%s err=%s", agent_id, exc)
 
-        # ── Pass 2: duplicate fusion (agent-scoped, from consolidation.py) ─
         try:
-            # numpy is imported lazily so a missing dependency degrades
-            # this pass to a no-op rather than crashing the worker.
             import numpy as np
             fused = await _fuse_agent_duplicates(self._driver, agent_id, np)
         except ImportError:
-            logger.warning(
-                "REMSleepWorker: numpy unavailable — skipping fuse pass for "
-                "agent=%s",
-                agent_id,
-            )
+            logger.warning("REMSleepWorker: numpy unavailable — skipping fuse | agent=%s", agent_id)
         except Exception as exc:  # noqa: BLE001
-            logger.exception(
-                "REMSleepWorker: duplicate fuse failed | agent=%s err=%s",
-                agent_id, exc,
-            )
+            logger.exception("REMSleepWorker: duplicate fuse failed | agent=%s err=%s", agent_id, exc)
 
-        # ── Pass 3: alchemist edge proposal (optional, respects the
-        # existing global ``CONSOLIDATION_PROPOSE_EDGES`` flag — we do
-        # NOT introduce a separate sleep-only flag for this).
         try:
-            from app.config import settings as _settings
-            if _settings.consolidation_propose_edges:
+            decayed = await _decay_agent_edges(self._driver, agent_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("REMSleepWorker: edge decay failed | agent=%s err=%s", agent_id, exc)
+
+        try:
+            if settings.consolidation_propose_edges:
                 import numpy as np
                 proposed = await _propose_relations(self._driver, agent_id, np)
         except ImportError:
-            pass  # numpy already warned above
+            pass
         except Exception as exc:  # noqa: BLE001
-            logger.exception(
-                "REMSleepWorker: edge proposal failed | agent=%s err=%s",
-                agent_id, exc,
-            )
+            logger.exception("REMSleepWorker: alchemist failed | agent=%s err=%s", agent_id, exc)
 
-        # ── Mark this agent as consolidated this window ─────────────────
-        self._last_sleep_at[agent_id] = sleep_started
-        duration = (datetime.now(timezone.utc) - sleep_started).total_seconds()
-        logger.info(
-            "REMSleepWorker: agent=%s done in %.1fs | "
-            "orphans_pruned=%d duplicates_fused=%d edges_proposed=%d",
-            agent_id, duration, pruned, fused, proposed,
-        )
+        # Stamp completion so the cadence clock restarts from now.
+        try:
+            async with self._driver.session() as session:
+                await session.run(
+                    "MATCH (a:SystemAgent {agent_id: $aid}) SET a.last_consolidated_at = datetime()",
+                    aid=agent_id,
+                )
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("REMSleepWorker: could not stamp last_consolidated_at | agent=%s err=%s", agent_id, exc)
+
+        report = {"pruned": pruned, "fused": fused, "decayed": decayed, "proposed": proposed}
+        logger.info("REMSleepWorker: agent=%s done | %s", agent_id, report)
+        return report
+
+    async def consolidate_agent_now(self, agent_id: str) -> dict:
+        """Run a consolidation pass for one agent immediately (manual trigger)."""
+        return await self._consolidate_agent(agent_id)

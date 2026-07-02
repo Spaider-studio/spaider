@@ -13,6 +13,7 @@ import {
 import { formatDate, maskApiKey } from "@/lib/utils";
 import type { Agent, ClearanceLevel } from "@/lib/types";
 import { CLEARANCE_LABELS } from "@/lib/types";
+import MemoryModeToggle from "@/components/shared/MemoryModeToggle";
 
 // ---------------------------------------------------------------------------
 // Clearance badge — style map
@@ -187,6 +188,11 @@ export default function AgentCard({ agent, onDelete, onRotate }: Props) {
                   </button>
                 </div>
               )}
+            </div>
+
+            {/* Per-agent synaptic memory switch */}
+            <div className="mt-3 pt-3 border-t border-[#2A2A35]/60">
+              <MemoryModeToggle agentId={agent.id} />
             </div>
           </div>
         </div>

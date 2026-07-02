@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { Search, AlertCircle, X, Zap, ThumbsUp, ThumbsDown, Brain } from "lucide-react";
 import { useGraph } from "@/hooks/useGraph";
-import { useEngine } from "@/context/EngineContext";
+import { useMemoryMode } from "@/context/MemoryModeContext";
 import { queryNL } from "@/lib/api";
 import type { GraphNode, GraphEdge } from "@/lib/types";
 
@@ -60,8 +60,8 @@ export default function QueryPanel() {
   const [topKIndex, setTopKIndex] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
   const { agentId, clearHighlights, highlightedIds } = useGraph();
-  const { engineVersion } = useEngine();
-  const isV2 = engineVersion === "v2";
+  const { memoryMode } = useMemoryMode();
+  const isV2 = memoryMode === "on";
 
   async function handleQuery() {
     if (!question.trim() || loading) return;
@@ -177,16 +177,18 @@ export default function QueryPanel() {
         Query Graph
       </h3>
 
-      {/* V2 active banner */}
+      {/* Adaptive-memory banner (agent memory_mode = on) */}
       {isV2 && (
-        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/25 shadow-[0_0_10px_rgba(139,92,246,0.1)]">
-          <Brain className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-          <span className="text-xs text-purple-300 font-medium">
-            Cognitive Graph · V2
-          </span>
-          <span className="ml-auto text-[10px] text-purple-400/50 whitespace-nowrap">
-            Managed Forgetting ON
-          </span>
+        <div className="flex items-start gap-2 px-2.5 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/25 shadow-[0_0_10px_rgba(139,92,246,0.1)]">
+          <Brain className="w-3.5 h-3.5 text-purple-400 shrink-0 mt-0.5" />
+          <div className="flex flex-col min-w-0 leading-tight">
+            <span className="text-xs text-purple-300 font-medium">
+              Synaptic Memory · On
+            </span>
+            <span className="text-[10px] text-purple-400/60">
+              Reinforces on use, decays on disuse
+            </span>
+          </div>
         </div>
       )}
 

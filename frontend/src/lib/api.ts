@@ -701,7 +701,6 @@ export async function getSwarmHealth(
 
 export interface SystemSettings {
   auto_reflection: boolean;
-  engine_version: "v1" | "v2";
 }
 
 export async function getSystemSettings(): Promise<SystemSettings> {
@@ -717,11 +716,71 @@ export async function setReflectionEnabled(
   });
 }
 
-export async function setEngineVersion(
-  version: "v1" | "v2"
-): Promise<SystemSettings> {
-  return request<SystemSettings>("/system/settings/engine", {
-    method: "POST",
-    body: JSON.stringify({ version }),
-  });
+// ---- Per-agent memory mode (off | on) --------------------------------------
+
+export async function getMemoryMode(agentId: string): Promise<"off" | "on"> {
+  const res = await request<{ data?: { memory_mode?: string } }>(
+    `/agents/${encodeURIComponent(agentId)}/memory-mode`
+  );
+  return (res.data?.memory_mode as "off" | "on") ?? "on";
+}
+
+export async function setMemoryMode(
+  agentId: string,
+  mode: "off" | "on"
+): Promise<"off" | "on"> {
+  const res = await request<{ data?: { memory_mode?: string } }>(
+    `/agents/${encodeURIComponent(agentId)}/memory-mode`,
+    { method: "POST", body: JSON.stringify({ memory_mode: mode }) }
+  );
+  return (res.data?.memory_mode as "off" | "on") ?? mode;
+}
+
+// ---- Per-agent hibernation cadence (autonomous consolidation) --------------
+
+export interface ConsolidationConfig {
+  interval_hours: number; // 0 = off
+  last_consolidated_at: string | null;
+}
+
+export async function getConsolidationConfig(
+  agentId: string
+): Promise<ConsolidationConfig> {
+  const res = await request<{ data?: ConsolidationConfig }>(
+    `/agents/${encodeURIComponent(agentId)}/consolidation`
+  );
+  return {
+    interval_hours: res.data?.interval_hours ?? 0,
+    last_consolidated_at: res.data?.last_consolidated_at ?? null,
+  };
+}
+
+export async function setConsolidationConfig(
+  agentId: string,
+  intervalHours: number
+): Promise<number> {
+  const res = await request<{ data?: { interval_hours?: number } }>(
+    `/agents/${encodeURIComponent(agentId)}/consolidation`,
+    { method: "POST", body: JSON.stringify({ interval_hours: intervalHours }) }
+  );
+  return res.data?.interval_hours ?? intervalHours;
+}
+
+export interface ConsolidationReport {
+  pruned: number;
+  fused: number;
+  decayed: number;
+  proposed: number;
+}
+
+export async function consolidateNow(
+  agentId: string
+): Promise<ConsolidationReport> {
+  const res = await request<{ data?: ConsolidationReport }>(
+    `/agents/${encodeURIComponent(agentId)}/consolidate-now`,
+    { method: "POST" }
+  );
+  return (
+    res.data ?? { pruned: 0, fused: 0, decayed: 0, proposed: 0 }
+  );
 }

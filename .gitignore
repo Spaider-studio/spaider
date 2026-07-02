@@ -81,7 +81,7 @@ credentials.json
 
 # Internal founder-facing working files — never committed
 PRIVATE-*.md
-PRE-OPEN-SOURCE-TODO.md
+ROADMAP.md
 benchmarks/corpus/nexora_ctx_*.txt
 
 # Benchmark scratch run dirs (logs, JSONL) — never commit
