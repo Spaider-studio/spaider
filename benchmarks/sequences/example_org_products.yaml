@@ -1,0 +1,52 @@
+sequence_id: cl_org_products_v1
+description: >
+  A three-task continual-learning sequence over an invented, private corpus the
+  base model cannot know, so the cold baseline is ~0 and any accuracy is real
+  ingestion. Tasks are learned in order (acquisitions -> products -> people);
+  re-probing earlier tasks after later ingests measures forgetting, and probing
+  a task before ingesting it measures forward transfer from earlier tasks.
+
+tasks:
+  - id: acquisitions
+    title: "Corporate acquisitions and founders"
+    corpus:
+      - "Zephyr Systems acquired Quill AI in March 2025 for 240 million dollars."
+      - "Quill AI was founded by Mara Vance in 2019."
+      - "Zephyr Systems is headquartered in Lisbon."
+      - "The Quill AI acquisition was led by Zephyr's CFO, Idris Kane."
+    probes:
+      - question: "Who acquired Quill AI?"
+        expected_output: "Zephyr Systems"
+      - question: "Who founded Quill AI?"
+        expected_output: "Mara Vance"
+      - question: "In which city is Zephyr Systems headquartered?"
+        expected_output: "Lisbon"
+
+  - id: products
+    title: "Products and infrastructure"
+    corpus:
+      - "Quill AI built the Lumen speech model."
+      - "The Lumen speech model runs on the Pulsar inference cluster."
+      - "Pulsar is a GPU cluster located in Zephyr's Lisbon datacentre."
+      - "Lumen was released to the public in January 2026."
+    probes:
+      - question: "Which speech model did Quill AI build?"
+        expected_output: "Lumen"
+      - question: "Which cluster runs the Lumen speech model?"
+        expected_output: "Pulsar"
+      - question: "When was Lumen released to the public?"
+        expected_output: "January 2026"
+
+  - id: people
+    title: "People and roles"
+    corpus:
+      - "Mara Vance left Zephyr Systems in 2026 to found Orrery Labs."
+      - "Kofi Adjei is the head of engineering for the Pulsar cluster."
+      - "Idris Kane was promoted to Zephyr Systems CEO in 2026."
+    probes:
+      - question: "What company did Mara Vance found in 2026?"
+        expected_output: "Orrery Labs"
+      - question: "Who heads engineering for the Pulsar cluster?"
+        expected_output: "Kofi Adjei"
+      - question: "Who became CEO of Zephyr Systems in 2026?"
+        expected_output: "Idris Kane"

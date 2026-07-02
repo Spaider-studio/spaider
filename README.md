@@ -73,6 +73,18 @@ So on a private knowledge base of any real size, SpAIder is both **more accurate
 
 → Full results: **[benchmarks/COMPARISON.md](benchmarks/COMPARISON.md)** · per-corpus [HotpotQA](benchmarks/scorecard_hotpotqa.md) / [AcmeAI](benchmarks/scorecard_acmeai.md) · token economics + methodology: **[docs/token-economics.md](docs/token-economics.md)** · reproduce with `make bench-scorecard`.
 
+### Continual learning: does it forget?
+
+Memory systems are sold on ingest and recall, but nobody reports what happens to *earlier* knowledge as *new* knowledge arrives. SpAIder ships a reproducible **continual-learning benchmark** that measures exactly that: ingest a task, then re-probe earlier tasks to quantify **forgetting** (accuracy lost on old knowledge) and **knowledge transfer** (whether earlier learning helps later tasks). To our knowledge, no other memory system publishes this.
+
+On the example sequences (invented private corpora the model cannot know), SpAIder retains **~89% of earlier-task accuracy** after learning new tasks, with **near-zero average forgetting**, and occasionally *positive* backward transfer (later learning reinforcing an earlier fact).
+
+- Run one: `python -m benchmarks.sequence_runner --sequence benchmarks/sequences/example_org_products.yaml`
+- A/B the synaptic engine against classic retrieval, per agent: `--memory-mode on|off`
+- Results render in the dashboard's **Continual learning** tab (accuracy matrix + forgetting/transfer).
+
+<sub>This is a measurement tool, not a leaderboard claim: on the current sequences the synaptic engine and classic retrieval score within noise of each other. The benchmark exists so that as the cognitive layer evolves, any real gain is provable rather than asserted.</sub>
+
 ---
 
 ## Architecture
