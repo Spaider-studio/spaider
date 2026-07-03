@@ -21,12 +21,15 @@ RLHG Extraction Strategy
 For every (start_node, agent_id) pair that has at least two diverging
 1-3 hop paths, we extract:
 
-  chosen   — path terminating at a node with energy_level > CHOSEN_ENERGY
-             (evidence: the model repeatedly found this node useful)
+  chosen   — a retrieved terminal (energy_level > CHOSEN_ENERGY) reached by a
+             HIGH-utility path (avg utility_weight >= DPO_MIN_CHOSEN_WEIGHT):
+             the reinforced, repeatedly-useful reasoning chain.
 
-  rejected — path terminating at a node with energy_level < REJECTED_ENERGY
-             (evidence: the model never returned to this node, or the path
-              is structurally weak: avg utility_weight < REJECTED_WEIGHT)
+  rejected — a terminal reached by a LOW-utility path (avg utility_weight <=
+             REJECTED_WEIGHT): a relation that Hebbian feedback marked as
+             less useful. Node energy_level is NOT used here — it is only ever
+             reset to 1.0 on retrieval and never persisted lower, so utility
+             (which does decay with feedback) is the real rejected signal.
 
 The chosen response embeds an RLHG Reasoning Chain:
 
@@ -220,10 +223,6 @@ CALL {
     WITH start
     MATCH path = (start)-[rels:RELATION*1..{max_depth}]->(rejected_end:SpaiderNode)
     WHERE rejected_end.id <> start.id
-      AND (
-            rejected_end.energy_level < $rejected_energy
-            OR coalesce(rejected_end.needs_human, false) = true
-          )
       AND all(n IN nodes(path) WHERE coalesce(n.clearance_level, 0) <= $caller_clearance)
     WITH
         path,
@@ -236,9 +235,14 @@ CALL {
         r_energy,
         weights,
         reduce(s = 0.0, w IN weights | s + w) / size(weights) AS r_avg_weight
+    // The rejected signal is LOW Hebbian utility — a path that repeatedly proved
+    // less useful in answers. Node energy_level is never persisted below 1.0
+    // (only reset to 1.0 on retrieval), so it cannot define the rejected side;
+    // utility_weight is the real, persisted usefulness signal, and this is
+    // symmetric with the chosen gate's utility threshold above.
     WHERE r_avg_weight <= $rejected_weight
     WITH path, rejected_end, r_energy, r_avg_weight
-    ORDER BY r_energy ASC, r_avg_weight ASC
+    ORDER BY r_avg_weight ASC, r_energy ASC
     LIMIT 1
     RETURN
         path                                                AS r_path,
@@ -465,7 +469,6 @@ async def _stream_dpo_pairs(
                 query,
                 agent_id              = agent_id,
                 chosen_energy         = CHOSEN_ENERGY,
-                rejected_energy       = REJECTED_ENERGY,
                 rejected_weight       = REJECTED_WEIGHT,
                 dpo_min_chosen_weight = DPO_MIN_CHOSEN_WEIGHT,  # B2 — Pillar 1 quality gate
                 caller_clearance      = caller_clearance,       # B4 — Diplomat Protocol
