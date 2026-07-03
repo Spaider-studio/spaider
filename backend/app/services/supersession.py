@@ -18,8 +18,9 @@ module resolves that at ingest:
   3. Mark the superseded edge AND its FACT node (the raw sentence, retrievable by
      embedding) so neither leaks into retrieval.
 
-Off by default (settings.supersession_enabled). One LLM call per new edge that
-has a candidate; edges with no candidate cost nothing.
+Per-agent (SystemAgent.supersede; default settings.default_supersession). A
+per-fact state-vs-event gate means events skip supersession entirely; a
+state-assertion fact costs one LLM call per candidate it has.
 """
 from __future__ import annotations
 
@@ -200,7 +201,20 @@ async def resolve_supersession(driver, agent_id: str, resolved_payload) -> int:
 
     Fire-safe: any failure is logged and swallowed so ingest always succeeds.
     """
-    if not settings.supersession_enabled:
+    # Per-agent gate: supersede is a memory-behaviour choice (archive keeps the
+    # full history and superseding would erase it; working memory wants the
+    # current state). Read the agent's flag, default from config.
+    try:
+        async with driver.session() as session:
+            res = await session.run(
+                "MATCH (a:SystemAgent {agent_id: $aid}) RETURN coalesce(a.supersede, $d) AS s",
+                aid=agent_id, d=settings.default_supersession,
+            )
+            rec = await res.single()
+        enabled = bool(rec["s"]) if rec else settings.default_supersession
+    except Exception:  # noqa: BLE001
+        enabled = settings.default_supersession
+    if not enabled:
         return 0
 
     total = 0

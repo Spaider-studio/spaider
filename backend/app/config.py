@@ -276,15 +276,16 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     # Ingest-time supersession (contradiction / update resolution)
     #
-    # When a newly ingested fact updates a functional relationship (a company's
-    # current CEO, a headquarters, a person's employer), an LLM judges which
-    # prior fact it replaces and the prior fact + its FACT node are marked
-    # superseded and excluded from retrieval. Off by default (adds one LLM call
-    # per ingest that finds a candidate, and it can mislabel; opt in explicitly).
+    # Per-agent (SystemAgent.supersede), like memory_mode and hibernation. When
+    # on, a newly ingested current-STATE fact that updates a functional
+    # relationship (a company's current CEO, a headquarters) marks the prior fact
+    # superseded and excludes it from retrieval. Off is the archive behaviour
+    # (keep the full history); on is the working-memory behaviour (current state
+    # only). This global is just the DEFAULT for new agents.
     # ------------------------------------------------------------------
-    supersession_enabled: bool = Field(
+    default_supersession: bool = Field(
         default=False,
-        description="Enable ingest-time semantic supersession of updated facts. Env: SUPERSESSION_ENABLED.",
+        description="Default SystemAgent.supersede for new agents. Env: DEFAULT_SUPERSESSION.",
     )
     supersession_max_candidates: int = Field(
         default=10,
