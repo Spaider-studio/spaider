@@ -1569,13 +1569,27 @@ class QueryService:
         asyncio.create_task(self._publish_pheromone(_boosted, agent_id, _labels))
 
         # Implicit Hebbian reinforcement: in "on" mode a grounded, confident
-        # answer strengthens the edges among the nodes it actually used (disuse
-        # decays them during consolidation). Fire-and-forget, small step;
-        # explicit spaider.feedback still applies a larger nudge on top.
+        # answer strengthens ONLY the edges among the nodes the answer actually
+        # used, not every co-retrieved bystander. Reinforcing the whole
+        # subgraph pushes a node's edges up together, so utility_weight never
+        # differentiates within a neighbourhood (weak ranking, and the RLHG
+        # exporter finds no chosen/rejected divergence). Scoping to the
+        # answer path — nodes whose label surfaces in the answer text — keeps
+        # the signal precise: used facts rise, merely-retrieved neighbours do
+        # not. Fire-and-forget, small step; explicit feedback nudges harder.
         _confidence = verifier_result.confidence if verifier_result else 1.0
         if memory_mode == "on" and _confidence >= settings.implicit_confidence_threshold:
+            _answer_lc = (answer or "").lower()
+            _answer_path = [
+                nid for nid, n in cumulative_nodes.items()
+                if len(getattr(n, "label", "") or "") >= 3
+                and (getattr(n, "label", "") or "").lower() in _answer_lc
+            ]
+            # Fall back to the full set only when nothing surfaced (rare) so a
+            # grounded answer never reinforces zero edges.
+            _reinforce_targets = _answer_path if len(_answer_path) >= 2 else _boosted
             asyncio.create_task(
-                self._cognitive.reinforce_edges(_boosted, settings.hebbian_step_implicit)
+                self._cognitive.reinforce_edges(_reinforce_targets, settings.hebbian_step_implicit)
             )
 
         result = QueryResult(
