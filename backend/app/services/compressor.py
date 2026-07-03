@@ -630,8 +630,13 @@ class SemanticCompressor:
             {
                 "type": "text",
                 "text": (
-                    "Extract entities and relationships from the following image."
-                    + context_note
+                    "Extract a knowledge graph from this image. "
+                    "If it is a document, chart, diagram or screenshot, extract "
+                    "the named entities, labels and values and their "
+                    "relationships. If it is a photo or scene, extract the "
+                    "salient objects, people, place and setting as entities and "
+                    "their spatial or semantic relationships. Always include the "
+                    "main subjects of the image." + context_note
                 ),
             },
             {"type": "image_url", "image_url": {"url": image_url}},
