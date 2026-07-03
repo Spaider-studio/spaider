@@ -273,6 +273,31 @@ class Settings(BaseSettings):
         description="Max agents consolidated concurrently per scheduler tick.",
     )
 
+    # ------------------------------------------------------------------
+    # Ingest-time supersession (contradiction / update resolution)
+    #
+    # Per-agent (SystemAgent.supersede), like memory_mode and hibernation. When
+    # on, a newly ingested current-STATE fact that updates a functional
+    # relationship (a company's current CEO, a headquarters) marks the prior fact
+    # superseded and excludes it from retrieval. Off is the archive behaviour
+    # (keep the full history); on is the working-memory behaviour (current state
+    # only). This global is just the DEFAULT for new agents.
+    # ------------------------------------------------------------------
+    default_supersession: bool = Field(
+        default=False,
+        description="Default SystemAgent.supersede for new agents. Env: DEFAULT_SUPERSESSION.",
+    )
+    supersession_max_candidates: int = Field(
+        default=10,
+        description="Max prior facts considered as supersession candidates per new edge.",
+    )
+    supersession_judge_model: str = Field(
+        default="",
+        description="Model for the supersession judge; empty = use litellm_model. A "
+                    "stronger model is more reliable at event-vs-update discrimination. "
+                    "Env: SUPERSESSION_JUDGE_MODEL.",
+    )
+
     # Alchemist Pass — Tier 3 proactive knowledge-graph completion.
     # Off by default; set CONSOLIDATION_PROPOSE_EDGES=true to activate.
     # The cosine band [cosine_min, cosine_max] targets pairs that are

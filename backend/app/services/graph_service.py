@@ -879,7 +879,9 @@ class GraphService:
                 f"""
                 MATCH path = (start:SpaiderNode {{id: $node_id}})-[*0..{d}]-(end:SpaiderNode)
                 UNWIND nodes(path) AS n
-                RETURN DISTINCT n.id AS id, n.label AS label, n.type AS type,
+                WITH DISTINCT n
+                WHERE NOT coalesce(n.superseded, false)
+                RETURN n.id AS id, n.label AS label, n.type AS type,
                        n.description AS description,
                        n.properties AS properties, n.embedding AS embedding,
                        n.agent_id AS agent_id, n.clearance_level AS clearance_level
@@ -892,7 +894,9 @@ class GraphService:
                 f"""
                 MATCH path = (start:SpaiderNode {{id: $node_id}})-[*0..{d}]-(end:SpaiderNode)
                 UNWIND relationships(path) AS r
-                RETURN DISTINCT r.id AS id, r.relation AS relation,
+                WITH DISTINCT r
+                WHERE NOT coalesce(r.superseded, false)
+                RETURN r.id AS id, r.relation AS relation,
                        r.properties AS properties, r.agent_id AS agent_id,
                        startNode(r).id AS src, endNode(r).id AS tgt,
                        coalesce(r.utility_weight, 1.0) AS utility_weight
@@ -943,6 +947,7 @@ class GraphService:
                 CALL db.index.fulltext.queryNodes("spaider_label_fulltext", $ft_query)
                 YIELD node AS n, score
                 WHERE n.agent_id = $agent_id
+                  AND NOT coalesce(n.superseded, false)
                 RETURN n.id AS id, n.label AS label, n.type AS type,
                        n.description AS description,
                        n.properties AS properties, n.embedding AS embedding,
@@ -1050,6 +1055,7 @@ class GraphService:
                 CALL db.index.vector.queryNodes('spaider_embedding', $candidate_k, $embedding)
                 YIELD node, score
                 WHERE node.agent_id = $agent_id
+                  AND NOT coalesce(node.superseded, false)
                 RETURN node.id AS id, node.label AS label, node.type AS type,
                        node.description AS description,
                        node.properties AS properties, node.embedding AS embedding,

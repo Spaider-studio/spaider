@@ -22,8 +22,8 @@ HotpotQA-style scorers in ``runner.py`` (lazy-imported so this module loads with
 no heavy deps for offline validation).
 
 Usage:
-    python -m benchmarks.sequence_runner --sequence benchmarks/sequences/example_org_products.yaml
-    python -m benchmarks.sequence_runner --sequence <path> --dry-run   # validate only, no stack
+    python -m benchmarks.continual.sequence_runner --sequence benchmarks/continual/sequences/example_org_products.yaml
+    python -m benchmarks.continual.sequence_runner --sequence <path> --dry-run   # validate only, no stack
 """
 from __future__ import annotations
 
@@ -31,27 +31,29 @@ import argparse
 import asyncio
 import hashlib
 import json
-from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Callable, Optional
 
 import yaml
+from pydantic import BaseModel, Field
 
-from benchmarks.cl_metrics import compute_cl_metrics
+from benchmarks.continual.cl_metrics import compute_cl_metrics
 
 # ---------------------------------------------------------------------------
 # Sequence schema (2a)
 # ---------------------------------------------------------------------------
 
 
-@dataclass
-class Probe:
+class Probe(BaseModel):
     question: str
     expected_output: str
+    # Optional: a value that must NOT appear in the answer (the superseded /
+    # stale answer). Used by the "staleness" metric to score "returns the
+    # current value AND not the stale one".
+    stale: Optional[str] = None
 
 
-@dataclass
-class SeqTask:
+class SeqTask(BaseModel):
     id: str
     title: str
     corpus: list[str]
@@ -63,11 +65,10 @@ class SeqTask:
     consolidate_after: int = 0
 
 
-@dataclass
-class Sequence:
+class Sequence(BaseModel):
     sequence_id: str
-    description: str
-    tasks: list[SeqTask] = field(default_factory=list)
+    description: str = ""
+    tasks: list[SeqTask] = Field(default_factory=list)
 
 
 def load_sequence(path: Path) -> Sequence:
@@ -80,7 +81,10 @@ def load_sequence(path: Path) -> Sequence:
         for key in ("id", "title", "corpus", "probes"):
             if key not in t:
                 raise ValueError(f"{path}: task #{i} missing '{key}'")
-        probes = [Probe(question=p["question"], expected_output=p["expected_output"]) for p in t["probes"]]
+        probes = [
+            Probe(question=p["question"], expected_output=p["expected_output"], stale=p.get("stale"))
+            for p in t["probes"]
+        ]
         if not t["corpus"]:
             raise ValueError(f"{path}: task '{t['id']}' has an empty corpus")
         if not probes:
@@ -113,6 +117,19 @@ def _get_scorer(metric: str) -> Callable[[str, str], float]:
     if metric not in table:
         raise ValueError(f"unknown metric '{metric}' (choose from {sorted(table)})")
     return table[metric]
+
+
+def _staleness_score(answer: str, probe: "Probe") -> float:
+    """1.0 iff the answer contains the current value AND NOT the stale one.
+
+    A direct measure of update adoption: the whole point of supersession is that
+    the retired answer stops showing up. Case-insensitive substring match; when a
+    probe has no ``stale`` value this degrades to "current value present".
+    """
+    a = answer.lower()
+    has_current = probe.expected_output.lower() in a
+    has_stale = bool(probe.stale) and probe.stale.lower() in a
+    return 1.0 if has_current and not has_stale else 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -156,14 +173,23 @@ async def _set_memory_mode(client, base_url: str, agent_id: str, mode: str) -> N
     resp.raise_for_status()
 
 
-async def _age(client, base_url: str, agent_id: str, cycles: int) -> None:
-    """Run `cycles` consolidation passes to age untouched facts (edge decay).
+async def _age(
+    client, base_url: str, key: str, agent_id: str, cycles: int,
+    reinforce: Optional[list] = None, rds=None, top_k=None,
+) -> None:
+    """Simulate the passage of time: each cycle re-queries the still-relevant
+    facts (so in "on" mode they get implicitly reinforced) and then runs a
+    consolidation pass (so every edge decays).
 
-    Each pass decays RELATION utility_weight by edge_decay_rate, so a fact that
-    is never re-queried loses synaptic strength over successive cycles. This is
-    a fast-forward of the passage of time (each cycle ~ one hibernation).
+    The net effect is the moat's whole point: facts that keep being used are
+    reinforced and stay above the forget threshold, while a fact nobody queries
+    only decays and eventually drops below it. ``reinforce`` is the list of
+    probes to keep warm (typically the task's own stable-fact probes); the
+    contradicted fact has no probe here, so it is never reinforced.
     """
     for _ in range(cycles):
+        for probe in reinforce or []:
+            await _query(client, base_url, key, agent_id, probe.question, rds=rds, top_k=top_k)
         resp = await client.post(f"{base_url}/agents/{agent_id}/consolidate-now")
         resp.raise_for_status()
 
@@ -204,12 +230,15 @@ async def _query(
 
 async def _task_accuracy(
     client, base_url: str, key: str, agent_id: str, task: SeqTask,
-    scorer: Callable[[str, str], float], rds=None, top_k=None,
+    scorer: Optional[Callable[[str, str], float]], rds=None, top_k=None, staleness=False,
 ) -> float:
     scores: list[float] = []
     for probe in task.probes:
         answer = await _query(client, base_url, key, agent_id, probe.question, rds=rds, top_k=top_k)
-        scores.append(scorer(answer, probe.expected_output))
+        if staleness:
+            scores.append(_staleness_score(answer, probe))
+        else:
+            scores.append(scorer(answer, probe.expected_output))
     return sum(scores) / len(scores) if scores else 0.0
 
 
@@ -224,7 +253,8 @@ async def run_sequence(
 ) -> dict:
     import httpx  # lazy: only needed for a live run
 
-    scorer = _get_scorer(metric)
+    is_stale = metric == "staleness"
+    scorer = None if is_stale else _get_scorer(metric)
     t = len(seq.tasks)
 
     # Optional cache-busting client: the query cache is keyed by (agent, question)
@@ -250,7 +280,10 @@ async def run_sequence(
         try:
             # 1. Cold baseline on the empty graph.
             baseline = [
-                await _task_accuracy(client, base_url, key, agent_id, task, scorer, rds=rds, top_k=top_k)
+                await _task_accuracy(
+                    client, base_url, key, agent_id, task, scorer,
+                    rds=rds, top_k=top_k, staleness=is_stale,
+                )
                 for task in seq.tasks
             ]
 
@@ -261,18 +294,26 @@ async def run_sequence(
             for i, task in enumerate(seq.tasks):
                 # a. forward-transfer probe: task i before it is ingested.
                 if i >= 1:
-                    pre[i] = await _task_accuracy(client, base_url, key, agent_id, task, scorer, rds=rds, top_k=top_k)
+                    pre[i] = await _task_accuracy(
+                        client, base_url, key, agent_id, task, scorer,
+                        rds=rds, top_k=top_k, staleness=is_stale,
+                    )
                 # b. ingest this task's corpus.
                 for fact in task.corpus:
                     await _ingest(client, base_url, key, agent_id, fact)
-                # b'. optionally age this task's facts (decay via consolidation)
-                #     before the next task's contradicting facts arrive.
+                # b'. optionally age this task: each cycle re-queries this task's
+                #     stable probes (reinforcing them in "on" mode) then decays
+                #     every edge, so an un-probed contradicted fact fades while
+                #     the still-used facts are kept.
                 if task.consolidate_after:
-                    await _age(client, base_url, agent_id, task.consolidate_after)
+                    await _age(
+                        client, base_url, key, agent_id, task.consolidate_after,
+                        reinforce=task.probes, rds=rds, top_k=top_k,
+                    )
                 # c. probe every task seen so far.
                 for j in range(i + 1):
                     matrix[i][j] = await _task_accuracy(
-                        client, base_url, key, agent_id, seq.tasks[j], scorer, rds=rds, top_k=top_k
+                        client, base_url, key, agent_id, seq.tasks[j], scorer, rds=rds, top_k=top_k, staleness=is_stale
                     )
 
             report = compute_cl_metrics([x.id for x in seq.tasks], matrix, baseline, pre=pre)
@@ -289,7 +330,7 @@ async def run_sequence(
         "top_k": top_k,
         "agent_id": agent_id,
         "kept_agent": keep_agent,
-        "report": asdict(report),
+        "report": report.model_dump(),
     }
 
 
@@ -325,7 +366,8 @@ def main() -> int:
     p = argparse.ArgumentParser(description="SpAIder continual-learning (forgetting + transfer) benchmark")
     p.add_argument("--sequence", required=True, help="path to a sequence YAML")
     p.add_argument("--base-url", default="http://localhost:8000/api/v1", help="SpAIder REST base URL")
-    p.add_argument("--metric", default="f1", choices=["f1", "em", "rouge"], help="per-probe accuracy metric")
+    p.add_argument("--metric", default="f1", choices=["f1", "em", "rouge", "staleness"],
+                   help="per-probe metric; 'staleness' = current value present AND stale value absent")
     p.add_argument("--memory-mode", default="on", choices=["on", "off"],
                    help="synaptic memory mode for the run's agent (baseline A/B: on vs off)")
     p.add_argument("--top-k", type=int, default=None,

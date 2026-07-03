@@ -349,11 +349,12 @@ async def create_agent(request: AgentCreateRequest):
             await _session.run(
                 "MATCH (a:SystemAgent {agent_id: $aid}) "
                 "SET a.clearance_level = $level, a.memory_mode = $mode, "
-                "    a.consolidation_interval_hours = $interval",
+                "    a.consolidation_interval_hours = $interval, a.supersede = $supersede",
                 aid=agent.id,
                 level=agent.clearance_level,
                 mode=settings.default_memory_mode,
                 interval=settings.default_consolidation_interval_hours,
+                supersede=settings.default_supersession,
             )
     except Exception as exc:
         logger.warning("Could not create SystemAgent node for %s: %s", agent.id, exc)
@@ -538,6 +539,72 @@ async def consolidate_now(agent_id: str):
         raise HTTPException(status_code=500, detail=f"Consolidation failed: {exc}")
 
     return APIResponse(success=True, message="consolidation complete", data=report)
+
+
+# ---------------------------------------------------------------------------
+# Per-agent supersession (contradiction / update resolution)
+# ---------------------------------------------------------------------------
+
+
+class SupersedeUpdate(BaseModel):
+    supersede: bool
+
+
+@router.get("/{agent_id}/supersession", response_model=APIResponse)
+async def get_supersession(agent_id: str):
+    """Read whether this agent supersedes updated facts (archive off | working on)."""
+    try:
+        graph = _get_graph_service()
+        async with graph._driver.session() as _session:
+            result = await _session.run(
+                "MATCH (a:SystemAgent {agent_id: $aid}) "
+                "RETURN coalesce(a.supersede, $d) AS supersede",
+                aid=agent_id,
+                d=settings.default_supersession,
+            )
+            record = await result.single()
+        supersede = bool(record["supersede"]) if record else settings.default_supersession
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Could not read supersede: {exc}")
+
+    return APIResponse(success=True, message=str(supersede), data={"supersede": supersede})
+
+
+@router.post("/{agent_id}/supersession", response_model=APIResponse)
+async def set_supersession(agent_id: str, body: SupersedeUpdate):
+    """
+    Turn supersession on/off for an agent.
+
+    - ``on``  working memory: a fact that updates a functional attribute (new
+              CEO, moved HQ) supersedes the prior one, so retrieval returns the
+              current value.
+    - ``off`` archive memory: keep the full history; nothing is superseded.
+    """
+    try:
+        graph = _get_graph_service()
+        async with graph._driver.session() as _session:
+            result = await _session.run(
+                "MATCH (a:SystemAgent {agent_id: $aid}) SET a.supersede = $supersede "
+                "RETURN a.agent_id AS aid",
+                aid=agent_id,
+                supersede=body.supersede,
+            )
+            record = await result.single()
+        if record is None:
+            raise HTTPException(
+                status_code=404, detail=f"No SystemAgent node for agent {agent_id}."
+            )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Could not set supersede: {exc}")
+
+    logger.info("Set supersede=%s for agent %s", body.supersede, agent_id)
+    return APIResponse(
+        success=True,
+        message=f"supersede set to {body.supersede}",
+        data={"supersede": body.supersede},
+    )
 
 
 @router.post("/connect", response_model=AgentBridgeResponse)

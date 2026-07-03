@@ -736,6 +736,26 @@ export async function setMemoryMode(
   return (res.data?.memory_mode as "off" | "on") ?? mode;
 }
 
+// ---- Per-agent supersession (archive off | working on) ---------------------
+
+export async function getSupersession(agentId: string): Promise<boolean> {
+  const res = await request<{ data?: { supersede?: boolean } }>(
+    `/agents/${encodeURIComponent(agentId)}/supersession`
+  );
+  return res.data?.supersede ?? false;
+}
+
+export async function setSupersession(
+  agentId: string,
+  supersede: boolean
+): Promise<boolean> {
+  const res = await request<{ data?: { supersede?: boolean } }>(
+    `/agents/${encodeURIComponent(agentId)}/supersession`,
+    { method: "POST", body: JSON.stringify({ supersede }) }
+  );
+  return res.data?.supersede ?? supersede;
+}
+
 // ---- Per-agent hibernation cadence (autonomous consolidation) --------------
 
 export interface ConsolidationConfig {

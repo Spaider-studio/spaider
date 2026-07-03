@@ -1,0 +1,29 @@
+sequence_id: cl_supersession_v1
+description: >
+  Measures update adoption with the staleness metric (current value present AND
+  stale value absent). The seed states a functional fact (Idris Kane is CEO) plus
+  a multi-valued control (Zephyr makes Lumen and Beam). The update replaces the
+  CEO. A correct system returns "Priya Nair" for the CEO probe WITHOUT "Idris
+  Kane" (staleness 1.0), AND still returns Lumen for the product probe (the
+  multi-valued facts must survive — supersession must not delete them). On main
+  today staleness is ~0 (both CEOs returned); 2.5a supersession should lift it.
+
+tasks:
+  - id: seed
+    title: "Initial CEO + products (multi-valued control)"
+    corpus:
+      - "Idris Kane is the chief executive of Zephyr Systems."
+      - "Zephyr Systems makes the Lumen speech model."
+      - "Zephyr Systems makes the Beam analytics product."
+    probes:
+      - question: "What speech model does Zephyr Systems make?"
+        expected_output: "Lumen"
+
+  - id: update
+    title: "New CEO supersedes the old (functional)"
+    corpus:
+      - "Priya Nair is the chief executive of Zephyr Systems."
+    probes:
+      - question: "Who is the chief executive of Zephyr Systems?"
+        expected_output: "Priya Nair"
+        stale: "Idris Kane"

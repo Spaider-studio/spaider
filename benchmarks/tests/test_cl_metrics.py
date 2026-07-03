@@ -3,7 +3,7 @@ import math
 
 import pytest
 
-from benchmarks.cl_metrics import compute_cl_metrics
+from benchmarks.continual.cl_metrics import compute_cl_metrics
 
 
 def test_two_task_forgetting_and_transfer():
