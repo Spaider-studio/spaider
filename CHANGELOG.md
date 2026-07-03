@@ -11,6 +11,35 @@ for their released versions. The release process is documented in
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-03
+
+Cognitive memory tiers: every agent can be configured as a long-term archive or
+a consolidating working memory, with contradiction resolution and measured
+continual learning.
+
+### Added
+- Per-agent memory tiers. Three independent switches on each agent card:
+  Synaptic Memory (Hebbian reinforcement plus decay on the graph edges),
+  Supersede updates (Archive keeps the full history, Working keeps only the
+  current state), and Hibernation cadence (scheduled consolidation). New
+  endpoints `GET/POST /agents/{id}/supersession` join the existing memory-mode
+  and consolidation controls.
+- Ingest-time contradiction and update resolution (supersession). A current
+  state fact that updates a functional attribute (a new CEO, a moved
+  headquarters) supersedes the prior fact, so retrieval returns the current
+  value instead of both. A state-versus-event gate leaves events untouched: it
+  fires zero false updates on a real 83-fact business corpus while lifting
+  current-state accuracy from 0 to 100% on genuine updates (95% CI excludes 0).
+  Off by default (Archive).
+- Continual-learning benchmarks. GEM-style forgetting and knowledge-transfer
+  metrics with a task-sequence runner and bootstrapped confidence intervals, so
+  the memory system's retention and transfer are measurable.
+
+### Changed
+- Benchmarks reorganized into `benchmarks/continual/` (task sequences, runner,
+  metrics) and `benchmarks/reports/` (comparison scorecards); continual-learning
+  models moved from dataclasses to pydantic.
+
 ## [0.1.0] - 2026-06-17
 
 Initial public release.
