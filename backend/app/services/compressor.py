@@ -610,6 +610,46 @@ class SemanticCompressor:
 
         return payload
 
+    async def extract_from_image(
+        self,
+        image_url: str,
+        context: Optional[dict] = None,
+    ) -> GraphPayload:
+        """
+        Extract a GraphPayload from an IMAGE using the (vision-capable) LLM.
+
+        The image is turned into a text knowledge graph exactly like ``extract``
+        does for text: the vision model reads out entities and relationships, and
+        everything downstream (resolve, embed, write, retrieve) is unchanged.
+
+        ``image_url`` may be a remote URL or a ``data:image/...;base64,...`` URI.
+        No Redis caching here (the base64 payload is large and rarely repeats).
+        """
+        context_note = f"\n\n[Context: {json.dumps(context)}]" if context else ""
+        content: list[dict] = [
+            {
+                "type": "text",
+                "text": (
+                    "Extract entities and relationships from the following image."
+                    + context_note
+                ),
+            },
+            {"type": "image_url", "image_url": {"url": image_url}},
+        ]
+        t0 = time.perf_counter()
+        payload, _ = await self._extract_with_retry(content)
+
+        # Same normalisation as the text path.
+        payload = OntologyManager.enforce(payload)
+        if _CLOSED_EDGE_VOCAB_ENABLED:
+            payload = RelationOntologyManager.enforce(payload)
+
+        logger.info(
+            "SemanticCompressor extract_from_image | nodes=%d edges=%d latency=%.2fs",
+            len(payload.nodes), len(payload.edges), time.perf_counter() - t0,
+        )
+        return payload
+
     # ------------------------------------------------------------------
     # Chunking & merging
     # ------------------------------------------------------------------
@@ -831,11 +871,15 @@ class SemanticCompressor:
 
     async def _extract_with_retry(
         self,
-        user_message: str,
+        user_message: str | list[dict],
     ) -> tuple[GraphPayload, dict]:
         """
         Call the LLM up to _MAX_RETRIES times, feeding back validation errors
         to allow the model to self-correct.
+
+        ``user_message`` is a plain string for text extraction, or a list of
+        content blocks (``[{"type": "text", ...}, {"type": "image_url", ...}]``)
+        for vision extraction. litellm forwards either shape verbatim.
         """
         conversation: list[dict] = [{"role": "user", "content": user_message}]
         last_error: Optional[str] = None
