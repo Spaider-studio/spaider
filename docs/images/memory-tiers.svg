@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 440" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0E0E17"/>
+      <stop offset="1" stop-color="#0A0A0F"/>
+    </linearGradient>
+    <linearGradient id="archiveGlow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1e293b"/>
+      <stop offset="1" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="workingGlow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3b1d5e"/>
+      <stop offset="1" stop-color="#1a1030"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0.5" y="0.5" width="899" height="439" rx="18" fill="url(#bg)" stroke="#2A2A35"/>
+
+  <!-- header -->
+  <text x="40" y="52" fill="#E4E4E7" font-size="24" font-weight="700">Two-tier memory, configured per agent</text>
+  <text x="40" y="78" fill="#8B90A0" font-size="14">Three switches on each agent decide how it remembers. Same facts in, different memory out.</text>
+
+  <!-- ===================== ARCHIVE panel ===================== -->
+  <g>
+    <rect x="40" y="104" width="390" height="296" rx="14" fill="url(#archiveGlow)" stroke="#334155"/>
+    <!-- title -->
+    <circle cx="72" cy="140" r="14" fill="#0f172a" stroke="#475569"/>
+    <path d="M72 132 v8 l5 3" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
+    <text x="96" y="138" fill="#E4E4E7" font-size="18" font-weight="700">Archive</text>
+    <text x="96" y="156" fill="#7c8aa0" font-size="12">long-term memory</text>
+
+    <!-- knobs -->
+    <g font-size="12.5">
+      <text x="64" y="196" fill="#94a3b8">Synaptic memory</text>
+      <rect x="300" y="184" width="66" height="18" rx="9" fill="#1A1A25" stroke="#334155"/>
+      <text x="333" y="197" fill="#94a3b8" text-anchor="middle">Off</text>
+
+      <text x="64" y="226" fill="#94a3b8">Supersede updates</text>
+      <rect x="286" y="214" width="80" height="18" rx="9" fill="#1e293b" stroke="#475569"/>
+      <text x="326" y="227" fill="#cbd5e1" text-anchor="middle" font-weight="600">Archive</text>
+
+      <text x="64" y="256" fill="#94a3b8">Hibernation</text>
+      <rect x="300" y="244" width="66" height="18" rx="9" fill="#1A1A25" stroke="#334155"/>
+      <text x="333" y="257" fill="#94a3b8" text-anchor="middle">Off</text>
+    </g>
+
+    <line x1="64" y1="286" x2="406" y2="286" stroke="#243040"/>
+
+    <!-- outcome -->
+    <text x="64" y="316" fill="#64748b" font-size="12">Q. Who is the CEO?</text>
+    <rect x="64" y="328" width="342" height="40" rx="9" fill="#0b1220" stroke="#334155"/>
+    <text x="80" y="353" fill="#cbd5e1" font-size="13.5" font-weight="600">Idris Kane and Priya Nair</text>
+    <text x="64" y="390" fill="#64748b" font-size="12">Keeps the full history, nothing is erased.</text>
+  </g>
+
+  <!-- ===================== WORKING panel ===================== -->
+  <g>
+    <rect x="470" y="104" width="390" height="296" rx="14" fill="url(#workingGlow)" stroke="#5b3b8c"/>
+    <!-- title -->
+    <circle cx="502" cy="140" r="14" fill="#1a1030" stroke="#7c4dbf"/>
+    <path d="M503 132 l-6 9 h5 l-2 7 6 -9 h-5 z" fill="#f59e0b"/>
+    <text x="526" y="138" fill="#E4E4E7" font-size="18" font-weight="700">Working</text>
+    <text x="526" y="156" fill="#a78bca" font-size="12">short-term memory</text>
+
+    <!-- knobs -->
+    <g font-size="12.5">
+      <text x="494" y="196" fill="#b9a7d6">Synaptic memory</text>
+      <rect x="736" y="184" width="66" height="18" rx="9" fill="#6d28d9" stroke="#8b5cf6"/>
+      <text x="769" y="197" fill="#ffffff" text-anchor="middle" font-weight="600">On</text>
+
+      <text x="494" y="226" fill="#b9a7d6">Supersede updates</text>
+      <rect x="722" y="214" width="80" height="18" rx="9" fill="#b45309" stroke="#f59e0b"/>
+      <text x="762" y="227" fill="#ffffff" text-anchor="middle" font-weight="600">Working</text>
+
+      <text x="494" y="256" fill="#b9a7d6">Hibernation</text>
+      <rect x="736" y="244" width="66" height="18" rx="9" fill="#3b1d5e" stroke="#7c4dbf"/>
+      <text x="769" y="257" fill="#d6c7ee" text-anchor="middle" font-weight="600">Daily</text>
+    </g>
+
+    <line x1="494" y1="286" x2="836" y2="286" stroke="#3a2a55"/>
+
+    <!-- outcome -->
+    <text x="494" y="316" fill="#8a79ab" font-size="12">Q. Who is the CEO?</text>
+    <rect x="494" y="328" width="342" height="40" rx="9" fill="#160c27" stroke="#5b3b8c"/>
+    <text x="510" y="353" fill="#f3e9ff" font-size="13.5" font-weight="700">Priya Nair</text>
+    <text x="494" y="390" fill="#8a79ab" font-size="12">Current state only, stale facts are superseded.</text>
+  </g>
+
+  <!-- center divider chip -->
+  <circle cx="450" cy="252" r="20" fill="#0A0A0F" stroke="#2A2A35"/>
+  <path d="M441 252 h18 M453 246 l6 6 -6 6" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -36,6 +36,29 @@ SpAIder gives every AI agent a persistent, queryable knowledge graph. Agents ing
 
 ---
 
+## Memory tiers: how each agent remembers
+
+Human memory isn't one thing. A working memory keeps the current state and lets go of what it no longer needs; a long-term memory preserves the record. SpAIder gives every agent that same choice, as three independent switches on the agent card.
+
+<p align="center">
+  <img src="docs/images/memory-tiers.svg" alt="Two-tier memory per agent: an archive agent keeps the full history while a working agent supersedes stale facts" width="92%">
+</p>
+
+| | Synaptic Memory | Supersede updates | Hibernation |
+|---|---|---|---|
+| **Archive** (long-term) | off | Archive | off |
+| **Working** (short-term) | on | Working | daily / hourly |
+
+- **Synaptic Memory** reinforces the facts an agent actually uses and lets unused ones decay (Hebbian weights on the graph edges).
+- **Supersede updates** decides what happens on a contradiction. An *archive* agent keeps both "Idris was CEO" and "Priya is CEO", the full history. A *working* agent supersedes the stale fact, so retrieval returns only the current answer.
+- **Hibernation** consolidates the graph on a schedule (prune orphans, fuse duplicates), the way sleep consolidates memory.
+
+Same facts in, different memory out: ask *"who is the CEO?"* and the archive agent answers *"Idris Kane and Priya Nair"* while the working agent answers *"Priya Nair."*
+
+Supersession is validated on real data, not just toy cases: on 83 real business facts (mostly events like merges and reviews) it fires **zero** false updates, and on genuine functional updates it takes current-state answers from **0 to 100%** (95% CI excludes 0).
+
+---
+
 ## Benchmarks
 
 Benchmarked on **24 HotpotQA** multi-hop questions + a **16-question private corpus**, scored on EM / F1 / GEval (LLM-judge), **8 sweeps**, **95% CIs cluster-bootstrapped over the distinct questions** (not the graded rows), with an **independent gpt-4o judge**.
