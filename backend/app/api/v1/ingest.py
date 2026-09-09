@@ -90,6 +90,37 @@ def _attach_fact_node(payload: GraphPayload, text: str, source: Optional[str]) -
     payload.nodes.append(fact_node)
     payload.edges.extend(fact_edges)
 
+
+def _attach_image_node(
+    payload: GraphPayload, image_ref: str, caption: str, source: Optional[str]
+) -> str:
+    """Append an IMAGE provenance node holding the image reference + a caption,
+    with a ``MENTIONS`` edge to every entity extracted from the image. Mirrors
+    ``_attach_fact_node`` for the text path, so the image is retrievable (its
+    caption is embedded) and its source is recorded. Returns the image node id.
+    """
+    img_source = source or "ingest_image"
+    label_preview = (caption or "image").strip().replace("\n", " ")[:_FACT_LABEL_PREVIEW_CHARS]
+    img_node = Node(
+        label=f"image: {label_preview}",
+        type="IMAGE",
+        description=caption or "Ingested image",
+        properties={"source": img_source, "image_ref": image_ref},
+    )
+    img_edges = [
+        Edge(
+            source_id=img_node.id,
+            target_id=entity.id,
+            relation="MENTIONS",
+            properties={"source": img_source},
+        )
+        for entity in payload.nodes
+    ]
+    payload.nodes.append(img_node)
+    payload.edges.extend(img_edges)
+    return img_node.id
+
+
 _connector_registry = ConnectorRegistry()
 _connector_registry.register(_upload_connector)
 _connector_registry.register(_url_connector)
@@ -563,6 +594,106 @@ async def ingest_text_sync(request: IngestRequest):
         raise HTTPException(status_code=422, detail=str(exc))
     except Exception as exc:
         logger.exception("Unexpected error during sync ingest")
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+# ---------------------------------------------------------------------------
+# Image ingest — a vision model extracts a knowledge graph from an image
+# ---------------------------------------------------------------------------
+
+
+class ImageIngestRequest(_BaseModel):
+    agent_id: str = Field(default="default")
+    image_url: str = Field(description="Remote URL or a data:image/...;base64,... URI")
+    caption: Optional[str] = Field(default=None, description="Optional caption; synthesised from entities if absent")
+    source: Optional[str] = Field(default=None)
+
+
+@router.post("/image", response_model=IngestSyncResponse)
+async def ingest_image_sync(request: ImageIngestRequest):
+    """
+    Synchronous IMAGE ingest. A vision-capable model reads the image into a
+    text knowledge graph (entities + relations), then the SAME resolve + write
+    pipeline as text ingest runs — retrieval, dedup and storage are unchanged.
+
+    ``image_url`` is a remote URL or a base64 ``data:`` URI.
+    """
+    t0 = time.perf_counter()
+    try:
+        compressor = _get_compressor()
+        resolver = _get_resolver()
+        graph = _get_graph_service()
+
+        # 1. Vision extraction: image -> text knowledge graph.
+        payload = await compressor.extract_from_image(
+            request.image_url,
+            context={"source": request.source} if request.source else None,
+        )
+
+        # 1a. Provenance IMAGE node: a caption (synthesised from the extracted
+        # entities when the caller gives none) plus a compact image reference.
+        # A full base64 payload belongs in blob storage, not a Neo4j property,
+        # so only short refs (remote URLs) are stored verbatim; larger payloads
+        # are recorded as a content hash (real blob storage is a Stage-B / prod
+        # concern).
+        if request.caption:
+            caption = request.caption
+        elif payload.nodes:
+            caption = "Image depicting: " + ", ".join(n.label for n in payload.nodes[:8])
+        else:
+            caption = "Ingested image"
+        image_ref = (
+            request.image_url
+            if len(request.image_url) <= 512
+            else "sha256:" + hashlib.sha256(request.image_url.encode()).hexdigest()
+        )
+        _attach_image_node(payload, image_ref, caption, request.source)
+
+        # 2. Attach agent_id.
+        for node in payload.nodes:
+            node.agent_id = request.agent_id
+        for edge in payload.edges:
+            edge.agent_id = request.agent_id
+
+        # 3. Resolve / dedup, then 4. write — both modality-agnostic.
+        resolved_payload = await resolver.resolve(
+            payload, request.agent_id, graph, caller_context="api"
+        )
+        result = await graph.write_graph(resolved_payload, request.agent_id)
+        nodes_written = result.nodes_created + result.nodes_merged
+        edges_written = result.edges_created + result.edges_merged
+
+        latency_ms = (time.perf_counter() - t0) * 1000
+        logger.info(
+            "Image ingest completed: agent=%s nodes=%d edges=%d latency=%.1fms",
+            request.agent_id, nodes_written, edges_written, latency_ms,
+        )
+
+        slim_nodes = [
+            SlimNode(
+                id=n.id, label=n.label, type=n.type,
+                properties={k: v for k, v in (n.properties or {}).items() if k != "embedding"},
+                agent_id=n.agent_id,
+            )
+            for n in resolved_payload.nodes
+        ]
+        slim_edges = [
+            SlimEdge(id=e.id, source=e.source_id, target=e.target_id, relation=e.relation, agent_id=e.agent_id)
+            for e in resolved_payload.edges
+        ]
+        return IngestSyncResponse(
+            success=True, agent_id=request.agent_id,
+            nodes_created=max(result.nodes_created, 0), nodes_merged=result.nodes_merged,
+            edges_created=edges_written, edges_merged=0,
+            nodes=slim_nodes, edges=slim_edges, latency_ms=round(latency_ms, 2),
+        )
+    except ExtractionError as exc:
+        logger.warning("Image ingest EXTRACTION_FAILED: agent=%s last_error=%s", request.agent_id, exc.last_error)
+        raise HTTPException(status_code=422, detail=f"Vision extraction failed: {exc.last_error or exc}")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        logger.exception("Unexpected error during image ingest")
         raise HTTPException(status_code=500, detail=str(exc))
 
 

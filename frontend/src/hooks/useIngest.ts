@@ -213,6 +213,57 @@ export function useIngest() {
     [_reset, addNodes, addEdges, highlightNodes]
   );
 
+  /** Ingest an IMAGE: a vision model reads it into a knowledge graph. */
+  const ingestImage = useCallback(
+    async (file: File): Promise<void> => {
+      const agentId = useGraph.getState().agentId;
+      if (!agentId) {
+        setStatus("error");
+        setError("Select an agent before ingesting — Multiverse is read-only.");
+        return;
+      }
+      _reset();
+      setStatusMessage("Reading image with vision model…");
+      try {
+        const imageUrl = await fileToDataUri(file);
+        const res = await fetch(`${BACKEND_URL}/ingest/image`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image_url: imageUrl, agent_id: agentId }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail ?? `HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        const nodes: GraphNode[] = (data.nodes ?? []).map((n: any) => ({
+          id: n.id,
+          label: n.label,
+          type: n.type as GraphNode["type"],
+          properties: n.properties ?? {},
+          agent_id: n.agent_id,
+        }));
+        const edges: GraphEdge[] = (data.edges ?? []).map((e: any) => ({
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          relation: e.relation,
+          properties: {},
+        }));
+        if (nodes.length === 0) {
+          setStatus("done");
+          setStatusMessage("No entities found in the image.");
+          return;
+        }
+        await _animate(nodes, edges);
+      } catch (e) {
+        setStatus("error");
+        setError(e instanceof Error ? e.message : "Image ingest failed");
+      }
+    },
+    [_reset, addNodes, addEdges, highlightNodes]
+  );
+
   /**
    * Fetch one or more URLs and ingest their content.
    * @param urlInput Raw user input — newline or comma-separated URLs.
@@ -284,6 +335,7 @@ export function useIngest() {
     ingestText,
     ingestFile,
     ingestFiles,
+    ingestImage,
     ingestUrl,
     loading,
     error,
@@ -297,4 +349,14 @@ export function useIngest() {
 
 function sleep(ms: number) {
   return new Promise<void>((r) => setTimeout(r, ms));
+}
+
+/** Read a File into a base64 `data:` URI for the /ingest/image JSON body. */
+function fileToDataUri(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Could not read image file"));
+    reader.readAsDataURL(file);
+  });
 }
