@@ -87,7 +87,8 @@ _AGENT_ID: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
 # Tool registration on a single MCP Server instance
 # ---------------------------------------------------------------------------
 
-mcp_server = Server("spaider")
+# The MCP Server is constructed at the bottom of this module (mcp 2.x takes its
+# tool handlers as constructor callbacks, so they must be defined first).
 
 # Lazy singletons — same pattern as the rest of app/api/v1.
 _query_service: Optional[QueryService] = None
@@ -132,7 +133,6 @@ def _get_auth_service() -> AuthService:
     return _auth_service
 
 
-@mcp_server.list_tools()
 async def list_tools() -> list[mcp_types.Tool]:
     """Tool catalogue. Read tools (`spaider.query`, `spaider.list_recent`)
     plus the write tool (`spaider.ingest_fact`)."""
@@ -276,7 +276,6 @@ async def list_tools() -> list[mcp_types.Tool]:
     ]
 
 
-@mcp_server.call_tool()
 async def call_tool(name: str, arguments: dict[str, Any]) -> list[mcp_types.TextContent]:
     """Dispatch tool calls to the underlying services. Auth was checked in the
     ASGI wrapper (`mcp_app`); here we just read the agent_id contextvar."""
@@ -497,6 +496,55 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[mcp_types.Text
         return [mcp_types.TextContent(type="text", text=body)]
 
     raise ValueError(f"Unknown tool: {name!r}")
+
+
+# ---------------------------------------------------------------------------
+# MCP 2.x server construction.
+#
+# mcp 2.0 removed the @server.list_tools()/@server.call_tool() decorators in
+# favour of constructor callbacks. These thin adapters keep the tool logic above
+# untouched — list_tools() still returns list[Tool] and call_tool(name, args)
+# still returns list[TextContent] — and wrap them in the v2 result types,
+# reading name/arguments off CallToolRequestParams. A raised error inside a tool
+# is returned as an error result (v1 behaviour) rather than a JSON-RPC error, so
+# clients keep getting a readable message instead of a transport failure.
+# ---------------------------------------------------------------------------
+
+
+async def _on_list_tools(ctx) -> mcp_types.ListToolsResult:
+    return mcp_types.ListToolsResult(tools=await list_tools())
+
+
+async def _on_call_tool(
+    ctx, params: mcp_types.CallToolRequestParams
+) -> mcp_types.CallToolResult:
+    try:
+        content = await call_tool(params.name, params.arguments or {})
+        return mcp_types.CallToolResult(content=content)
+    except Exception as exc:  # noqa: BLE001 — surface as a tool error, not a crash
+        return mcp_types.CallToolResult(
+            content=[mcp_types.TextContent(type="text", text=f"Error: {exc}")],
+            isError=True,
+        )
+
+
+def _spaider_version() -> str:
+    """Package version for the MCP serverInfo. v1's Server auto-derived this;
+    v2 does not, so derive it from the installed distribution (falls back when
+    the package is not installed, e.g. in an isolated test)."""
+    try:
+        from importlib.metadata import version as _pkg_version
+        return _pkg_version("spaider-backend")
+    except Exception:  # noqa: BLE001
+        return "0.0.0"
+
+
+mcp_server = Server(
+    "spaider",
+    version=_spaider_version(),
+    on_list_tools=_on_list_tools,
+    on_call_tool=_on_call_tool,
+)
 
 
 # ---------------------------------------------------------------------------
