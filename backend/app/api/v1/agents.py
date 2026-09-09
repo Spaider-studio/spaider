@@ -389,7 +389,7 @@ async def set_memory_mode(agent_id: str, body: MemoryModeUpdate):
         graph = _get_graph_service()
         async with graph._driver.session() as _session:
             result = await _session.run(
-                "MATCH (a:SystemAgent {agent_id: $aid}) SET a.memory_mode = $mode "
+                "MERGE (a:SystemAgent {agent_id: $aid}) SET a.memory_mode = $mode "
                 "RETURN a.agent_id AS aid",
                 aid=agent_id,
                 mode=mode,
@@ -497,7 +497,7 @@ async def set_consolidation_config(agent_id: str, body: ConsolidationConfigUpdat
         graph = _get_graph_service()
         async with graph._driver.session() as _session:
             result = await _session.run(
-                "MATCH (a:SystemAgent {agent_id: $aid}) "
+                "MERGE (a:SystemAgent {agent_id: $aid}) "
                 "SET a.consolidation_interval_hours = $hours "
                 "RETURN a.agent_id AS aid",
                 aid=agent_id,
@@ -584,7 +584,7 @@ async def set_supersession(agent_id: str, body: SupersedeUpdate):
         graph = _get_graph_service()
         async with graph._driver.session() as _session:
             result = await _session.run(
-                "MATCH (a:SystemAgent {agent_id: $aid}) SET a.supersede = $supersede "
+                "MERGE (a:SystemAgent {agent_id: $aid}) SET a.supersede = $supersede "
                 "RETURN a.agent_id AS aid",
                 aid=agent_id,
                 supersede=body.supersede,
