@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, DragEvent } from "react";
 import {
   Send, Upload, Link, Loader2, CheckCircle2, AlertCircle,
-  X, FileText, Activity,
+  X, FileText, Activity, Image as ImageIcon,
 } from "lucide-react";
 import { useIngest } from "@/hooks/useIngest";
 import { getConnectorStatus, type ConnectorStatus } from "@/lib/api";
@@ -46,7 +46,7 @@ function fmtRelative(iso: string | null): string {
 // Types
 // ---------------------------------------------------------------------------
 
-type Tab = "text" | "files" | "url";
+type Tab = "text" | "files" | "image" | "url";
 
 interface Props {
   agentId: string | null;
@@ -61,7 +61,7 @@ export default function IngestPanel({ agentId }: Props) {
 
   // ── Ingest hook ────────────────────────────────────────────────────────────
   const {
-    ingestText, ingestFiles, ingestUrl,
+    ingestText, ingestFiles, ingestImage, ingestUrl,
     loading, error, result, status, statusMessage, nodesAdded, edgesAdded,
   } = useIngest();
 
@@ -76,6 +76,12 @@ export default function IngestPanel({ agentId }: Props) {
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
   const [fileDragOver, setFileDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Image tab ──────────────────────────────────────────────────────────────
+  const [stagedImage, setStagedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageDragOver, setImageDragOver] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   // ── URL tab ────────────────────────────────────────────────────────────────
   const [urlInput, setUrlInput] = useState("");
@@ -146,6 +152,28 @@ export default function IngestPanel({ agentId }: Props) {
     setUrlInput("");
   }
 
+  function addImage(incoming: FileList | null) {
+    const f = incoming?.[0];
+    if (!f || !f.type.startsWith("image/")) return;
+    setStagedImage(f);
+    const reader = new FileReader();
+    reader.onload = () => setImagePreview(reader.result as string);
+    reader.readAsDataURL(f);
+  }
+
+  function handleImageDrop(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setImageDragOver(false);
+    addImage(e.dataTransfer.files);
+  }
+
+  async function handleImageIngest() {
+    if (!stagedImage || isMultiverse) return;
+    await ingestImage(stagedImage);
+    setStagedImage(null);
+    setImagePreview(null);
+  }
+
   // ── Shared status section ──────────────────────────────────────────────────
 
   const statusSection = (
@@ -199,7 +227,7 @@ export default function IngestPanel({ agentId }: Props) {
         "flex rounded-lg bg-white/5 border border-white/8 p-0.5 gap-0.5",
         isMultiverse && "opacity-40 pointer-events-none",
       )}>
-        {(["text", "files", "url"] as Tab[]).map((t) => (
+        {(["text", "files", "image", "url"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -210,9 +238,10 @@ export default function IngestPanel({ agentId }: Props) {
                 : "text-white/40 hover:text-white/70",
             )}
           >
-            {t === "text"  && <Send   className="w-3 h-3" />}
-            {t === "files" && <Upload className="w-3 h-3" />}
-            {t === "url"   && <Link   className="w-3 h-3" />}
+            {t === "text"  && <Send      className="w-3 h-3" />}
+            {t === "files" && <Upload    className="w-3 h-3" />}
+            {t === "image" && <ImageIcon className="w-3 h-3" />}
+            {t === "url"   && <Link      className="w-3 h-3" />}
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
@@ -319,6 +348,69 @@ export default function IngestPanel({ agentId }: Props) {
             {stagedFiles.length > 0
               ? `Upload ${stagedFiles.length} file${stagedFiles.length !== 1 ? "s" : ""}`
               : "Upload Files"}
+          </button>
+        </div>
+      )}
+
+      {/* ── Image tab ── */}
+      {tab === "image" && (
+        <div className={cn("flex flex-col gap-2", isMultiverse && "opacity-40 pointer-events-none")}>
+          <div
+            className={cn(
+              "relative rounded-lg border-2 border-dashed transition-all cursor-pointer overflow-hidden",
+              imageDragOver
+                ? "border-violet-500/70 bg-violet-500/8"
+                : "border-white/15 hover:border-white/25",
+            )}
+            onDragOver={(e) => { e.preventDefault(); setImageDragOver(true); }}
+            onDragLeave={() => setImageDragOver(false)}
+            onDrop={handleImageDrop}
+            onClick={() => imageInputRef.current?.click()}
+          >
+            {imagePreview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={imagePreview} alt="preview" className="w-full max-h-40 object-contain bg-black/30" />
+            ) : (
+              <div className="flex flex-col items-center gap-1.5 py-4 px-3 text-center pointer-events-none">
+                <ImageIcon className={cn("w-5 h-5", imageDragOver ? "text-violet-400" : "text-white/25")} />
+                <p className="text-xs text-white/40 leading-tight">
+                  {imageDragOver ? "Drop image here" : "Drop an image or click to browse"}
+                </p>
+                <p className="text-[10px] text-white/20">
+                  A vision model reads it into the graph · diagrams, screenshots, photos
+                </p>
+              </div>
+            )}
+          </div>
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => addImage(e.target.files)}
+          />
+
+          {stagedImage && (
+            <div className="flex items-center gap-2 bg-white/5 rounded-md px-2 py-1">
+              <ImageIcon className="w-3 h-3 text-white/30 flex-shrink-0" />
+              <span className="text-xs text-white/70 truncate flex-1 min-w-0">{stagedImage.name}</span>
+              <span className="text-[10px] text-white/25 flex-shrink-0">{fmtBytes(stagedImage.size)}</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); setStagedImage(null); setImagePreview(null); }}
+                className="text-white/25 hover:text-red-400 transition-colors flex-shrink-0"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+
+          <button
+            onClick={handleImageIngest}
+            disabled={loading || !stagedImage || isMultiverse}
+            className="flex items-center justify-center gap-2 bg-violet-600/80 hover:bg-violet-500/80 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg px-4 py-2 transition-colors border border-violet-500/30"
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+            Ingest Image
           </button>
         </div>
       )}
