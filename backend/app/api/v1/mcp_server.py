@@ -528,8 +528,20 @@ async def _on_call_tool(
         )
 
 
+def _spaider_version() -> str:
+    """Package version for the MCP serverInfo. v1's Server auto-derived this;
+    v2 does not, so derive it from the installed distribution (falls back when
+    the package is not installed, e.g. in an isolated test)."""
+    try:
+        from importlib.metadata import version as _pkg_version
+        return _pkg_version("spaider-backend")
+    except Exception:  # noqa: BLE001
+        return "0.0.0"
+
+
 mcp_server = Server(
     "spaider",
+    version=_spaider_version(),
     on_list_tools=_on_list_tools,
     on_call_tool=_on_call_tool,
 )
