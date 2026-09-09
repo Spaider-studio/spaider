@@ -57,7 +57,7 @@ jobs:
             tag_prefix: sdk-python-stub/v
             workflow: sdk-python-stub-release.yml
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Read version and decide
         id: decide
