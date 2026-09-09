@@ -232,9 +232,9 @@ class MCPConnector(BaseConnector):
                 if record is not None:
                     yield record
 
-            if not page.nextCursor:
+            if not page.next_cursor:
                 break
-            cursor = page.nextCursor
+            cursor = page.next_cursor
 
     # ------------------------------------------------------------------
     # Single-resource fetch with hash comparison
@@ -255,7 +255,7 @@ class MCPConnector(BaseConnector):
         read_result = await session.read_resource(resource.uri)
 
         text_parts: list[str] = []
-        mime_type = resource.mimeType or "text/plain"
+        mime_type = resource.mime_type or "text/plain"
         for block in read_result.contents:
             if isinstance(block, TextResourceContents):
                 text_parts.append(block.text or "")
@@ -306,7 +306,7 @@ class MCPConnector(BaseConnector):
                 "source_label": source_label,
                 "mcp_uri": uri_str,
                 "mcp_name": resource.name,
-                "mcp_mime_type": resource.mimeType,
+                "mcp_mime_type": resource.mime_type,
                 "last_modified": last_mod,
                 "content_hash": content_hash,
             },

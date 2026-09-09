@@ -23,8 +23,6 @@ import hashlib
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from pydantic import AnyUrl
-
 from mcp.types import (
     ListResourcesResult,
     ReadResourceResult,
@@ -35,25 +33,24 @@ from mcp.types import (
 from app.connectors import RunState
 from app.connectors.mcp_connector import MCPConnector
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 
 def _resource(name: str, uri: str) -> Resource:
-    return Resource(name=name, uri=AnyUrl(uri))
+    return Resource(name=name, uri=uri)
 
 
 def _list_result(
     resources: list[Resource], next_cursor: str | None = None
 ) -> ListResourcesResult:
-    return ListResourcesResult(resources=resources, nextCursor=next_cursor)
+    return ListResourcesResult(resources=resources, next_cursor=next_cursor)
 
 
 def _read_result(text: str, uri: str = "http://mcp-test/r") -> ReadResourceResult:
     return ReadResourceResult(
-        contents=[TextResourceContents(uri=AnyUrl(uri), text=text)]
+        contents=[TextResourceContents(uri=uri, text=text)]
     )
 
 
