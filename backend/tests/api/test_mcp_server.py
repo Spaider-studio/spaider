@@ -65,12 +65,12 @@ async def test_list_tools_returns_read_and_write_set():
     ]
     # Schemas must declare required fields.
     query_tool = next(t for t in tools if t.name == "spaider.query")
-    assert "question" in query_tool.inputSchema["required"]
+    assert "question" in query_tool.input_schema["required"]
     ingest_tool = next(t for t in tools if t.name == "spaider.ingest_fact")
-    assert "text" in ingest_tool.inputSchema["required"]
+    assert "text" in ingest_tool.input_schema["required"]
     fb_tool = next(t for t in tools if t.name == "spaider.feedback")
-    assert "used_node_ids" in fb_tool.inputSchema["required"]
-    assert "success" in fb_tool.inputSchema["required"]
+    assert "used_node_ids" in fb_tool.input_schema["required"]
+    assert "success" in fb_tool.input_schema["required"]
 
 
 # ---------------------------------------------------------------------------
