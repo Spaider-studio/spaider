@@ -81,7 +81,7 @@ export default function SettingsPage() {
               <div className="grid grid-cols-2 gap-4">
                 {[
                   { label: "Application", value: "SpAIder" },
-                  { label: "Version", value: "0.1.1" },
+                  { label: "Version", value: "0.3.0" },
                   { label: "Backend", value: "FastAPI + Neo4j" },
                   { label: "Streaming", value: "Apache Kafka" },
                 ].map((item) => (

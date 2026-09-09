@@ -11,6 +11,33 @@ for their released versions. The release process is documented in
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-04
+
+Vision: agents can now remember what is in images. Plus contradiction-safety
+robustness and MCP 2.x compatibility.
+
+### Added
+- Vision ingest. A vision-capable model reads an image (documents, charts,
+  diagrams, screenshots, photos) into a text knowledge graph, then the same
+  resolve, embed, write and retrieve pipeline as text runs unchanged. New
+  `POST /ingest/image` endpoint and an Image tab in the Studio ingest panel
+  (drop or browse, live preview, animated graph pop-in). No image embeddings or
+  new index: the image becomes text nodes, so retrieval is cross-modal by
+  construction.
+
+### Changed
+- MCP server migrated to the mcp 2.x SDK. The `@server.list_tools()` /
+  `@server.call_tool()` decorators removed in mcp 2.0 are replaced by
+  constructor callbacks; the `mcp` dependency is unpinned to `>=2.0.0,<3.0.0`.
+  The Streamable HTTP transport is unchanged.
+
+### Fixed
+- Per-agent config toggles (Synaptic Memory, Hibernation cadence, Supersession)
+  no longer fail on an agent that lacks a SystemAgent node: the node is now
+  created on demand (MERGE) instead of returning 404.
+- The backend (`/health`, FastAPI) and the Studio Settings page now report the
+  correct version.
+
 ## [0.2.0] - 2026-07-03
 
 Cognitive memory tiers: every agent can be configured as a long-term archive or
