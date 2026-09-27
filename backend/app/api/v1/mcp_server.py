@@ -412,7 +412,12 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[mcp_types.Text
             source=source,
             metadata=metadata,
         )
-        result = await _ingest_module.ingest_text_sync(request_obj)
+        # MCP has already authenticated this session and pinned agent_id, so the
+        # REST handler's IDOR check is a matching no-op — pass the identity through.
+        result = await _ingest_module.ingest_text_sync(
+            request_obj,
+            auth={"agent_id": agent_id, "auth_bypassed": False, "permissions": []},
+        )
         body = (
             f"Ingested under agent {agent_id}.\n"
             f"Nodes: {result.nodes_created} created / {result.nodes_merged} merged\n"
@@ -483,6 +488,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[mcp_types.Text
             node_ids=used_node_ids,
             success=success,
             received_at=_dt.now(_tz.utc).isoformat(),
+            agent_id=agent_id,
         )
         body = (
             f"Feedback applied for agent {agent_id}.\n"
