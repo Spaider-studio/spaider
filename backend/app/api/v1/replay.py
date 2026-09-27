@@ -8,10 +8,15 @@ import logging
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.config import settings
+from app.services.auth_service import (
+    _check_idor,
+    scoped_agent_id,
+    verify_api_key,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -114,13 +119,22 @@ async def get_replay_service():
 
 
 @router.post("/events", response_model=RecordEventResponse, status_code=201)
-async def record_event(request: RecordEventRequest):
+async def record_event(
+    request: RecordEventRequest,
+    auth: dict = Depends(verify_api_key),
+):
     """Record a workflow event for later replay/audit."""
     svc = await _get_replay_service()
     if svc is None:
         raise HTTPException(status_code=503, detail="Replay service unavailable.")
 
-    effective_agent_id = request.agent_id or settings.kafka_agent_namespace
+    # A non-admin caller may only record events under its own namespace; scope
+    # the effective agent_id to the caller (admins/bypass use the request value).
+    scope = scoped_agent_id(auth)
+    if scope is not None:
+        effective_agent_id = scope
+    else:
+        effective_agent_id = request.agent_id or settings.kafka_agent_namespace
     try:
         event_id = await svc.record_event(
             workflow_id=request.workflow_id,
@@ -139,8 +153,21 @@ async def record_event(request: RecordEventRequest):
 async def list_workflows(
     agent_id: Optional[str] = Query(None, description="Filter by agent ID"),
     limit: int = Query(50, ge=1, le=200),
+    auth: dict = Depends(verify_api_key),
 ):
-    """List distinct workflow runs available for replay."""
+    """List distinct workflow runs available for replay.
+
+    A non-admin caller is always scoped to its own namespace: an explicit
+    ``agent_id`` must be its own (else 403), and an omitted ``agent_id`` is
+    filled in with the caller's id rather than listing every agent's runs.
+    Admins may list any or all agents.
+    """
+    if agent_id is not None:
+        _check_idor(auth, agent_id)
+    else:
+        # No filter requested → scope to the caller unless admin/bypass.
+        agent_id = scoped_agent_id(auth)
+
     svc = await _get_replay_service()
     if svc is None:
         raise HTTPException(status_code=503, detail="Replay service unavailable.")
@@ -160,8 +187,15 @@ async def get_workflow_events(
     end_time: Optional[datetime] = Query(None, description="Filter events before this ISO timestamp"),
     event_types: Optional[str] = Query(None, description="Comma-separated event type filter"),
     limit: int = Query(1000, ge=1, le=10000),
+    auth: dict = Depends(verify_api_key),
 ):
-    """Fetch the complete event log for a specific workflow run."""
+    """Fetch the complete event log for a specific workflow run.
+
+    A non-admin caller only sees events in its own namespace: events for a
+    workflow that belongs to another agent are filtered out, so a foreign (or
+    guessed) ``workflow_id`` yields an empty log rather than another tenant's
+    audit trail.
+    """
     svc = await _get_replay_service()
     if svc is None:
         raise HTTPException(status_code=503, detail="Replay service unavailable.")
@@ -178,6 +212,9 @@ async def get_workflow_events(
             event_types=type_filter,
             limit=limit,
         )
+        scope = scoped_agent_id(auth)
+        if scope is not None:
+            events = [e for e in events if (e.get("agent_id") or "") == scope]
         return WorkflowEventsResponse(
             workflow_id=workflow_id,
             events=events,
