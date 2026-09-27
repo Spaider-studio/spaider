@@ -47,8 +47,13 @@ from app.services.graph_service import GraphService
 
 logger = logging.getLogger(__name__)
 
+# Block writes and procedure calls. A keyword blocklist cannot catch every
+# APOC write (procedure names carry no write keyword), which is why callers of
+# query_cypher also run inside a Neo4j read transaction — but blocking CALL and
+# LOAD CSV here turns the common bypasses into a clear error instead of a
+# database exception.
 _WRITE_KEYWORDS = re.compile(
-    r"\b(CREATE|MERGE|DELETE|SET|REMOVE|DETACH|DROP)\b",
+    r"\b(CREATE|MERGE|DELETE|SET|REMOVE|DETACH|DROP|FOREACH|CALL|LOAD\s+CSV)\b",
     re.IGNORECASE,
 )
 
@@ -1734,11 +1739,22 @@ class QueryService:
         await self._cache_set(result, agent_id)
 
     async def query_cypher(self, cypher: str, agent_id: str) -> list[dict]:
-        """Execute a raw read-only Cypher query."""
+        """Execute a raw read-only Cypher query.
+
+        The query is validated against a write-keyword blocklist and then run
+        inside a Neo4j **read transaction**. The read transaction is the real
+        guarantee: Neo4j rejects any write attempted in a read transaction, so
+        a write smuggled past the blocklist (for instance via an APOC
+        procedure) fails at the database rather than mutating the graph.
+        """
         self._validate_read_only(cypher)
+
+        async def _read(tx):
+            result = await tx.run(cypher, agent_id=agent_id)
+            return await result.data()
+
         async with self._graph._driver.session() as session:
-            result = await session.run(cypher, agent_id=agent_id)
-            records = await result.data()
+            records = await session.execute_read(_read)
         logger.info("query_cypher | agent=%s records=%d", agent_id, len(records))
         return records
 
@@ -1747,13 +1763,26 @@ class QueryService:
         start_node_id: str,
         depth: int,
         relation_filter: Optional[list[str]] = None,
+        agent_id: Optional[str] = None,
     ) -> GraphPayload:
-        """Traverse from a node up to depth hops, optionally filtered by relation type."""
+        """Traverse from a node up to depth hops, optionally filtered by relation type.
+
+        When ``agent_id`` is supplied the start node is constrained to that
+        agent's namespace, so a caller cannot walk a subgraph rooted on another
+        agent's node. When it is ``None`` (auth disabled, or an admin caller)
+        the traversal is unscoped.
+        """
         depth = max(1, min(depth, 10))
 
+        # Namespace scoping: pin the start node to the caller's agent_id when
+        # provided. A foreign start_node_id then matches nothing → empty graph.
+        start_match = "(start:SpaiderNode {id: $start_id})"
+        if agent_id is not None:
+            start_match = "(start:SpaiderNode {id: $start_id, agent_id: $agent_id})"
+
         if relation_filter:
-            cypher = """
-                MATCH path = (start:SpaiderNode {id: $start_id})-[r:RELATION*1..$depth]-(end:SpaiderNode)
+            cypher = f"""
+                MATCH path = {start_match}-[r:RELATION*1..$depth]-(end:SpaiderNode)
                 WHERE r.relation IN $rel_filter
                 UNWIND nodes(path) AS n
                 WITH COLLECT(DISTINCT n) AS all_nodes, path
@@ -1763,8 +1792,8 @@ class QueryService:
             """
             params: dict = {"start_id": start_node_id, "depth": depth, "rel_filter": relation_filter}
         else:
-            cypher = """
-                MATCH path = (start:SpaiderNode {id: $start_id})-[*1..$depth]-(end:SpaiderNode)
+            cypher = f"""
+                MATCH path = {start_match}-[*1..$depth]-(end:SpaiderNode)
                 UNWIND nodes(path) AS n
                 WITH COLLECT(DISTINCT n) AS all_nodes, path
                 UNWIND relationships(path) AS rel
@@ -1772,6 +1801,9 @@ class QueryService:
                 RETURN all_nodes, all_rels
             """
             params = {"start_id": start_node_id, "depth": depth}
+
+        if agent_id is not None:
+            params["agent_id"] = agent_id
 
         async with self._graph._driver.session() as session:
             result = await session.run(cypher, **params)
