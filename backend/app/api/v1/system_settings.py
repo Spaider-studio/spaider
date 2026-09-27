@@ -16,10 +16,11 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.config import settings
+from app.services.auth_service import _require_admin, verify_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +118,9 @@ async def _read_settings() -> SystemSettingsResponse:
 
 
 @router.get("/settings", response_model=SystemSettingsResponse)
-async def get_system_settings():
+async def get_system_settings(
+    auth: dict = Depends(verify_api_key),  # noqa: ARG001 — authentication only
+):
     """
     Read the global system settings from Neo4j.
     Creates the singleton node on first call if it does not yet exist.
@@ -136,14 +139,20 @@ async def get_system_settings():
 
 
 @router.post("/settings/reflection", response_model=SystemSettingsResponse)
-async def set_reflection_toggle(body: ReflectionToggle):
+async def set_reflection_toggle(
+    body: ReflectionToggle,
+    auth: dict = Depends(verify_api_key),
+):
     """
     Enable or disable the autonomous Reflection Engine (Hippocampus).
 
     The toggle is persisted on the global SystemSettings singleton in Neo4j
     and is checked by the background scheduler every 5 minutes.
     Returns 404 if the settings node is missing (call GET first to initialise).
+
+    **Auth:** admin-only — this is global, fleet-wide configuration.
     """
+    _require_admin(auth)
     driver = _get_driver()
     try:
         async with driver.session() as session:
@@ -189,7 +198,10 @@ class ConsolidateResponse(BaseModel):
 
 
 @router.post("/consolidate", response_model=ConsolidateResponse)
-async def trigger_consolidate(body: Optional[ConsolidateRequest] = None):
+async def trigger_consolidate(
+    body: Optional[ConsolidateRequest] = None,
+    auth: dict = Depends(verify_api_key),
+):
     """Trigger the graph_maintenance Airflow DAG immediately, off its
     normal schedule. Useful right after a heavy ingest, or when the
     operator wants to run consolidation without waiting for Sunday 03:00 UTC.
@@ -206,7 +218,9 @@ async def trigger_consolidate(body: Optional[ConsolidateRequest] = None):
     Authentication: re-uses ``AIRFLOW_USERNAME``/``AIRFLOW_PASSWORD`` from
     settings (basic auth — Airflow's stable v2 default). Airflow's other
     auth schemes (Kerberos, JWT) would need a separate adapter.
+    **Auth:** admin-only — triggers fleet-wide graph maintenance.
     """
+    _require_admin(auth)
     if not settings.airflow_base_url:
         raise HTTPException(
             status_code=503,
