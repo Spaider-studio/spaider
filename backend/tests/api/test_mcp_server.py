@@ -445,7 +445,7 @@ async def test_call_tool_ingest_fact_passes_agent_id_and_default_source():
 
     captured: dict[str, Any] = {}
 
-    async def fake_ingest_text_sync(req):
+    async def fake_ingest_text_sync(req, auth=None):
         # IngestRequest must carry the contextvar's agent_id + the default
         # source string when the caller omitted `source`.
         captured["agent_id"] = req.agent_id
@@ -476,7 +476,7 @@ async def test_call_tool_ingest_fact_honours_custom_source_and_metadata():
     _AGENT_ID.set("agent-w")
     captured: dict[str, Any] = {}
 
-    async def fake_ingest_text_sync(req):
+    async def fake_ingest_text_sync(req, auth=None):
         captured["source"] = req.source
         captured["metadata"] = req.metadata
         return type("ISR", (), {
@@ -576,10 +576,11 @@ async def test_call_tool_feedback_applies_hebbian_update():
     _AGENT_ID.set("agent-z")
     captured: dict[str, Any] = {}
 
-    async def fake_apply(query_id, node_ids, success, received_at):
+    async def fake_apply(query_id, node_ids, success, received_at, agent_id=None):
         captured["query_id"] = query_id
         captured["node_ids"] = node_ids
         captured["success"] = success
+        captured["agent_id"] = agent_id
 
     with patch("app.api.v1.feedback._apply_hebbian_update", new=fake_apply):
         contents = await call_tool(
@@ -594,6 +595,8 @@ async def test_call_tool_feedback_applies_hebbian_update():
     assert "Nodes touched: 3" in body
     assert captured["node_ids"] == ["n1", "n2", "n3"]
     assert captured["success"] is True
+    # Feedback is scoped to the authenticated MCP agent's namespace.
+    assert captured["agent_id"] == "agent-z"
 
 
 @pytest.mark.asyncio
@@ -603,7 +606,7 @@ async def test_call_tool_feedback_failure_direction_renders():
     or punished a path."""
     _AGENT_ID.set("agent-z")
 
-    async def fake_apply(query_id, node_ids, success, received_at):
+    async def fake_apply(query_id, node_ids, success, received_at, agent_id=None):
         pass
 
     with patch("app.api.v1.feedback._apply_hebbian_update", new=fake_apply):
@@ -623,7 +626,7 @@ async def test_call_tool_feedback_dedupes_node_ids():
     _AGENT_ID.set("agent-z")
     captured: dict[str, Any] = {}
 
-    async def fake_apply(query_id, node_ids, success, received_at):
+    async def fake_apply(query_id, node_ids, success, received_at, agent_id=None):
         captured["node_ids"] = node_ids
 
     with patch("app.api.v1.feedback._apply_hebbian_update", new=fake_apply):

@@ -10,9 +10,10 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.connectors import ConnectorStats, get_connector_stats, get_global_registry
+from app.services.auth_service import verify_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -32,12 +33,18 @@ router = APIRouter()
         "without blocking the user."
     ),
 )
-async def get_connector_status(connector_id: str) -> ConnectorStats:
+async def get_connector_status(
+    connector_id: str,
+    auth: dict = Depends(verify_api_key),  # noqa: ARG001 — authentication only
+) -> ConnectorStats:
     """
     Return the last-run stats for *connector_id*.
 
     Returns 404 if the connector_id is not registered in the global registry
     (i.e. it is an unknown connector, not just one that has never been run).
+
+    **Auth:** requires a valid API key when ``REQUIRE_API_KEY_AUTH=true`` so
+    operational run state is not exposed anonymously.
     """
     registry = get_global_registry()
     if registry is None or registry.get(connector_id) is None:
