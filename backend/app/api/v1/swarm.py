@@ -24,12 +24,20 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
+import app.services.auth_service as _auth
 from app.config import settings
 from app.lib.litellm_retry import acompletion_with_retry
 from app.models.requests import SwarmConnectionRequest, SwarmQueryRequest
 from app.models.responses import APIResponse, SwarmConnectionResponse, SwarmQueryResponse
 from app.models.schemas import SwarmConnection
-from app.services.auth_service import _check_idor, verify_api_key
+from app.services.auth_service import (
+    AuthService,
+    _check_idor,
+    _is_admin,
+    _require_admin,
+    scoped_agent_id,
+    verify_api_key,
+)
 from app.services.redis_service import subscribe_to_swarm_logs
 
 _CLEARANCE_DEFAULT_VALUE: int = (
@@ -460,16 +468,27 @@ async def list_connections(
 @router.delete("/connections/{connection_id}", response_model=APIResponse)
 async def revoke_connection(
     connection_id: str,
-    auth: dict = Depends(verify_api_key),  # noqa: ARG001 — connection-owner IDOR is Phase 2 work
+    auth: dict = Depends(verify_api_key),
 ):
     """Revoke (delete) a swarm connection by ID.
 
-    **Auth:** Requires X-Api-Key. Per-connection IDOR (verifying the
-    caller is the source of the connection being revoked) requires a
-    Redis lookup and is deferred to Phase 2 — for now, any authenticated
-    caller can revoke any connection. This is intentional scope for
-    Phase 1; tracked in the manifest's Phase 2 follow-ups.
+    **Auth:** requires a valid key. A non-admin caller may only revoke a
+    connection it participates in (as source or target); an admin may revoke
+    any. This closes the previous IDOR where any authenticated caller could
+    revoke any connection by id.
     """
+    conn = await _load_connection(connection_id)
+    if conn is None:
+        raise HTTPException(status_code=404, detail=f"Connection '{connection_id}' not found")
+
+    # Ownership: caller must be a participant (source or target) unless admin.
+    scope = scoped_agent_id(auth)
+    if scope is not None and scope not in (conn.source_agent_id, conn.target_agent_id):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Authenticated agent '{scope}' is not a participant in this connection.",
+        )
+
     try:
         deleted = await _delete_connection(connection_id)
     except Exception as exc:
@@ -742,9 +761,12 @@ _HEARTBEAT_S = 15.0
 
 
 @router.get("/health", summary="Live worker presence — Swarm Pulse")
-async def swarm_health():
+async def swarm_health(auth: dict = Depends(verify_api_key)):
     """
     Aggregate all live swarm worker heartbeats into a single health snapshot.
+
+    **Auth:** admin-only when ``REQUIRE_API_KEY_AUTH=true`` — fleet-wide worker
+    presence is operational information, not per-agent data.
 
     Discovery mechanism
     -------------------
@@ -775,6 +797,7 @@ async def swarm_health():
 
     An empty ``active_agents`` list means no workers are currently running.
     """
+    _require_admin(auth)
     redis = await _get_redis()
 
     active_agents: list[str] = []
@@ -809,14 +832,40 @@ async def swarm_health():
 # ---------------------------------------------------------------------------
 
 
+async def _authorize_admin_token(token: Optional[str]) -> bool:
+    """Admin authorization for an SSE stream via a ``?token=`` query param.
+
+    EventSource clients cannot set request headers, so the admin key is passed
+    as a query parameter. Returns True when auth is disabled, or the token is a
+    valid admin key. Any other case is denied.
+    """
+    if not _auth._REQUIRE_API_KEY_AUTH:
+        return True
+    if not token:
+        return False
+    try:
+        record = await AuthService().get_agent_by_api_key(token)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Swarm SSE auth lookup failed: %s", exc)
+        return False
+    return bool(record) and _is_admin(record)
+
+
 @router.get(
     "/events/stream",
     summary="Swarm Live-Log — Server-Sent Events",
     response_class=StreamingResponse,
 )
-async def swarm_events_stream(request: Request) -> StreamingResponse:
+async def swarm_events_stream(
+    request: Request,
+    token: Optional[str] = Query(default=None),
+) -> StreamingResponse:
     """
     Stream live swarm worker activity as Server-Sent Events (SSE).
+
+    **Auth:** admin-only when ``REQUIRE_API_KEY_AUTH=true`` (fleet-wide activity
+    feed). Because EventSource cannot send headers, pass the admin key as
+    ``?token=sk-...``.
 
     Architecture
     ------------
@@ -886,6 +935,11 @@ async def swarm_events_stream(request: Request) -> StreamingResponse:
             "session_id":"<optional>"
         }
     """
+    if not await _authorize_admin_token(token):
+        raise HTTPException(
+            status_code=403,
+            detail="Swarm live-log requires an admin API key (pass ?token=sk-...).",
+        )
     redis = await _get_redis()
 
     def _heartbeat_frame(message: str) -> str:

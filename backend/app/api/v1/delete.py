@@ -8,9 +8,10 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 
 from app.models.responses import DeleteNodeResponse
+from app.services.auth_service import _require_admin, verify_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -45,15 +46,6 @@ async def _get_redis():
     return _redis_client
 
 
-def _check_admin_permission(x_agent_permission: Optional[str]) -> None:
-    """Simple permission gate: require 'admin' in the X-Agent-Permission header."""
-    if x_agent_permission is None or "admin" not in x_agent_permission.lower():
-        raise HTTPException(
-            status_code=403,
-            detail="Admin permission required to delete nodes. Provide X-Agent-Permission: admin header.",
-        )
-
-
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -62,14 +54,22 @@ def _check_admin_permission(x_agent_permission: Optional[str]) -> None:
 @router.delete("/{node_id}", response_model=DeleteNodeResponse)
 async def delete_node(
     node_id: str,
-    x_agent_permission: Optional[str] = Header(default=None, alias="X-Agent-Permission"),
     agent_id: str = "default",
+    auth: dict = Depends(verify_api_key),
+    # Deprecated: the client-supplied X-Agent-Permission header was trivially
+    # spoofable and is no longer honored. Kept only so existing callers that
+    # still send it are not rejected. Authorization now comes from the API key.
+    x_agent_permission: Optional[str] = Header(default=None, alias="X-Agent-Permission"),
 ):
     """
     GDPR killswitch: permanently delete a node and all its relationships.
-    Requires admin permission. Creates an immutable audit log entry in Redis.
+
+    **Auth:** requires an API key with the ``admin`` permission when
+    ``REQUIRE_API_KEY_AUTH=true`` (the previous ``X-Agent-Permission: admin``
+    header was spoofable and is ignored). Creates an immutable audit log entry
+    in Redis. When the flag is off, deletion is open (single-tenant / dev).
     """
-    _check_admin_permission(x_agent_permission)
+    _require_admin(auth)
 
     graph = _get_graph_service()
 
@@ -98,13 +98,17 @@ async def delete_node(
         logger.exception("Error deleting node %s: %s", node_id, exc)
         raise HTTPException(status_code=500, detail=str(exc))
 
+    # Prefer the authenticated identity for the audit trail; fall back to the
+    # (caller-controlled) query param only when auth is bypassed.
+    actor_id = auth.get("agent_id") or agent_id
+
     # Build audit entry
     audit_entry = {
         "event": "node_deleted",
         "node_id": node_id,
         "node_label": node.label,
         "node_type": node.type,
-        "agent_id": agent_id,
+        "agent_id": actor_id,
         "deleted_edges": deleted_edges,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
@@ -125,7 +129,7 @@ async def delete_node(
         "Node %s (%s) deleted by agent_id=%s, %d edges removed",
         node_id,
         node.label,
-        agent_id,
+        actor_id,
         deleted_edges,
     )
 
