@@ -39,17 +39,27 @@ recommended for any shared deployment.
 - Ingestion, feedback, and global system-settings routes now require
   authentication; write routes are scoped to the caller's namespace so a valid
   key cannot poison another agent's graph or synaptic weights.
+- Analytics, graph, replay, and synthesize routes now require authentication and
+  are scoped to the caller's namespace. Per-agent reads (graph pages, clusters,
+  stats, analytics, replay workflows/events, dataset export/DPO) are self-only
+  for non-admins; inherently fleet-wide views (the multiverse graph, top-agents,
+  full-multiverse export, swarm worker health and live-log) are admin-only.
+  Dataset download is scoped to the caller's own dataset directory and rejects
+  path traversal.
+- Swarm connection revoke now checks participation: a non-admin may only revoke
+  a connection it is the source or target of (previously any authenticated
+  caller could revoke any connection by id).
+- WebSocket (`/ws/{agent_id}`) and the swarm SSE live-log now authenticate via a
+  `?token=` API key (browsers cannot set handshake headers): the WS key must own
+  the requested stream or be admin; the SSE log is admin-only.
+- Node deletion, ingestion connectors, and system-settings reads now require a
+  valid key rather than being anonymous.
 - Deleting an agent now revokes all of its API keys, removing dangling
   credentials that could still authenticate against an orphaned namespace.
 - Privilege escalation via agent creation/update is closed: only an admin key
   may grant the `admin` permission. The first admin must be provisioned
   out-of-band (`backend/scripts/bootstrap_admin.py`).
 - The backend logs a loud warning at startup when `REQUIRE_API_KEY_AUTH` is off.
-
-### Known follow-ups
-- Read-only cross-namespace exposure on some analytics/replay/graph/synthesize
-  routes is tracked for a subsequent patch; these require a valid key and only
-  matter in multi-tenant mode.
 
 ## [0.3.0] - 2026-07-04
 

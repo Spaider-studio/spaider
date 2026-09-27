@@ -452,6 +452,22 @@ def _check_idor(authenticated: dict, requested_agent_id: str) -> None:
         )
 
 
+def scoped_agent_id(authenticated: dict) -> Optional[str]:
+    """The agent_id a query should be constrained to for this caller.
+
+    Returns ``None`` (no scoping / full cross-namespace access) when auth is
+    disabled, the caller is bypassed, or the caller is an admin. Otherwise
+    returns the caller's own ``agent_id`` so reads and writes stay inside their
+    namespace. Routes use this to scope list/search/export operations without
+    repeating the admin/bypass branching at every call site.
+    """
+    if not _REQUIRE_API_KEY_AUTH or authenticated.get("auth_bypassed"):
+        return None
+    if _is_admin(authenticated):
+        return None
+    return authenticated.get("agent_id")
+
+
 def _require_admin(authenticated: dict) -> None:
     """Guard for operations that span or enumerate every agent namespace.
 

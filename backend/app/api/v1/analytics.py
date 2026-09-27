@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from app.services.auth_service import _check_idor, _require_admin, verify_api_key
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -37,8 +39,10 @@ def _svc():
 @router.get("/overview")
 async def overview(
     agent_id: str = Query(default="default"),
+    auth: dict = Depends(verify_api_key),
 ):
     """Aggregate totals: ingests, nodes created, queries, latencies."""
+    _check_idor(auth, agent_id)
     return await _svc().get_overview(agent_id)
 
 
@@ -46,8 +50,10 @@ async def overview(
 async def ingest_timeseries(
     agent_id: str = Query(default="default"),
     days: int = Query(default=7, ge=1, le=90),
+    auth: dict = Depends(verify_api_key),
 ):
     """Hourly ingest volume, node/edge counts, and avg latency for the last N days."""
+    _check_idor(auth, agent_id)
     return {"timeseries": await _svc().get_ingest_timeseries(agent_id, days)}
 
 
@@ -55,14 +61,18 @@ async def ingest_timeseries(
 async def query_timeseries(
     agent_id: str = Query(default="default"),
     days: int = Query(default=7, ge=1, le=90),
+    auth: dict = Depends(verify_api_key),
 ):
     """Hourly query volume, avg latency, and nodes returned for the last N days."""
+    _check_idor(auth, agent_id)
     return {"timeseries": await _svc().get_query_timeseries(agent_id, days)}
 
 
 @router.get("/top-agents")
 async def top_agents(
     limit: int = Query(default=10, ge=1, le=100),
+    auth: dict = Depends(verify_api_key),
 ):
-    """Most active agents by ingest count."""
+    """Most active agents by ingest count. Admin-only (ranks across all agents)."""
+    _require_admin(auth)
     return {"agents": await _svc().get_top_agents(limit)}

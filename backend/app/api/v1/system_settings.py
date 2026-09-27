@@ -118,7 +118,9 @@ async def _read_settings() -> SystemSettingsResponse:
 
 
 @router.get("/settings", response_model=SystemSettingsResponse)
-async def get_system_settings():
+async def get_system_settings(
+    auth: dict = Depends(verify_api_key),  # noqa: ARG001 — authentication only
+):
     """
     Read the global system settings from Neo4j.
     Creates the singleton node on first call if it does not yet exist.

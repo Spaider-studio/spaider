@@ -24,6 +24,7 @@ from app.services.auth_service import (
     _is_admin,
     _require_admin,
     optional_auth,
+    scoped_agent_id,
 )
 
 BYPASS = {"agent_id": None, "auth_bypassed": True}
@@ -108,6 +109,26 @@ def test_require_admin_blocks_anonymous():
     with patch.object(auth_mod, "_REQUIRE_API_KEY_AUTH", True):
         with pytest.raises(HTTPException):
             _require_admin({"agent_id": None, "auth_bypassed": False, "permissions": []})
+
+
+# ---------------------------------------------------------------------------
+# scoped_agent_id
+# ---------------------------------------------------------------------------
+
+def test_scoped_agent_id_none_when_flag_off():
+    with patch.object(auth_mod, "_REQUIRE_API_KEY_AUTH", False):
+        assert scoped_agent_id(AGENT_A) is None
+
+
+def test_scoped_agent_id_none_for_bypass_and_admin():
+    with patch.object(auth_mod, "_REQUIRE_API_KEY_AUTH", True):
+        assert scoped_agent_id(BYPASS) is None
+        assert scoped_agent_id(ADMIN) is None
+
+
+def test_scoped_agent_id_returns_own_id_for_non_admin():
+    with patch.object(auth_mod, "_REQUIRE_API_KEY_AUTH", True):
+        assert scoped_agent_id(AGENT_A) == "A"
 
 
 # ---------------------------------------------------------------------------
@@ -254,3 +275,57 @@ async def test_traverse_unscoped_when_no_agent():
     await svc.traverse(start_node_id="n1", depth=2, agent_id=None)
     assert "agent_id" not in captured["cypher"]
     assert "agent_id" not in captured["params"]
+
+
+# ---------------------------------------------------------------------------
+# WebSocket / SSE token authorizers (browsers can't set handshake headers)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_ws_authorize_allows_all_when_flag_off():
+    from app.api.v1.ws import _authorize_ws
+    with patch.object(auth_mod, "_REQUIRE_API_KEY_AUTH", False):
+        assert await _authorize_ws("A", token=None) is True
+
+
+@pytest.mark.asyncio
+async def test_ws_authorize_denies_missing_token_when_enforced():
+    from app.api.v1.ws import _authorize_ws
+    with patch.object(auth_mod, "_REQUIRE_API_KEY_AUTH", True):
+        assert await _authorize_ws("A", token=None) is False
+
+
+@pytest.mark.asyncio
+async def test_ws_authorize_matches_agent_and_admin():
+    from app.api.v1.ws import _authorize_ws
+    own = {"agent_id": "A", "permissions": ["read"]}
+    other = {"agent_id": "B", "permissions": ["read"]}
+    admin = {"agent_id": "ops", "permissions": ["admin"]}
+    with patch.object(auth_mod, "_REQUIRE_API_KEY_AUTH", True):
+        with patch.object(auth_mod.AuthService, "get_agent_by_api_key",
+                          new=AsyncMock(return_value=own)):
+            assert await _authorize_ws("A", token="sk-a") is True   # own stream
+            assert await _authorize_ws("B", token="sk-a") is False  # cross-agent
+        with patch.object(auth_mod.AuthService, "get_agent_by_api_key",
+                          new=AsyncMock(return_value=other)):
+            assert await _authorize_ws("A", token="sk-b") is False
+        with patch.object(auth_mod.AuthService, "get_agent_by_api_key",
+                          new=AsyncMock(return_value=admin)):
+            assert await _authorize_ws("A", token="sk-admin") is True  # admin any
+
+
+@pytest.mark.asyncio
+async def test_sse_admin_token_authorizer():
+    from app.api.v1.swarm import _authorize_admin_token
+    admin = {"agent_id": "ops", "permissions": ["admin"]}
+    nonadmin = {"agent_id": "A", "permissions": ["read", "write"]}
+    with patch.object(auth_mod, "_REQUIRE_API_KEY_AUTH", False):
+        assert await _authorize_admin_token(None) is True
+    with patch.object(auth_mod, "_REQUIRE_API_KEY_AUTH", True):
+        assert await _authorize_admin_token(None) is False
+        with patch.object(auth_mod.AuthService, "get_agent_by_api_key",
+                          new=AsyncMock(return_value=admin)):
+            assert await _authorize_admin_token("sk-admin") is True
+        with patch.object(auth_mod.AuthService, "get_agent_by_api_key",
+                          new=AsyncMock(return_value=nonadmin)):
+            assert await _authorize_admin_token("sk-a") is False
