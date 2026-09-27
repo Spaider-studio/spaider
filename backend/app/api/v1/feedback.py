@@ -23,10 +23,12 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
+
+from app.services.auth_service import _is_admin, verify_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +95,7 @@ UNWIND $node_ids AS tgt_id
 WITH src_id, tgt_id
 WHERE src_id <> tgt_id
 MATCH (a:SpaiderNode {id: src_id})-[r:RELATION]->(b:SpaiderNode {id: tgt_id})
+WHERE $agent_id IS NULL OR r.agent_id = $agent_id
 WITH r, coalesce(r.utility_weight, 1.0) AS w
 SET r.utility_weight = CASE
     WHEN $success AND w + 0.1 >= 2.0 THEN 2.0
@@ -114,6 +117,7 @@ async def _apply_hebbian_update(
     node_ids: List[str],
     success: bool,
     received_at: str,
+    agent_id: Optional[str] = None,
 ) -> None:
     """
     Runs in a FastAPI BackgroundTask — fully decoupled from the HTTP response.
@@ -121,6 +125,11 @@ async def _apply_hebbian_update(
     Finds all RELATION edges between the supplied nodes and nudges their
     utility_weight in the direction indicated by `success`.  Errors are
     logged but never re-raised (background tasks must not crash the worker).
+
+    When ``agent_id`` is set, only edges in that agent's namespace are touched,
+    so a caller cannot reshape another agent's synaptic weights by submitting
+    feedback against their node ids. ``None`` (auth off, or an admin caller)
+    updates across namespaces as before.
     """
     driver = _get_driver()
     try:
@@ -129,6 +138,7 @@ async def _apply_hebbian_update(
                 _HEBBIAN_UPDATE_CYPHER,
                 node_ids=node_ids,
                 success=success,
+                agent_id=agent_id,
             )
             record = await result.single()
             updated = int(record["updated_count"]) if record else 0
@@ -164,6 +174,7 @@ async def _apply_hebbian_update(
 async def submit_feedback(
     body: FeedbackPayload,
     background_tasks: BackgroundTasks,
+    auth: dict = Depends(verify_api_key),
 ):
     """
     Submit feedback for a completed query to trigger Hebbian weight updates.
@@ -187,12 +198,19 @@ async def submit_feedback(
 
     received_at = datetime.now(timezone.utc).isoformat()
 
+    # Scope the synaptic update to the caller's namespace unless auth is off or
+    # the caller is an admin (then agent_id is None → cross-namespace, as before).
+    scope_agent_id = None
+    if not auth.get("auth_bypassed") and not _is_admin(auth):
+        scope_agent_id = auth.get("agent_id")
+
     background_tasks.add_task(
         _apply_hebbian_update,
         query_id=body.query_id,
         node_ids=body.used_node_ids,
         success=body.success,
         received_at=received_at,
+        agent_id=scope_agent_id,
     )
 
     direction = "reinforced" if body.success else "weakened"

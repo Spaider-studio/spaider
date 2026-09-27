@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import AsyncGenerator, Optional
 
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -27,6 +27,13 @@ from app.models.responses import (
     SwarmLinkResponse,
 )
 from app.models.schemas import Agent, Edge, GraphPayload, Node
+from app.services.auth_service import (
+    _check_idor,
+    _is_admin,
+    _require_admin,
+    optional_auth,
+    verify_api_key,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -300,20 +307,45 @@ async def _ndjson_export_generator(
 
 
 @router.post("", response_model=AgentResponse, status_code=201)
-async def create_agent(request: AgentCreateRequest):
+async def create_agent(
+    request: AgentCreateRequest,
+    auth: dict = Depends(optional_auth),
+):
     """
     Create a new agent namespace. Returns the agent record with a generated API key.
     Store this API key securely; it is only shown once.
+
+    **Auth:** open to anonymous callers so agents can self-register, but the
+    ``admin`` permission can only be granted by an existing admin key. A
+    non-admin (or anonymous) request that asks for ``admin`` has it stripped —
+    this is the only way to mint an admin key, so the first admin must be
+    provisioned out-of-band (see ``backend/scripts/bootstrap_admin.py``).
+    When auth is disabled, requested permissions are honored as-is.
     """
     agent_id = str(uuid.uuid4())
 
+    # Withhold the privileged "admin" grant from anyone who is not already an
+    # admin — otherwise self-registration would be a trivial privilege
+    # escalation path around every admin-gated route.
+    permissions = list(request.permissions or [])
+    if (
+        "admin" in permissions
+        and not _is_admin(auth)
+        and not auth.get("auth_bypassed")
+    ):
+        permissions = [p for p in permissions if p != "admin"]
+        logger.warning(
+            "Stripped 'admin' from create_agent request by non-admin caller %s",
+            auth.get("agent_id") or "anonymous",
+        )
+
     # ── Generate, hash, and store the API key in Redis (AuthService owns all crypto) ──
-    auth = _get_auth_service()
+    auth_svc = _get_auth_service()
     try:
-        raw_key, hashed_key = await auth.generate_and_store_api_key(
+        raw_key, hashed_key = await auth_svc.generate_and_store_api_key(
             agent_id=agent_id,
             tenant_id=request.tenant_id,
-            permissions=request.permissions,
+            permissions=permissions,
         )
     except Exception as exc:
         logger.exception("Failed to generate API key for agent %s: %s", agent_id, exc)
@@ -326,7 +358,7 @@ async def create_agent(request: AgentCreateRequest):
         name=request.name,
         description=request.description,
         tenant_id=request.tenant_id,
-        permissions=request.permissions,
+        permissions=permissions,
         clearance_level=request.clearance_level,
         interaction_memory=request.interaction_memory,
         api_key_hash=hashed_key,   # hash stored at rest, never the raw key
@@ -371,7 +403,11 @@ class MemoryModeUpdate(BaseModel):
 
 
 @router.post("/{agent_id}/memory-mode", response_model=APIResponse)
-async def set_memory_mode(agent_id: str, body: MemoryModeUpdate):
+async def set_memory_mode(
+    agent_id: str,
+    body: MemoryModeUpdate,
+    auth: dict = Depends(verify_api_key),
+):
     """
     Switch an agent's memory mode at any time.
 
@@ -382,6 +418,7 @@ async def set_memory_mode(agent_id: str, body: MemoryModeUpdate):
     Takes effect on the next query. Existing ``utility_weight`` values are
     preserved across a switch (turning off freezes them; turning on resumes).
     """
+    _check_idor(auth, agent_id)
     mode = body.memory_mode
     if mode not in ("off", "on"):
         raise HTTPException(status_code=422, detail="memory_mode must be 'off' or 'on'.")
@@ -413,13 +450,14 @@ async def set_memory_mode(agent_id: str, body: MemoryModeUpdate):
 
 
 @router.get("/{agent_id}/memory-mode", response_model=APIResponse)
-async def get_memory_mode(agent_id: str):
+async def get_memory_mode(agent_id: str, auth: dict = Depends(verify_api_key)):
     """
     Read an agent's current memory mode (``off`` | ``on``).
 
     Falls back to the configured default when the SystemAgent node carries no
     explicit value (e.g. an agent created before this field existed).
     """
+    _check_idor(auth, agent_id)
     try:
         graph = _get_graph_service()
         async with graph._driver.session() as _session:
@@ -447,13 +485,14 @@ class ConsolidationConfigUpdate(BaseModel):
 
 
 @router.get("/{agent_id}/consolidation", response_model=APIResponse)
-async def get_consolidation_config(agent_id: str):
+async def get_consolidation_config(agent_id: str, auth: dict = Depends(verify_api_key)):
     """
     Read an agent's hibernation cadence.
 
     Returns ``interval_hours`` (0 = off) and ``last_consolidated_at`` (ISO
     string or null). Falls back to the configured default when unset.
     """
+    _check_idor(auth, agent_id)
     try:
         graph = _get_graph_service()
         async with graph._driver.session() as _session:
@@ -482,7 +521,11 @@ async def get_consolidation_config(agent_id: str):
 
 
 @router.post("/{agent_id}/consolidation", response_model=APIResponse)
-async def set_consolidation_config(agent_id: str, body: ConsolidationConfigUpdate):
+async def set_consolidation_config(
+    agent_id: str,
+    body: ConsolidationConfigUpdate,
+    auth: dict = Depends(verify_api_key),
+):
     """
     Set an agent's hibernation cadence.
 
@@ -490,6 +533,7 @@ async def set_consolidation_config(agent_id: str, body: ConsolidationConfigUpdat
     value in [0, 8760] is accepted). The scheduler runs a per-agent pass once
     the interval has elapsed since ``last_consolidated_at``.
     """
+    _check_idor(auth, agent_id)
     hours = body.interval_hours
     if hours < 0 or hours > 8760:
         raise HTTPException(status_code=422, detail="interval_hours must be between 0 and 8760.")
@@ -522,7 +566,7 @@ async def set_consolidation_config(agent_id: str, body: ConsolidationConfigUpdat
 
 
 @router.post("/{agent_id}/consolidate-now", response_model=APIResponse)
-async def consolidate_now(agent_id: str):
+async def consolidate_now(agent_id: str, auth: dict = Depends(verify_api_key)):
     """
     Run a consolidation (hibernation) pass for one agent immediately.
 
@@ -530,6 +574,7 @@ async def consolidate_now(agent_id: str):
     duplicates, decay unused synapses, optional inverse-edge proposal) and
     stamps ``last_consolidated_at``.
     """
+    _check_idor(auth, agent_id)
     try:
         graph = _get_graph_service()
         from app.workers.rem_sleep_worker import REMSleepWorker
@@ -551,8 +596,9 @@ class SupersedeUpdate(BaseModel):
 
 
 @router.get("/{agent_id}/supersession", response_model=APIResponse)
-async def get_supersession(agent_id: str):
+async def get_supersession(agent_id: str, auth: dict = Depends(verify_api_key)):
     """Read whether this agent supersedes updated facts (archive off | working on)."""
+    _check_idor(auth, agent_id)
     try:
         graph = _get_graph_service()
         async with graph._driver.session() as _session:
@@ -571,7 +617,11 @@ async def get_supersession(agent_id: str):
 
 
 @router.post("/{agent_id}/supersession", response_model=APIResponse)
-async def set_supersession(agent_id: str, body: SupersedeUpdate):
+async def set_supersession(
+    agent_id: str,
+    body: SupersedeUpdate,
+    auth: dict = Depends(verify_api_key),
+):
     """
     Turn supersession on/off for an agent.
 
@@ -580,6 +630,7 @@ async def set_supersession(agent_id: str, body: SupersedeUpdate):
               current value.
     - ``off`` archive memory: keep the full history; nothing is superseded.
     """
+    _check_idor(auth, agent_id)
     try:
         graph = _get_graph_service()
         async with graph._driver.session() as _session:
@@ -608,12 +659,19 @@ async def set_supersession(agent_id: str, body: SupersedeUpdate):
 
 
 @router.post("/connect", response_model=AgentBridgeResponse)
-async def connect_agents(request: AgentConnectRequest):
+async def connect_agents(
+    request: AgentConnectRequest,
+    auth: dict = Depends(verify_api_key),
+):
     """
     Create a SHARES_KNOWLEDGE_WITH synaptic bridge between two SystemAgent nodes.
     The relationship is idempotent (safe to call multiple times).
     Returns 400 if source == target, or if either agent node does not exist in Neo4j.
+
+    **Auth:** the caller must be the source agent (or an admin) — you can only
+    share *your own* knowledge outward, not forge a bridge from someone else.
     """
+    _check_idor(auth, request.source_agent_id)
     if request.source_agent_id == request.target_agent_id:
         raise HTTPException(
             status_code=400,
@@ -686,6 +744,7 @@ async def import_agent_graph(
             "untouched; the response's `new_api_key` field is empty."
         ),
     ),
+    auth: dict = Depends(verify_api_key),
 ):
     """
     NDJSON import with micro-batched, memory-safe Neo4j writes.
@@ -712,6 +771,11 @@ async def import_agent_graph(
     the first ``edge`` line is encountered, ensuring referenced nodes exist
     in Neo4j before the edge ``MATCH`` runs.
     """
+    # Restore can create agents and write into any namespace (the target is
+    # taken from the file's metadata when target_agent_id is omitted), so it is
+    # a privileged, fleet-wide operation: admin-only when auth is enforced.
+    _require_admin(auth)
+
     # ── State ─────────────────────────────────────────────────────────────
     agent_id:       str | None  = None
     new_api_key:    str         = ""
@@ -826,8 +890,8 @@ async def import_agent_graph(
             # Restore agent record in Redis with a fresh API key.
             # The original api_key is deliberately excluded from exports.
             # AuthService owns all crypto — no secrets/hashlib here.
-            auth = _get_auth_service()
-            raw_key_import, hashed_key_import = await auth.generate_and_store_api_key(
+            auth_svc = _get_auth_service()
+            raw_key_import, hashed_key_import = await auth_svc.generate_and_store_api_key(
                 agent_id=agent_id,
                 tenant_id=data.get("tenant_id", "default"),
                 permissions=data.get("permissions") or ["read", "write", "query"],
@@ -991,7 +1055,10 @@ async def import_agent_graph(
 
 
 @router.post("/{agent_id}/rotate-key", response_model=RotateKeyResponse)
-async def rotate_api_key(agent_id: str) -> RotateKeyResponse:
+async def rotate_api_key(
+    agent_id: str,
+    auth: dict = Depends(verify_api_key),
+) -> RotateKeyResponse:
     """
     Rotate the agent's API key: revoke the current credential and issue a new one.
 
@@ -999,27 +1066,28 @@ async def rotate_api_key(agent_id: str) -> RotateKeyResponse:
     node, edge, and embedding untouched by design — only the ``spaider:apikey:*``
     Redis slot changes.
     """
+    _check_idor(auth, agent_id)
     existing = await _load_agent(agent_id)
     if existing is None:
         raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
 
-    auth = _get_auth_service()
+    auth_svc = _get_auth_service()
 
     # Revoke the previous credential. If ``api_key_hash`` is known we DEL by
     # hash (O(1)); otherwise fall back to a SCAN over all apikey slots, which
     # handles agents that existed before this field was introduced.
     try:
         if existing.api_key_hash:
-            await auth.revoke_api_key_by_hash(existing.api_key_hash)
+            await auth_svc.revoke_api_key_by_hash(existing.api_key_hash)
         else:
-            await auth.revoke_all_for_agent(agent_id)
+            await auth_svc.revoke_all_for_agent(agent_id)
     except Exception as exc:
         logger.exception("Failed to revoke old API key for %s: %s", agent_id, exc)
         raise HTTPException(status_code=500, detail=f"Failed to revoke old key: {exc}")
 
     # Generate + persist the new credential.
     try:
-        raw_api_key, new_hash = await auth.generate_and_store_api_key(
+        raw_api_key, new_hash = await auth_svc.generate_and_store_api_key(
             agent_id=existing.id,
             tenant_id=existing.tenant_id,
             permissions=existing.permissions,
@@ -1037,7 +1105,7 @@ async def rotate_api_key(agent_id: str) -> RotateKeyResponse:
     except Exception as exc:
         logger.exception("Failed to persist rotated hash for %s: %s", agent_id, exc)
         try:
-            await auth.revoke_api_key_by_hash(new_hash)
+            await auth_svc.revoke_api_key_by_hash(new_hash)
         except Exception:
             logger.exception("Rollback of new apikey slot for %s failed", agent_id)
         raise HTTPException(status_code=500, detail=f"Failed to persist rotated key: {exc}")
@@ -1047,8 +1115,9 @@ async def rotate_api_key(agent_id: str) -> RotateKeyResponse:
 
 
 @router.get("", response_model=AgentListResponse)
-async def list_agents():
-    """List all registered agents."""
+async def list_agents(auth: dict = Depends(verify_api_key)):
+    """List all registered agents. Admin-only — this enumerates every namespace."""
+    _require_admin(auth)
     try:
         redis = await _get_redis()
         agent_ids = await redis.smembers(AGENT_INDEX_KEY)
@@ -1069,11 +1138,12 @@ async def list_agents():
 
 
 @router.get("/links", response_model=list[SwarmLinkResponse])
-async def list_swarm_links():
+async def list_swarm_links(auth: dict = Depends(verify_api_key)):
     """
     Return every active SHARES_KNOWLEDGE_WITH bridge in the neural graph,
-    enriched with human-readable agent names.
+    enriched with human-readable agent names. Admin-only — fleet-wide view.
     """
+    _require_admin(auth)
     graph = _get_graph_service()
     try:
         async with graph._driver.session() as session:
@@ -1107,11 +1177,15 @@ async def list_swarm_links():
 async def delete_swarm_link(
     source_agent_id: str = Query(..., description="agent_id of the source SystemAgent"),
     target_agent_id: str = Query(..., description="agent_id of the target SystemAgent"),
+    auth: dict = Depends(verify_api_key),
 ):
     """
     Remove the SHARES_KNOWLEDGE_WITH edge between two SystemAgent nodes.
     Returns 404 if the edge does not exist.
+
+    **Auth:** the caller must own the source agent (or be an admin).
     """
+    _check_idor(auth, source_agent_id)
     if source_agent_id == target_agent_id:
         raise HTTPException(
             status_code=400,
@@ -1168,7 +1242,8 @@ async def delete_swarm_link(
         "Returns the count of deleted `InteractionNode` objects."
     ),
 )
-async def delete_agent_interactions(agent_id: str):
+async def delete_agent_interactions(agent_id: str, auth: dict = Depends(verify_api_key)):
+    _check_idor(auth, agent_id)
     existing = await _load_agent(agent_id)
     if existing is None:
         raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
@@ -1226,7 +1301,9 @@ async def export_agent_graph_ndjson(
             "for import (they will be recomputed on ingest)."
         ),
     ),
+    auth: dict = Depends(verify_api_key),
 ):
+    _check_idor(auth, agent_id)
     agent = await _load_agent(agent_id)
     if agent is None:
         raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
@@ -1244,8 +1321,9 @@ async def export_agent_graph_ndjson(
 
 
 @router.get("/{agent_id}", response_model=AgentResponse)
-async def get_agent(agent_id: str):
+async def get_agent(agent_id: str, auth: dict = Depends(verify_api_key)):
     """Retrieve agent details. API key is redacted."""
+    _check_idor(auth, agent_id)
     try:
         agent = await _load_agent(agent_id)
     except Exception as exc:
@@ -1261,8 +1339,13 @@ async def get_agent(agent_id: str):
 
 
 @router.put("/{agent_id}", response_model=AgentResponse)
-async def update_agent(agent_id: str, request: AgentCreateRequest):
+async def update_agent(
+    agent_id: str,
+    request: AgentCreateRequest,
+    auth: dict = Depends(verify_api_key),
+):
     """Update an existing agent's metadata."""
+    _check_idor(auth, agent_id)
     existing = await _load_agent(agent_id)
     if existing is None:
         raise HTTPException(status_code=404, detail=f"Agent '{agent_id}' not found")
@@ -1271,9 +1354,14 @@ async def update_agent(agent_id: str, request: AgentCreateRequest):
     existing.name = request.name
     existing.description = request.description
     existing.tenant_id = request.tenant_id
-    existing.permissions = request.permissions
-    existing.clearance_level = request.clearance_level
     existing.interaction_memory = request.interaction_memory
+    # Privilege-sensitive fields (permissions, clearance) may only be changed by
+    # an admin. A non-admin self-update that tried to grant itself "admin" or
+    # raise its clearance is silently held to the existing values — no
+    # escalation via PUT /agents/{id}. When auth is off, both apply as before.
+    if _is_admin(auth) or auth.get("auth_bypassed"):
+        existing.permissions = request.permissions
+        existing.clearance_level = request.clearance_level
 
     try:
         await _save_agent(existing)
@@ -1300,11 +1388,12 @@ async def update_agent(agent_id: str, request: AgentCreateRequest):
 
 
 @router.delete("/{agent_id}", response_model=APIResponse)
-async def delete_agent(agent_id: str):
+async def delete_agent(agent_id: str, auth: dict = Depends(verify_api_key)):
     """
     Delete an agent and its entire knowledge graph from Neo4j.
     This is irreversible.
     """
+    _check_idor(auth, agent_id)
     existing = await _load_agent(agent_id)
     # Even if the agent record doesn't exist, we should try to clean up any orphaned graph data.
     # existing might be None if the agent was partially deleted before.
@@ -1319,6 +1408,14 @@ async def delete_agent(agent_id: str):
         # We must not proceed with agent record deletion if graph cleanup fails,
         # otherwise we leave ghost nodes in Neo4j that appear in the Multiverse view forever.
         raise HTTPException(status_code=500, detail="Failed to delete agent graph data. Please try again.")
+
+    # Revoke every API key for this agent. Without this, a raw key for the
+    # deleted agent keeps authenticating as that agent_id via the raw-key path
+    # in verify_token — a dangling credential against an orphaned namespace.
+    try:
+        await _get_auth_service().revoke_all_for_agent(agent_id)
+    except Exception as exc:
+        logger.warning("Could not revoke API keys for deleted agent %s: %s", agent_id, exc)
 
     try:
         await _delete_agent(agent_id)
