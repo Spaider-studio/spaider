@@ -179,6 +179,20 @@ async def lifespan(app: FastAPI):
 
     # --- Startup ---
 
+    # 0. Auth posture banner. When API-key auth is disabled every REST route is
+    # open to anyone who can reach the port — fine for local single-tenant dev,
+    # dangerous on any shared or network-exposed deployment. Make the choice
+    # impossible to miss in the logs.
+    import os as _os
+    if _os.environ.get("REQUIRE_API_KEY_AUTH", "false").lower() != "true":
+        logger.warning(
+            "SECURITY: REQUIRE_API_KEY_AUTH is OFF — all API routes are "
+            "unauthenticated. Set REQUIRE_API_KEY_AUTH=true for any multi-tenant "
+            "or network-exposed deployment."
+        )
+    else:
+        logger.info("REQUIRE_API_KEY_AUTH is ON — REST routes require an API key.")
+
     # 1. Neo4j
     try:
         from app.services.graph_service import GraphService
@@ -381,7 +395,7 @@ app = FastAPI(
         "Ingest unstructured text, build a persistent knowledge graph, query it in natural language, "
         "and synthesise fine-tuning datasets for downstream models."
     ),
-    version="0.3.0",
+    version="0.3.1",
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
@@ -452,7 +466,7 @@ async def health() -> dict[str, Any]:
     """
     status: dict[str, Any] = {
         "app": settings.app_name,
-        "version": "0.3.0",
+        "version": "0.3.1",
         "environment": settings.environment,
         "services": {},
     }
