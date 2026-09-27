@@ -11,6 +11,46 @@ for their released versions. The release process is documented in
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-27
+
+Security patch. Closes broken access control and namespace-isolation gaps on
+the REST API. These only affect deployments that run with
+`REQUIRE_API_KEY_AUTH=true` (multi-tenant / network-exposed); single-tenant
+local deployments with auth off are unchanged. Upgrading is strongly
+recommended for any shared deployment.
+
+### Security
+- Agent management routes now enforce authentication and ownership. Listing all
+  agents, rotating an agent's API key, deleting an agent (and its graph),
+  updating an agent, exporting/importing a graph, wiping episodic memory, and
+  every per-agent config toggle previously ran with no auth even when
+  `REQUIRE_API_KEY_AUTH=true`. They now require a valid key, and a non-admin key
+  may act only on its own namespace (admins may act across namespaces).
+- Raw Cypher (`POST /query/cypher`) is now admin-only and runs inside a Neo4j
+  read transaction. A non-admin key can no longer read another agent's subgraph
+  by embedding its UUID in a raw query, and writes smuggled past the keyword
+  filter (for example via APOC procedures) are rejected by the database rather
+  than executed. The write-keyword filter also now blocks `CALL` and `LOAD CSV`.
+- Graph traversal (`POST /query/traverse`) is scoped to the caller's namespace,
+  closing the previously acknowledged IDOR on `start_node_id`.
+- Node deletion (`DELETE /nodes/{id}`) no longer trusts the spoofable
+  `X-Agent-Permission` header. It requires an admin API key, and the audit entry
+  records the authenticated identity.
+- Ingestion, feedback, and global system-settings routes now require
+  authentication; write routes are scoped to the caller's namespace so a valid
+  key cannot poison another agent's graph or synaptic weights.
+- Deleting an agent now revokes all of its API keys, removing dangling
+  credentials that could still authenticate against an orphaned namespace.
+- Privilege escalation via agent creation/update is closed: only an admin key
+  may grant the `admin` permission. The first admin must be provisioned
+  out-of-band (`backend/scripts/bootstrap_admin.py`).
+- The backend logs a loud warning at startup when `REQUIRE_API_KEY_AUTH` is off.
+
+### Known follow-ups
+- Read-only cross-namespace exposure on some analytics/replay/graph/synthesize
+  routes is tracked for a subsequent patch; these require a valid key and only
+  matter in multi-tenant mode.
+
 ## [0.3.0] - 2026-07-04
 
 Vision: agents can now remember what is in images. Plus contradiction-safety

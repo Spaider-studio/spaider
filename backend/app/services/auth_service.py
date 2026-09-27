@@ -387,6 +387,41 @@ async def verify_api_key(
     return agent_record
 
 
+def _is_admin(authenticated: dict) -> bool:
+    """True when the authenticated record carries the ``admin`` permission."""
+    return "admin" in (authenticated.get("permissions") or [])
+
+
+async def optional_auth(
+    x_api_key: Optional[str] = Header(default=None, alias="X-Api-Key"),
+    authorization: Optional[str] = Header(default=None),
+) -> dict:
+    """Soft authentication: identify the caller without ever raising.
+
+    Returns the agent record when a valid key is presented, the bypass
+    sentinel when auth is disabled, and an anonymous record (``agent_id``
+    None, no permissions) when the flag is on but no valid key is given.
+
+    Used by routes that must stay open to anonymous callers (e.g. agent
+    self-registration) while still recognizing an admin caller so they can
+    withhold privileged grants from everyone else.
+    """
+    if not _REQUIRE_API_KEY_AUTH:
+        return _AUTH_BYPASS_SENTINEL
+
+    api_key: Optional[str] = x_api_key
+    if not api_key and authorization and authorization[:7].lower() == "bearer ":
+        api_key = authorization[7:].strip()
+    if not api_key:
+        return {"agent_id": None, "auth_bypassed": False, "permissions": []}
+
+    auth = AuthService()
+    record = await auth.get_agent_by_api_key(api_key)
+    if not record or "agent_id" not in record:
+        return {"agent_id": None, "auth_bypassed": False, "permissions": []}
+    return record
+
+
 def _check_idor(authenticated: dict, requested_agent_id: str) -> None:
     """Insecure Direct Object Reference guard.
 
@@ -394,12 +429,17 @@ def _check_idor(authenticated: dict, requested_agent_id: str) -> None:
     to operate on a different agent's resources. Skipped entirely when
     the auth feature flag is off (preserves pre-patch behavior).
 
-    Future work (manifest Phase 2): allow the request when the
-    authenticated agent has an active ``SHARES_KNOWLEDGE_WITH`` (or
-    canonical ``:SwarmConnection``) to the requested target. For Phase 1
-    we enforce strict identity equality — caller acts as itself only.
+    An ``admin`` key may act on any agent's resources — cross-agent
+    administration is intentional for operators. Every other key is held
+    to strict identity equality: the caller acts as itself only.
+
+    Future work: allow the request when the authenticated agent has an
+    active ``SHARES_KNOWLEDGE_WITH`` (or canonical ``:SwarmConnection``)
+    to the requested target.
     """
     if not _REQUIRE_API_KEY_AUTH or authenticated.get("auth_bypassed"):
+        return
+    if _is_admin(authenticated):
         return
     auth_id = authenticated.get("agent_id")
     if auth_id != requested_agent_id:
@@ -409,4 +449,24 @@ def _check_idor(authenticated: dict, requested_agent_id: str) -> None:
                 f"Authenticated agent '{auth_id}' cannot act on resources "
                 f"belonging to agent '{requested_agent_id}'."
             ),
+        )
+
+
+def _require_admin(authenticated: dict) -> None:
+    """Guard for operations that span or enumerate every agent namespace.
+
+    Raises ``HTTPException(403)`` unless the caller holds the ``admin``
+    permission. Skipped when the auth feature flag is off, so existing
+    single-tenant / local deployments keep working unchanged.
+
+    Used by fleet-wide reads (listing all agents, listing all swarm
+    links) and by privileged operations that can write across namespaces
+    (raw Cypher, NDJSON restore).
+    """
+    if not _REQUIRE_API_KEY_AUTH or authenticated.get("auth_bypassed"):
+        return
+    if not _is_admin(authenticated):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This operation requires an API key with the 'admin' permission.",
         )

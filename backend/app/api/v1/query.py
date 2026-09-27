@@ -13,7 +13,7 @@ from fastapi.responses import StreamingResponse
 
 from app.models.requests import CypherQueryRequest, QueryRequest, TraverseRequest
 from app.models.schemas import GraphPayload, QueryResult
-from app.services.auth_service import _check_idor, verify_api_key
+from app.services.auth_service import _check_idor, _require_admin, verify_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +23,14 @@ router = APIRouter()
 # Blocked Cypher write keywords (READ-ONLY enforcement)
 # ---------------------------------------------------------------------------
 
+# Reject writes AND every procedure call. Keyword blocklists are inherently
+# leaky for Cypher (APOC exposes writes via procedures whose names contain no
+# write keyword, e.g. apoc.create.*, apoc.cypher.doIt), so we block CALL
+# outright rather than trying to enumerate dangerous procedures. The read
+# transaction in QueryService.query_cypher is the real backstop; this pattern
+# gives a clear 403 instead of a database error for the common cases.
 _WRITE_PATTERN = re.compile(
-    r"\b(CREATE|MERGE|DELETE|DETACH\s+DELETE|SET|REMOVE|DROP|CALL\s+apoc\..*write)\b",
+    r"\b(CREATE|MERGE|DELETE|DETACH\s+DELETE|SET|REMOVE|DROP|FOREACH|CALL|LOAD\s+CSV)\b",
     re.IGNORECASE,
 )
 
@@ -247,20 +253,31 @@ async def query_cypher(
 ):
     """
     Execute a raw Cypher query against the graph.
-    Only READ operations are permitted; write keywords are rejected.
-    Results are filtered to the requesting agent's namespace.
 
-    **Auth:** Same X-Api-Key requirement as POST /query. IDOR-guards
-    ``request.agent_id`` against the authenticated identity. Note that
-    even with auth on, this endpoint exposes raw Cypher — the manifest
-    flags it for server-side parsing or removal in a follow-up patch.
+    Raw Cypher cannot be safely constrained to a single agent's namespace
+    without a full Cypher parser, so this endpoint is **admin-only** when
+    authentication is enforced: a non-admin key cannot read or traverse
+    another agent's subgraph by embedding its UUID in the query. The query
+    also runs inside a Neo4j **read transaction**, so any write is rejected
+    at the database level even if it slips past the keyword filter (e.g. an
+    APOC procedure). Write keywords are still rejected up front as defense
+    in depth.
+
+    **Auth:** requires an API key with the ``admin`` permission when
+    ``REQUIRE_API_KEY_AUTH=true``. When the flag is off (single-tenant /
+    local dev), behavior is unchanged.
     """
+    _require_admin(auth)
     _check_idor(auth, request.agent_id)
-    # Enforce read-only
+    # Reject writes up front (defense in depth; the read transaction below is
+    # the actual enforcement and cannot be bypassed by procedure obfuscation).
     if _WRITE_PATTERN.search(request.cypher):
         raise HTTPException(
             status_code=403,
-            detail="Write operations (CREATE, MERGE, DELETE, SET, REMOVE) are not permitted via this endpoint.",
+            detail=(
+                "Write operations (CREATE, MERGE, DELETE, SET, REMOVE, CALL, "
+                "LOAD CSV) are not permitted via this endpoint."
+            ),
         )
 
     query_service = _get_query_service()
@@ -283,26 +300,36 @@ async def query_cypher(
 @router.post("/traverse", response_model=GraphPayload)
 async def traverse(
     request: TraverseRequest,
-    auth: dict = Depends(verify_api_key),  # noqa: ARG001 — IDOR on start_node_id is Phase 2 work
+    auth: dict = Depends(verify_api_key),
 ):
     """
     Traverse the graph from a start node up to the requested depth.
     Optionally filter by relationship type.
 
-    **Auth:** Requires X-Api-Key when REQUIRE_API_KEY_AUTH=true.
-    TraverseRequest has no agent_id field — IDOR on start_node_id
-    (verifying the start node belongs to the authenticated agent)
-    requires a graph lookup and is deferred to Phase 2 per the manifest.
+    **Auth:** Requires X-Api-Key when REQUIRE_API_KEY_AUTH=true. The
+    traversal is scoped to the authenticated agent's namespace: the start
+    node must belong to the caller, otherwise an empty graph is returned.
+    A non-admin therefore cannot walk another agent's subgraph by passing a
+    foreign ``start_node_id``. When the flag is off, traversal is unscoped
+    (single-tenant behavior). Admin keys traverse without scoping.
     """
     query_service = _get_query_service()
     if query_service is None:
         raise HTTPException(status_code=503, detail="QueryService unavailable")
+
+    # Scope to the caller unless auth is bypassed (flag off) or the caller is
+    # an admin. ``agent_id`` is None in both those cases → unscoped traversal.
+    from app.services.auth_service import _is_admin
+    scope_agent_id = None
+    if not auth.get("auth_bypassed") and not _is_admin(auth):
+        scope_agent_id = auth.get("agent_id")
 
     try:
         subgraph: GraphPayload = await query_service.traverse(
             start_node_id=request.start_node_id,
             depth=request.depth,
             relation_filter=request.relation_filter,
+            agent_id=scope_agent_id,
         )
         return subgraph
     except ValueError as exc:
