@@ -1,6 +1,9 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind CSS v4: a single import replaces the v3 @tailwind directives. The
+   @config directive keeps the existing tailwind.config.ts (custom theme colors,
+   darkMode: "class", fonts) so component classes like bg-bg-primary,
+   text-text-primary and accent-* keep resolving. */
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
 
 :root {
   --bg-primary: #0A0A0F;

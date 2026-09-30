@@ -11,6 +11,38 @@ for their released versions. The release process is documented in
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-30
+
+Faster ingestion, a fixed MCP server, and a full dependency refresh.
+
+### Fixed
+- MCP server was fully down on 0.3.1: `tools/list` crashed with
+  `_on_list_tools() takes 1 positional argument but 2 were given`. The mcp 2.2.0
+  SDK invokes the handler as `(context, params)`; the handler now matches, and a
+  regression test drives the real two-argument dispatch so it cannot silently
+  break again.
+- Ingestion no longer accumulates duplicate entities: the ingest path built a
+  fresh, uninitialized `GraphService` whose `vector_index_available` stayed
+  False, so semantic entity-merge was silently skipped on every ingest. It now
+  reuses the initialized singleton, so cosine dedup runs as intended.
+
+### Changed
+- Ingestion latency cut substantially (measured ~32s to ~13s on a 10-node /
+  17-edge document with supersession enabled). Supersession is a consolidation
+  function, not perception: it no longer runs inline on the write path (it is
+  scheduled fire-and-forget after the response) and its internal per-edge LLM
+  passes now run concurrently instead of serially.
+
+### Dependencies
+- Backend: `uvicorn[standard]` 0.52.4 to 0.53.0, `neo4j` 6.3.0 to 6.3.1.
+- Frontend: `next` to 16.3.5, `react`/`react-dom` to 19.3, `three` to 0.186,
+  `zustand` to 5.0.15, `lucide-react` 0.x to 1.45, `typescript` 5 to 7,
+  `eslint` 9 to 10, `eslint-config-next` to 16.3.5, and **Tailwind CSS 3 to 4**
+  (migrated to the CSS-first `@import "tailwindcss"` + `@tailwindcss/postcss`
+  setup, reusing the existing theme via `@config`).
+- CI: `actions/setup-python` and `actions/setup-node` to v7,
+  `dorny/paths-filter` to 4.0.3.
+
 ## [0.3.1] - 2026-09-27
 
 Security patch. Closes broken access control and namespace-isolation gaps on

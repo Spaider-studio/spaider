@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "spaider-backend"
-version = "0.3.1"
+version = "0.4.0"
 description = "SpAIder — agent-scoped knowledge graph backend"
 license = "AGPL-3.0-only"
 requires-python = ">=3.11"
@@ -12,7 +12,7 @@ requires-python = ">=3.11"
 # minus pytest/aiosqlite (now under [project.optional-dependencies] dev).
 dependencies = [
     "fastapi==0.141.1",
-    "uvicorn[standard]==0.52.4",
+    "uvicorn[standard]==0.53.0",
     # pydantic >=2.10 is the first release with Python 3.13 support.
     "pydantic>=2.10,<3",
     "pydantic-settings>=2.6",
@@ -20,7 +20,7 @@ dependencies = [
     # C-extension deps below pinned to versions that ship cp313 wheels.
     "aiokafka>=0.12.0",
     "redis[hiredis]>=5.2.0",
-    "neo4j==6.3.0",
+    "neo4j==6.3.1",
     "python-jose[cryptography]==3.5.0",
     "passlib[bcrypt]==1.7.4",
     "networkx==3.6.1",
