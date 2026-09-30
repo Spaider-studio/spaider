@@ -240,6 +240,20 @@ async def _save_run_state(connector_id: str, agent_id: str, state: RunState) -> 
 def _get_graph_service():
     global _graph_service
     if _graph_service is None:
+        # Reuse main.py's already-initialized singleton. Creating a fresh
+        # GraphService() here would skip initialize(), leaving
+        # vector_index_available=False on this instance, so the resolver's
+        # semantic-dedup vector probe raises VectorIndexUnavailableError and
+        # entity merging silently degrades to label/fuzzy only (duplicates
+        # accumulate). Mirror query.py and bind the initialized singleton.
+        try:
+            import app.main as _main
+            svc = getattr(_main, "_graph_service", None)
+            if svc is not None:
+                _graph_service = svc
+                return _graph_service
+        except Exception:
+            pass
         from app.services.graph_service import GraphService
         _graph_service = GraphService()
     return _graph_service
