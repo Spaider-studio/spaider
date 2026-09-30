@@ -517,7 +517,12 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[mcp_types.Text
 # ---------------------------------------------------------------------------
 
 
-async def _on_list_tools(ctx) -> mcp_types.ListToolsResult:
+async def _on_list_tools(
+    ctx, params: "mcp_types.PaginatedRequestParams | None" = None
+) -> mcp_types.ListToolsResult:
+    # mcp 2.2.0 invokes list-tools handlers with (context, params); earlier 2.x
+    # passed only the context. Accept both so the handler matches whatever the
+    # installed SDK dispatches (params is unused — the tool set is static).
     return mcp_types.ListToolsResult(tools=await list_tools())
 
 

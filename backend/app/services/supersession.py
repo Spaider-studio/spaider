@@ -24,6 +24,7 @@ state-assertion fact costs one LLM call per candidate it has.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -217,33 +218,45 @@ async def resolve_supersession(driver, agent_id: str, resolved_payload) -> int:
     if not enabled:
         return 0
 
-    total = 0
-    state_cache: dict[str, bool] = {}  # per-fact "is this a state assertion?"
+    # Collect the knowledge edges worth checking (skip MENTIONS + text-less).
+    candidates_edges: list[tuple] = []  # (edge, new_text)
     for edge in getattr(resolved_payload, "edges", []) or []:
         rel = getattr(edge, "relation", None)
         src = getattr(edge, "source_id", None)
         tgt = getattr(edge, "target_id", None)
-        if not (rel and src and tgt):
-            continue
-        # MENTIONS links a FACT node to its entities; it is not a knowledge
-        # relation and must never be superseded.
-        if rel == "MENTIONS":
+        if not (rel and src and tgt) or rel == "MENTIONS":
             continue
         new_text = _edge_text(getattr(edge, "properties", None) or {}, "", "", rel)
-        if not new_text:
-            continue
-        # Gate: only a current-state assertion can supersede anything. Events
-        # (the bulk of real corpora) never trigger a candidate search or judge.
-        if new_text not in state_cache:
-            state_cache[new_text] = await _is_state_update(new_text)
-        if not state_cache[new_text]:
-            continue
+        if new_text:
+            candidates_edges.append((edge, new_text))
+    if not candidates_edges:
+        return 0
+
+    # Phase 1 — classify each distinct fact as a state assertion, CONCURRENTLY.
+    # Previously this was one serial LLM call per edge; the calls are
+    # independent, so we fan them out and dedup by text (one call per fact).
+    unique_texts = list({t for _, t in candidates_edges})
+    state_flags = await asyncio.gather(
+        *[_is_state_update(t) for t in unique_texts], return_exceptions=True
+    )
+    state_map = {
+        t: (flag is True)  # a failed classification (Exception) → not a state
+        for t, flag in zip(unique_texts, state_flags)
+    }
+    state_edges = [(e, t) for (e, t) in candidates_edges if state_map.get(t)]
+    if not state_edges:
+        return 0
+
+    # Phase 2 — for each state edge, search candidates + judge + mark,
+    # CONCURRENTLY. Each edge uses its own Neo4j session, so the passes are
+    # independent; wall time collapses from sum-of-calls to max-of-calls.
+    async def _process_edge(edge, new_text: str) -> int:
         try:
             async with driver.session() as session:
                 result = await session.run(
                     _CANDIDATE_CYPHER,
-                    aid=agent_id, src=src, tgt=tgt, new_id=edge.id,
-                    max=settings.supersession_max_candidates,
+                    aid=agent_id, src=edge.source_id, tgt=edge.target_id,
+                    new_id=edge.id, max=settings.supersession_max_candidates,
                 )
                 candidates = [
                     {
@@ -253,24 +266,26 @@ async def resolve_supersession(driver, agent_id: str, resolved_payload) -> int:
                     async for r in result
                 ]
             if not candidates:
-                continue
-
+                return 0
             superseded_ids = await _judge(new_text, candidates)
             if not superseded_ids:
-                continue
-
+                return 0
             items = [
                 {"edge_id": c["edge_id"], "text": c["text"]}
                 for c in candidates if c["edge_id"] in superseded_ids
             ]
+            if not items:
+                return 0
             async with driver.session() as session:
                 await session.run(_MARK_CYPHER, items=items, new_id=edge.id, aid=agent_id)
                 await session.run(_NEUTRALIZE_CYPHER, items=items, aid=agent_id)
-            total += len(items)
             logger.info(
                 "supersession: new edge %s superseded %d prior fact(s)", edge.id, len(items),
             )
+            return len(items)
         except Exception as exc:  # noqa: BLE001
             logger.warning("supersession pass failed for edge %s: %s", getattr(edge, "id", "?"), exc)
+            return 0
 
-    return total
+    counts = await asyncio.gather(*[_process_edge(e, t) for e, t in state_edges])
+    return sum(counts)

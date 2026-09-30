@@ -1,6 +1,9 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind CSS v4: a single import replaces the v3 @tailwind directives. The
+   @config directive keeps the existing tailwind.config.ts (custom theme colors,
+   darkMode: "class", fonts) so component classes like bg-bg-primary,
+   text-text-primary and accent-* keep resolving. */
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
 
 :root {
   --bg-primary: #0A0A0F;
@@ -21,51 +24,63 @@
   --glow-purple: rgba(139, 92, 246, 0.3);
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* Element-level base rules MUST live in @layer base under Tailwind v4.
+   v4 emits its utilities inside the native CSS layer `utilities`, and in the
+   cascade any UNLAYERED rule beats every layered rule regardless of
+   specificity. Left unlayered, the `*` reset below zeroed the padding/margin of
+   every p-*, m-*, mx-auto, space-* utility and collapsed the whole layout. In
+   the base layer it sits under the utilities again, matching v3 behaviour. */
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: "Inter", system-ui, sans-serif;
+    min-height: 100vh;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3A3A45;
+  }
+
+  /* Text selection */
+  ::selection {
+    background: rgba(59, 130, 246, 0.35);
+    color: #E4E4E7;
+  }
+
+  /* Focus ring */
+  :focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 2px;
+  }
 }
 
-html {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-body {
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font-family: "Inter", system-ui, sans-serif;
-  min-height: 100vh;
-}
-
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-::-webkit-scrollbar-track {
-  background: var(--bg-secondary);
-}
-::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #3A3A45;
-}
-
-/* Text selection */
-::selection {
-  background: rgba(59, 130, 246, 0.35);
-  color: #E4E4E7;
-}
-
-/* Focus ring */
-:focus-visible {
-  outline: 2px solid var(--accent-blue);
-  outline-offset: 2px;
-}
+/* The custom classes below intentionally stay unlayered: in v3 they were
+   emitted after the utilities and won ties against them, and unlayered keeps
+   that exact precedence (they only match elements that opt in by class). */
 
 /* Utility classes */
 .glow-blue {

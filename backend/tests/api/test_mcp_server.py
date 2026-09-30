@@ -26,6 +26,7 @@ from app.api.v1 import mcp_server as mcp_module
 from app.api.v1.mcp_server import (
     _AGENT_ID,
     _bearer_token_from_scope,
+    _on_list_tools,
     call_tool,
     list_tools,
     mcp_app,
@@ -50,6 +51,17 @@ def _reset_singletons():
 # ---------------------------------------------------------------------------
 # 1. Tool catalogue
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_on_list_tools_matches_sdk_two_arg_dispatch():
+    """Regression: mcp 2.2.0 invokes the handler as on_list_tools(ctx, params).
+    v0.3.1 shipped with a 1-arg handler → 'takes 1 positional argument but 2
+    were given', which took the whole MCP server down. Drive the real 2-arg
+    signature here so an SDK-dispatch mismatch fails in CI, not in production."""
+    result = await _on_list_tools(None, None)  # (ctx, params) — SDK contract
+    names = [t.name for t in result.tools]
+    assert "spaider.query" in names and "spaider.ingest_fact" in names
 
 
 @pytest.mark.asyncio

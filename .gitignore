@@ -28,6 +28,9 @@ coverage.xml
 # Node / Next.js
 node_modules/
 .next/
+# Agent-instruction files that `next dev` (Next.js 16) regenerates on every run.
+frontend/AGENTS.md
+frontend/CLAUDE.md
 .turbo/
 out/
 dist/

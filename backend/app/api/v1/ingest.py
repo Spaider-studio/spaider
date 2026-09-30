@@ -240,6 +240,20 @@ async def _save_run_state(connector_id: str, agent_id: str, state: RunState) -> 
 def _get_graph_service():
     global _graph_service
     if _graph_service is None:
+        # Reuse main.py's already-initialized singleton. Creating a fresh
+        # GraphService() here would skip initialize(), leaving
+        # vector_index_available=False on this instance, so the resolver's
+        # semantic-dedup vector probe raises VectorIndexUnavailableError and
+        # entity merging silently degrades to label/fuzzy only (duplicates
+        # accumulate). Mirror query.py and bind the initialized singleton.
+        try:
+            import app.main as _main
+            svc = getattr(_main, "_graph_service", None)
+            if svc is not None:
+                _graph_service = svc
+                return _graph_service
+        except Exception:
+            pass
         from app.services.graph_service import GraphService
         _graph_service = GraphService()
     return _graph_service
@@ -448,14 +462,25 @@ async def ingest_text_sync(request: IngestRequest, auth: dict = Depends(verify_a
         nodes_merged = result.nodes_merged
         nodes_created = result.nodes_created
 
-        # 4b. Ingest-time supersession: if this update replaces a prior functional
-        # fact (new CEO, moved HQ), mark the stale fact + its FACT node superseded
-        # so retrieval stops returning the contradiction. No-op unless enabled.
+        # 4b. Supersession: mark prior functional facts (new CEO, moved HQ) that
+        # this update replaces. This is a CONSOLIDATION function, not perception —
+        # it used to run inline and added ~14s (serial per-edge LLM calls) to the
+        # response. It now runs fire-and-forget AFTER the write, so ingest latency
+        # excludes it; the internal loop is parallelized (see resolve_supersession)
+        # so it converges in ~1-2s. Retrieval reflects the superseding fact within
+        # that window rather than synchronously. No-op unless the agent enables it.
         try:
             from app.services.supersession import resolve_supersession
-            await resolve_supersession(graph._driver, request.agent_id, resolved_payload)
-        except Exception as exc:  # noqa: BLE001 — never fail an ingest on this
-            logger.warning("supersession skipped for agent=%s: %s", request.agent_id, exc)
+            asyncio.get_running_loop().create_task(
+                resolve_supersession(graph._driver, request.agent_id, resolved_payload)
+            )
+        except RuntimeError:
+            # No running loop (e.g. a sync test harness) — fall back to inline.
+            try:
+                from app.services.supersession import resolve_supersession
+                await resolve_supersession(graph._driver, request.agent_id, resolved_payload)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("supersession skipped for agent=%s: %s", request.agent_id, exc)
 
         # Replay: graph state mutated — capture node IDs now (while resolved_payload
         # is in scope) but defer sort + SHA-256 into the background task so the

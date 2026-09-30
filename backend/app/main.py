@@ -395,7 +395,7 @@ app = FastAPI(
         "Ingest unstructured text, build a persistent knowledge graph, query it in natural language, "
         "and synthesise fine-tuning datasets for downstream models."
     ),
-    version="0.3.1",
+    version="0.4.0",
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
@@ -466,7 +466,7 @@ async def health() -> dict[str, Any]:
     """
     status: dict[str, Any] = {
         "app": settings.app_name,
-        "version": "0.3.1",
+        "version": "0.4.0",
         "environment": settings.environment,
         "services": {},
     }
