@@ -251,9 +251,12 @@ Rechners; „NICHT VERIFIZIERT“ markiert, was nicht ausgeführt wurde.
   ohne GPU, 32 GB mit 12 GB GPU-Speicher, FAT32-Datenträger, nicht passende
   27B-Datei → harte Ausschlüsse mit Begründung, höchstens 3 Picks, Vulkan nur
   mit erkannter GPU, geschätzte und gemessene Werte getrennt.
-- Echter Rechner: Empfehlungen über die UI gegen den Mock geprüft (Screenshot
-  `05-recommendations.png`), gegen den echten Kern über `GET /api/models/recommendations`
-  im E2E-Lauf *(wird eingetragen)*.
+- Echter Rechner: `GET /api/models/recommendations?focus=…` gegen den echten
+  Kern (frischer Datenordner): Alltag → Qwen3 4B (ausgewogen, ausgeführt),
+  Gemma 3 1B (schnell), Qwen3.8 27B (Qualität, CPU, nicht ausgeführt);
+  Dokumente/Coding → Qwen3 8B als ausgewogen. Embedding-Modelle ausgeschlossen.
+  Rohdaten `foldable/build/measurements/recommendations-real.json`; Tabelle in
+  `MODEL_RECOMMENDATIONS.md`. UI gegen den Mock: Screenshot `05-recommendations.png`.
 - „Kurz messen“ (Kalibrierung) echt ausgeführt für Llama 1B (71,2 Token/s)
   und Ministral 3B (28,5 Token/s); die Werte landen in `model_profiles` je
   Hardware-Fingerabdruck und erscheinen als „gemessen“.

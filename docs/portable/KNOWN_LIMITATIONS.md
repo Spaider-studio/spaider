@@ -138,7 +138,10 @@ kann. Offene Fehler stehen am Ende.
   „Merk dir …“ wird sie gespeichert.
 - **Empfehlungen**: Qualitätsbelege stammen aus Modellkarten; echte
   Leistungswerte nur nach „Kurz messen“. Die Größenklasse ist ein Proxy, kein
-  Qualitätsmaß.
+  Qualitätsmaß. Der Qualitäts-Pick kann auf diesem Rechner ein 27B-Modell
+  sein, das nur auf der CPU läuft (≈ 20 GB RAM, nicht ausgeführt); eine
+  Antwortzeit dafür wurde nicht gemessen, die Karte sagt nur „längere
+  Antwortzeit“.
 - **Suche**: Hugging-Face-Suchtreffer sind ungeprüft; die Auflösung liest nur
   den GGUF-Header. Zugangsbeschränkte Repositories werden gemeldet, nicht
   umgangen. Ohne Netz liefert die Suche gecachte Ergebnisse oder nichts.

@@ -109,6 +109,17 @@ Token/s, nicht die Wartezeiten (die entstehen im belegten Server-Slot).
 5. GPU-Backend (Vulkan) automatisch, Threads = physische Kerne, Batch-Threads
    = logische Kerne, Leise-Modus mit halber Threadzahl und niedriger Priorität.
 6. Aktivitätsereignisse (gebündelt, max. alle 250 ms Fortschritt).
+7. Ein HTTP-Client je llama-server-Prozess statt eines neuen `httpx.AsyncClient`
+   pro Aufruf: Die Client-Erzeugung kostete auf diesem Rechner ≈ 400 ms
+   (TLS-Kontext, gemessen: 388–449 ms pro Aufruf gegenüber 2–5 ms mit
+   wiederverwendeter Verbindung) und fiel bei jeder Antwort mehrfach an
+   (Tokenisierung des Systemprompts, Verbindungsaufbau der Generierung,
+   Embedding-Aufruf der Gedächtnissuche, Bereitschaftsprobe).
+8. Hintergrund-Worker wartet, solange das Modell noch lädt (vorher wurden
+   offene Items nach einem Neustart ohne LLM „verarbeitet“).
+9. Deterministische Korrekturschicht und Fragefilter (keine Leistungs-, eine
+   Konsistenzänderung; sie erspart dem Richter Aufrufe bei expliziten
+   Korrekturen).
 
 ## Ergebnisse nach den Änderungen (0.2.0)
 

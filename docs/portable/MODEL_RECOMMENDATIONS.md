@@ -86,6 +86,27 @@ kein universeller Sieger.
 - Fehlende Metadaten (Schichten, KV-Köpfe) führen zu einer konservativen
   Schätzung, nie zu erfundenen Werten.
 
+## Echter Rechner (2026-11-02, `foldable/build/measurements/recommendations-real.json`)
+
+Intel Core Ultra 7 268V (8 Kerne), 32 GB RAM, Intel Arc 140V über Vulkan
+(17,2 GB frei), NTFS, Netzbetrieb; frischer Datenordner ohne Messprofile:
+
+| Schwerpunkt | Ausgewogen | Schnell | Qualität |
+|---|---|---|---|
+| Alltag | Qwen3 4B Q4_K_M (ausgeführt; ≈ 4,3 GB Grafikspeicher) | Gemma 3 1B Q4_K_M (Metadaten; ≈ 1,6 GB) | Qwen3.8 27B Q4_K_M (Metadaten; CPU, ≈ 20,6 GB RAM) |
+| Dokumente | Qwen3 8B Q4_K_M (Metadaten; ≈ 6,9 GB Grafikspeicher) | Gemma 3 1B | Qwen3.8 27B |
+| Coding-Fragen | Qwen3 8B Q4_K_M | Gemma 3 1B | Qwen3.8 27B |
+
+Begründungen kommen aus den Belegen („auf dieser Runtime bereits mit echter
+Inferenz getestet“, „Modellkarte nennt Deutsch“, „passt vollständig in den
+Grafikspeicher“, „Geschwindigkeit hier noch nicht gemessen“). Der
+Qualitäts-Pick 27B ist ehrlich als nicht ausgeführt markiert und läuft hier
+nur auf der CPU; die zu erwartende Antwortzeit ist nicht gemessen, daher steht
+„längere Antwortzeit“ ohne Zahl. Ausgeschlossen: die drei Embedding-Modelle
+(„Kein Chatmodell“). Sobald „Kurz messen“ gelaufen ist, zeigen die Picks den
+gemessenen Wert statt „noch nicht gemessen“ (für Llama 1B und Ministral 3B
+wurden solche Profile in den Testläufen erzeugt).
+
 ## Beispielprofile (Simulation aus `tests/test_v2_core.py`)
 
 | Profil | Ergebnis |
