@@ -1,0 +1,79 @@
+# -*- mode: python ; coding: utf-8 -*-
+"""PyInstaller spec for the SpAIder Foldable core (onedir, console app).
+
+Build:  pyinstaller foldable/build/spaider_foldable_core.spec --noconfirm
+Output: foldable/build/dist/spaider-foldable-core/
+
+The reused SpAIder backend package (``app``) is bundled from ../../backend.
+"""
+
+import os
+from pathlib import Path
+
+from PyInstaller.utils.hooks import collect_all, collect_data_files, collect_submodules
+
+SPEC_DIR = Path(SPECPATH).resolve()
+CORE_DIR = SPEC_DIR.parent / "core"
+BACKEND_DIR = SPEC_DIR.parent.parent / "backend"
+
+datas = []
+binaries = []
+hiddenimports = []
+
+# litellm ships a large JSON cost map + tokenizer data; collect everything.
+for pkg in ("litellm", "tiktoken", "tiktoken_ext", "tokenizers", "openai", "pdfplumber", "pdfminer", "pypdfium2"):
+    try:
+        d, b, h = collect_all(pkg)
+        datas += d
+        binaries += b
+        hiddenimports += h
+    except Exception:  # package may be absent (optional)
+        pass
+
+datas += collect_data_files("spaider_foldable", includes=["models/*.json", "db/*.sql"])
+# SpAIder prompt files used by the compressor.
+datas += [(str(BACKEND_DIR / "app" / "prompts"), "app/prompts")]
+hiddenimports += collect_submodules("app")
+hiddenimports += collect_submodules("spaider_foldable")
+hiddenimports += ["uvicorn.logging", "uvicorn.loops.auto", "uvicorn.protocols.http.auto", "uvicorn.protocols.websockets.auto",
+                  "uvicorn.lifespan.off", "anyio._backends._asyncio", "Levenshtein", "redis.asyncio"]
+
+a = Analysis(
+    [str(CORE_DIR / "spaider_foldable" / "__main__.py")],
+    pathex=[str(CORE_DIR), str(BACKEND_DIR)],
+    binaries=binaries,
+    datas=datas,
+    hiddenimports=hiddenimports,
+    hookspath=[],
+    runtime_hooks=[],
+    excludes=["tkinter", "matplotlib", "PIL.ImageTk", "pytest", "IPython", "jupyter", "notebook", "torch", "transformers",
+              "neo4j", "aiokafka", "asyncpg", "sqlalchemy", "clickhouse_connect", "pandas", "trafilatura", "docx"],
+    noarchive=False,
+    optimize=0,
+)
+pyz = PYZ(a.pure)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    [],
+    exclude_binaries=True,
+    name="spaider-foldable-core",
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=False,
+    console=True,
+    disable_windowed_traceback=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+)
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=False,
+    name="spaider-foldable-core",
+)

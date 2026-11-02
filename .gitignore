@@ -95,3 +95,20 @@ benchmarks/runs_refresh/
 # benchmarks/adapters/README.md; never commit.
 benchmarks/.venv-*
 benchmarks/.bench_data/
+
+# SpAIder Foldable (foldable/): build outputs, fetched runtime, dev data, models
+# (the upstream `build/` rule would hide foldable/build; re-include the scripts)
+!foldable/build/
+foldable/build/cache/
+foldable/build/runtime/
+foldable/build/dist/
+foldable/build/work/
+foldable/build/out/
+foldable/desktop/node_modules/
+foldable/desktop/dist/
+foldable/desktop/out/
+foldable/desktop/dev-data/
+foldable/core/.pytest_cache/
+foldable/**/__pycache__/
+*.gguf
+*.gguf.part
