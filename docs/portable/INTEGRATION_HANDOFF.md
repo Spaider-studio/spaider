@@ -115,6 +115,10 @@ Bis dahin liegen Git-Bundles unter `C:\Users\mucbay\spaider-foldable\backup\`
   des Nutzer-Datenordners (siehe TEST_REPORT, Abschnitt „Update an Bestandsdaten“).
 - Neue Laufzeit-Variante im Paket (`resources/runtime/llama-vulkan`, llama.cpp
   b12032 Vulkan, SHA-256 `19a8bbf2…cc32`), gepinnt in `foldable/build/fetch_runtime.py`.
+- Messdaten in Git: `foldable/build/measurements/*.json` enthalten nur Zeiten,
+  Zähler und synthetische Testsätze (keine Nutzerinhalte). Die Rohdaten des
+  abgebrochenen Baseline-Laufs liegen außerhalb des Repos
+  (`C:/Users/mucbay/spaider-foldable/measure/results`).
 - Integrationsweg unverändert (Fetch des privaten Repos, Merge/Cherry-pick,
   PR-Entwurf in `PR_DRAFT.md`). Für den 0.2-Stand den Branch
   `feature/spaider-foldable-performance-models` verwenden; er enthält V1.

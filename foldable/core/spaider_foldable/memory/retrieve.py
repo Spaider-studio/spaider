@@ -39,6 +39,9 @@ def _short_ts(ts: str | None) -> str:
     return 0.0
 
 
+FACT_CONTEXT_CHARS = 480  # per fact inside the context block (sources keep 400-char excerpts separately)
+
+
 def _reverse_ts(ts: str | None) -> str:
     """Sort key that orders ISO timestamps newest-first with a plain ascending sort."""
     return "".join(chr(0x10FFFF - ord(ch)) for ch in (ts or ""))
@@ -105,6 +108,10 @@ class MemoryRetriever:
                 # Small models need the chronology spelled out: prefix each fact
                 # with its storage time so "the newer statement wins" is decidable.
                 pending = " · Nachverarbeitung ausstehend" if r.get("processing") == "raw" else ""
+                if len(description) > FACT_CONTEXT_CHARS:
+                    # long pasted messages are stored verbatim as facts; the context block
+                    # gets their head only (prompt tokens cost ~15 ms each on a CPU)
+                    description = description[:FACT_CONTEXT_CHARS].rstrip() + " …"
                 description = f"[gespeichert {_short_ts(r['created_at'])}{pending}] {description}"
             nodes.append(
                 Node(

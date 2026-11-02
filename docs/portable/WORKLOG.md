@@ -223,6 +223,23 @@ blockiert (Scope `workflow` fehlt; unveraendert).
 - Baseline (alter Code) seit 12:04: Warm-Phase mit ~60 s TTFT je Antwort, weil die
   Extraktion den einzigen Slot haelt; Ende voraussichtlich ~13:45.
 
-Naechster konkreter Schritt: Aktivitaets-/E2E-Rerun bestaetigen, committen,
-PyInstaller-Kern (laeuft), Baseline abwarten, Nachher-Messung (CPU + Vulkan),
-Paket 0.2.0 + verify_package, PERFORMANCE_REPORT/TEST_REPORT abschliessen.
+- 13:22 Baseline-Messprozess abgebrochen (78 min; Warm-Phase: jede Antwort ~10 min
+  hinter Extraktionsanfragen im einzigen Slot). Zahlen aus Nachrichten-/Server-Logs
+  rekonstruiert (baseline-qwen3-4b-cpu-partial.json): TTFT kalt 5,7/17,9 s, unter
+  Hintergrundlast 47-86 s (Median 64,6 s), Drain nie < 900 s, 140 LLM-Timeouts.
+- 13:24 E2E-Rerun gruen (1:55): mehrsaetziger Fakt korrekt aufgeteilt, Abruf ueber
+  Gespraeche nennt neuen Leiter + Budget. Commit ccfbf9d/e5bdf64/dfe1f8a.
+- 13:26 PyInstaller-Kern 0.2 gebaut (6 min). Echte Empfehlungen ohne Modell abgefragt
+  (recommendations-real.json).
+- 13:26-14:24 Nachher-Messung CPU (after-qwen3-4b-cpu): Fakten bei laufender
+  Nachverarbeitung 5,2-8,2 s TTFT (Baseline 47-86 s), warm kurz 8,4-10,8 s (63,6 s),
+  Stopp -> done 0,11 s, Drain 17-62 s je Nachricht (758 s nach 1500-Token-Eingabe).
+  Direkt: Cache-Treffer 0,09 s, kalt 6,1/17,1 s (CPU-Promptverarbeitung 50-75 Tok/s).
+  Ziel 1-2 s auf CPU mit 4B NICHT erreicht (Promptverarbeitung), Befund: Abruf-Frage
+  mit 5200 Prompt-Tokens, weil lange Eingaben als Fakten voll im Kontextblock landen
+  -> Fakten im Kontextblock auf 480 Zeichen gekuerzt (nach der CPU-Messung).
+- 14:25 Vulkan-Nachher-Messung gestartet (after-qwen3-4b-vulkan).
+
+Naechster konkreter Schritt: Vulkan-Messung abwarten, PyInstaller-Kern erneut bauen
+(retrieve.py geaendert), Paket 0.2.0 + verify_package, PERFORMANCE_REPORT (Vulkan,
+Engpaesse), TEST_REPORT E, Bundle, Push-Versuch, Abschlussbericht.

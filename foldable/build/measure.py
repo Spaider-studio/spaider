@@ -442,6 +442,7 @@ def main() -> int:
     (args.out / f"{args.label}.json").write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
     md = render_markdown(report)
     (args.out / f"{args.label}.md").write_text(md, encoding="utf-8")
+    sys.stdout.reconfigure(errors='replace') if hasattr(sys.stdout, 'reconfigure') else None
     print(md)
     return 0
 

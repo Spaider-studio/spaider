@@ -123,8 +123,68 @@ Token/s, nicht die Wartezeiten (die entstehen im belegten Server-Slot).
 
 ## Ergebnisse nach den Änderungen (0.2.0)
 
-*(wird eingetragen: CPU-Nachher-Messung, Vulkan-Messung, Stopp-Latenz,
-Drain-Zeiten; gleiche Prompts, gleiches Modell, gleiche Einstellungen)*
+### CPU (Commit ccfbf9d, `after-qwen3-4b-cpu`, 13:26–14:24, 3 Wiederholungen)
+
+Quelle: `C:/Users/mucbay/spaider-foldable/measure/results/after-qwen3-4b-cpu.json`
+(Kopie der Zusammenfassung in `foldable/build/measurements/after-qwen3-4b-cpu.md`).
+Backend per `SPAIDER_FOLDABLE_BACKEND=cpu` erzwungen, sonst Standardeinstellungen.
+
+**Direkt (llama-server allein, Laden 4,7 s):**
+
+| Art | kalt | n | Erstes Token (Median) | Token/s | Prompt-Token/s | CPU-Zeit/Antwort | Peak RSS |
+|---|---|---|---|---|---|---|---|
+| kurz (≈494 Tokens) | ja | 1 | 6,11 s | 11,1 | 73,9 | 43,9 s | 5,36 GB |
+| kurz | nein (Cache) | 3 | **0,094 s** (0,093–0,109) | 10,4 | – | 14,0 s | 5,36 GB |
+| lang (≈1 488 Tokens) | ja | 1 | 17,14 s | 7,2 | 50,6 | 113,9 s | 5,37 GB |
+| lang | nein (Cache) | 3 | **0,125 s** (0,093–0,125) | 9,7 | – | 42,2 s | 5,37 GB |
+
+Die Direktwerte entsprechen der Baseline (gleiche Binärdatei, gleiches
+Modell): Auf dieser CPU verarbeitet das 4B-Modell 50–75 Prompt-Tokens/s und
+erzeugt 7–11 Token/s; ein Cache-Treffer bringt das erste Token in 0,1 s.
+
+**App-Pfad (Kern 0.2 + API; Kernstart 6,3 s, Modell bereit nach 4,0 s):**
+
+| Schritt | Gedächtnis | n | Erstes Token (Median, Client) | min/max | Token/s | Prompt-Tokens (davon aus Cache) | Gesamt |
+|---|---|---|---|---|---|---|---|
+| Kalt, kurze Frage | leer | 1 | **6,7 s** | | 10,9 | 494 (0) | 11,8 s |
+| Kalt, lange Eingabe | leer | 1 | **17,4 s** | | 11,1 | 1 488 (424) | 26,4 s |
+| Drei Fakten nacheinander | füllend | 3 | **5,9 s** | 5,2–8,2 | 10,1 | 1 694–2 093 (1 370–1 540) | 8,9 s |
+| Warm, kurze Frage (neues Gespräch) | gefüllt | 3 | **10,3 s** | 8,4–10,8 | 9,8 | 921–1 202 (1–527) | 18,0 s |
+| Warm, lange Eingabe | gefüllt | 3 | 36,1 s | 28,1–37,6 | 7,8 | 2 235–4 675 (630–2 603) | 53,9 s |
+| Abruf-Frage (Projektleitung/Budget) | gefüllt | 3 | 29,4 s | 29,0–30,0 | 7,3 | 5 222–5 340 (3 610–3 813) | 33,7 s |
+| Stopp nach 5 Token | gefüllt | 1 | 3,0 s | | | | |
+
+| Größe | Wert |
+|---|---|
+| Stopp → `done`-Ereignis | **0,109 s**; llama-server-CPU ruhig nach 0,36 s |
+| Gedächtnissuche (FTS, ohne Embedding-Modell) | ≤ 16 ms |
+| Warteschlange leer nach kalter Kurz-/Langantwort | 17 s / 758 s |
+| Warteschlange leer nach den drei Fakten | 34 s, 62 s, 36 s |
+| Shutdown | 1,9 s, keine Restprozesse |
+| Peak RSS llama-server | 5,4 GB (kalt) bis 9,0 GB (8 192-Token-Kontext voll) |
+
+**Vergleich mit der Baseline (CPU, gleiches Modell):**
+
+| | 0.1.0 | 0.2.0 |
+|---|---|---|
+| Erstes Token, kalt kurz / lang | 5,7 s / 17,9 s | 6,7 s / 17,4 s (gleich: Prompt-Verarbeitung der CPU) |
+| Erstes Token bei Fakten mit laufender Nachverarbeitung | **47–86 s** | **5,2–8,2 s** (Chat verdrängt Hintergrund) |
+| Erstes Token warm, kurze Frage | **63,6 s** | **8,4–10,8 s** |
+| Warteschlange leer | nie (> 900 s) | 17–62 s je Nachricht; 758 s nach der 1 500-Token-Eingabe |
+| Stopp → done | n. v. (Baseline abgebrochen; Harness-Wert 0,4 s = Client-Erzeugung) | 0,11 s |
+
+Die großen Wartezeiten der Baseline sind weg; was bleibt, ist die reine
+Prompt-Verarbeitung der CPU (≈ 60 Token/s): jede Nachricht bringt 300–600
+neue Tokens (Gedächtnisblock + Nutzertext + die vorige Antwort, die im Cache
+anders liegt), also 5–10 s bis zum ersten Token. Der Zielwert 1–2 s wird auf
+der CPU mit einem 4B-Modell **nicht erreicht**; mit Cache-Treffer 0,1 s.
+
+Auffällig: Die Abruf-Frage trug 5 200 Prompt-Tokens, weil die als Fakten
+gespeicherten langen Eingaben (≈ 500 Tokens je Nachricht) vollständig in den
+Gedächtnisblock gelangten. Seit Commit *(siehe unten)* werden Fakten im
+Kontextblock auf 480 Zeichen gekürzt (Quellenanzeige unverändert); diese
+Änderung lag nach dieser Messung und ist in der Vulkan-Zusatzmessung
+enthalten.
 
 ## Verbleibende Engpässe und nicht erreichte Zielwerte
 
