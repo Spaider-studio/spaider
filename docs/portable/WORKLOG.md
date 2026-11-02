@@ -240,6 +240,14 @@ blockiert (Scope `workflow` fehlt; unveraendert).
   -> Fakten im Kontextblock auf 480 Zeichen gekuerzt (nach der CPU-Messung).
 - 14:25 Vulkan-Nachher-Messung gestartet (after-qwen3-4b-vulkan).
 
-Naechster konkreter Schritt: Vulkan-Messung abwarten, PyInstaller-Kern erneut bauen
-(retrieve.py geaendert), Paket 0.2.0 + verify_package, PERFORMANCE_REPORT (Vulkan,
-Engpaesse), TEST_REPORT E, Bundle, Push-Versuch, Abschlussbericht.
+- 14:25-15:00 Vulkan-Nachher-Messung (after-qwen3-4b-vulkan): kalt kurz 0,45 s, lang
+  2,1 s, Fakten 1,0-1,9 s, warm kurz 1,2-1,3 s, lange Verlaeufe 4-8 s, Abruf 7,5 s
+  (5 300 Prompt-Tokens), 20-31 Token/s, Stopp -> done 0,06 s, Drain 7 s / 484 s /
+  18-32 s. PERFORMANCE_REPORT mit Zielbewertung und Engpaessen, Commit 0f25a4b.
+- 15:01-15:46 Zusatzmessung mit gekuerztem Kontextblock (nur App-Pfad): Abruf
+  4 600 statt 5 400 Prompt-Tokens; Lauf insgesamt 20-30 % langsamer (Taktschwankung,
+  dokumentiert).
+- 15:47 PyInstaller-Kern erneut gebaut (retrieve.py-Aenderung enthalten).
+
+Naechster konkreter Schritt: Paket 0.2.0 (assemble_portable.py) + verify_package mit
+Screenshot, TEST_REPORT E, Bundle, Push-Versuch, Abschlussbericht.

@@ -260,8 +260,15 @@ Ministral 3B 28,5 Token/s, 0,59–0,89 s.
 3. **Lange Kontexte auf der iGPU**: Prompt-Durchsatz sinkt von 1 100 auf
    240 Token/s bei 5 000+ Tokens; die Abruf-Frage trug 5 300 Tokens, weil lange
    Nutzereingaben als Fakten vollständig in den Gedächtnisblock gelangten.
-   Seit 353bda0 werden Fakten im Kontextblock auf 480 Zeichen gekürzt;
-   Zusatzmessung siehe unten.
+   Seit 353bda0 werden Fakten im Kontextblock auf 480 Zeichen gekürzt.
+   Zusatzmessung (`after-qwen3-4b-vulkan-cap`, nur App-Pfad, 15:01–15:46,
+   gleiche Prompts): Abruf-Frage 4 561–4 674 statt 5 332–5 448 Prompt-Tokens,
+   erstes Token 4,8–7,0 s statt 7,4–7,6 s; lange Eingabe warm 1 999–4 420 statt
+   2 442–4 807 Tokens. Die übrigen Werte dieses Laufs lagen generell niedriger
+   (19–24 statt 27–30 Token/s, kurze Frage warm 1,9–2,1 s statt 1,2–1,3 s,
+   Kernstart 8,3 s statt 4,6 s) – eine Laufzeitschwankung des Rechners
+   (identische Konfiguration, 45 min später; vermutlich Takt/Thermik des
+   Laptops), nicht die Kürzung. Die Token-Zahlen sind der belastbare Vergleich.
 4. **Extraktion langer Eingaben** braucht auch mit 1 500-Token-Budget und
    Thinking aus 8 min (GPU) bzw. 12,6 min (CPU) für eine 1 500-Token-Nachricht
    (Abschnitte × JSON-Generierung × Richter). Sie läuft unterbrechbar im
@@ -275,3 +282,8 @@ Ministral 3B 28,5 Token/s, 0,59–0,89 s.
 6. **Nicht gemessen**: andere GPUs (NVIDIA/AMD über Vulkan), Teil-Offload,
    Energie, UI-Latenz mit echtem Kern im Electron-Fenster, p95 (zu wenige
    Wiederholungen).
+7. **Laufzeitschwankung**: Zwei Vulkan-Läufe derselben Konfiguration im
+   Abstand von 45 min unterschieden sich um 20–30 % (Token/s, Kernstart).
+   Mediane über 3 Wiederholungen glätten das nicht; für belastbare
+   Vorher/Nachher-Aussagen auf diesem Laptop sind Wiederholungen an mehreren
+   Tagen oder eine feste Leistungseinstellung nötig.
