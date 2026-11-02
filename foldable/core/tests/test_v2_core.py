@@ -147,6 +147,63 @@ async def test_raw_fact_is_retrievable_before_extraction_and_enriched_after(db, 
     assert "Nachverarbeitung ausstehend" not in ctx3.context_text and "Priya Nair" in ctx3.context_text
 
 
+@pytest.mark.asyncio
+async def test_ingest_worker_waits_while_chat_model_loads(db, monkeypatch):
+    """Items must not be degraded to a no-LLM ingest while the configured model is still loading."""
+    from spaider_foldable.memory.ingest import IngestQueue, IngestWorker
+    from spaider_foldable.store.conversations import ConversationStore
+
+    convs = ConversationStore(db)
+    conv = convs.create("Warten")
+    msg = convs.add_message(conv["id"], "user", "Merk dir: Der Projektleiter von Orion ist Priya Nair.")
+    queue = IngestQueue(db)
+    queue.enqueue("message", msg["id"], fact_id="fact-wait-1")
+    calls: list[bool] = []
+
+    class _Ingestor:
+        async def ingest_text(self, text, origin, *, source, llm_available=True, fact_id=None):
+            calls.append(llm_available)
+            return {"fact_id": fact_id}
+
+    state = {"chat": "starting"}
+    worker = IngestWorker(
+        queue,
+        _Ingestor(),
+        db,
+        is_llm_ready=lambda: state["chat"] == "ready",
+        llm_state=lambda: state["chat"],
+        scheduler=LLMScheduler(cooldown_s=0.0),
+    )
+    worker.start()
+    await asyncio.sleep(1.5)
+    assert calls == [] and queue.pending_count() == 1  # still waiting for the runtime
+    state["chat"] = "ready"
+    for _ in range(40):
+        await asyncio.sleep(0.1)
+        if calls:
+            break
+    await worker.stop()
+    assert calls == [True] and queue.pending_count() == 0
+    # without any model (stopped/error) the worker proceeds without the LLM, as before
+    queue.enqueue("message", msg["id"], fact_id="fact-wait-2")
+    state["chat"] = "stopped"
+    worker2 = IngestWorker(
+        queue,
+        _Ingestor(),
+        db,
+        is_llm_ready=lambda: False,
+        llm_state=lambda: state["chat"],
+        scheduler=LLMScheduler(cooldown_s=0.0),
+    )
+    worker2.start()
+    for _ in range(40):
+        await asyncio.sleep(0.1)
+        if len(calls) == 2:
+            break
+    await worker2.stop()
+    assert calls == [True, False]
+
+
 # ---------------------------------------------------------------- runtime options
 def test_plan_modes_and_gpu_decisions():
     hw = _hw(32, gpu_free_gb=12)

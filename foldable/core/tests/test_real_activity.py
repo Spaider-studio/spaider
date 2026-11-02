@@ -30,7 +30,7 @@ REPORT: dict = {}
 
 
 def _send(c: httpx.Client, cid: str, text: str, *, stop_after: int | None = None) -> dict:
-    out = {"activity": [], "text": "", "done": None, "sources": [], "t0": time.monotonic(), "stop_sent_at": None}
+    out = {"activity": [], "text": "", "done": None, "sources": [], "t0": time.monotonic(), "stop_sent_at": None, "thinking_events": 0}
     n = 0
     with c.stream("POST", f"/conversations/{cid}/messages", json={"content": text}, timeout=600) as r:
         assert r.status_code == 200, r.read()
@@ -44,6 +44,8 @@ def _send(c: httpx.Client, cid: str, text: str, *, stop_after: int | None = None
                     out["stop_sent_at"] = time.monotonic()
                     with httpx.Client(base_url=c.base_url, headers=c.headers, timeout=10) as c2:
                         c2.post(f"/conversations/{cid}/stop")
+            elif evt == "thinking":
+                out["thinking_events"] += 1
             elif evt == "sources":
                 out["sources"] = data["sources"]
             elif evt == "done":
@@ -168,15 +170,7 @@ def test_activity_events_and_immediate_corrections(tmp_path):
         with core.client() as c:
             _wait_runtime_ready(c)
             # global channel delivers scheduler/runtime state and post-processing events
-            seen = []
-            with c.stream("GET", "/activity", timeout=120) as r:
-                t0 = time.monotonic()
-                for evt, data in _sse_events(r):
-                    seen.append(evt)
-                    if time.monotonic() - t0 > 90 or (n_pending == 0 and len(seen) >= 2):
-                        break
-                    if evt == "activity" and data.get("phase") == "postprocess_done":
-                        break
+            seen = _watch_global_activity(c, max_s=90, stop_when_idle=(n_pending == 0))
             assert "scheduler" in seen and "runtime" in seen, seen
             deadline = time.monotonic() + 600
             while time.monotonic() < deadline and c.get("/memory/overview").json()["pending_ingest"] > 0:
@@ -197,6 +191,31 @@ def test_activity_events_and_immediate_corrections(tmp_path):
         out = Path(__file__).resolve().parents[3] / "build" / "measurements" / "activity-report.json"
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(REPORT, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def _watch_global_activity(c: httpx.Client, *, max_s: float, stop_when_idle: bool) -> list[str]:
+    """Collect event names from GET /activity; keep-alive comments re-check the deadline."""
+    seen: list[str] = []
+    t0 = time.monotonic()
+    event, data = None, []
+    with c.stream("GET", "/activity", timeout=httpx.Timeout(120, read=60)) as r:
+        for line in r.iter_lines():
+            if time.monotonic() - t0 > max_s:
+                break
+            if line.startswith("event:"):
+                event = line[6:].strip()
+            elif line.startswith("data:"):
+                data.append(line[5:].strip())
+            elif line == "":
+                if event:
+                    payload = json.loads(chr(10).join(data) or "{}")
+                    seen.append(event)
+                    if event == "activity" and payload.get("phase") == "postprocess_done":
+                        break
+                    if stop_when_idle and len(seen) >= 2:
+                        break
+                event, data = None, []
+    return seen
 
 
 def db_count(path: Path, sql: str) -> int:

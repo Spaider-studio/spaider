@@ -37,12 +37,15 @@ export default function ModelPaths({
   busy,
   initial = "recommended",
   showCatalog = true,
+  showHardware = true,
 }: {
   jobs: ModelJobs;
   busy: boolean;
   initial?: ModelPath;
   /** Show the built-in catalog cards under "Weitere Modelle". */
   showCatalog?: boolean;
+  /** Show the hardware line inside the recommendations panel. */
+  showHardware?: boolean;
 }) {
   const [path, setPath] = useState<ModelPath>(initial);
   const chatEntries = jobs.entries?.filter((e) => e.role === "chat") ?? [];
@@ -68,7 +71,7 @@ export default function ModelPaths({
         ))}
       </div>
 
-      {path === "recommended" && <RecommendationsPanel jobs={jobs} busy={busy} />}
+      {path === "recommended" && <RecommendationsPanel jobs={jobs} busy={busy} showHardware={showHardware} />}
 
       {path === "more" && (
         <div className="flex flex-col gap-8">

@@ -18,7 +18,16 @@ import type { ModelJobs } from "./useModelJobs";
 
 const FOCUSES: RecommendationFocus[] = ["alltag", "dokumente", "coding"];
 
-export default function RecommendationsPanel({ jobs, busy }: { jobs: ModelJobs; busy: boolean }) {
+export default function RecommendationsPanel({
+  jobs,
+  busy,
+  showHardware = true,
+}: {
+  jobs: ModelJobs;
+  busy: boolean;
+  /** The setup screen shows the hardware line in its header already. */
+  showHardware?: boolean;
+}) {
   const client = useAppStore((s) => s.client);
   const hardware = useAppStore((s) => s.hardware);
   const loadHardware = useAppStore((s) => s.loadHardware);
@@ -61,7 +70,7 @@ export default function RecommendationsPanel({ jobs, busy }: { jobs: ModelJobs; 
 
   return (
     <div className="flex flex-col gap-4" data-testid="recommendations">
-      <HardwareSummary hardware={data?.hardware ?? hardware} />
+      {showHardware && <HardwareSummary hardware={data?.hardware ?? hardware} />}
 
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="inline-flex rounded-lg border border-border bg-bg-primary p-0.5" role="radiogroup" aria-label="Schwerpunkt">

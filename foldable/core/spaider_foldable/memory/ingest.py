@@ -280,11 +280,13 @@ class IngestWorker:
         scheduler: LLMScheduler,
         on_event=None,
         on_document_progress=None,
+        llm_state=None,
     ):
         self.queue = queue
         self.ingestor = ingestor
         self.db = db
         self.is_llm_ready = is_llm_ready
+        self.llm_state = llm_state  # callable() -> stopped|starting|ready|error (optional)
         self.scheduler = scheduler
         self.on_event = on_event  # callable(kind:str, payload:dict)
         self.on_document_progress = on_document_progress
@@ -321,6 +323,11 @@ class IngestWorker:
                 await asyncio.sleep(1.0)
                 continue
             item = dict(item)
+            if self._llm_loading():
+                # a chat model is configured and still loading: do not degrade the
+                # item to a no-LLM ingest, wait for the runtime instead
+                await asyncio.sleep(1.0)
+                continue
             llm_ready = bool(self.is_llm_ready())
             conv_id = self._conversation_of(item)
             self.busy = True
@@ -358,6 +365,14 @@ class IngestWorker:
             finally:
                 self.busy = False
                 self.current = None
+
+    def _llm_loading(self) -> bool:
+        if self.llm_state is None:
+            return False
+        try:
+            return self.llm_state() == "starting"
+        except Exception:  # noqa: BLE001
+            return False
 
     def _conversation_of(self, item: dict) -> Optional[str]:
         if item["kind"] == "message":

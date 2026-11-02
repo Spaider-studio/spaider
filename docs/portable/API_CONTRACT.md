@@ -175,6 +175,9 @@ Alles aus v1 bleibt gültig. Neu:
 - Chat-Stream: zusätzliches `event: activity` (Schema in `ACTIVITY_EVENTS.md`).
 - `GET /api/activity` → SSE: `event: activity` (Nachverarbeitung, mit `conversation_id`), `event: scheduler`, `event: runtime`.
 - `GET /api/conversations/{id}/messages/{mid}/activity` → `{"events":[ActivityEvent]}` (nur im Speicher des laufenden Kerns; nach Neustart leer).
+- Reihenfolge im Chat-Stream: `event: message` kommt vor dem ersten `event: activity`; `request_id` jedes Aktivitätsereignisses ist die Id der `assistant_message`.
+- `event: thinking` `{"text":"..."}` (nur wenn Modell/Adapter Denktext liefern; wird nicht gespeichert).
+- Globaler Kanal: `event: scheduler` = `{"chat_active","background":{"kind","running_s"}|null,"paused","mode","preemptions"}`; `event: runtime` = `{"role":"chat"|"embedding","state","model_id","error","port","startup_seconds","backend","options"}` (beim Verbinden einmal der Gesamtzustand `{"chat":{...},"embedding":{...}}`); Keep-alive als SSE-Kommentarzeile alle 15 s.
 - `Conversation` erhält `postprocessing_pending` (Anzahl offener Nachverarbeitungen dieses Gesprächs).
 - `Message` erhält `timings`: `{"memory_search_ms","prompt_processing_ms","first_token_ms","generation_ms","total_ms"}` (nur gemessen).
 

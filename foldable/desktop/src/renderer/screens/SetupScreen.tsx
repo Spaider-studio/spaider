@@ -102,7 +102,7 @@ export default function SetupScreen() {
             <LoadingSpinner size="sm" /> Modellkatalog wird geladen …
           </div>
         ) : (
-          <ModelPaths jobs={jobs} busy={busy} />
+          <ModelPaths jobs={jobs} busy={busy} showHardware={false} />
         )}
 
         <div className="mt-8 flex justify-end">

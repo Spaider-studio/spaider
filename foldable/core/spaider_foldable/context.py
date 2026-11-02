@@ -85,6 +85,7 @@ class AppContext:
             self.ingestor,
             self.db,
             is_llm_ready=lambda: self.inference.chat.state == "ready",
+            llm_state=lambda: self.inference.chat.state,
             scheduler=self.scheduler,
             on_event=self._on_worker_event,
         )
