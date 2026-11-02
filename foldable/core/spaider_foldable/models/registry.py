@@ -219,6 +219,18 @@ class ModelRegistry:
                 continue
             file_path = d / manifest["file"]
             broken = not file_path.exists() or file_path.stat().st_size != int(manifest["size_bytes"])
+            if not broken and "has_chat_template" not in (manifest.get("metadata") or {}):
+                # manifest written by 0.1.0: capture template facts once (header read only)
+                try:
+                    info = read_gguf_info(file_path)
+                    meta = dict(manifest.get("metadata") or {})
+                    meta.update({k: v for k, v in info.metadata.items() if isinstance(v, (str, int, float, bool))})
+                    meta["has_chat_template"] = info.has_chat_template
+                    meta["chat_template_excerpt"] = (info.chat_template or "")[:4000]
+                    manifest["metadata"] = meta
+                    self._write_manifest(d, manifest)
+                except (GGUFError, OSError) as exc:
+                    logger.warning("could not refresh metadata for %s: %s", d.name, exc)
             manifest["state"] = "broken" if broken else "ready"
             manifest["rel_path"] = self.paths.relative_to_data(file_path)
             self._upsert(manifest)
