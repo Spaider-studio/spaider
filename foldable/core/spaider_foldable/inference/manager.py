@@ -33,11 +33,15 @@ class RuntimeSlot:
     started_at: Optional[float] = None
     startup_seconds: Optional[float] = None
     options: dict = field(default_factory=dict)
+    _client: Optional[LocalLLMClient] = field(default=None, repr=False)
 
     @property
     def client(self) -> Optional[LocalLLMClient]:
+        """One client (with a persistent HTTP connection) per server process."""
         if self.process and self.state == "ready":
-            return LocalLLMClient(self.process.base_url, self.process.api_key)
+            if self._client is None or self._client.base_url != self.process.base_url.rstrip("/"):
+                self._client = LocalLLMClient(self.process.base_url, self.process.api_key)
+            return self._client
         return None
 
     @property
@@ -196,6 +200,9 @@ class InferenceManager:
             self._apply_app_settings()
 
     async def _stop_slot(self, slot: RuntimeSlot) -> None:
+        if slot._client is not None:
+            await slot._client.aclose()
+            slot._client = None
         if slot.process is not None:
             proc = slot.process
             await asyncio.to_thread(proc.stop)

@@ -620,6 +620,56 @@ class LocalMemoryStore:
         self._matrix_dirty = True
         return marked
 
+    def apply_explicit_correction(self, new_fact_id: str, text: str, *, candidates: int = 40) -> list[str]:
+        """Model-independent correction layer (see ``memory/corrections.py``):
+        when ``text`` is an explicit correction, older current FACT nodes that
+        it rewrites are marked superseded by ``new_fact_id`` right away. Returns
+        the ids that were marked. Idempotent."""
+        from .corrections import find_corrected_facts, is_explicit_correction
+
+        if not is_explicit_correction(text):
+            return []
+        q = fts_query(text, prefix=False)
+        if not q:
+            return []
+        rows = self.db.query(
+            "SELECT n.id, n.description, n.created_at FROM nodes_fts f JOIN nodes n ON n.rowid = f.rowid "
+            "WHERE nodes_fts MATCH ? AND n.agent_id = ? AND n.type = 'FACT' AND n.superseded = 0 AND n.id <> ? "
+            "ORDER BY n.created_at DESC LIMIT ?",
+            (q, self.agent_id, new_fact_id, candidates),
+        )
+        new_row = self.db.query_one("SELECT created_at FROM nodes WHERE id = ?", (new_fact_id,))
+        older = [dict(r) for r in rows if new_row is None or (r["created_at"] or "") <= new_row["created_at"]]
+        ids = find_corrected_facts(text, older)
+        if not ids:
+            return []
+        now = utcnow()
+        with self.db.transaction() as conn:
+            for fid in ids:
+                conn.execute(
+                    "UPDATE nodes SET superseded = 1, superseded_by = ?, updated_at = ? WHERE id = ? AND superseded = 0",
+                    (new_fact_id, now, fid),
+                )
+                # relations extracted from the replaced statement become history as well
+                conn.execute(
+                    "UPDATE edges SET superseded = 1, superseded_by = ? WHERE superseded = 0 AND relation <> 'MENTIONS' "
+                    "AND origin_id = (SELECT origin_id FROM nodes WHERE id = ?) "
+                    "AND source_id IN (SELECT target_id FROM edges WHERE source_id = ? AND relation = 'MENTIONS') "
+                    "AND target_id IN (SELECT target_id FROM edges WHERE source_id = ? AND relation = 'MENTIONS')",
+                    (new_fact_id, fid, fid, fid),
+                )
+                old_desc = conn.execute("SELECT description FROM nodes WHERE id = ?", (fid,)).fetchone()
+                if old_desc and old_desc[0]:
+                    conn.execute(
+                        "UPDATE nodes SET source_text = NULL, "
+                        "properties_json = json_remove(properties_json, '$.source_text'), updated_at = ? "
+                        "WHERE agent_id = ? AND type <> 'FACT' AND source_text IS NOT NULL "
+                        "AND length(source_text) >= 12 AND instr(?, source_text) > 0",
+                        (now, self.agent_id, old_desc[0]),
+                    )
+        self._matrix_dirty = True
+        return ids
+
     def superseded_facts_for_nodes(self, node_ids: Iterable[str], limit: int = 6) -> list[dict]:
         ids = list(node_ids)
         if not ids:

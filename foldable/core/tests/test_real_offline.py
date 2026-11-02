@@ -89,7 +89,7 @@ def test_offline_chat_and_import_without_external_connections(tmp_path):
     core = Core(app_root, label="offline").start()
     try:
         pids = {core.proc.pid}
-        with httpx.Client(base_url=core.base, headers={"X-SpAIder-Token": TOKEN}, timeout=120, trust_env=False) as c:
+        with httpx.Client(verify=False, trust_env=False, base_url=core.base, headers={"X-SpAIder-Token": TOKEN}, timeout=120) as c:
             active = _wait_runtime_ready(c)  # autostart of the pre-selected model, no network involved
             assert active["chat"]["id"] == model["id"]
             pids |= _llama_pids()

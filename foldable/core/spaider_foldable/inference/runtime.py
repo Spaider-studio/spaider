@@ -279,7 +279,7 @@ class LlamaServerProcess:
         """Poll /health until the model is loaded."""
         deadline = time.monotonic() + timeout
         last_err = ""
-        with httpx.Client(timeout=5.0) as client:
+        with httpx.Client(timeout=5.0, trust_env=False, verify=False) as client:
             while time.monotonic() < deadline:
                 if not self.is_running():
                     raise RuntimeError_(

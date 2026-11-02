@@ -201,3 +201,92 @@ unter dem genannten Pfad.
    Air-Gap-Test). Danach „Sicher beenden“.
 5. Erwartung: gleicher Inhalt, andere Geschwindigkeit. Bei Problemen
    `data/logs/core.log`, `llama-chat.log`, `launcher.log` mitschicken.
+
+---
+
+# Prüfbericht Update 0.2 (Performance, Aktivität, Modelle)
+
+Stand: 2026-11-02 (Nachmittag). Branch `feature/spaider-foldable-performance-models`.
+Gleicher Rechner wie oben; zusätzlich genutzt: Intel Arc 140V über die
+Vulkan-Variante von llama.cpp b12032. Alle Zahlen sind Messwerte dieses
+Rechners; „NICHT VERIFIZIERT“ markiert, was nicht ausgeführt wurde.
+
+## Automatisierte Prüfungen (0.2)
+
+| Suite | Befehl | Ergebnis |
+|---|---|---|
+| Kern, Unit | `cd foldable/core && pytest` (ohne `real_*`) | **52 bestanden**, 4 übersprungen (Echtläufe ohne Umgebung). Neu: Planer (Verdrängung, Cooldown, Pause), Aktivitäts-Tracker/Bus, Rohfakt sofort sichtbar und Anreicherung, Worker wartet bei ladendem Modell, deterministische Korrekturen und Fragefilter, `plan()`-Entscheidungen, Fähigkeiten/Typen, Empfehlungen mit simulierten Profilen, Remote-GGUF-Header über lokalen Range-Server, Split-Erkennung |
+| Kern, Aktivität (echt) | `pytest tests/test_real_activity.py` (0.6B, Vulkan) | **bestanden** (siehe A/C unten; Rohdaten `foldable/build/measurements/activity-report.json`) |
+| Kern, Familien (echt) | `pytest tests/test_real_families.py` (Llama 3.2 1B, Ministral 3 3B, Vulkan) | **2 bestanden**, 2:42 min (`families-report.json`) |
+| Kern, E2E (echt) | `pytest tests/test_real_e2e.py` | *(wird eingetragen)* |
+| Kern, Offline | `pytest tests/test_real_offline.py` | *(wird eingetragen)* |
+| Desktop | `npm run typecheck`, `npm run lint`, `npm test` | sauber, sauber, **59 bestanden** (9 Dateien; neu: Aktivitäts-Reducer, Token-Batcher, Empfehlungen, Modell-Fehlertexte) |
+| Desktop, Build/Paket | `npm run build`, `npm run package` | ok, 0.2.0 (`VersionInfo` 0.2.0), gegen den Mock mit Screenshot gestartet |
+| Paket 0.2.0 | `verify_package.py` | *(wird eingetragen)* |
+
+## Testgruppen A–E
+
+### A. Modellunabhängigkeit
+
+- Ausgeführt mit echten Gewichten: **Qwen3 0.6B** (Qwen3), **Llama 3.2 1B
+  Instruct** (Llama), **Ministral 3 3B Instruct** (Mistral), dazu Qwen3-4B
+  (Baseline/Nachher-Messung, CPU) und Qwen3-Embedding 0.6B. Katalog: 10
+  Familien, 17 Einträge; nur Metadaten geprüft: Qwen3.5/3.8, SmolLM3, Phi,
+  Gemma 3/4, EmbeddingGemma, nomic.
+- Für jede Familie derselbe Weg: Header lesen → Fähigkeiten (Vorlage,
+  Denkmodus-Umschalter, Systemrolle, Kontext, Typ) → `llama-server --jinja`
+  mit der Vorlage des Modells. Llama/Ministral: 0 `thinking`-Ereignisse,
+  `reasoning_toggle = null`; Qwen3: `enable_thinking`, Thinking aus als
+  Vorgabe. Kein globaler Qwen-Prompt, keine `/think`-Annahme.
+- Abgelehnt werden Basis-/Vision-/Audio-/Embedding-Dateien als Chatmodell
+  (Unit-Test `test_capabilities_and_type_classification`); Split-GGUF wird
+  erkannt und vollständig verlangt (`test_split_detection`). Ein echter
+  Split-Download wurde **NICHT VERIFIZIERT** (kein Split-Modell im 3-GB-Budget).
+- Details und Zahlen: `MODEL_COMPATIBILITY.md`, Abschnitt „Ausgeführte Familien“.
+
+### B. Empfehlungen
+
+- `test_recommendations_with_simulated_profiles`: 8 GB ohne GPU, 16 GB
+  ohne GPU, 32 GB mit 12 GB GPU-Speicher, FAT32-Datenträger, nicht passende
+  27B-Datei → harte Ausschlüsse mit Begründung, höchstens 3 Picks, Vulkan nur
+  mit erkannter GPU, geschätzte und gemessene Werte getrennt.
+- Echter Rechner: Empfehlungen über die UI gegen den Mock geprüft (Screenshot
+  `05-recommendations.png`), gegen den echten Kern über `GET /api/models/recommendations`
+  im E2E-Lauf *(wird eingetragen)*.
+- „Kurz messen“ (Kalibrierung) echt ausgeführt für Llama 1B (71,2 Token/s)
+  und Ministral 3B (28,5 Token/s); die Werte landen in `model_profiles` je
+  Hardware-Fingerabdruck und erscheinen als „gemessen“.
+
+### C. Gedächtnis
+
+Alle Fälle mit synthetischen Namen (Lena Beispiel/Mara Muster, Polarstern);
+keine Sonderbehandlung von Namen im Code (Unit-Tests verwenden andere Namen
+als die Echtläufe).
+
+| Fall | Ergebnis |
+|---|---|
+| Alter Korrektur-Fehler reproduziert | Ja: Mit 0.6B und Llama 1B lieferte die Extraktion keine Kanten → der LLM-Richter lief nie → beide Fakten blieben „aktuell“; 0.6B nannte nach Neustart „Lena“, Llama 1B bei der Sofortfrage „Lena“ (Rohdaten in den Berichten vor den Fixes, WORKLOG 12:49) |
+| Korrektur sofort sichtbar (Hintergrund offen) | **bestanden** (0.6B, Vulkan): Korrektur mit 2 offenen Nachverarbeitungen, Sofortfrage in neuem Gespräch → Quellen enthalten den neuen Fakt, der alte ist „ersetzt“, Antwort „Mara Muster“ |
+| Neustart mit offener Warteschlange | **bestanden**: 4 offene Items beim Beenden, nach Neustart 0 offen, 0 Rohfakten übrig, Antwort „Mara Muster“ |
+| Worker ohne Modell | Items warten, solange das Modell lädt (`starting`); ohne konfiguriertes Modell läuft die Volltext-Indizierung ohne Extraktion (Unit-Test) |
+| Dokumente/Notizen beim Modellwechsel | unverändert aus V1 (Vektoren je Embedding-Modell und Dimension, Reindex bei Wechsel), nicht neu gemessen |
+| Zustände in der UI | „Gespräch gespeichert“ (`saved`), „Gedächtnis aktualisiert“ (`postprocess_done`), „Nachverarbeitung ausstehend“ (`postprocess_pending`, Badge je Gespräch) – im Mock und über die Ereignisse des echten Kerns geprüft |
+
+### D. UI und Lebenszyklus
+
+- Aktivitätszeile: Reihenfolge `memory_search → prompt_build → prompt_processing → generating → answer_done → saved → postprocess_pending`, eine `request_id` je Antwort, monotone `seq` (Echtlauf-Assertion). Prozent nur bei `prompt_processing` (bekannte Größe aus `return_progress`).
+- Stopp: `cancelled`-Ereignis nach dem Serverstopp; Stopp → `done` **0,03 s** (0.6B, Vulkan; Kernmessung mit vorab erzeugtem Client).
+- Renderer: Token-Batching 40 ms; während eines 9-s-Mock-Streams mit 12-ms-Token-Takt und gleichzeitigem Tippen: 535 Frames, max. Lücke 33,6 ms, keine Lücke > 50 ms (Dev-Helfer `window.__spaiderPerf`).
+- Lebenszyklus (Kern): Start, Modell bereit, Shutdown, keine Restprozesse – in jedem Echtlauf (`core exited with code 0`, Shutdown 2,4–2,7 s).
+
+### E. Paket
+
+*(wird eingetragen: neues ZIP, frischer Start, Update an Bestandsdaten, Offline, Vorher/Nachher, CPU-Rückfall)*
+
+Bereits ausgeführt – **Update an Bestandsdaten (Kopie)**: Der Nutzer-Datenordner
+(5 Gespräche, 32 Nachrichten, 25 Knoten, 22 Kanten, 1 Modell, 13 Warteschlangen-
+Einträge, Schema 1) wurde nach `measure/update-test` kopiert, mit dem 0.2-Kern
+gestartet (Migration auf Schema 2), `PRAGMA quick_check = ok`, alle Zähler
+unverändert; Original unberührt (`foldable/build/measurements/update-test.json`).
+Das Original unter `foldable/build/out/SpAIder-Foldable-0.1.0-win-x64/SpAIder/data`
+wurde nicht angefasst.

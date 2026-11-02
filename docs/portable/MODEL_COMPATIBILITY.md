@@ -48,8 +48,8 @@ keine Werkzeuge.
 | Qwen3.8 27B Q4_K_M | Qwen3.8 / `qwen35` | ggml-org (Konvertierung von Qwen/Qwen3.8-27B) | Apache-2.0 | Metadaten; nicht ausgeführt (CPU zu langsam, ~22 GB RAM) |
 | Qwen3.5 0.8B Q8_0 | Qwen3.5 / `qwen35` | ggml-org (Konvertierung) | Apache-2.0 | Metadaten |
 | SmolLM3 3B Q4_K_M | SmolLM3 / `smollm3` | ggml-org (Konvertierung von HuggingFaceTB) | Apache-2.0 | Metadaten |
-| Llama 3.2 1B Instruct Q4_K_M | Llama / `llama` | bartowski (Konvertierung von meta-llama) | Llama 3.2 Community (open-weights) | siehe TEST_REPORT (Ausführung in diesem Update geplant) |
-| Ministral 3 3B Instruct Q4_K_M | Mistral / `mistral3` | Mistral AI (offiziell) | Apache-2.0 | siehe TEST_REPORT (Ausführung in diesem Update geplant) |
+| Llama 3.2 1B Instruct Q4_K_M | Llama / `llama` | bartowski (Konvertierung von meta-llama) | Llama 3.2 Community (open-weights) | **ausgeführt** (Vulkan; Import → Aktivierung → Chat/Korrektur → Stopp → Kalibrierung: 71 Token/s, TTFT 656 ms) |
+| Ministral 3 3B Instruct Q4_K_M | Mistral / `mistral3` | Mistral AI (offiziell) | Apache-2.0 | **ausgeführt** (Vulkan; gleicher Ablauf: 28,5 Token/s, TTFT 891 ms) |
 | Phi-4-mini Instruct Q4_K_M | Phi / `phi3` | unsloth (Konvertierung von microsoft) | MIT | Metadaten |
 | Gemma 4 E2B it Q4_0 | Gemma / `gemma4` | ggml-org (Konvertierung von google) | Apache-2.0 (laut HF-Metadaten) | Metadaten |
 | Gemma 3 1B it Q4_K_M | Gemma / `gemma3` | unsloth (Konvertierung von google) | Gemma Terms (open-weights) | Metadaten |
@@ -90,6 +90,26 @@ Umschalter wird nur gesendet, wenn die ausgelieferte Chatvorlage ihn enthält.
   Repositories werden mit `gated` gemeldet; es gibt keinen Umweg.
 - Lokale Importe prüfen Header, Architektur, Typ und Vollständigkeit von
   Split-Dateien; fehlende Prüfsummen werden angezeigt (nur Größe geprüft).
+
+## Ausgeführte Familien (Echtläufe, `foldable/build/measurements/families-report.json`)
+
+| Modell | Familie | Vorlage / Denkmodus | Import + Header | Aktivierung (Vulkan) | Erstes Token (1. Antwort / Sofortfrage) | Kalibrierung | Stopp → `done` | Gedächtnis |
+|---|---|---|---|---|---|---|---|---|
+| Qwen3 0.6B Q8_0 | Qwen3 | Vorlage ja, `enable_thinking` erkannt | Katalog-Download | 2,7–3,1 s | 0,22 s / – | 64 Token/s (CPU 26,5) | 0,03 s | Korrektur sofort sichtbar; nach Neustart „Mara Muster“ |
+| Llama 3.2 1B Instruct Q4_K_M | Llama | Vorlage ja, kein Denkmodus (0 `thinking`-Ereignisse) | lokaler Import (Weg C) | 4,6 s | 1,77 s / 0,45 s | 71,2 Token/s, 1046 Prompt-Token/s | 0,52 s¹ | Quellen korrekt (2 rohe Fakten sichtbar); Antwort nannte vor der Korrekturschicht den alten Namen² |
+| Ministral 3 3B Instruct Q4_K_M | Mistral | Vorlage ja, kein Denkmodus | lokaler Import (Weg C) | 5,9 s | 1,06 s / 0,59 s | 28,5 Token/s, 283 Prompt-Token/s | 0,55 s¹ | Sofortfrage korrekt („Mara Muster“) |
+
+¹ Der Familienlauf fand vor der Harness-Korrektur statt: ~0,4 s davon sind die
+Erzeugung des HTTP-Clients im Testskript (siehe PERFORMANCE_REPORT). Der
+Kern-Stoppwert liegt bei 0,03 s (Aktivitätstest nach der Korrektur).
+² Der Lauf fand vor der deterministischen Korrekturschicht statt
+(`memory/corrections.py`); mit ihr ist der ersetzte Fakt für kein Modell mehr
+„aktuell“. Die 1B-Antwort ist eine Modelleigenschaft und wird nur
+protokolliert, nicht als Test gefordert.
+
+Alle drei Familien laufen über denselben Adapterpfad (Header → Fähigkeiten →
+llama-server mit Jinja-Vorlage des Modells); es gibt keinen familien-
+spezifischen Prompt und keine `/think`-Annahme.
 
 ## Unbestätigte Angaben
 

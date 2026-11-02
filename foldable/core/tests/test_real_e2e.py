@@ -90,7 +90,7 @@ class Core:
         return f"http://127.0.0.1:{self.port}/api"
 
     def client(self, timeout: float = 120.0) -> httpx.Client:
-        return httpx.Client(base_url=self.base, headers={"X-SpAIder-Token": TOKEN}, timeout=timeout)
+        return httpx.Client(verify=False, trust_env=False, base_url=self.base, headers={"X-SpAIder-Token": TOKEN}, timeout=timeout)
 
     def shutdown(self, timeout: float = 60.0) -> float:
         t0 = time.monotonic()
@@ -159,7 +159,7 @@ def _chat(c: httpx.Client, cid: str, text: str, *, stop_after_tokens: int | None
                 if stop_after_tokens and n >= stop_after_tokens:
                     with c.stream("POST", f"/conversations/{cid}/stop") as _s:
                         pass
-                    with httpx.Client(base_url=c.base_url, headers=c.headers, timeout=30) as c2:
+                    with httpx.Client(verify=False, trust_env=False, base_url=c.base_url, headers=c.headers, timeout=30) as c2:
                         c2.post(f"/conversations/{cid}/stop")
                     stop_after_tokens = None
             elif evt == "sources":

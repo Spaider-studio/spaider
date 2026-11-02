@@ -38,7 +38,7 @@ from .test_real_activity import _send
 from .test_real_e2e import Core, _wait_job, _wait_runtime_ready
 
 FAMILY_MODELS = [p for p in os.environ.get("SPAIDER_FOLDABLE_TEST_FAMILY_MODELS", "").split(";") if p.strip()]
-REPORT_PATH = Path(__file__).resolve().parents[3] / "build" / "measurements" / "families-report.json"
+REPORT_PATH = Path(__file__).resolve().parents[2] / "build" / "measurements" / "families-report.json"
 
 pytestmark = pytest.mark.skipif(
     not (REAL and RUNTIME_DIR and FAMILY_MODELS),
@@ -73,8 +73,8 @@ def _save_report(rep: dict) -> None:
 
 
 def _first_token_s(r: dict) -> float | None:
-    gen = [e for e in r["activity"] if e["phase"] == "generating" and e["state"] == "start"]
-    return round(gen[0]["t_ms"] / 1000, 3) if gen else None
+    t = (r.get("done") or {}).get("timings") or {}
+    return round(t["first_token_ms"] / 1000, 3) if t.get("first_token_ms") is not None else None
 
 
 @pytest.mark.parametrize("model_file", FAMILY_MODELS, ids=[Path(p).name for p in FAMILY_MODELS])

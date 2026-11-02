@@ -36,6 +36,7 @@ from ..db import Database
 from ..scheduler import LLMScheduler, Preempted
 from .embedding_local import LocalEmbeddingService
 from .store import LocalMemoryStore, Origin
+from .corrections import is_question_only
 from .supersession_local import resolve_supersession_local
 
 logger = logging.getLogger(__name__)
@@ -177,7 +178,8 @@ class MemoryIngestor:
                 extraction_error = f"extraction error: {exc}"
                 payload = GraphPayload()
         payload = guard_against_prompt_leakage(payload, text)
-        fact = attach_fact_node(payload, text, source or origin.kind, fact_id=fact_id)
+        question_only = origin.kind == "conversation" and is_question_only(text)
+        fact = None if question_only else attach_fact_node(payload, text, source or origin.kind, fact_id=fact_id)
         for node in payload.nodes:
             node.agent_id = AGENT_ID
         for edge in payload.edges:
@@ -191,12 +193,15 @@ class MemoryIngestor:
             resolved = payload
         result = self.store.write_graph(resolved, origin, embedding_model_id=self.embeddings.model_id)
         superseded = 0
+        if fact is not None and origin.kind == "conversation":
+            # deterministic floor, independent of the model (idempotent after the raw write)
+            superseded += len(self.store.apply_explicit_correction(fact.id, text))
         if self.supersession_enabled and llm_available and resolved.edges:
-            superseded = await resolve_supersession_local(self.store, resolved, enabled=True)
+            superseded += await resolve_supersession_local(self.store, resolved, enabled=True)
         if extraction_error:
             self.last_error = extraction_error
         return {
-            "fact_id": fact.id,
+            "fact_id": fact.id if fact is not None else None,
             "nodes": result["nodes_created"] + result["nodes_merged"],
             "edges": result["edges_created"],
             "superseded": superseded,

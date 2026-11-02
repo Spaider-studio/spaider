@@ -174,5 +174,34 @@ blockiert (Scope `workflow` fehlt; unveraendert).
 - Danach: Nachher-Messung, reale Tests (Aktivitaet/Sofortkorrektur/Neustart, andere
   Familien, Vulkan im App-Pfad), Paket 0.2.0, PERFORMANCE_REPORT, TEST_REPORT.
 
-Naechster konkreter Schritt: Baseline abwarten, test_real_activity.py und
-test_real_e2e.py mit neuem Code laufen lassen, Familienmodelle ausfuehren.
+### Fortschritt ab 12:30
+- 12:31 Familienmodelle geladen (SHA verifiziert): Llama 3.2 1B Q4_K_M (808 MB),
+  Ministral 3 3B Q4_K_M (2,15 GB); Testmodelle liegen ausserhalb des Repos.
+- 12:40 Befund aus test_real_activity (Vulkan, 0.6B): nach Neustart verarbeitete
+  der Hintergrund-Worker offene Items OHNE LLM, waehrend das Modell noch lud
+  (Fakten galten dann als "extrahiert" ohne Extraktion). Fix: Worker wartet bei
+  Zustand "starting"; Unit-Test. Zweiter Befund: der Test haengte sich an
+  Keep-alive-Zeilen des globalen Kanals auf (Testfehler, behoben).
+- 12:48 UI-Agent fertig (Typecheck, Lint, 59 Vitest, Build, Paket 0.2.0, Screenshots
+  gegen Mock). Commit 1b8d444.
+- 12:49 Familien-Echtlauf (test_real_families.py, Vulkan): Llama 3.2 1B und Ministral
+  3 3B: Import (Weg C) -> Aktivierung -> Fakt/Korrektur/Sofortfrage -> Stopp ->
+  Kalibrierung, alles ohne Familiencode. Llama 1B nannte bei der Sofortfrage den
+  alten Namen, Ministral den neuen; 0.6B nannte nach Neustart den alten Namen.
+  Ursache: ohne extrahierte Kanten greift der LLM-Richter nie; beide Fakten
+  bleiben "aktuell". Fix: deterministische Korrekturschicht
+  (memory/corrections.py: Korrekturmarker + Wortueberlappung, sofort beim
+  Rohfakt wirksam, idempotent in der Extraktion) + reine Fragen werden nicht als
+  Fakten gespeichert. Unit-Tests.
+- 12:55 Messbefund: httpx.AsyncClient-Erzeugung pro Aufruf kostet ~400 ms auf
+  diesem Rechner (TLS-Kontext). Betraf tokenize (prompt_build 406 ms), jede
+  Chat-Verbindung, Embeddings, Health-Proben und den Stopp-Client der Tests.
+  Fix: ein Client je Serverprozess (verify=False, Loopback), Harness ebenso.
+  Ergebnis (0.6B, Vulkan): prompt_build 0 ms, erstes Token 219 ms statt 593 ms,
+  Stopp -> done 0,03 s statt 0,44 s; Korrektur nach Neustart: "Mara Muster".
+- Baseline (alter Code, Qwen3-4B CPU) laeuft seit 12:04 weiter; jede Nachverarbeitung
+  blockiert dort 3 x 120 s (Extraktions-Timeouts), daher sehr lange Drain-Zeiten.
+
+Naechster konkreter Schritt: Aktivitaetstest gruen bestaetigen, committen,
+test_real_e2e.py + Offline-Test, Baseline abwarten, Nachher-Messung (CPU + Vulkan),
+PyInstaller-Kern neu bauen, Paket 0.2.0, PERFORMANCE_REPORT/TEST_REPORT.

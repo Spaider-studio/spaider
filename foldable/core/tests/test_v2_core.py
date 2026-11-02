@@ -204,6 +204,57 @@ async def test_ingest_worker_waits_while_chat_model_loads(db, monkeypatch):
     assert calls == [True, False]
 
 
+# ---------------------------------------------------------------- deterministic corrections
+def test_question_and_correction_detection():
+    from spaider_foldable.memory.corrections import correction_strength, find_corrected_facts, is_question_only
+
+    assert is_question_only("Wer leitet das Projekt Orion?")
+    assert is_question_only("Wie hieß der Hund? Und die Katze?")
+    assert not is_question_only("Kannst du dir merken, dass mein Hund Rex heißt?")
+    assert not is_question_only("Mein Hund heißt Rex.")
+    assert correction_strength("Korrektur: Der Leiter von Orion ist jetzt Max Berg.") == "strong"
+    assert correction_strength("Priya Nair leitet jetzt auch das Projekt Atlas.") == "weak"
+    assert correction_strength("Das Budget beträgt 2 Millionen.") is None
+    assert correction_strength("Wer leitet Orion jetzt?") is None
+    old = [
+        {"id": "f-lead", "description": "Der Projektleiter von Orion ist Max Berg."},
+        {"id": "f-budget", "description": "Das Budget von Orion beträgt 2 Millionen Euro."},
+        {"id": "f-q", "description": "Wer ist der Projektleiter von Orion?"},
+    ]
+    # strong marker, half of the old content words shared -> replaced
+    assert find_corrected_facts("Korrektur: Der Projektleiter von Orion ist jetzt Priya Nair.", old) == ["f-lead"]
+    # weak marker with only half overlap -> not replaced (second role, not a correction)
+    assert find_corrected_facts("Max Berg leitet jetzt auch das Projekt Atlas.", old) == []
+    # weak marker with high overlap -> replaced
+    assert find_corrected_facts("Das Budget von Orion beträgt inzwischen 3 Millionen Euro.", old) == ["f-budget"]
+    # repeating the same statement is not a correction
+    assert find_corrected_facts("Korrektur: Der Projektleiter von Orion ist Max Berg.", old) == []
+
+
+@pytest.mark.asyncio
+async def test_explicit_correction_is_visible_before_extraction(db):
+    store = LocalMemoryStore(db)
+    retriever = MemoryRetriever(db, store, _NoEmbeddings())
+    origin = Origin("conversation", "c1", "A")
+    store.write_raw_fact("f1", "Merk dir: Der Projektleiter von Orion ist Max Berg.", origin, source="conversation:c1")
+    assert store.apply_explicit_correction("f1", "Merk dir: Der Projektleiter von Orion ist Max Berg.") == []
+    store.write_raw_fact(
+        "f2", "Korrektur: Der Projektleiter von Orion ist jetzt Priya Nair.", origin, source="conversation:c1"
+    )
+    assert store.apply_explicit_correction("f2", "Korrektur: Der Projektleiter von Orion ist jetzt Priya Nair.") == ["f1"]
+    assert db.scalar("SELECT superseded_by FROM nodes WHERE id = 'f1'") == "f2"
+    ctx = await retriever.retrieve("Wer leitet Orion?")
+    current = [s for s in ctx.sources if s.get("status") != "superseded"]
+    assert any("Priya Nair" in s["excerpt"] for s in current)
+    assert not any("Max Berg" in s["excerpt"] and "Priya" not in s["excerpt"] for s in current)
+    # idempotent
+    assert store.apply_explicit_correction("f2", "Korrektur: Der Projektleiter von Orion ist jetzt Priya Nair.") == []
+    # an unrelated statement with a weak marker does not touch the current fact
+    store.write_raw_fact("f3", "Priya Nair leitet jetzt auch das Projekt Atlas.", origin, source="conversation:c1")
+    assert store.apply_explicit_correction("f3", "Priya Nair leitet jetzt auch das Projekt Atlas.") == []
+    assert db.scalar("SELECT superseded FROM nodes WHERE id = 'f2'") == 0
+
+
 # ---------------------------------------------------------------- runtime options
 def test_plan_modes_and_gpu_decisions():
     hw = _hw(32, gpu_free_gb=12)

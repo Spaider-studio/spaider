@@ -665,6 +665,11 @@
           "kind": "model_card",
           "note_de": "Llama-3.2-Modellkarte: offiziell Englisch, Deutsch, Französisch, Italienisch, Portugiesisch, Hindi, Spanisch, Thai.",
           "scope": "Herstellerangabe"
+        },
+        {
+          "kind": "measurement",
+          "note_de": "Echtlauf in foldable/build/measurements/families-report.json (synthetische Testdaten).",
+          "scope": "dieser Rechner"
         }
       ],
       "description_de": "Sehr kleines Llama-Modell für schwache Hardware. Kein Thinking-Modus.",
@@ -672,9 +677,9 @@
       "source_kind": "builtin",
       "checked_at": "2026-11-02",
       "verification": {
-        "status": "metadata",
+        "status": "executed",
         "date": "2026-11-02",
-        "scope": "Katalogeintrag (Architektur laut llama.cpp-Doku/HF-Metadaten, Prüfsumme, Lizenz); hier nicht ausgeführt"
+        "scope": "echte Inferenz auf b12032 (Vulkan, Intel Arc 140V) in diesem Projekt: Import, Aktivierung, Chat mit Gedächtnis, Stopp, Kalibrierung (71 Token/s, erstes Token 656 ms)"
       }
     },
     {
@@ -716,12 +721,22 @@
         "reasoning_toggle": null,
         "system_role": true
       },
-      "resources": {},
+      "resources": {
+        "n_layers": 26,
+        "n_kv_heads": 8,
+        "head_dim": 128,
+        "note": "Ministral 3 3B config.json (26 Schichten, 8 KV-Köpfe, head_dim 128)"
+      },
       "evidence": [
         {
           "kind": "model_card",
           "note_de": "Mistral-Modellkarte: mehrsprachig inkl. Deutsch.",
           "scope": "Herstellerangabe"
+        },
+        {
+          "kind": "measurement",
+          "note_de": "Echtlauf in foldable/build/measurements/families-report.json (synthetische Testdaten).",
+          "scope": "dieser Rechner"
         }
       ],
       "description_de": "Offizielle GGUF-Veröffentlichung von Mistral AI. Kompaktes Instruct-Modell, Apache-2.0.",
@@ -729,9 +744,9 @@
       "source_kind": "builtin",
       "checked_at": "2026-11-02",
       "verification": {
-        "status": "metadata",
+        "status": "executed",
         "date": "2026-11-02",
-        "scope": "Katalogeintrag (Architektur laut llama.cpp-Doku/HF-Metadaten, Prüfsumme, Lizenz); hier nicht ausgeführt"
+        "scope": "echte Inferenz auf b12032 (Vulkan, Intel Arc 140V) in diesem Projekt: Import, Aktivierung, Chat mit Gedächtnis, Stopp, Kalibrierung (28,5 Token/s, erstes Token 891 ms)"
       }
     },
     {

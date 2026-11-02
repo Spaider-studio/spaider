@@ -25,6 +25,7 @@ import time
 from typing import AsyncIterator, Optional
 
 from ..activity import ActivityBus, ActivityTracker, sse_activity
+from ..memory.corrections import is_question_only
 from ..inference.manager import InferenceManager
 from ..memory.ingest import IngestQueue
 from ..memory.retrieve import MemoryRetriever
@@ -167,7 +168,7 @@ class ChatService:
 
         # 2. immediate memory visibility (raw fact, no LLM) + queued extraction
         fact_id: Optional[str] = None
-        if prefs.memory_auto_extract and len(content) >= 12:
+        if prefs.memory_auto_extract and len(content) >= 12 and not is_question_only(content):
             fact_id = new_id()
             try:
                 self.store.write_raw_fact(
@@ -176,6 +177,8 @@ class ChatService:
                     Origin("conversation", conversation_id, conv["title"]),
                     source=f"conversation:{conversation_id}",
                 )
+                # explicit corrections replace older statements before the answer is built
+                self.store.apply_explicit_correction(fact_id, content)
                 self.ingest_queue.enqueue("message", user_msg["id"], fact_id=fact_id)
             except Exception as exc:  # noqa: BLE001
                 logger.warning("raw fact store failed: %s", exc)

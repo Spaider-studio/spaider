@@ -125,9 +125,17 @@ kann. Offene Fehler stehen am Ende.
   gleichzeitig generieren.
 - **Extraktion auf kleinen Modellen**: Die SpAIder-Extraktion verlangt JSON;
   0.6B–1B-Modelle liefern es oft nicht oder mit kopiertem Beispieltext. Dann
-  bleibt nur der rohe Fakt (Volltext/Vektor) ohne Entitäten und ohne
-  Ersetzungen. Ein größerer Modellwechsel repariert vorhandene falsche
-  Extraktionen nicht automatisch (keine Wiederaufarbeitung in 0.2).
+  bleibt nur der rohe Fakt (Volltext/Vektor) ohne Entitäten. Ersetzungen
+  durch den LLM-Richter fehlen dann; die deterministische Korrekturschicht
+  greift nur bei expliziten Korrekturmarkern und ausreichender Wortüberlappung
+  (eine implizite Korrektur wie „Mara Muster leitet Polarstern.“ ohne Marker
+  bleibt dem Richter bzw. der Chronologie-Regel überlassen). Ein späterer
+  Modellwechsel repariert vorhandene Extraktionen nicht automatisch (keine
+  Wiederaufarbeitung in 0.2).
+- **Reine Fragen** werden nicht als Fakten gespeichert (Heuristik: alle Sätze
+  enden mit „?“ und keine Merk-Aufforderung). Eine Frage, die nebenbei eine
+  Information enthält („Wusstest du, dass X?“), geht so verloren; mit
+  „Merk dir …“ wird sie gespeichert.
 - **Empfehlungen**: Qualitätsbelege stammen aus Modellkarten; echte
   Leistungswerte nur nach „Kurz messen“. Die Größenklasse ist ein Proxy, kein
   Qualitätsmaß.

@@ -208,6 +208,25 @@ rohe Fakten mit „Nachverarbeitung ausstehend“ und schließt die gerade
 beantwortete Nachricht aus. Unbearbeitete Items bleiben persistent und werden
 nach Neustart fortgesetzt; der Chat wartet nicht auf sie.
 
+**Deterministische Korrekturschicht** (`memory/corrections.py`): Der
+LLM-Richter der Supersession braucht extrahierte Kanten und ein fähiges Modell;
+kleine Modelle liefern oft keines von beidem. Unabhängig vom Modell gilt daher:
+Trägt eine Nutzernachricht einen expliziten Korrekturmarker („Korrektur“,
+„nicht mehr“, „stattdessen“, „falsch“ … bzw. schwach „jetzt“, „inzwischen“,
+„now“ …) und teilt sie ≥ 50 % (stark) bzw. ≥ 75 % (schwach) der Inhaltswörter
+eines älteren, noch gültigen Fakts (mindestens zwei gemeinsame Wörter, mindestens
+ein neues Wort oder eine neue Zahl), wird der alte Fakt sofort beim Speichern
+des Rohfakts als ersetzt markiert (`LocalMemoryStore.apply_explicit_correction`,
+idempotent; die Extraktion ruft dieselbe Funktion erneut auf). Reine Fragen
+(alle Sätze enden mit „?“, keine Merk-Aufforderung) werden nicht als Fakten
+gespeichert. Keine Sonderbehandlung einzelner Namen.
+
+**HTTP-Client zum llama-server**: ein `httpx.AsyncClient` je Serverprozess
+(`inference/client.py`, `verify=False`, kein TLS auf Loopback). Die vorherige
+Erzeugung eines Clients pro Aufruf kostete auf dem Entwicklungsrechner ≈ 400 ms
+(TLS-Kontext) und erschien als „Kontext wird vorbereitet“-Zeit sowie als
+Verbindungslatenz in jeder Antwort und jedem Embedding-Aufruf.
+
 **Prompt-Cache**: Nachrichtenfolge = statischer Systemprompt + Verlauf +
 letzte Nutzernachricht mit Gedächtnisblock. Der Präfix bleibt stabil, so dass
 `cache_prompt`/`--cache-reuse` die Eingabeverarbeitung auf den geänderten Teil

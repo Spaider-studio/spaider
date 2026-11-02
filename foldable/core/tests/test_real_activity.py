@@ -42,7 +42,7 @@ def _send(c: httpx.Client, cid: str, text: str, *, stop_after: int | None = None
                 out["text"] += data["text"]
                 if stop_after and n >= stop_after and out["stop_sent_at"] is None:
                     out["stop_sent_at"] = time.monotonic()
-                    with httpx.Client(base_url=c.base_url, headers=c.headers, timeout=10) as c2:
+                    with httpx.Client(verify=False, trust_env=False, base_url=c.base_url, headers=c.headers, timeout=10) as c2:
                         c2.post(f"/conversations/{cid}/stop")
             elif evt == "thinking":
                 out["thinking_events"] += 1
@@ -136,6 +136,8 @@ def test_activity_events_and_immediate_corrections(tmp_path):
             raw_sources = [s for s in r3["sources"] if s.get("processing") == "pending"]
             REPORT["pending_sources_seen"] = len(raw_sources)
             assert any("Mara Muster" in s["excerpt"] for s in r3["sources"]), r3["sources"]
+            current = [s for s in r3["sources"] if s.get("status") != "superseded"]
+            assert not any("Lena Beispiel" in s["excerpt"] and "Mara" not in s["excerpt"] for s in current), current
             assert "Mara" in r3["text"], r3["text"]
             # the chat must have preempted background work at least once if any was running
             sched = c.get("/models/active").json()["scheduler"]
@@ -183,12 +185,16 @@ def test_activity_events_and_immediate_corrections(tmp_path):
             r5 = _send(c, conv_c["id"], "Wer leitet Polarstern jetzt? Nur der Name.")
             REPORT["answer_after_restart"] = r5["text"][:200]
             assert any("Mara Muster" in s["excerpt"] for s in r5["sources"])
+            # the replaced statement must not be offered as a current fact any more
+            current = [s for s in r5["sources"] if s.get("status") != "superseded"]
+            assert not any("Lena Beispiel" in s["excerpt"] and "Mara" not in s["excerpt"] for s in current), current
+            REPORT["answer_after_restart_names_new_lead"] = "Mara" in r5["text"]
         core.shutdown()
     except BaseException:
         core.kill()
         raise
     finally:
-        out = Path(__file__).resolve().parents[3] / "build" / "measurements" / "activity-report.json"
+        out = Path(__file__).resolve().parents[2] / "build" / "measurements" / "activity-report.json"
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(REPORT, indent=2, ensure_ascii=False), encoding="utf-8")
 

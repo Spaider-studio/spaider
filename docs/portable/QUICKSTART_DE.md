@@ -72,6 +72,10 @@ Download. Die Geschwindigkeit hängt vom jeweiligen Rechner ab.
   Antwort bereit; die Nachverarbeitung (Entitäten, Ersetzungen, Vektoren)
   läuft danach im Hintergrund und wird im Gespräch als „ausstehend“ bzw.
   „aktualisiert“ angezeigt. Chat-Antworten haben Vorrang vor Hintergrundarbeit.
+  Eine Korrektur wirkt am zuverlässigsten mit einem klaren Marker, z. B.
+  „Korrektur: Die Projektleiterin ist jetzt Mara Muster, nicht mehr Lena
+  Beispiel.“ Dann wird die alte Angabe unabhängig vom Modell sofort als
+  ersetzt markiert. Reine Fragen werden nicht als Fakten gespeichert.
 - **Kurz messen**: Für das aktive Modell misst ein kurzer, abbrechbarer Test
   Token/s und Zeit bis zum ersten Token auf diesem Rechner; nur diese echten
   Werte erscheinen in Empfehlungen.

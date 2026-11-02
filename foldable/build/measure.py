@@ -219,7 +219,8 @@ class CoreProc:
                 raise RuntimeError(str(evt))
 
     def client(self) -> httpx.Client:
-        return httpx.Client(base_url=f"http://127.0.0.1:{self.port}/api", headers={"X-SpAIder-Token": TOKEN}, timeout=600)
+        return httpx.Client(base_url=f"http://127.0.0.1:{self.port}/api", headers={"X-SpAIder-Token": TOKEN}, timeout=600,
+                            verify=False, trust_env=False)
 
     def llama_pids(self) -> list[int]:
         if not psutil:
@@ -257,6 +258,8 @@ def wait_idle(c: httpx.Client, timeout: float = 900) -> float:
 
 def app_turn(c: httpx.Client, cid: str, prompt: str, pids: list[int], stop_after: int | None = None) -> dict:
     watch = ProcWatch(pids) if psutil else None
+    # the stop client is created outside the timed region (client creation costs ~0.4 s on Windows)
+    stop_client = httpx.Client(base_url=c.base_url, headers=c.headers, timeout=10, verify=False, trust_env=False) if stop_after else None
     t0 = time.monotonic()
     marks: dict = {}
     text = ""
@@ -281,13 +284,14 @@ def app_turn(c: httpx.Client, cid: str, prompt: str, pids: list[int], stop_after
                 text += data["text"]
                 if stop_after and n >= stop_after and stop_t is None:
                     stop_t = time.monotonic()
-                    with httpx.Client(base_url=c.base_url, headers=c.headers, timeout=10) as c2:
-                        c2.post(f"/conversations/{cid}/stop")
+                    stop_client.post(f"/conversations/{cid}/stop")
             elif evt == "done":
                 done = data["message"]
                 marks["done"] = round(now, 3)
             elif evt == "error":
                 marks["error"] = data
+    if stop_client is not None:
+        stop_client.close()
     out = {"marks": marks, "chars": len(text), "tokens_seen": n, "wall_s": round(time.monotonic() - t0, 3),
            "usage": (done or {}).get("usage"), "status": (done or {}).get("status"), "proc": watch.result() if watch else {}}
     if stop_t is not None:
