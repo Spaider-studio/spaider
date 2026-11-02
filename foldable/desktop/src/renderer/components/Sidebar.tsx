@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, MessageSquarePlus, Power, Settings } from "lucide-react";
+import { Brain, ChevronLeft, ChevronRight, MessageSquarePlus, Power, Settings } from "lucide-react";
 import { useState } from "react";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
@@ -30,12 +30,17 @@ export default function Sidebar() {
   const openSettings = useAppStore((s) => s.openSettings);
   const requestQuit = useAppStore((s) => s.requestQuit);
   const setup = useAppStore((s) => s.setup);
+  const scheduler = useAppStore((s) => s.scheduler);
 
   const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null);
   const [quitOpen, setQuitOpen] = useState(false);
 
   const runtime = setup?.runtime_state ?? "stopped";
   const modelName = setup?.active_chat_model?.name ?? "Kein Modell aktiv";
+  const background = scheduler?.background.kind ? scheduler.background : null;
+  const backgroundText = background
+    ? `Gedächtnis wird im Hintergrund aktualisiert${background.pending > 0 ? ` · ${background.pending} ausstehend` : ""}${scheduler?.paused ? " (pausiert)" : ""}`
+    : null;
 
   return (
     <aside
@@ -107,6 +112,16 @@ export default function Sidebar() {
           </span>
           {!collapsed && <span className="truncate">{modelName}</span>}
         </div>
+        {backgroundText && (
+          <div
+            className={cn("flex items-center gap-2 px-1 text-[11px] text-amber-300/90", collapsed && "px-0")}
+            title={backgroundText}
+            data-testid="scheduler-indicator"
+          >
+            <Brain className="w-3 h-3 flex-shrink-0 activity-dot" />
+            {!collapsed && <span className="truncate">{backgroundText}</span>}
+          </div>
+        )}
         <button
           type="button"
           onClick={() => openSettings()}

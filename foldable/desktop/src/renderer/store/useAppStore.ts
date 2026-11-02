@@ -1,17 +1,38 @@
 /**
  * Application state (zustand). Holds backend connection, setup state,
- * conversations/messages (incl. live streaming), settings, documents and
- * a few UI flags. Network calls go through ApiClient; user feedback through
- * notify() (forwarded to the toast provider by App.tsx).
+ * conversations/messages (incl. live streaming), activity tracks, settings,
+ * documents and a few UI flags. Network calls go through ApiClient; user
+ * feedback through notify() (forwarded to the toast provider by App.tsx).
+ *
+ * Streaming performance: token/thinking text is batched (~40 ms) before it
+ * touches the store, activity events are applied as they arrive (the core
+ * sends generating progress at most every 250 ms).
  */
 import { create } from "zustand";
 import type { AppInfo, BackendInfo, BackendStatus } from "../../shared-types/bridge";
 import { ApiClient, errorMessage, isApiError } from "../api/client";
 import { parseJsonData, readSseStream } from "../api/sse";
-import type { ChatEvent, Conversation, Document, Message, Settings, SetupStatus } from "../api/types";
+import type {
+  ActivityEvent,
+  ChatEvent,
+  Conversation,
+  Document,
+  HardwareProfile,
+  Message,
+  RuntimeEvent,
+  RuntimeState,
+  SchedulerEvent,
+  Settings,
+  SetupStatus,
+} from "../api/types";
+import { startActivityChannel, type ChannelState } from "../lib/activityChannel";
+import { createTokenBatcher } from "../lib/batch";
 import { CHAT_ERROR_LABEL, documentWarningText } from "../lib/labels";
 import { notify } from "../lib/notify";
+import { getPerf } from "../lib/perf";
+import { createTrack, reduceActivity, type ActivityTrack } from "./activity";
 import {
+  adjustPostprocessing,
   applyChatEvent,
   finalizeDanglingStream,
   nextActiveAfterDelete,
@@ -25,8 +46,15 @@ export type SettingsTab = "models" | "storage" | "memory" | "documents" | "prefe
 
 export interface StreamingState {
   conversationId: string;
+  /** Assistant message id (= activity request_id) once the `message` event arrived. */
+  assistantId: string | null;
   statusText: string | null;
+  /** "Stopp" was clicked; shown as "Wird gestoppt …" until the core confirms. */
+  stopping: boolean;
 }
+
+const MAX_TRACKS = 30;
+const RUNTIME_STATES: RuntimeState[] = ["stopped", "starting", "ready", "error"];
 
 export interface AppState {
   backend: BackendStatus;
@@ -37,6 +65,7 @@ export interface AppState {
   setup: SetupStatus | null;
   setupError: string | null;
   settings: Settings | null;
+  hardware: HardwareProfile | null;
 
   conversations: Conversation[];
   conversationsLoaded: boolean;
@@ -44,6 +73,13 @@ export interface AppState {
   messages: Record<string, Message[]>;
   loadingConversation: boolean;
   streaming: StreamingState | null;
+  /** Activity tracks by assistant message id (session memory only). */
+  activity: Record<string, ActivityTrack>;
+  /** Thinking text by assistant message id (session memory only). */
+  thinking: Record<string, string>;
+
+  scheduler: SchedulerEvent | null;
+  activityChannel: ChannelState;
 
   documents: Document[];
 
@@ -58,6 +94,7 @@ export interface AppState {
   refreshSetup(): Promise<SetupStatus | null>;
   loadSettings(): Promise<void>;
   updateSettings(patch: Partial<Settings>): Promise<boolean>;
+  loadHardware(): Promise<HardwareProfile | null>;
 
   loadConversations(): Promise<void>;
   selectConversation(id: string | null): Promise<void>;
@@ -66,6 +103,15 @@ export interface AppState {
   deleteConversation(id: string): Promise<void>;
   sendMessage(content: string): Promise<void>;
   stopGeneration(): Promise<void>;
+
+  /** Applies an activity event from the chat stream (only for the current request). */
+  applyStreamActivity(ev: ActivityEvent): void;
+  /** Applies an event from the global channel (post-processing, carries conversation_id). */
+  applyGlobalActivity(ev: ActivityEvent): void;
+  applyScheduler(ev: SchedulerEvent): void;
+  applyRuntime(ev: RuntimeEvent): void;
+  /** Subscribes once per session to GET /api/activity; returns the stop function. */
+  startActivityChannel(): () => void;
 
   loadDocuments(): Promise<void>;
   uploadDocument(file: File): Promise<Document | null>;
@@ -80,6 +126,18 @@ export interface AppState {
 
 const TERMINAL_DOC_STATES = new Set(["indexed", "failed"]);
 
+/** Keeps the newest MAX_TRACKS tracks (insertion order of the record). */
+function pruneTracks(tracks: Record<string, ActivityTrack>): Record<string, ActivityTrack> {
+  const keys = Object.keys(tracks);
+  if (keys.length <= MAX_TRACKS) return tracks;
+  const next: Record<string, ActivityTrack> = {};
+  for (const k of keys.slice(keys.length - MAX_TRACKS)) next[k] = tracks[k];
+  return next;
+}
+
+let channelStop: (() => void) | null = null;
+let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+
 export const useAppStore = create<AppState>()((set, get) => ({
   backend: { state: "starting", message: "SpAIder startet …" },
   backendInfo: null,
@@ -89,6 +147,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
   setup: null,
   setupError: null,
   settings: null,
+  hardware: null,
 
   conversations: [],
   conversationsLoaded: false,
@@ -96,6 +155,11 @@ export const useAppStore = create<AppState>()((set, get) => ({
   messages: {},
   loadingConversation: false,
   streaming: null,
+  activity: {},
+  thinking: {},
+
+  scheduler: null,
+  activityChannel: "closed",
 
   documents: [],
 
@@ -150,6 +214,19 @@ export const useAppStore = create<AppState>()((set, get) => ({
       set({ settings: previous });
       notify(`Einstellung nicht übernommen: ${errorMessage(e)}`, "error");
       return false;
+    }
+  },
+  async loadHardware() {
+    const { client } = get();
+    if (!client) return null;
+    try {
+      const hardware = await client.hardware();
+      set({ hardware });
+      return hardware;
+    } catch {
+      // v1 core without /api/system/hardware: the UI simply hides hardware details.
+      set({ hardware: null });
+      return null;
     }
   },
 
@@ -245,7 +322,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
       convId = conv.id;
     }
     const id = convId;
-    set({ streaming: { conversationId: id, statusText: null } });
+    set({ streaming: { conversationId: id, assistantId: null, statusText: null, stopping: false } });
 
     let response: Response;
     try {
@@ -257,6 +334,20 @@ export const useAppStore = create<AppState>()((set, get) => ({
       return;
     }
 
+    const perf = getPerf();
+    perf?.start("stream");
+
+    // Token text reaches the store at most every ~40 ms.
+    const tokens = createTokenBatcher((chunk) => {
+      set((s) => ({ messages: { ...s.messages, [id]: applyChatEvent(s.messages[id] ?? [], { type: "token", data: { text: chunk } }) } }));
+    });
+    let assistantId: string | null = null;
+    const thinking = createTokenBatcher((chunk) => {
+      const mid = assistantId;
+      if (!mid) return;
+      set((s) => ({ thinking: { ...s.thinking, [mid]: (s.thinking[mid] ?? "") + chunk } }));
+    });
+
     let streamError: string | null = null;
     let gotDone = false;
     try {
@@ -264,19 +355,48 @@ export const useAppStore = create<AppState>()((set, get) => ({
         const data = parseJsonData<Record<string, unknown>>(ev);
         if (!data) return;
         const type = ev.event as ChatEvent["type"];
-        if (type === "status") {
-          const statusText = typeof data.message_de === "string" ? data.message_de : null;
-          set((s) => (s.streaming ? { streaming: { ...s.streaming, statusText } } : {}));
-          return;
+        switch (type) {
+          case "token":
+            if (typeof data.text === "string") tokens.push(data.text);
+            return;
+          case "thinking":
+            if (typeof data.text === "string") thinking.push(data.text);
+            return;
+          case "activity":
+            get().applyStreamActivity(data as unknown as ActivityEvent);
+            return;
+          case "status": {
+            const statusText = typeof data.message_de === "string" ? data.message_de : null;
+            set((s) => (s.streaming ? { streaming: { ...s.streaming, statusText } } : {}));
+            return;
+          }
+          case "message": {
+            const assistant = (data as { assistant_message?: Message }).assistant_message;
+            assistantId = assistant?.id ?? null;
+            set((s) => (s.streaming ? { streaming: { ...s.streaming, assistantId } } : {}));
+            break;
+          }
+          case "done":
+            gotDone = true;
+            break;
+          case "error":
+            if (typeof data.detail === "string") streamError = data.detail;
+            break;
+          default:
+            break;
         }
-        if (type === "done") gotDone = true;
-        if (type === "error" && typeof data.detail === "string") streamError = data.detail;
+        // Ordering: queued text must land before sources/done/error are applied.
+        tokens.flush();
+        thinking.flush();
         const event = { type, data } as ChatEvent;
         set((s) => ({ messages: { ...s.messages, [id]: applyChatEvent(s.messages[id] ?? [], event) } }));
       });
     } catch (e) {
       streamError = streamError ?? errorMessage(e);
     }
+    tokens.dispose();
+    thinking.dispose();
+    perf?.stop();
 
     set((s) => {
       const list = s.messages[id] ?? [];
@@ -289,11 +409,80 @@ export const useAppStore = create<AppState>()((set, get) => ({
   async stopGeneration() {
     const { client, streaming } = get();
     if (!client || !streaming) return;
+    // Local, immediate feedback; the core's `answer_done: cancelled` replaces it.
+    set((s) => (s.streaming ? { streaming: { ...s.streaming, stopping: true } } : {}));
     try {
       await client.stopGeneration(streaming.conversationId);
     } catch (e) {
+      set((s) => (s.streaming ? { streaming: { ...s.streaming, stopping: false } } : {}));
       notify(`Stoppen fehlgeschlagen: ${errorMessage(e)}`, "error");
     }
+  },
+
+  // ----- activity -----------------------------------------------------------------
+  applyStreamActivity(ev) {
+    set((s) => {
+      const current = s.streaming?.assistantId;
+      // Events of stopped/foreign requests are discarded by request_id.
+      if (!current || ev.request_id !== current) return {};
+      const existing = s.activity[ev.request_id];
+      const next = existing ? reduceActivity(existing, ev) : createTrack(ev.request_id, ev, Date.now());
+      if (next === existing) return {};
+      return { activity: pruneTracks({ ...s.activity, [ev.request_id]: next }) };
+    });
+  },
+  applyGlobalActivity(ev) {
+    set((s) => {
+      const patch: Partial<AppState> = {};
+      const existing = s.activity[ev.request_id];
+      if (existing) {
+        const next = reduceActivity(existing, ev);
+        if (next !== existing) patch.activity = { ...s.activity, [ev.request_id]: next };
+      }
+      if (ev.conversation_id) {
+        if (ev.phase === "postprocess_pending" && ev.state !== "failed") {
+          patch.conversations = adjustPostprocessing(s.conversations, ev.conversation_id, 1);
+        } else if (ev.phase === "postprocess_done" || (ev.phase.startsWith("postprocess") && ev.state === "failed")) {
+          patch.conversations = adjustPostprocessing(s.conversations, ev.conversation_id, -1);
+        }
+      }
+      return patch;
+    });
+    // Re-sync the authoritative counts shortly after (debounced).
+    if (ev.conversation_id) {
+      if (reloadTimer) clearTimeout(reloadTimer);
+      reloadTimer = setTimeout(() => {
+        reloadTimer = null;
+        void get().loadConversations();
+      }, 800);
+    }
+  },
+  applyScheduler(ev) {
+    set({ scheduler: ev });
+  },
+  applyRuntime(ev) {
+    const state = ev.state ?? ev.runtime_state;
+    if (state && RUNTIME_STATES.includes(state)) {
+      set((s) => (s.setup && s.setup.runtime_state !== state ? { setup: { ...s.setup, runtime_state: state } } : {}));
+    }
+    void get().refreshSetup();
+  },
+  startActivityChannel() {
+    if (channelStop) return channelStop;
+    const { client } = get();
+    if (!client) return () => undefined;
+    const stop = startActivityChannel(client, {
+      onActivity: (ev) => get().applyGlobalActivity(ev),
+      onScheduler: (ev) => get().applyScheduler(ev),
+      onRuntime: (ev) => get().applyRuntime(ev),
+      onState: (state) => set({ activityChannel: state }),
+    });
+    channelStop = () => {
+      stop();
+      channelStop = null;
+      set({ activityChannel: "closed", scheduler: null });
+    };
+    return channelStop;
   },
 
   // ----- documents -------------------------------------------------------------
@@ -377,6 +566,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
   },
   async requestQuit() {
     set({ quitting: true, settingsOpen: false });
+    channelStop?.();
     try {
       await window.spaider.requestQuit();
     } catch {

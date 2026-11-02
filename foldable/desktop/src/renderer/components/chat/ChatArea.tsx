@@ -31,6 +31,8 @@ export default function ChatArea() {
   const messages = useAppStore((s) => (s.activeId ? (s.messages[s.activeId] ?? EMPTY) : EMPTY));
   const conversation = useAppStore((s) => s.conversations.find((c) => c.id === s.activeId) ?? null);
   const streaming = useAppStore((s) => s.streaming);
+  const activity = useAppStore((s) => s.activity);
+  const thinking = useAppStore((s) => s.thinking);
   const loading = useAppStore((s) => s.loadingConversation);
   const setup = useAppStore((s) => s.setup);
   const documents = useAppStore((s) => s.documents);
@@ -46,6 +48,11 @@ export default function ChatArea() {
   const isStreamingHere = Boolean(streaming && streaming.conversationId === activeId);
   const disabledReason = disabledReasonFor(setup);
   const conversationDocs = documents.filter((d) => d.conversation_id && d.conversation_id === activeId);
+  // Thinking text is only shown when the active model exposes a reasoning toggle.
+  const showThinking = Boolean(setup?.active_chat_model?.capabilities?.reasoning_toggle);
+  const liveTrack = streaming?.assistantId ? activity[streaming.assistantId] : undefined;
+  const liveThinking = streaming?.assistantId ? thinking[streaming.assistantId] : undefined;
+  const onStop = useCallback(() => void stopGeneration(), [stopGeneration]);
 
   const onScroll = useCallback(() => {
     const el = scrollRef.current;
@@ -59,10 +66,10 @@ export default function ChatArea() {
     el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
   }, []);
 
-  // Stick to the bottom while tokens arrive, unless the user scrolled up.
+  // Stick to the bottom while tokens / activity arrive, unless the user scrolled up.
   useLayoutEffect(() => {
     if (stick) scrollToBottom(false);
-  }, [messages, stick, scrollToBottom]);
+  }, [messages, liveTrack, liveThinking, stick, scrollToBottom]);
 
   // New conversation selected: start at the bottom.
   useEffect(() => {
@@ -123,9 +130,22 @@ export default function ChatArea() {
             </div>
           ) : (
             <div className="max-w-3xl mx-auto px-5 py-6 flex flex-col gap-6">
-              {messages.map((m) => (
-                <MessageBubble key={m.id} message={m} streaming={isStreamingHere && m.status === "streaming"} />
-              ))}
+              {messages.map((m) => {
+                const isLive = isStreamingHere && m.status === "streaming";
+                const track = m.role === "assistant" ? activity[m.id] : undefined;
+                return (
+                  <MessageBubble
+                    key={m.id}
+                    message={m}
+                    streaming={isLive}
+                    activity={track}
+                    stopping={isLive ? streaming?.stopping : false}
+                    thinking={m.role === "assistant" ? thinking[m.id] : undefined}
+                    showThinking={showThinking}
+                    onStop={isLive ? onStop : undefined}
+                  />
+                );
+              })}
             </div>
           )}
         </div>
@@ -150,9 +170,19 @@ export default function ChatArea() {
         disabled={disabledReason !== null}
         disabledReason={disabledReason}
         streaming={Boolean(streaming)}
-        statusText={isStreamingHere ? streaming?.statusText ?? "Antwort wird erzeugt …" : streaming ? "Antwort in einem anderen Gespräch läuft …" : null}
+        statusText={
+          isStreamingHere
+            ? liveTrack
+              ? null // the activity line under the message carries the status
+              : streaming?.stopping
+                ? "Wird gestoppt …"
+                : (streaming?.statusText ?? "Antwort wird erzeugt …")
+            : streaming
+              ? "Antwort in einem anderen Gespräch läuft …"
+              : null
+        }
         onSend={(text) => void sendMessage(text)}
-        onStop={() => void stopGeneration()}
+        onStop={onStop}
         onImport={(file) => void onImport(file)}
         importing={importing}
       />

@@ -1,16 +1,26 @@
 /**
  * Mock SpAIder core (no dependencies). Implements enough of
- * docs/portable/API_CONTRACT.md to drive every renderer screen.
+ * docs/portable/API_CONTRACT.md (v1 + Addendum v1.1) and
+ * docs/portable/ACTIVITY_EVENTS.md to drive every renderer screen.
  *
- *   node mock/server.mjs [--port 8765] [--token mock-token] [--state needs_model|ready] [--exit-on-shutdown]
+ *   node mock/server.mjs [--port 8765] [--token mock-token] [--state needs_model|ready]
+ *                        [--exit-on-shutdown] [--offline] [--no-gpu] [--fat32]
  *
  * Prints {"event":"ready","port":N} on stdout when listening (like the real core).
  * Behaviour hooks for testing the UI:
  *   - catalog entry "qwen3.8-27b-community": first download -> 409 insufficient_space,
  *     second download fails at ~30 % (resumable with /resume), resume completes.
- *   - import path containing "invalid" -> job fails with gguf_invalid.
+ *   - import path containing "invalid" -> gguf_invalid, "split" -> split_incomplete,
+ *     "embed"/"nochat" -> not_chat_model, "unsupported" -> arch_unsupported,
+ *     "rolemismatch" -> role_mismatch.
  *   - document name containing "scan" -> warning no_text_layer.
- *   - message text containing "fehler" -> stream ends with an error event.
+ *   - message text containing "fehler" -> activity `generating failed` + error event.
+ *   - settings.thinking_enabled (and a model with reasoning_toggle) -> `thinking` events.
+ *   - search: `?offline=1`, `--offline`, or a query containing "offline" -> offline:true.
+ *   - resolve: repo containing "gated"/"meta-llama"/"google/gemma" -> 409 gated;
+ *     "split" -> two-part model (second part without checksum); "base"/"nochat" ->
+ *     incompatible (type base); "vision" -> type vision; "missing" -> 404.
+ *   - "--state ready" installs and activates the first catalog model.
  */
 import http from "node:http";
 import { randomUUID } from "node:crypto";
@@ -24,9 +34,12 @@ const PORT = Number(argValue("port", 8765));
 const TOKEN = process.env.SPAIDER_FOLDABLE_TOKEN ?? argValue("token", "mock-token");
 const INITIAL_STATE = argValue("state", "needs_model");
 const EXIT_ON_SHUTDOWN = args.includes("--exit-on-shutdown");
+const OFFLINE = args.includes("--offline");
+const NO_GPU = args.includes("--no-gpu");
 
 const now = () => new Date().toISOString();
 const GB = 1024 * 1024 * 1024;
+const MB = 1024 * 1024;
 
 // ---------------------------------------------------------------------------
 // State
@@ -41,6 +54,8 @@ const state = {
     threads: null,
     temperature: 0.7,
     system_prompt_extra: "",
+    performance_mode: "auto",
+    gpu_mode: "auto",
   },
   installed: new Map(),
   activeChat: null,
@@ -51,11 +66,41 @@ const state = {
   messages: new Map(), // conversationId -> Message[]
   documents: new Map(),
   notes: new Map(),
-  generation: null, // { conversationId, stop }
+  generation: null, // { conversationId, stopped, closed }
   spaceErrorShown: false,
   failedOnce: false,
   diskFree: 120 * GB,
+  // v1.1
+  dynamicEntries: new Map(), // "hf:<repo>:<file>" -> ModelCatalogEntry
+  requests: new Map(), // assistant message id -> { seq, events, conversationId }
+  postprocessQueue: [], // { conversationId, messageId }
+  postprocessRunning: null,
+  catalogDate: "2026-10-30T09:00:00Z",
 };
+
+const FINGERPRINT = "mock-268v-arc140v-32gb";
+
+function hardwareProfile() {
+  const models = [...state.installed.values()].reduce((a, m) => a + m.size_bytes, 0);
+  const gpus = NO_GPU
+    ? []
+    : [{ name: "Intel(R) Arc(TM) 140V GPU", backend: "vulkan", vram_total_bytes: 16 * GB, vram_free_bytes: 13.5 * GB, driver: "32.0.101.8860", usable: true }];
+  const gpuUsable = gpus.some((g) => g.usable) && state.settings.gpu_mode !== "off";
+  return {
+    cpu: { name: "Intel Core Ultra 7 268V", cores_physical: 8, threads: 8, features: ["avx2", "avx512", "fma", "f16c"] },
+    ram_total_bytes: 32 * GB,
+    ram_available_bytes: 19.4 * GB,
+    gpus,
+    disk_free_bytes: state.diskFree - models,
+    power: { on_battery: false, power_saver: false },
+    fingerprint: FINGERPRINT,
+    runtime_variants: NO_GPU ? ["cpu"] : ["cpu", "vulkan"],
+    active_backend: gpuUsable ? "vulkan" : "cpu",
+    detected_at: now(),
+  };
+}
+
+const LICENSE_APACHE = (url) => ({ id: "apache-2.0", name: "Apache License 2.0", url, kind: "open-source", gated: false, requires_account: false });
 
 const catalog = [
   {
@@ -70,7 +115,7 @@ const catalog = [
     repo_url: "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF",
     files: [{ path: "Qwen3-1.7B-Q8_0.gguf", size: 1834426016, sha256: "ab".repeat(32) }],
     total_bytes: 1834426016,
-    license: { id: "apache-2.0", name: "Apache License 2.0", url: "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/blob/main/LICENSE" },
+    license: LICENSE_APACHE("https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/blob/main/LICENSE"),
     architecture: "qwen3",
     parameters: "1.7B",
     quantization: "Q8_0",
@@ -82,6 +127,56 @@ const catalog = [
     description_de: "Kompaktes Allround-Modell für Chat und Zusammenfassungen. Läuft flüssig auf aktuellen Laptops ohne Grafikkarte.",
     fit: { level: "recommended", message_de: "Passt gut zu 32 GB Arbeitsspeicher." },
     installed_model_id: null,
+    original_model: "Qwen/Qwen3-1.7B",
+    converter: "Qwen (offiziell)",
+    verification: { status: "executed", date: "2026-10-28T14:00:00Z", scope: "llama.cpp b12032, CPU und Vulkan" },
+    evidence: [
+      { kind: "local_measurement", note_de: "Auf dem Referenz-Laptop mit 24 Token/s gemessen.", scope: "Intel Core Ultra 7 268V, Vulkan" },
+      { kind: "model_card", note_de: "Laut Model Card für Chat und Reasoning trainiert.", scope: "Hugging Face" },
+    ],
+    resources: { weights_bytes: 1834426016, kv_bytes_per_token_est: 28672, est_ram_bytes_8k: 2.3 * GB, est_vram_bytes_8k: 2.1 * GB },
+    template: { reasoning_toggle: "enable_thinking", system_role: true },
+    type: "chat",
+    families: ["Qwen3"],
+    published: "2025-04-29",
+    checked_at: "2026-10-30T09:00:00Z",
+    source_kind: "builtin",
+  },
+  {
+    id: "qwen3-0.6b-q8_0",
+    name: "Qwen3 0.6B (Q8_0)",
+    role: "chat",
+    family: "Qwen3",
+    publisher: "Qwen",
+    source: "official",
+    repo: "Qwen/Qwen3-0.6B-GGUF",
+    revision: "2222222222222222222222222222222222222222",
+    repo_url: "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF",
+    files: [{ path: "Qwen3-0.6B-Q8_0.gguf", size: 639_000_000, sha256: "a1".repeat(32) }],
+    total_bytes: 639_000_000,
+    license: LICENSE_APACHE("https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/blob/main/LICENSE"),
+    architecture: "qwen3",
+    parameters: "0.6B",
+    quantization: "Q8_0",
+    context_length: 32768,
+    embedding_dimensions: null,
+    min_ram_bytes: 2 * GB,
+    recommended_ram_bytes: 4 * GB,
+    support: "documented",
+    description_de: "Sehr kleines, schnelles Modell für einfache Fragen und knappe Antworten.",
+    fit: { level: "ok", message_de: "Passt problemlos." },
+    installed_model_id: null,
+    original_model: "Qwen/Qwen3-0.6B",
+    converter: "Qwen (offiziell)",
+    verification: { status: "metadata", date: "2026-10-30T09:00:00Z", scope: "GGUF-Header geprüft" },
+    evidence: [{ kind: "model_card", note_de: "Laut Model Card für einfache Chat-Aufgaben gedacht.", scope: "Hugging Face" }],
+    resources: { weights_bytes: 639_000_000, kv_bytes_per_token_est: 14336, est_ram_bytes_8k: 0.9 * GB, est_vram_bytes_8k: 0.8 * GB },
+    template: { reasoning_toggle: "enable_thinking", system_role: true },
+    type: "chat",
+    families: ["Qwen3"],
+    published: "2025-04-29",
+    checked_at: "2026-10-30T09:00:00Z",
+    source_kind: "builtin",
   },
   {
     id: "qwen3.8-27b-community",
@@ -95,7 +190,7 @@ const catalog = [
     repo_url: "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF",
     files: [{ path: "Qwen3.8-27B-Q4_K_M.gguf", size: 17_200_000_000, sha256: "cd".repeat(32) }],
     total_bytes: 17_200_000_000,
-    license: { id: "apache-2.0", name: "Apache License 2.0", url: "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF" },
+    license: LICENSE_APACHE("https://huggingface.co/unsloth/Qwen3.8-27B-GGUF"),
     architecture: "qwen35",
     parameters: "27B",
     quantization: "Q4_K_M",
@@ -107,6 +202,53 @@ const catalog = [
     description_de: "Großes Modell mit deutlich besserer Qualität. Community-Konvertierung, laut llama.cpp-Dokumentation unterstützt, hier nicht ausgeführt.",
     fit: { level: "tight", message_de: "Knapp: benötigt etwa 20 GB freien Arbeitsspeicher, Antworten sind langsam." },
     installed_model_id: null,
+    original_model: "Qwen/Qwen3.8-27B",
+    converter: "unsloth (Community)",
+    verification: { status: "metadata", date: "2026-10-30T09:00:00Z", scope: "GGUF-Header geprüft" },
+    evidence: [{ kind: "benchmark", note_de: "Laut Hersteller-Benchmarks deutlich stärker als die 1,7B-Variante.", scope: "Qwen Blog" }],
+    resources: { weights_bytes: 17_200_000_000, kv_bytes_per_token_est: 65536, est_ram_bytes_8k: 20.5 * GB, est_vram_bytes_8k: 18.9 * GB },
+    template: { reasoning_toggle: "enable_thinking", system_role: true },
+    type: "chat",
+    families: ["Qwen3.8"],
+    published: "2026-09-15",
+    checked_at: "2026-10-30T09:00:00Z",
+    source_kind: "builtin",
+  },
+  {
+    id: "gemma-3-1b-it-qat",
+    name: "Gemma 3 1B (Q4_0, QAT)",
+    role: "chat",
+    family: "Gemma 3",
+    publisher: "Google",
+    source: "official",
+    repo: "google/gemma-3-1b-it-qat-q4_0-gguf",
+    revision: "3333333333333333333333333333333333333333",
+    repo_url: "https://huggingface.co/google/gemma-3-1b-it-qat-q4_0-gguf",
+    files: [{ path: "gemma-3-1b-it-q4_0.gguf", size: 720_000_000, sha256: "b2".repeat(32) }],
+    total_bytes: 720_000_000,
+    license: { id: "gemma", name: "Gemma Terms of Use", url: "https://ai.google.dev/gemma/terms", kind: "other", gated: true, requires_account: true },
+    architecture: "gemma3",
+    parameters: "1B",
+    quantization: "Q4_0",
+    context_length: 32768,
+    embedding_dimensions: null,
+    min_ram_bytes: 2 * GB,
+    recommended_ram_bytes: 4 * GB,
+    support: "documented",
+    description_de: "Kleines Google-Modell. Der Download setzt ein Hugging-Face-Konto und die Zustimmung zu den Gemma-Bedingungen voraus.",
+    fit: { level: "ok", message_de: "Passt problemlos." },
+    installed_model_id: null,
+    original_model: "google/gemma-3-1b-it",
+    converter: "Google (offiziell)",
+    verification: { status: "unverified", date: null, scope: null },
+    evidence: [],
+    resources: { weights_bytes: 720_000_000, kv_bytes_per_token_est: 16384, est_ram_bytes_8k: 1.1 * GB, est_vram_bytes_8k: 1.0 * GB },
+    template: { reasoning_toggle: null, system_role: false },
+    type: "chat",
+    families: ["Gemma 3"],
+    published: "2025-04-03",
+    checked_at: "2026-10-30T09:00:00Z",
+    source_kind: "builtin",
   },
   {
     id: "qwen3-embedding-0.6b-q8_0",
@@ -120,7 +262,7 @@ const catalog = [
     repo_url: "https://huggingface.co/Qwen/Qwen3-Embedding-0.6B-GGUF",
     files: [{ path: "Qwen3-Embedding-0.6B-Q8_0.gguf", size: 639_000_000, sha256: "ef".repeat(32) }],
     total_bytes: 639_000_000,
-    license: { id: "apache-2.0", name: "Apache License 2.0", url: "https://huggingface.co/Qwen/Qwen3-Embedding-0.6B-GGUF" },
+    license: LICENSE_APACHE("https://huggingface.co/Qwen/Qwen3-Embedding-0.6B-GGUF"),
     architecture: "qwen3",
     parameters: "0.6B",
     quantization: "Q8_0",
@@ -132,7 +274,29 @@ const catalog = [
     description_de: "Embedding-Modell für die semantische Gedächtnis-Suche.",
     fit: { level: "ok", message_de: "Passt." },
     installed_model_id: null,
+    original_model: "Qwen/Qwen3-Embedding-0.6B",
+    converter: "Qwen (offiziell)",
+    verification: { status: "executed", date: "2026-10-28T14:00:00Z", scope: "llama.cpp b12032, Embeddings" },
+    evidence: [],
+    resources: { weights_bytes: 639_000_000, kv_bytes_per_token_est: 0, est_ram_bytes_8k: 0.8 * GB, est_vram_bytes_8k: 0.7 * GB },
+    template: { reasoning_toggle: null, system_role: false },
+    type: "embedding",
+    families: ["Qwen3"],
+    published: "2025-06-05",
+    checked_at: "2026-10-30T09:00:00Z",
+    source_kind: "builtin",
   },
+];
+
+const SEARCH_INDEX = [
+  { repo: "Qwen/Qwen3-4B-GGUF", author: "Qwen", name: "Qwen3-4B-GGUF", likes: 412, downloads: 184_000, updated: "2026-10-12T10:00:00Z", gguf: true },
+  { repo: "unsloth/Qwen3-4B-GGUF", author: "unsloth", name: "Qwen3-4B-GGUF", likes: 238, downloads: 96_000, updated: "2026-10-20T10:00:00Z", gguf: true },
+  { repo: "unsloth/Qwen3-8B-GGUF", author: "unsloth", name: "Qwen3-8B-GGUF", likes: 301, downloads: 120_500, updated: "2026-10-18T10:00:00Z", gguf: true },
+  { repo: "bartowski/Llama-3.2-1B-Instruct-GGUF", author: "bartowski", name: "Llama-3.2-1B-Instruct-GGUF", likes: 150, downloads: 420_000, updated: "2026-09-01T10:00:00Z", gguf: true },
+  { repo: "meta-llama/Llama-3.2-1B-Instruct", author: "meta-llama", name: "Llama-3.2-1B-Instruct", likes: 1200, downloads: 2_400_000, updated: "2026-08-10T10:00:00Z", gguf: false },
+  { repo: "ggml-org/SmolLM3-3B-GGUF", author: "ggml-org", name: "SmolLM3-3B-GGUF", likes: 88, downloads: 33_000, updated: "2026-10-25T10:00:00Z", gguf: true },
+  { repo: "mistralai/Ministral-3-3B-Instruct-2512-GGUF", author: "mistralai", name: "Ministral-3-3B-Instruct-2512-GGUF", likes: 210, downloads: 51_000, updated: "2026-10-28T10:00:00Z", gguf: true },
+  { repo: "unsloth/Qwen3-30B-A3B-GGUF-split", author: "unsloth", name: "Qwen3-30B-A3B-GGUF (mehrteilig)", likes: 64, downloads: 12_000, updated: "2026-10-22T10:00:00Z", gguf: true },
 ];
 
 const facts = [
@@ -171,10 +335,16 @@ function seedNote(text) {
 }
 seedNote("Musa bevorzugt kurze, sachliche Antworten auf Deutsch.");
 
-if (INITIAL_STATE === "ready") {
-  const m = installModel(catalog[0]);
-  state.activeChat = m.id;
-  state.runtime = "ready";
+function capabilitiesFor(entry, role) {
+  return {
+    chat_template: role === "chat",
+    reasoning_toggle: entry?.template?.reasoning_toggle ?? null,
+    system_role: entry?.template?.system_role ?? role === "chat",
+    context_length: entry?.context_length ?? 8192,
+    modalities: ["text"],
+    structured_output: role === "chat",
+    backends: NO_GPU ? ["cpu"] : ["cpu", "vulkan"],
+  };
 }
 
 function installModel(entry, overrides = {}) {
@@ -187,7 +357,7 @@ function installModel(entry, overrides = {}) {
     path: `D:\\SpAIder\\data\\models\\${entry.files[0].path}`,
     size_bytes: entry.total_bytes,
     sha256: entry.files[0].sha256,
-    sha256_verified: true,
+    sha256_verified: Boolean(entry.files[0].sha256),
     architecture: entry.architecture,
     quantization: entry.quantization,
     context_length: entry.context_length,
@@ -196,19 +366,109 @@ function installModel(entry, overrides = {}) {
     state: "ready",
     active: false,
     created_at: now(),
+    capabilities: capabilitiesFor(entry, entry.role),
+    verification: entry.verification ?? { status: "metadata", date: now(), scope: "GGUF-Header geprüft" },
+    measured: null,
     ...overrides,
   };
   state.installed.set(model.id, model);
   if (entry.id) {
-    const c = catalog.find((e) => e.id === entry.id);
+    const c = catalog.find((e) => e.id === entry.id) ?? state.dynamicEntries.get(entry.id);
     if (c) c.installed_model_id = model.id;
   }
   return model;
 }
 
+if (INITIAL_STATE === "ready") {
+  const m = installModel(catalog[0]);
+  state.activeChat = m.id;
+  state.runtime = "ready";
+}
+
 function modelView(m) {
   if (!m) return null;
   return { ...m, active: m.id === state.activeChat || m.id === state.activeEmbedding };
+}
+
+// ---------------------------------------------------------------------------
+// Global activity channel (GET /api/activity)
+// ---------------------------------------------------------------------------
+const activityListeners = new Set();
+
+function schedulerSnapshot() {
+  const pending = state.postprocessQueue.length + (state.postprocessRunning ? 1 : 0);
+  const chatActive = Boolean(state.generation);
+  return {
+    chat_active: chatActive,
+    background: { kind: state.postprocessRunning ? "message" : pending > 0 ? "message" : null, pending },
+    paused: chatActive && pending > 0,
+  };
+}
+function runtimeSnapshot() {
+  return { state: state.runtime, model_id: state.activeChat, at: now() };
+}
+function broadcast(event, data) {
+  for (const res of activityListeners) sseSend(res, event, data);
+}
+function broadcastScheduler() {
+  broadcast("scheduler", schedulerSnapshot());
+}
+function setRuntime(next) {
+  if (state.runtime === next) return;
+  state.runtime = next;
+  broadcast("runtime", runtimeSnapshot());
+}
+
+/** Per-request activity bookkeeping (seq continues on the global channel). */
+function requestFor(messageId, conversationId) {
+  let req = state.requests.get(messageId);
+  if (!req) {
+    req = { id: messageId, conversationId, seq: 0, events: [], started: Date.now() };
+    state.requests.set(messageId, req);
+  }
+  return req;
+}
+function makeEvent(req, phase, st, message_de, extra = {}) {
+  const ev = {
+    request_id: req.id,
+    seq: req.seq++,
+    phase,
+    state: st,
+    t_ms: Date.now() - req.started,
+    at: now(),
+    message_de,
+    counters: extra.counters ?? null,
+    source_ids: extra.source_ids ?? [],
+  };
+  req.events.push(ev);
+  if (req.events.length > 200) req.events.shift();
+  return ev;
+}
+
+function pumpPostprocess() {
+  if (state.postprocessRunning || state.generation || state.postprocessQueue.length === 0) return;
+  const item = state.postprocessQueue.shift();
+  state.postprocessRunning = item;
+  const req = requestFor(item.messageId, item.conversationId);
+  broadcast("activity", { ...makeEvent(req, "postprocess_running", "started", "Gedächtnis wird aktualisiert", { counters: { facts_pending: 1 } }), conversation_id: item.conversationId });
+  broadcastScheduler();
+  setTimeout(() => {
+    state.postprocessRunning = null;
+    broadcast("activity", { ...makeEvent(req, "postprocess_done", "done", "Gedächtnis aktualisiert", { counters: { facts_pending: 0, facts: 2 } }), conversation_id: item.conversationId });
+    broadcastScheduler();
+    setTimeout(pumpPostprocess, 200);
+  }, 2500);
+}
+function enqueuePostprocess(conversationId, messageId) {
+  state.postprocessQueue.push({ conversationId, messageId });
+  broadcastScheduler();
+  setTimeout(pumpPostprocess, 1000);
+}
+function pendingFor(conversationId) {
+  return state.postprocessQueue.filter((q) => q.conversationId === conversationId).length + (state.postprocessRunning?.conversationId === conversationId ? 1 : 0);
+}
+function convView(conv) {
+  return { ...conv, postprocessing_pending: pendingFor(conv.id) };
 }
 
 // ---------------------------------------------------------------------------
@@ -260,7 +520,7 @@ function runDownload(job, entry, failAt = null) {
   const tick = () => {
     if (job.state !== "running") return;
     if (job.phase === "check_space") {
-      updateJob(job, { phase: "download", message_de: "Lädt von Hugging Face" });
+      updateJob(job, { phase: "download", message_de: entry.files.length > 1 ? `Lädt von Hugging Face (${entry.files.length} Teile)` : "Lädt von Hugging Face" });
     } else if (job.phase === "download") {
       const done = Math.min(total, job.progress.done_bytes + step);
       if (failAt !== null && done / total >= failAt && !state.failedOnce) {
@@ -284,14 +544,14 @@ function runActivate(job, model) {
   const phases = ["load", "load", "load", "probe", "probe", "commit"];
   let i = 0;
   updateJob(job, { state: "running", phase: "load", message_de: "llama-server wird gestartet" });
-  state.runtime = "starting";
+  setRuntime("starting");
   const tick = () => {
     if (job.state !== "running") return;
     i += 1;
     if (i >= phases.length) {
       if (model.role === "chat") state.activeChat = model.id;
       else state.activeEmbedding = model.id;
-      state.runtime = "ready";
+      setRuntime("ready");
       updateJob(job, { state: "done", phase: null, message_de: "Modell aktiv", result_model_id: model.id });
       return;
     }
@@ -301,8 +561,16 @@ function runActivate(job, model) {
   timers.set(job.id, setTimeout(tick, 600));
 }
 
+const IMPORT_FAILURES = [
+  [/invalid/i, "gguf_invalid", "Die Datei ist keine gültige GGUF-Datei."],
+  [/split/i, "split_incomplete", "Von diesem mehrteiligen Modell fehlen Teile (gefunden: 1 von 3)."],
+  [/embed|nochat/i, "not_chat_model", "Die Datei ist ein Embedding-Modell, kein Chat-Modell."],
+  [/unsupported/i, "arch_unsupported", "Architektur „mamba2“ wird von dieser llama.cpp-Laufzeit nicht unterstützt."],
+  [/rolemismatch/i, "role_mismatch", "Die Datei passt nicht zur erwarteten Rolle."],
+];
+
 function runImport(job, path) {
-  const invalid = /invalid/i.test(path);
+  const failure = IMPORT_FAILURES.find(([re]) => re.test(path));
   const phases = ["copy", "copy", "verify", "probe"];
   let i = 0;
   const total = 900_000_000;
@@ -311,12 +579,15 @@ function runImport(job, path) {
     if (job.state !== "running") return;
     i += 1;
     if (i >= phases.length) {
-      if (invalid) {
-        updateJob(job, { state: "failed", phase: null, message_de: "Import fehlgeschlagen", error: { detail: "Die Datei ist keine gültige GGUF-Datei.", code: "gguf_invalid" } });
+      if (failure) {
+        updateJob(job, { state: "failed", phase: null, message_de: "Import fehlgeschlagen", error: { detail: failure[2], code: failure[1] } });
         return;
       }
       const name = path.split(/[\\/]/).pop().replace(/\.gguf$/i, "");
-      const model = installModel({ id: null, name, role: "chat", files: [{ path: `${name}.gguf`, sha256: null }], total_bytes: total, architecture: "qwen3", quantization: "Q4_K_M", context_length: 8192, embedding_dimensions: null, license: null }, { source: "import", catalog_id: null, sha256: null, sha256_verified: false });
+      const model = installModel(
+        { id: null, name, role: "chat", files: [{ path: `${name}.gguf`, sha256: null }], total_bytes: total, architecture: "qwen3", quantization: "Q4_K_M", context_length: 8192, embedding_dimensions: null, license: null, template: { reasoning_toggle: null, system_role: true } },
+        { source: "import", catalog_id: null, sha256: null, sha256_verified: false, verification: { status: "metadata", date: now(), scope: "GGUF-Header beim Import geprüft" } },
+      );
       updateJob(job, { state: "done", phase: null, message_de: "Import abgeschlossen", result_model_id: model.id, progress: { ...job.progress, done_bytes: total } });
       return;
     }
@@ -324,6 +595,36 @@ function runImport(job, path) {
     timers.set(job.id, setTimeout(tick, 700));
   };
   timers.set(job.id, setTimeout(tick, 700));
+}
+
+function runCalibrate(job, model) {
+  const totalTokens = 64;
+  let done = 0;
+  updateJob(job, { state: "running", phase: "load", message_de: "Modell wird für die Messung geladen" });
+  const tick = () => {
+    if (job.state !== "running") return;
+    if (job.phase === "load") {
+      updateJob(job, { phase: "probe", message_de: `Messung läuft: 0 von ${totalTokens} Token` });
+    } else {
+      done += 16;
+      if (done >= totalTokens) {
+        const hw = hardwareProfile();
+        model.measured = {
+          backend: hw.active_backend,
+          tokens_per_second: hw.active_backend === "vulkan" ? 23.6 : 11.2,
+          time_to_first_token_ms: 290,
+          prompt_tokens_per_second: hw.active_backend === "vulkan" ? 410 : 160,
+          measured_at: now(),
+          fingerprint: FINGERPRINT,
+        };
+        updateJob(job, { state: "done", phase: null, message_de: `Gemessen: ${model.measured.tokens_per_second} Token/s`, result_model_id: model.id });
+        return;
+      }
+      updateJob(job, { message_de: `Messung läuft: ${done} von ${totalTokens} Token` });
+    }
+    timers.set(job.id, setTimeout(tick, 450));
+  };
+  timers.set(job.id, setTimeout(tick, 600));
 }
 
 // ---------------------------------------------------------------------------
@@ -359,7 +660,7 @@ function runIndexing(doc) {
 }
 
 // ---------------------------------------------------------------------------
-// Chat streaming
+// Chat streaming (v1 events + v1.1 activity / thinking)
 // ---------------------------------------------------------------------------
 const MOCK_ANSWER = `Dies ist eine **Testantwort des Mock-Kerns** (keine echte Modellantwort).
 
@@ -381,11 +682,17 @@ def begruessung(name: str) -> str:
 
 Inline-Code wie \`SPAIDER_FOLDABLE_TOKEN\` wird ebenfalls dargestellt. <script>alert("x")</script>`;
 
+const LONG_ANSWER = Array.from({ length: 12 }, (_, i) => `Absatz ${i + 1}: ${MOCK_ANSWER.split("\n")[0]} Dieser Abschnitt ist bewusst lang, damit die Oberfläche bei vielen Token flüssig bleibt und das Scrollen sowie die Eingabe währenddessen reagieren.`).join("\n\n");
+
+const MOCK_THINKING =
+  "Der Nutzer fragt nach dem Projekt. Ich sollte zuerst die gespeicherten Fakten durchgehen: Das Projekt läuft von einem USB-SSD, die Kontextlänge wurde auf 8192 erhöht. Die Antwort sollte kurz und sachlich auf Deutsch sein, mit einer Liste und einem kleinen Codebeispiel zur Darstellung. ";
+
 function startGeneration(conversationId, content, res) {
   const conv = state.conversations.get(conversationId);
   const list = state.messages.get(conversationId);
-  const userMessage = { id: randomUUID(), conversation_id: conversationId, role: "user", content, created_at: now(), status: "complete", model_id: null, sources: [], error: null, usage: null };
-  const assistant = { id: randomUUID(), conversation_id: conversationId, role: "assistant", content: "", created_at: now(), status: "streaming", model_id: state.activeChat, sources: [], error: null, usage: null };
+  const model = state.installed.get(state.activeChat);
+  const userMessage = { id: randomUUID(), conversation_id: conversationId, role: "user", content, created_at: now(), status: "complete", model_id: null, sources: [], error: null, usage: null, timings: null };
+  const assistant = { id: randomUUID(), conversation_id: conversationId, role: "assistant", content: "", created_at: now(), status: "streaming", model_id: state.activeChat, sources: [], error: null, usage: null, timings: null };
   list.push(userMessage, assistant);
   if (!conv.title || conv.title === "Neues Gespräch") conv.title = content.slice(0, 48);
   conv.message_count = list.length;
@@ -396,52 +703,132 @@ function startGeneration(conversationId, content, res) {
   sseSend(res, "message", { user_message: userMessage, assistant_message: assistant });
   const gen = { conversationId, stopped: false, closed: false };
   state.generation = gen;
+  broadcastScheduler();
   res.on("close", () => {
     gen.closed = true;
   });
 
-  const words = (/fehler/i.test(content) ? "Diese Antwort bricht gleich mit einem Fehler ab. " : MOCK_ANSWER).split(/(?<=\s)/);
-  const started = Date.now();
+  const req = requestFor(assistant.id, conversationId);
+  const act = (phase, st, message_de, extra) => {
+    const ev = makeEvent(req, phase, st, message_de, extra);
+    if (!gen.closed) sseSend(res, "activity", ev);
+    return ev;
+  };
+  const errorCase = /fehler/i.test(content);
+  const longCase = /lang|viele token/i.test(content);
+  const answer = errorCase ? "Diese Antwort bricht gleich mit einem Fehler ab. " : longCase ? LONG_ANSWER : MOCK_ANSWER;
+  const words = answer.split(/(?<=\s)/);
+  const thinkingOn = Boolean(state.settings.thinking_enabled && model?.capabilities?.reasoning_toggle);
+  const thinkWords = thinkingOn ? MOCK_THINKING.split(/(?<=\s)/) : [];
+  const timings = {};
+  const started = req.started;
   let i = 0;
+  let firstTokenAt = null;
+  let generationStartedAt = null;
+  let lastProgressAt = 0;
+
+  const tps = () => Math.round((i / Math.max(0.05, (Date.now() - (generationStartedAt ?? started)) / 1000)) * 10) / 10;
+
   const finish = (status) => {
     assistant.status = status;
-    assistant.usage = { prompt_tokens: 120, completion_tokens: i, time_to_first_token_ms: 310, tokens_per_second: Math.round((i / Math.max(1, (Date.now() - started) / 1000)) * 10) / 10 };
+    const endedAt = Date.now();
+    timings.generation_ms = generationStartedAt ? endedAt - generationStartedAt : null;
+    timings.total_ms = endedAt - started;
+    assistant.timings = timings;
+    assistant.usage = { prompt_tokens: 412, completion_tokens: i, time_to_first_token_ms: firstTokenAt ? firstTokenAt - started : 0, tokens_per_second: tps() };
     conv.updated_at = now();
+    act("answer_done", status === "stopped" ? "cancelled" : "done", status === "stopped" ? "Abgebrochen" : "Antwort fertig", { counters: { tokens: i, tokens_per_second: tps() } });
+    if (!gen.closed) sseSend(res, "status", { phase: "memorizing", message_de: "Gedächtnis wird aktualisiert …" });
+    setTimeout(() => {
+      act("saved", "done", "Gespräch gespeichert");
+      act("postprocess_pending", "started", "Gedächtnis-Nachverarbeitung ausstehend", { counters: { facts_pending: 1 } });
+      state.generation = null;
+      if (!gen.closed) {
+        sseSend(res, "done", { message: assistant });
+        res.end();
+      }
+      enqueuePostprocess(conversationId, assistant.id);
+    }, 80);
+  };
+
+  const fail = (detail) => {
+    assistant.status = "error";
+    assistant.error = detail;
+    assistant.timings = { ...timings, total_ms: Date.now() - started };
     state.generation = null;
+    act("generating", "failed", `Fehlgeschlagen: ${detail}`, { counters: { tokens: i } });
     if (!gen.closed) {
-      sseSend(res, "done", { message: assistant });
+      sseSend(res, "error", { detail, code: "runtime_error" });
       res.end();
     }
+    broadcastScheduler();
   };
-  setTimeout(() => sseSend(res, "status", { phase: "retrieving", message_de: "Gedächtnis wird durchsucht …" }), 50);
-  setTimeout(() => {
-    assistant.sources = facts.slice(0, 3);
-    sseSend(res, "sources", { sources: assistant.sources });
-    sseSend(res, "status", { phase: "generating", message_de: "Antwort wird erzeugt …" });
+
+  const generate = () => {
+    generationStartedAt = Date.now();
+    act("generating", "started", "Antwort wird geschrieben");
+    if (!gen.closed) sseSend(res, "status", { phase: "generating", message_de: "Antwort wird erzeugt …" });
+    let t = 0;
     const tick = () => {
       if (gen.stopped) return finish("stopped");
+      if (t < thinkWords.length) {
+        if (!gen.closed) sseSend(res, "thinking", { text: thinkWords[t] });
+        t += 1;
+        return setTimeout(tick, 30);
+      }
       if (i >= words.length) {
-        if (/fehler/i.test(content)) {
-          assistant.status = "error";
-          assistant.error = "Die Laufzeit hat die Verbindung beendet (Testfehler).";
-          state.generation = null;
-          if (!gen.closed) {
-            sseSend(res, "error", { detail: assistant.error, code: "runtime_error" });
-            res.end();
-          }
-          return;
-        }
-        sseSend(res, "status", { phase: "memorizing", message_de: "Gedächtnis wird aktualisiert …" });
-        setTimeout(() => finish("complete"), 600);
-        return;
+        if (errorCase) return fail("Die Laufzeit hat die Verbindung beendet (Testfehler).");
+        return finish("complete");
+      }
+      if (firstTokenAt === null) {
+        firstTokenAt = Date.now();
+        timings.first_token_ms = firstTokenAt - started;
       }
       assistant.content += words[i];
-      sseSend(res, "token", { text: words[i] });
+      if (!gen.closed) sseSend(res, "token", { text: words[i] });
       i += 1;
-      setTimeout(tick, 35);
+      const nowMs = Date.now();
+      if (nowMs - lastProgressAt >= 250) {
+        lastProgressAt = nowMs;
+        act("generating", "progress", "Antwort wird geschrieben", { counters: { tokens: i, tokens_per_second: tps() } });
+      }
+      setTimeout(tick, longCase ? 12 : 35);
     };
     tick();
-  }, 700);
+  };
+
+  // Phase timeline (measured against the wall clock of this mock, nothing invented beyond that).
+  setTimeout(() => {
+    act("memory_search", "started", "Gespeicherte Informationen werden gesucht");
+    if (!gen.closed) sseSend(res, "status", { phase: "retrieving", message_de: "Gedächtnis wird durchsucht …" });
+  }, 20);
+  setTimeout(() => {
+    if (gen.stopped) return finish("stopped");
+    assistant.sources = facts.slice(0, 3);
+    if (!gen.closed) sseSend(res, "sources", { sources: assistant.sources });
+    timings.memory_search_ms = Date.now() - started - 20;
+    act("memory_search", "done", `${assistant.sources.length} passende Quellen gefunden`, { counters: { sources: assistant.sources.length }, source_ids: assistant.sources.map((s) => s.id) });
+    act("prompt_build", "started", "Kontext wird vorbereitet");
+  }, 180);
+  setTimeout(() => {
+    if (gen.stopped) return finish("stopped");
+    act("prompt_build", "done", "Kontext vorbereitet", { counters: { prompt_total: 412, prompt_cached: 64 } });
+    const ppStart = Date.now();
+    let processed = 0;
+    act("prompt_processing", "started", "Kontext wird verarbeitet", { counters: { prompt_total: 412, prompt_processed: 0, prompt_cached: 64 } });
+    const pp = () => {
+      if (gen.stopped) return finish("stopped");
+      processed = Math.min(412, processed + 96);
+      if (processed >= 412) {
+        timings.prompt_processing_ms = Date.now() - ppStart;
+        act("prompt_processing", "done", "Kontext verarbeitet", { counters: { prompt_total: 412, prompt_processed: 412, prompt_cached: 64 } });
+        return generate();
+      }
+      act("prompt_processing", "progress", "Kontext wird verarbeitet", { counters: { prompt_total: 412, prompt_processed: processed, prompt_cached: 64 } });
+      setTimeout(pp, 110);
+    };
+    setTimeout(pp, 110);
+  }, 260);
 }
 
 // ---------------------------------------------------------------------------
@@ -502,7 +889,7 @@ const routes = [];
 const route = (method, pattern, handler) => routes.push({ method, pattern, handler });
 
 // health / setup / system
-route("GET", /^\/api\/health$/, (ctx) => json(ctx.res, 200, { status: "ok", version: "0.1.0-mock", app_root: "D:\\SpAIder", data_dir: "D:\\SpAIder\\data" }));
+route("GET", /^\/api\/health$/, (ctx) => json(ctx.res, 200, { status: "ok", version: "0.2.0-mock", app_root: "D:\\SpAIder", data_dir: "D:\\SpAIder\\data" }));
 route("GET", /^\/api\/setup\/status$/, (ctx) =>
   json(ctx.res, 200, {
     state: state.activeChat ? "ready" : "needs_model",
@@ -527,10 +914,11 @@ route("GET", /^\/api\/system\/info$/, (ctx) => {
     max_file_bytes: args.includes("--fat32") ? 4294967295 : null,
     app_root: "D:\\SpAIder",
     data_dir: "D:\\SpAIder\\data",
-    usage: { models_bytes: models, db_bytes: 48 * 1024 * 1024, imports_bytes: 3 * 1024 * 1024, logs_bytes: 512 * 1024, downloads_bytes: 0 },
-    runtime: { name: "llama.cpp", build: "b12032", variant: "cpu", path: "D:\\SpAIder\\resources\\runtime\\llama\\llama-server.exe" },
+    usage: { models_bytes: models, db_bytes: 48 * MB, imports_bytes: 3 * MB, logs_bytes: 512 * 1024, downloads_bytes: 0 },
+    runtime: { name: "llama.cpp", build: "b12032", variant: hardwareProfile().active_backend, path: "D:\\SpAIder\\resources\\runtime\\llama\\llama-server.exe" },
   });
 });
+route("GET", /^\/api\/system\/hardware$/, (ctx) => json(ctx.res, 200, hardwareProfile()));
 route("GET", /^\/api\/system\/eject-status$/, (ctx) => {
   const running = [...state.jobs.values()].filter((j) => j.state === "running").length;
   const ready = !state.generation && running === 0;
@@ -543,24 +931,190 @@ route("POST", /^\/api\/system\/shutdown$/, (ctx) => {
 });
 route("GET", /^\/api\/system\/logs$/, (ctx) => json(ctx.res, 200, { lines: ["[mock] core started", "[mock] ready"] }));
 
+// activity (global channel)
+route("GET", /^\/api\/activity$/, (ctx) => {
+  sseStart(ctx.res);
+  sseSend(ctx.res, "scheduler", schedulerSnapshot());
+  sseSend(ctx.res, "runtime", runtimeSnapshot());
+  activityListeners.add(ctx.res);
+  const keepAlive = setInterval(() => {
+    if (ctx.res.writableEnded || ctx.res.destroyed) return clearInterval(keepAlive);
+    ctx.res.write(": keep-alive\n\n");
+  }, 15000);
+  ctx.req.on("close", () => {
+    clearInterval(keepAlive);
+    activityListeners.delete(ctx.res);
+  });
+});
+
 // settings
 route("GET", /^\/api\/settings$/, (ctx) => json(ctx.res, 200, state.settings));
 route("PATCH", /^\/api\/settings$/, (ctx) => {
   const patch = ctx.body ?? {};
   if (patch.context_tokens !== undefined && ![4096, 8192, 16384, 32768].includes(patch.context_tokens)) return error(ctx.res, 422, "Ungültige Kontextlänge.", "invalid_setting");
   if (patch.temperature !== undefined && (patch.temperature < 0 || patch.temperature > 2)) return error(ctx.res, 422, "Temperatur muss zwischen 0 und 2 liegen.", "invalid_setting");
+  if (patch.performance_mode !== undefined && !["auto", "quiet", "fast"].includes(patch.performance_mode)) return error(ctx.res, 422, "Ungültiger Leistungsmodus.", "invalid_setting");
+  if (patch.gpu_mode !== undefined && !["auto", "off"].includes(patch.gpu_mode)) return error(ctx.res, 422, "Ungültiger GPU-Modus.", "invalid_setting");
   Object.assign(state.settings, patch);
   json(ctx.res, 200, state.settings);
 });
 
 // models
-route("GET", /^\/api\/models\/catalog$/, (ctx) => json(ctx.res, 200, { entries: catalog }));
+const allEntries = () => [...catalog, ...state.dynamicEntries.values()];
+const findEntry = (id) => catalog.find((e) => e.id === id) ?? state.dynamicEntries.get(id) ?? null;
+
+route("GET", /^\/api\/models\/catalog$/, (ctx) => json(ctx.res, 200, { entries: catalog, catalog_date: state.catalogDate, local_extensions: state.dynamicEntries.size }));
 route("GET", /^\/api\/models\/installed$/, (ctx) => json(ctx.res, 200, { models: [...state.installed.values()].map(modelView) }));
 route("GET", /^\/api\/models\/active$/, (ctx) => json(ctx.res, 200, { chat: modelView(state.installed.get(state.activeChat)), embedding: modelView(state.installed.get(state.activeEmbedding)), runtime_state: state.runtime, error: null }));
+
+const REASONS = {
+  alltag: {
+    balanced: ["Gute Qualität bei 24 Token/s auf dieser Hardware", "Nur 1,7 GB Download, 2,3 GB Arbeitsspeicher bei 8k Kontext", "Offiziell konvertiert und auf dieser Laufzeit getestet"],
+    fast: ["Sehr schnell und sparsam (unter 1 GB)", "Für kurze Fragen und Zusammenfassungen ausreichend", "Läuft auch im Akkubetrieb flüssig"],
+    quality: ["Deutlich bessere Antworten bei komplexen Fragen", "Passt knapp in 32 GB Arbeitsspeicher (etwa 20 GB bei 8k Kontext)", "Community-Konvertierung, nach Metadaten geprüft"],
+  },
+  dokumente: {
+    balanced: ["Großer Kontext (32k) für lange Dokumente", "Zuverlässig beim Zitieren von Quellen", "Auf dieser Laufzeit getestet"],
+    fast: ["Für kurze Dokumentfragen ausreichend", "Sehr geringer Speicherbedarf", "Schnell beim Verarbeiten langer Kontexte"],
+    quality: ["Beste Zusammenfassungen langer Berichte", "Großer Kontext, aber langsam auf dieser Hardware", "Nach Metadaten geprüft"],
+  },
+  coding: {
+    balanced: ["Solide bei Code-Erklärungen und kleinen Beispielen", "Reasoning-Modus für schrittweise Lösungen", "Auf dieser Laufzeit getestet"],
+    fast: ["Für einfache Syntaxfragen ausreichend", "Sehr schnell, aber begrenzt bei größeren Aufgaben"],
+    quality: ["Beste Ergebnisse bei komplexem Code", "Langsam, aber passend für längere Sitzungen", "Nach Metadaten geprüft"],
+  },
+};
+route("GET", /^\/api\/models\/recommendations$/, (ctx) => {
+  const focus = ["alltag", "dokumente", "coding"].includes(ctx.url.searchParams.get("focus")) ? ctx.url.searchParams.get("focus") : "alltag";
+  const hw = hardwareProfile();
+  const pick = (slot, id, measured) => {
+    const entry = catalog.find((e) => e.id === id);
+    return {
+      slot,
+      entry,
+      reasons_de: REASONS[focus][slot],
+      estimate: { ram_bytes: entry.resources.est_ram_bytes_8k, vram_bytes: hw.gpus.length ? entry.resources.est_vram_bytes_8k : 0, download_bytes: entry.total_bytes, context_tokens: 8192 },
+      measured,
+      installed_model_id: entry.installed_model_id,
+    };
+  };
+  const balancedModel = [...state.installed.values()].find((m) => m.catalog_id === "qwen3-1.7b-q8_0" && m.measured);
+  const measuredBalanced = balancedModel?.measured ?? {
+    backend: hw.active_backend,
+    tokens_per_second: hw.active_backend === "vulkan" ? 24.3 : 11.8,
+    time_to_first_token_ms: 310,
+    prompt_tokens_per_second: hw.active_backend === "vulkan" ? 420 : 165,
+    measured_at: "2026-10-28T14:12:00Z",
+    fingerprint: FINGERPRINT,
+  };
+  json(ctx.res, 200, {
+    hardware: hw,
+    picks: [pick("balanced", "qwen3-1.7b-q8_0", measuredBalanced), pick("fast", "qwen3-0.6b-q8_0", null), pick("quality", "qwen3.8-27b-community", null)],
+    excluded: [
+      { id: "gemma-3-1b-it-qat", reason_de: "Zugang nur mit Hugging-Face-Konto und Zustimmung zu den Gemma-Bedingungen." },
+      { id: "qwen3-embedding-0.6b-q8_0", reason_de: "Embedding-Modell, kein Chat-Modell." },
+    ],
+    catalog_date: state.catalogDate,
+  });
+});
+route("GET", /^\/api\/models\/search$/, (ctx) => {
+  const q = (ctx.url.searchParams.get("q") ?? "").trim().toLowerCase();
+  const limit = Number(ctx.url.searchParams.get("limit") ?? 20);
+  const offline = OFFLINE || ctx.url.searchParams.get("offline") === "1" || q.includes("offline");
+  if (offline) return json(ctx.res, 200, { results: [], cached_at: null, offline: true });
+  const terms = q.split(/\s+/).filter(Boolean);
+  const results = SEARCH_INDEX.filter((r) => terms.every((t) => (r.repo + " " + r.name).toLowerCase().includes(t)))
+    .slice(0, limit)
+    .map((r) => ({ ...r, status: "unverified" }));
+  json(ctx.res, 200, { results, cached_at: now(), offline: false });
+});
+route("POST", /^\/api\/models\/resolve$/, (ctx) => {
+  const repo = String(ctx.body?.repo ?? "").trim();
+  const file = ctx.body?.file ? String(ctx.body.file).trim() : null;
+  if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) return error(ctx.res, 422, "Ungültige Repository-ID (erwartet „Autor/Name“).", "invalid_repo");
+  if (/missing/i.test(repo)) return error(ctx.res, 404, `Repository ${repo} wurde auf Hugging Face nicht gefunden.`, "not_found");
+  if (/gated|meta-llama|google\/gemma/i.test(repo)) {
+    return error(ctx.res, 409, `Das Repository ${repo} ist zugangsbeschränkt (gated).`, "gated", { requires_account: true });
+  }
+  if (OFFLINE) return error(ctx.res, 503, "Keine Netzwerkverbindung.", "offline");
+  const split = /split|30B-A3B/i.test(repo);
+  const base = /base|nochat/i.test(repo);
+  const vision = /vision|VL/i.test(repo);
+  const name = repo.split("/")[1].replace(/-GGUF.*/i, "");
+  const files = split
+    ? [
+        { path: file ?? `${name}-Q4_K_M-00001-of-00002.gguf`, size: 9_200_000_000, sha256: "11".repeat(32) },
+        { path: `${name}-Q4_K_M-00002-of-00002.gguf`, size: 8_900_000_000, sha256: null },
+      ]
+    : [{ path: file ?? `${name}-Q4_K_M.gguf`, size: /8B/i.test(repo) ? 4_900_000_000 : 2_500_000_000, sha256: /unsloth/i.test(repo) ? null : "22".repeat(32) }];
+  const total = files.reduce((a, f) => a + f.size, 0);
+  const id = `hf:${repo}:${files[0].path}`;
+  const type = base ? "base" : vision ? "vision" : "chat";
+  const ok = type === "chat";
+  const fit =
+    total > 24 * GB
+      ? { level: "too_large", message_de: "Zu groß für 32 GB Arbeitsspeicher." }
+      : total > 12 * GB
+        ? { level: "tight", message_de: "Knapp: benötigt etwa 20 GB freien Arbeitsspeicher." }
+        : { level: "ok", message_de: "Passt zu 32 GB Arbeitsspeicher." };
+  const existing = state.dynamicEntries.get(id);
+  const entry = {
+    id,
+    name: `${name} (${split ? "Q4_K_M, 2 Teile" : "Q4_K_M"})`,
+    role: "chat",
+    family: name.split("-")[0],
+    publisher: repo.split("/")[0],
+    source: /^(Qwen|ggml-org|mistralai)\//.test(repo) ? "official" : "community",
+    repo,
+    revision: "abcdef0123456789abcdef0123456789abcdef01",
+    repo_url: `https://huggingface.co/${repo}`,
+    files,
+    total_bytes: total,
+    license: LICENSE_APACHE(`https://huggingface.co/${repo}`),
+    architecture: vision ? "qwen2vl" : "qwen3",
+    parameters: /8B/i.test(repo) ? "8B" : split ? "30B-A3B" : "4B",
+    quantization: "Q4_K_M",
+    context_length: 40960,
+    embedding_dimensions: null,
+    min_ram_bytes: Math.round(total * 1.1),
+    recommended_ram_bytes: Math.round(total * 1.5),
+    support: "documented",
+    description_de: "Dynamisch aus Hugging Face aufgelöst; GGUF-Header per Bereichsabfrage gelesen.",
+    fit,
+    installed_model_id: existing?.installed_model_id ?? null,
+    original_model: repo.replace(/-GGUF.*/i, ""),
+    converter: repo.split("/")[0],
+    verification: { status: "metadata", date: now(), scope: "GGUF-Header per Range-Request gelesen" },
+    evidence: [],
+    resources: { weights_bytes: total, kv_bytes_per_token_est: 36864, est_ram_bytes_8k: Math.round(total * 1.15), est_vram_bytes_8k: Math.round(total * 1.1) },
+    template: { reasoning_toggle: base ? null : "enable_thinking", system_role: !base },
+    type,
+    families: [name.split("-")[0]],
+    published: null,
+    checked_at: now(),
+    source_kind: "search",
+  };
+  state.dynamicEntries.set(id, entry);
+  const reasons = ok
+    ? ["Architektur qwen3 wird von llama.cpp b12032 unterstützt", "Chat-Template im GGUF-Header vorhanden", files.some((f) => !f.sha256) ? "Nicht alle Dateien haben eine veröffentlichte Prüfsumme" : "Prüfsummen für alle Dateien vorhanden"]
+    : base
+      ? ["Kein Chat-Template im GGUF-Header: Basis-Modell, nicht für Chat geeignet"]
+      : ["Vision-Modell: benötigt einen Projektor, der von dieser Laufzeit nicht unterstützt wird"];
+  json(ctx.res, 200, { entry, files, compatibility: { ok, reasons_de: reasons, architecture: entry.architecture, context_length: entry.context_length, type }, fit });
+});
+route("POST", /^\/api\/models\/catalog\/refresh$/, (ctx) => {
+  if (OFFLINE) return error(ctx.res, 503, "Keine Netzwerkverbindung – der Katalog konnte nicht geprüft werden.", "offline");
+  setTimeout(() => {
+    state.catalogDate = now();
+    for (const e of catalog) e.checked_at = state.catalogDate;
+    json(ctx.res, 200, { catalog_date: state.catalogDate, checked: catalog.length, changed: 0, errors: [] });
+  }, 800);
+});
 route("POST", /^\/api\/models\/download$/, (ctx) => {
-  const entry = catalog.find((e) => e.id === ctx.body?.catalog_id);
+  const entry = findEntry(ctx.body?.catalog_id);
   if (!entry) return error(ctx.res, 404, "Modell nicht im Katalog.", "not_found");
   if (entry.installed_model_id) return error(ctx.res, 409, "Dieses Modell ist bereits installiert.", "already_installed");
+  if (entry.license?.gated || entry.license?.requires_account) return error(ctx.res, 409, "Dieses Modell ist zugangsbeschränkt und erfordert ein Hugging-Face-Konto.", "gated", { requires_account: true });
   const running = [...state.jobs.values()].find((j) => j.kind === "download" && j.catalog_id === entry.id && ["queued", "running"].includes(j.state));
   if (running) return error(ctx.res, 409, "Für dieses Modell läuft bereits ein Download.", "job_running");
   if (entry.id === "qwen3.8-27b-community" && !state.spaceErrorShown) {
@@ -584,12 +1138,23 @@ route("POST", /^\/api\/models\/activate$/, (ctx) => {
   runActivate(job, model);
   json(ctx.res, 202, { job });
 });
+route("POST", /^\/api\/models\/([^/]+)\/calibrate$/, (ctx) => {
+  const model = state.installed.get(ctx.params[0]);
+  if (!model) return error(ctx.res, 404, "Modell nicht gefunden.", "not_found");
+  if (model.role !== "chat") return error(ctx.res, 409, "Nur Chat-Modelle können gemessen werden.", "not_chat_model");
+  const running = [...state.jobs.values()].find((j) => j.kind === "calibrate" && j.model_id === model.id && ["queued", "running"].includes(j.state));
+  if (running) return error(ctx.res, 409, "Für dieses Modell läuft bereits eine Messung.", "job_running");
+  if (state.generation) return error(ctx.res, 409, "Während einer Antwort kann nicht gemessen werden.", "generation_running");
+  const job = createJob("calibrate", { model_id: model.id });
+  runCalibrate(job, model);
+  json(ctx.res, 202, { job });
+});
 route("DELETE", /^\/api\/models\/([^/]+)$/, (ctx) => {
   const model = state.installed.get(ctx.params[0]);
   if (!model) return error(ctx.res, 404, "Modell nicht gefunden.", "not_found");
   if (model.id === state.activeChat || model.id === state.activeEmbedding) return error(ctx.res, 409, "Das aktive Modell kann nicht gelöscht werden.", "model_active");
   state.installed.delete(model.id);
-  for (const e of catalog) if (e.installed_model_id === model.id) e.installed_model_id = null;
+  for (const e of allEntries()) if (e.installed_model_id === model.id) e.installed_model_id = null;
   json(ctx.res, 200, { ok: true });
 });
 route("GET", /^\/api\/models\/jobs$/, (ctx) => json(ctx.res, 200, { jobs: [...state.jobs.values()] }));
@@ -608,7 +1173,7 @@ route("POST", /^\/api\/models\/jobs\/([^/]+)\/resume$/, (ctx) => {
   const job = state.jobs.get(ctx.params[0]);
   if (!job) return error(ctx.res, 404, "Job nicht gefunden.", "not_found");
   if (!["paused", "failed"].includes(job.state) || job.kind !== "download") return error(ctx.res, 409, "Dieser Job kann nicht fortgesetzt werden.", "job_not_resumable");
-  const entry = catalog.find((e) => e.id === job.catalog_id);
+  const entry = findEntry(job.catalog_id);
   job.error = null;
   updateJob(job, { state: "running", phase: "download", message_de: "Download wird fortgesetzt" });
   const total = entry.total_bytes;
@@ -642,25 +1207,25 @@ route("GET", /^\/api\/models\/jobs\/([^/]+)\/events$/, (ctx) => {
 });
 
 // conversations
-const convList = () => [...state.conversations.values()].sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+const convList = () => [...state.conversations.values()].sort((a, b) => b.updated_at.localeCompare(a.updated_at)).map(convView);
 route("GET", /^\/api\/conversations$/, (ctx) => json(ctx.res, 200, { conversations: convList() }));
 route("POST", /^\/api\/conversations$/, (ctx) => {
   const conv = { id: randomUUID(), title: ctx.body?.title || "Neues Gespräch", created_at: now(), updated_at: now(), message_count: 0, last_model_id: null };
   state.conversations.set(conv.id, conv);
   state.messages.set(conv.id, []);
-  json(ctx.res, 201, conv);
+  json(ctx.res, 201, convView(conv));
 });
 route("GET", /^\/api\/conversations\/([^/]+)$/, (ctx) => {
   const conv = state.conversations.get(ctx.params[0]);
   if (!conv) return error(ctx.res, 404, "Gespräch nicht gefunden.", "not_found");
-  json(ctx.res, 200, { conversation: conv, messages: state.messages.get(conv.id) });
+  json(ctx.res, 200, { conversation: convView(conv), messages: state.messages.get(conv.id) });
 });
 route("PATCH", /^\/api\/conversations\/([^/]+)$/, (ctx) => {
   const conv = state.conversations.get(ctx.params[0]);
   if (!conv) return error(ctx.res, 404, "Gespräch nicht gefunden.", "not_found");
   conv.title = String(ctx.body?.title ?? conv.title);
   conv.updated_at = now();
-  json(ctx.res, 200, conv);
+  json(ctx.res, 200, convView(conv));
 });
 route("DELETE", /^\/api\/conversations\/([^/]+)$/, (ctx) => {
   if (!state.conversations.delete(ctx.params[0])) return error(ctx.res, 404, "Gespräch nicht gefunden.", "not_found");
@@ -689,6 +1254,11 @@ route("GET", /^\/api\/conversations\/([^/]+)\/messages\/([^/]+)\/sources$/, (ctx
   const msg = (state.messages.get(ctx.params[0]) ?? []).find((m) => m.id === ctx.params[1]);
   return msg ? json(ctx.res, 200, { sources: msg.sources }) : error(ctx.res, 404, "Nachricht nicht gefunden.", "not_found");
 });
+route("GET", /^\/api\/conversations\/([^/]+)\/messages\/([^/]+)\/activity$/, (ctx) => {
+  const msg = (state.messages.get(ctx.params[0]) ?? []).find((m) => m.id === ctx.params[1]);
+  if (!msg) return error(ctx.res, 404, "Nachricht nicht gefunden.", "not_found");
+  json(ctx.res, 200, { events: state.requests.get(msg.id)?.events ?? [] });
+});
 
 // documents
 route("GET", /^\/api\/documents$/, (ctx) => json(ctx.res, 200, { documents: [...state.documents.values()] }));
@@ -698,7 +1268,7 @@ route("POST", /^\/api\/documents$/, (ctx) => {
   if (!file || !file.filename) return error(ctx.res, 422, "Keine Datei übermittelt.", "missing_file");
   const ext = (file.filename.split(".").pop() ?? "").toLowerCase();
   if (!["txt", "md", "markdown", "pdf"].includes(ext)) return error(ctx.res, 415, "Dateityp wird nicht unterstützt (.txt, .md, .markdown, .pdf).", "unsupported_type");
-  if (file.body.length > 50 * 1024 * 1024) return error(ctx.res, 413, "Datei ist größer als 50 MB.", "file_too_large");
+  if (file.body.length > 50 * MB) return error(ctx.res, 413, "Datei ist größer als 50 MB.", "file_too_large");
   const conversationId = parts.find((p) => p.name === "conversation_id")?.body.toString() || null;
   const scanned = /scan/i.test(file.filename);
   const doc = {
@@ -812,5 +1382,5 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, "127.0.0.1", () => {
   console.log(JSON.stringify({ event: "ready", port: PORT }));
-  console.error(`[mock] SpAIder mock core listening on http://127.0.0.1:${PORT} (token ${TOKEN}, state ${INITIAL_STATE})`);
+  console.error(`[mock] SpAIder mock core listening on http://127.0.0.1:${PORT} (token ${TOKEN}, state ${INITIAL_STATE}${OFFLINE ? ", offline" : ""}${NO_GPU ? ", no-gpu" : ""})`);
 });

@@ -94,10 +94,20 @@ export function applyChatEvent(messages: Message[], event: ChatEvent): Message[]
       return next;
     }
     case "status":
+    case "thinking":
+    case "activity":
+      // Status text, thinking text and activity live outside the message list.
       return messages;
     default:
       return messages;
   }
+}
+
+/** Adjusts the open post-processing count of a conversation (never below 0). */
+export function adjustPostprocessing(list: Conversation[], id: string, delta: number): Conversation[] {
+  return list.map((c) =>
+    c.id === id ? { ...c, postprocessing_pending: Math.max(0, (c.postprocessing_pending ?? 0) + delta) } : c,
+  );
 }
 
 /** Marks a still-streaming assistant message as stopped/errored when the stream ends abruptly. */

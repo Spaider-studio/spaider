@@ -48,13 +48,23 @@ function useMainData(ready: boolean) {
   const loadConversations = useAppStore((s) => s.loadConversations);
   const loadSettings = useAppStore((s) => s.loadSettings);
   const loadDocuments = useAppStore((s) => s.loadDocuments);
+  const loadHardware = useAppStore((s) => s.loadHardware);
+  const startActivityChannel = useAppStore((s) => s.startActivityChannel);
 
   useEffect(() => {
     if (!client || !ready) return;
     void loadConversations();
     void loadSettings();
     void loadDocuments();
-  }, [client, ready, loadConversations, loadSettings, loadDocuments]);
+    void loadHardware();
+  }, [client, ready, loadConversations, loadSettings, loadDocuments, loadHardware]);
+
+  // One global activity connection per app session (reconnects by itself).
+  useEffect(() => {
+    if (!client) return;
+    const stop = startActivityChannel();
+    return stop;
+  }, [client, startActivityChannel]);
 
   useEffect(() => {
     if (!client) return;

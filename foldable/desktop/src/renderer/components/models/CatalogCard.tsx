@@ -5,6 +5,7 @@ import { formatBytes, formatTokens } from "../../lib/format";
 import { FIT_LABEL } from "../../lib/labels";
 import { Badge, Button } from "../ui";
 import JobProgress from "./JobProgress";
+import { GatedNotice, LicenseBadges, VerificationBadge } from "./ModelBadges";
 
 const FIT_TONE = { recommended: "green", ok: "blue", tight: "yellow", too_large: "red", unknown: "neutral" } as const;
 
@@ -40,6 +41,7 @@ export default function CatalogCard({
 }) {
   const installed = Boolean(entry.installed_model_id);
   const tooLarge = entry.fit.level === "too_large";
+  const gated = Boolean(entry.license.gated || entry.license.requires_account);
 
   return (
     <div className="panel p-4 flex flex-col gap-3 animate-fade-in" data-testid="catalog-card">
@@ -58,15 +60,8 @@ export default function CatalogCard({
               Community-Konvertierung
             </Badge>
           )}
-          {entry.support === "executed" ? (
-            <Badge tone="green" title="Auf dieser Laufzeit ausgeführt und geprüft">
-              getestet
-            </Badge>
-          ) : (
-            <Badge tone="neutral" title="Laut Dokumentation unterstützt, nicht ausgeführt">
-              dokumentiert
-            </Badge>
-          )}
+          <VerificationBadge verification={entry.verification} support={entry.support} />
+          <LicenseBadges license={entry.license} />
         </div>
       </div>
 
@@ -97,6 +92,7 @@ export default function CatalogCard({
         <Badge tone={FIT_TONE[entry.fit.level]}>{FIT_LABEL[entry.fit.level]}</Badge>
         <span className="text-text-secondary">{entry.fit.message_de}</span>
       </div>
+      <GatedNotice license={entry.license} />
 
       {job ? (
         <JobProgress job={job} onCancel={onCancel} onResume={onResume} />
@@ -113,8 +109,8 @@ export default function CatalogCard({
               size="sm"
               icon={<Download className="w-3.5 h-3.5" />}
               onClick={onDownload}
-              disabled={busy || tooLarge}
-              title={tooLarge ? entry.fit.message_de : undefined}
+              disabled={busy || tooLarge || gated}
+              title={tooLarge ? entry.fit.message_de : gated ? "Zugangsbeschränktes Modell – kein Download ohne Konto" : undefined}
             >
               Herunterladen
             </Button>

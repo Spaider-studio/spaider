@@ -4,16 +4,26 @@
  */
 import type {
   ActiveModels,
+  ActivityEvent,
+  CatalogRefreshResult,
+  CatalogResponse,
   Conversation,
   Document,
   EjectStatus,
+  HardwareProfile,
   Health,
   Job,
   MemoryOverview,
   Message,
   ModelCatalogEntry,
   ModelInstalled,
+  ModelSearchResponse,
   Note,
+  RecommendationFocus,
+  Recommendations,
+  ResolveResponse,
+  RuntimeEvent,
+  SchedulerEvent,
   SearchResult,
   Settings,
   SetupStatus,
@@ -142,8 +152,14 @@ export class ApiClient {
   }
 
   /** Subscribes to an SSE endpoint until it ends or the signal aborts. */
-  async subscribe<T>(path: string, onEvent: (event: string, data: T) => void, signal?: AbortSignal): Promise<void> {
+  async subscribe<T>(
+    path: string,
+    onEvent: (event: string, data: T) => void,
+    signal?: AbortSignal,
+    onOpen?: () => void,
+  ): Promise<void> {
     const res = await this.raw("GET", path, { signal, accept: "text/event-stream" });
+    onOpen?.();
     await readSseStream(
       res,
       (ev) => {
@@ -164,8 +180,22 @@ export class ApiClient {
   getSettings = () => this.request<Settings>("GET", "/api/settings");
   patchSettings = (patch: Partial<Settings>) => this.request<Settings>("PATCH", "/api/settings", { json: patch });
 
+  /** v1.1: `GET /api/system/hardware`. */
+  hardware = () => this.request<HardwareProfile>("GET", "/api/system/hardware");
+
   // ----- models --------------------------------------------------------------
   catalog = async () => (await this.request<{ entries: ModelCatalogEntry[] }>("GET", "/api/models/catalog")).entries;
+  /** v1.1: full catalog response incl. `catalog_date` (v1 cores just omit it). */
+  catalogResponse = () => this.request<CatalogResponse>("GET", "/api/models/catalog");
+  recommendations = (focus: RecommendationFocus) =>
+    this.request<Recommendations>("GET", "/api/models/recommendations", { query: { focus } });
+  searchModels = (q: string, limit = 20, signal?: AbortSignal) =>
+    this.request<ModelSearchResponse>("GET", "/api/models/search", { query: { q, limit }, signal });
+  resolveModel = (repo: string, file: string | null, signal?: AbortSignal) =>
+    this.request<ResolveResponse>("POST", "/api/models/resolve", { json: { repo, file }, signal });
+  refreshCatalog = () => this.request<CatalogRefreshResult>("POST", "/api/models/catalog/refresh");
+  calibrateModel = async (modelId: string) =>
+    (await this.request<{ job: Job }>("POST", `/api/models/${encodeURIComponent(modelId)}/calibrate`)).job;
   installedModels = async () => (await this.request<{ models: ModelInstalled[] }>("GET", "/api/models/installed")).models;
   activeModels = () => this.request<ActiveModels>("GET", "/api/models/active");
   downloadModel = async (catalogId: string) =>
@@ -220,6 +250,36 @@ export class ApiClient {
         `/api/conversations/${encodeURIComponent(id)}/messages/${encodeURIComponent(mid)}/sources`,
       )
     ).sources;
+  /** v1.1: activity events kept in memory by the running core (empty after a restart). */
+  messageActivity = async (id: string, mid: string) =>
+    (
+      await this.request<{ events: ActivityEvent[] }>(
+        "GET",
+        `/api/conversations/${encodeURIComponent(id)}/messages/${encodeURIComponent(mid)}/activity`,
+      )
+    ).events;
+
+  // ----- activity (global channel, v1.1) ----------------------------------------------
+  /** One long `GET /api/activity` connection; resolves when the stream ends. */
+  activityStream = (
+    handlers: {
+      onActivity?: (ev: ActivityEvent) => void;
+      onScheduler?: (ev: SchedulerEvent) => void;
+      onRuntime?: (ev: RuntimeEvent) => void;
+      onOpen?: () => void;
+    },
+    signal?: AbortSignal,
+  ) =>
+    this.subscribe<ActivityEvent | SchedulerEvent | RuntimeEvent>(
+      "/api/activity",
+      (event, data) => {
+        if (event === "activity") handlers.onActivity?.(data as ActivityEvent);
+        else if (event === "scheduler") handlers.onScheduler?.(data as SchedulerEvent);
+        else if (event === "runtime") handlers.onRuntime?.(data as RuntimeEvent);
+      },
+      signal,
+      handlers.onOpen,
+    );
 
   // ----- documents ---------------------------------------------------------------
   documents = async () => (await this.request<{ documents: Document[] }>("GET", "/api/documents")).documents;

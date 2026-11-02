@@ -379,6 +379,50 @@
   font-weight: 600;
 }
 
+/* ---- streaming / activity (v1.1) ---- */
+/* Plain-text renderer while tokens arrive (no Markdown parsing per token). */
+.streaming-text {
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.streaming-cursor {
+  color: var(--accent-blue);
+  margin-left: 1px;
+  animation: blink 1s step-end infinite;
+}
+/* Subtle activity dot; the pulse is disabled for reduced-motion users. */
+@keyframes activityPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.75);
+  }
+}
+.activity-dot {
+  animation: activityPulse 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .activity-dot,
+  .streaming-cursor,
+  .cursor-blink::after {
+    animation: none;
+  }
+  .animate-pulse,
+  .animate-ping,
+  .status-pulse {
+    animation: none;
+  }
+}
+/* Completed messages skip layout/paint while off-screen (long histories). */
+.msg-complete {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 96px;
+}
+
 /* ---- misc ---- */
 .scrollbar-thin {
   scrollbar-width: thin;

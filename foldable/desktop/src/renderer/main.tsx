@@ -5,6 +5,10 @@ import "@fontsource-variable/inter/wght.css";
 import "@fontsource-variable/jetbrains-mono/wght.css";
 import "./styles.css";
 import App from "./App";
+import { installPerfHelper } from "./lib/perf";
+
+// Dev / verification only: window.__spaiderPerf (frame-gap measurement).
+installPerfHelper();
 
 const container = document.getElementById("root");
 if (!container) throw new Error("#root fehlt");

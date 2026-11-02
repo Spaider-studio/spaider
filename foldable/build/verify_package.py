@@ -30,6 +30,8 @@ EXPECTED = [
     "SpAIder/resources/core/spaider-foldable-core.exe",
     "SpAIder/resources/runtime/llama/llama-server.exe",
     "SpAIder/resources/runtime/llama/ggml.dll",
+    "SpAIder/resources/runtime/llama-vulkan/llama-server.exe",
+    "SpAIder/resources/runtime/llama-vulkan/ggml-vulkan.dll",
     "SpAIder/licenses/LICENSE-SpAIder-AGPL-3.0.txt",
     "SpAIder/licenses/LICENSE-llama.cpp",
     "SpAIder/README-ERSTE-SCHRITTE.txt",

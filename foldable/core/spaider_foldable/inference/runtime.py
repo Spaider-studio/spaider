@@ -248,6 +248,11 @@ class LlamaServerProcess:
                 "deepseek",
                 "--cache-reuse",
                 "256",
+                # Server-wide default: no thinking. Background calls through litellm
+                # (extraction, supersession judge) send no template kwargs; a per-request
+                # chat_template_kwargs from the chat client overrides this default.
+                "--chat-template-kwargs",
+                '{"enable_thinking": false}',
             ]
         args += self.extra_args
         return args

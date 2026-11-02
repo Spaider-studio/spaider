@@ -1,12 +1,14 @@
 /**
  * Shared model management logic for the setup screen and Settings -> Modelle:
- * catalog + installed lists, download/import/activate/delete jobs followed
- * through their SSE streams, insufficient-space handling.
+ * catalog + installed lists, download/import/activate/calibrate jobs followed
+ * through their SSE streams, insufficient-space handling. Download works for
+ * built-in catalog ids and for dynamic ids (`hf:<repo>:<file>`) alike.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { errorMessage, isApiError } from "../../api/client";
 import { isTerminalJob, type Job, type ModelCatalogEntry, type ModelInstalled } from "../../api/types";
 import { followJob } from "../../lib/jobs";
+import { jobErrorText } from "../../lib/modelErrors";
 import { notify } from "../../lib/notify";
 import { useAppStore } from "../../store/useAppStore";
 
@@ -19,8 +21,11 @@ export interface SpaceError {
 
 export interface ModelJobs {
   entries: ModelCatalogEntry[] | null;
+  catalogDate: string | null;
   installed: ModelInstalled[] | null;
   jobsByCatalog: Record<string, Job>;
+  /** Calibration jobs by installed model id. */
+  calibrations: Record<string, Job>;
   activation: Job | null;
   importJob: Job | null;
   deleting: string | null;
@@ -32,10 +37,12 @@ export interface ModelJobs {
   resumeJob(job: Job): Promise<void>;
   importFile(): Promise<void>;
   activate(modelId: string): Promise<void>;
+  calibrate(modelId: string): Promise<void>;
   deleteModel(model: ModelInstalled): Promise<boolean>;
   dismissSpaceError(): void;
   clearActivation(): void;
   clearImportJob(): void;
+  clearCalibration(modelId: string): void;
 }
 
 function numberOrNull(v: unknown): number | null {
@@ -50,8 +57,10 @@ export function useModelJobs(options: { autoActivate: boolean; onActivated?: (mo
   onActivatedRef.current = options.onActivated;
 
   const [entries, setEntries] = useState<ModelCatalogEntry[] | null>(null);
+  const [catalogDate, setCatalogDate] = useState<string | null>(null);
   const [installed, setInstalled] = useState<ModelInstalled[] | null>(null);
   const [jobsByCatalog, setJobsByCatalog] = useState<Record<string, Job>>({});
+  const [calibrations, setCalibrations] = useState<Record<string, Job>>({});
   const [activation, setActivation] = useState<Job | null>(null);
   const [importJob, setImportJob] = useState<Job | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -69,8 +78,9 @@ export function useModelJobs(options: { autoActivate: boolean; onActivated?: (mo
   const reload = useCallback(async () => {
     if (!client) return;
     try {
-      const [catalog, models] = await Promise.all([client.catalog(), client.installedModels()]);
-      setEntries(catalog);
+      const [catalog, models] = await Promise.all([client.catalogResponse(), client.installedModels()]);
+      setEntries(catalog.entries);
+      setCatalogDate(catalog.catalog_date ?? null);
       setInstalled(models);
       setLoadError(null);
     } catch (e) {
@@ -110,8 +120,9 @@ export function useModelJobs(options: { autoActivate: boolean; onActivated?: (mo
 
   const followDownload = useCallback(
     async (job: Job, entry: ModelCatalogEntry | null) => {
-      if (!client || !job.catalog_id) return;
-      const catalogId = job.catalog_id;
+      if (!client) return;
+      const catalogId = job.catalog_id ?? entry?.id;
+      if (!catalogId) return;
       setJobsByCatalog((m) => ({ ...m, [catalogId]: job }));
       if (followed.current.has(job.id) || isTerminalJob(job)) return;
       followed.current.add(job.id);
@@ -131,7 +142,7 @@ export function useModelJobs(options: { autoActivate: boolean; onActivated?: (mo
         notify(`${entry?.name ?? "Modell"} heruntergeladen.`, "success");
         if (autoActivate && final.result_model_id) await activate(final.result_model_id);
       } else if (final.state === "failed") {
-        notify(final.error?.detail ?? "Download fehlgeschlagen.", "error");
+        notify(jobErrorText(final.error, "Download fehlgeschlagen."), "error");
       }
     },
     [client, reload, autoActivate, activate],
@@ -149,10 +160,38 @@ export function useModelJobs(options: { autoActivate: boolean; onActivated?: (mo
         notify("GGUF-Datei importiert.", "success");
         if (autoActivate && final.result_model_id) await activate(final.result_model_id);
       } else if (final.state === "failed") {
-        notify(final.error?.detail ?? "Import fehlgeschlagen.", "error");
+        notify(jobErrorText(final.error, "Import fehlgeschlagen."), "error");
       }
     },
     [client, reload, autoActivate, activate],
+  );
+
+  const followCalibration = useCallback(
+    async (job: Job) => {
+      if (!client || !job.model_id) return;
+      const modelId = job.model_id;
+      setCalibrations((m) => ({ ...m, [modelId]: job }));
+      if (followed.current.has(job.id) || isTerminalJob(job)) return;
+      followed.current.add(job.id);
+      const final = await followJob(
+        client,
+        job.id,
+        (j) => setCalibrations((m) => ({ ...m, [modelId]: j })),
+        abortRef.current.signal,
+      );
+      await reload();
+      if (final.state === "done") {
+        setCalibrations((m) => {
+          const next = { ...m };
+          delete next[modelId];
+          return next;
+        });
+        notify("Messung abgeschlossen.", "success");
+      } else if (final.state === "failed") {
+        notify(jobErrorText(final.error, "Messung fehlgeschlagen."), "error");
+      }
+    },
+    [client, reload],
   );
 
   // Initial load + pick up jobs that are still running (e.g. after a restart).
@@ -179,6 +218,8 @@ export function useModelJobs(options: { autoActivate: boolean; onActivated?: (mo
             })();
           } else if (job.kind === "import" && !isTerminalJob(job)) {
             void followImport(job);
+          } else if (job.kind === "calibrate" && !isTerminalJob(job)) {
+            void followCalibration(job);
           }
         }
         for (const job of latestByCatalog.values()) {
@@ -192,7 +233,7 @@ export function useModelJobs(options: { autoActivate: boolean; onActivated?: (mo
     return () => {
       cancelled = true;
     };
-  }, [client, reload, followDownload, followImport, refreshSetup]);
+  }, [client, reload, followDownload, followImport, followCalibration, refreshSetup]);
 
   const download = useCallback(
     async (entry: ModelCatalogEntry) => {
@@ -200,7 +241,7 @@ export function useModelJobs(options: { autoActivate: boolean; onActivated?: (mo
       setSpaceError(null);
       try {
         const job = await client.downloadModel(entry.id);
-        void followDownload(job, entry);
+        void followDownload(job.catalog_id ? job : { ...job, catalog_id: entry.id }, entry);
       } catch (e) {
         if (isApiError(e) && e.code === "insufficient_space") {
           setSpaceError({
@@ -222,8 +263,9 @@ export function useModelJobs(options: { autoActivate: boolean; onActivated?: (mo
       if (!client) return;
       try {
         const updated = await client.cancelJob(job.id);
-        if (updated.catalog_id) setJobsByCatalog((m) => ({ ...m, [updated.catalog_id as string]: updated }));
+        if (updated.kind === "download" && updated.catalog_id) setJobsByCatalog((m) => ({ ...m, [updated.catalog_id as string]: updated }));
         if (updated.kind === "import") setImportJob(updated);
+        if (updated.kind === "calibrate" && updated.model_id) setCalibrations((m) => ({ ...m, [updated.model_id as string]: updated }));
       } catch (e) {
         notify(`Abbrechen fehlgeschlagen: ${errorMessage(e)}`, "error");
       }
@@ -258,6 +300,19 @@ export function useModelJobs(options: { autoActivate: boolean; onActivated?: (mo
     }
   }, [client, followImport]);
 
+  const calibrate = useCallback(
+    async (modelId: string) => {
+      if (!client) return;
+      try {
+        const job = await client.calibrateModel(modelId);
+        void followCalibration(job.model_id ? job : { ...job, model_id: modelId });
+      } catch (e) {
+        notify(`Messung konnte nicht gestartet werden: ${errorMessage(e)}`, "error");
+      }
+    },
+    [client, followCalibration],
+  );
+
   const deleteModel = useCallback(
     async (model: ModelInstalled) => {
       if (!client) return false;
@@ -279,8 +334,10 @@ export function useModelJobs(options: { autoActivate: boolean; onActivated?: (mo
 
   return {
     entries,
+    catalogDate,
     installed,
     jobsByCatalog,
+    calibrations,
     activation,
     importJob,
     deleting,
@@ -292,9 +349,16 @@ export function useModelJobs(options: { autoActivate: boolean; onActivated?: (mo
     resumeJob,
     importFile,
     activate,
+    calibrate,
     deleteModel,
     dismissSpaceError: () => setSpaceError(null),
     clearActivation: () => setActivation(null),
     clearImportJob: () => setImportJob(null),
+    clearCalibration: (modelId: string) =>
+      setCalibrations((m) => {
+        const next = { ...m };
+        delete next[modelId];
+        return next;
+      }),
   };
 }

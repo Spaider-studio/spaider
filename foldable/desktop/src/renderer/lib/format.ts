@@ -88,3 +88,21 @@ export function truncate(text: string, max: number): string {
   if (text.length <= max) return text;
   return `${text.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
 }
+
+/** Milliseconds as German seconds: 3812 -> "3,8 s", 75000 -> "1 Min. 15 s". */
+export function formatSeconds(ms: number | null | undefined): string {
+  if (ms === null || ms === undefined || !Number.isFinite(ms) || ms < 0) return "–";
+  const seconds = ms / 1000;
+  if (seconds < 60) return `${seconds.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} s`;
+  const minutes = Math.floor(seconds / 60);
+  const rest = Math.round(seconds - minutes * 60);
+  return rest === 0 ? `${minutes} Min.` : `${minutes} Min. ${rest} s`;
+}
+
+/** Tokens per second: 24.04 -> "24 Token/s", 3.14 -> "3,1 Token/s". */
+export function formatTps(tps: number | null | undefined): string {
+  if (tps === null || tps === undefined || !Number.isFinite(tps) || tps <= 0) return "–";
+  const rounded = Math.round(tps * 10) / 10;
+  const digits = rounded >= 10 ? 0 : 1;
+  return `${rounded.toLocaleString("de-DE", { minimumFractionDigits: digits, maximumFractionDigits: digits })} Token/s`;
+}

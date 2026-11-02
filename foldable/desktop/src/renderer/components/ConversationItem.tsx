@@ -1,4 +1,4 @@
-import { Check, Pencil, Trash2, X } from "lucide-react";
+import { Brain, Check, Pencil, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "../api/types";
@@ -91,9 +91,21 @@ export default function ConversationItem({
         <div className={cn("text-sm truncate", active ? "text-text-primary" : "text-text-secondary group-hover:text-text-primary")}>
           {conversation.title || "Neues Gespräch"}
         </div>
-        <div className="text-[11px] text-text-secondary/70 mt-0.5">
-          {formatRelativeDay(conversation.updated_at)}
-          {conversation.message_count > 0 && ` · ${conversation.message_count} Nachrichten`}
+        <div className="text-[11px] text-text-secondary/70 mt-0.5 flex items-center gap-1.5">
+          <span className="truncate">
+            {formatRelativeDay(conversation.updated_at)}
+            {conversation.message_count > 0 && ` · ${conversation.message_count} Nachrichten`}
+          </span>
+          {(conversation.postprocessing_pending ?? 0) > 0 && (
+            <span
+              className="inline-flex items-center gap-0.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-1 text-[10px] text-amber-300 tabular-nums flex-shrink-0"
+              title={`Gedächtnis-Nachverarbeitung ausstehend (${conversation.postprocessing_pending})`}
+              data-testid="pending-badge"
+            >
+              <Brain className="w-2.5 h-2.5" />
+              {conversation.postprocessing_pending}
+            </span>
+          )}
         </div>
       </button>
       <div className="flex items-center gap-0.5 pr-1.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">

@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import { cn } from "@/lib/utils";
+import type { GpuMode, PerformanceMode } from "../../api/types";
+import { GPU_MODE_OPTIONS, PERFORMANCE_MODE_OPTIONS } from "../../lib/labels";
 import { useAppStore } from "../../store/useAppStore";
 import { Field, SectionTitle, Select, Toggle } from "../ui";
 
@@ -8,7 +11,9 @@ const CONTEXT_OPTIONS = [4096, 8192, 16384, 32768].map((n) => ({ value: String(n
 export default function PreferencesTab() {
   const settings = useAppStore((s) => s.settings);
   const setup = useAppStore((s) => s.setup);
+  const hardware = useAppStore((s) => s.hardware);
   const loadSettings = useAppStore((s) => s.loadSettings);
+  const loadHardware = useAppStore((s) => s.loadHardware);
   const updateSettings = useAppStore((s) => s.updateSettings);
   const [temperature, setTemperature] = useState(settings?.temperature ?? 0.7);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -16,6 +21,10 @@ export default function PreferencesTab() {
   useEffect(() => {
     if (!settings) void loadSettings();
   }, [settings, loadSettings]);
+
+  useEffect(() => {
+    if (!hardware) void loadHardware();
+  }, [hardware, loadHardware]);
 
   useEffect(() => {
     if (settings) setTemperature(settings.temperature);
@@ -38,6 +47,11 @@ export default function PreferencesTab() {
   const contextOptions = CONTEXT_OPTIONS.some((o) => o.value === String(settings.context_tokens))
     ? CONTEXT_OPTIONS
     : [...CONTEXT_OPTIONS, { value: String(settings.context_tokens), label: `${settings.context_tokens.toLocaleString("de-DE")} Token` }];
+
+  const performanceMode: PerformanceMode = settings.performance_mode ?? "auto";
+  const gpuMode: GpuMode = settings.gpu_mode ?? "auto";
+  const gpus = hardware?.gpus ?? [];
+  const usableGpu = gpus.find((g) => g.usable) ?? gpus[0];
 
   return (
     <div className="flex flex-col gap-8 max-w-2xl">
@@ -77,6 +91,48 @@ export default function PreferencesTab() {
               className="range-input mt-3"
             />
           </div>
+        </div>
+      </section>
+
+      <section>
+        <SectionTitle>Leistung</SectionTitle>
+        <div className="panel px-4 divide-y divide-border">
+          <div className="py-3" role="radiogroup" aria-label="Leistungsmodus" data-testid="performance-mode">
+            <div className="text-sm font-medium">Leistungsmodus</div>
+            <div className="text-xs text-text-secondary mt-0.5 mb-3">Wie viel Rechenleistung SpAIder für Antworten und Hintergrundarbeit nutzt.</div>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {PERFORMANCE_MODE_OPTIONS.map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={performanceMode === o.value}
+                  onClick={() => void updateSettings({ performance_mode: o.value })}
+                  className={cn(
+                    "text-left rounded-lg border px-3 py-2.5 transition-colors",
+                    performanceMode === o.value
+                      ? "border-accent-blue bg-accent-blue/10"
+                      : "border-border bg-bg-primary/40 hover:border-[#3A3A45]",
+                  )}
+                >
+                  <div className="text-sm font-medium text-text-primary">{o.label}</div>
+                  <div className="text-[11px] text-text-secondary mt-1 leading-relaxed">{o.description}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+          {gpus.length > 0 && (
+            <Field
+              label="Grafikkarte"
+              description={
+                usableGpu
+                  ? `${usableGpu.name}${usableGpu.usable ? "" : " (nicht nutzbar)"} · Automatisch nutzt die Grafikkarte, wenn sie erkannt und nutzbar ist.`
+                  : "Automatisch nutzt die Grafikkarte, wenn sie erkannt und nutzbar ist."
+              }
+            >
+              <Select value={gpuMode} onChange={(v) => void updateSettings({ gpu_mode: v as GpuMode })} options={GPU_MODE_OPTIONS} ariaLabel="Grafikkarte" />
+            </Field>
+          )}
         </div>
       </section>
 

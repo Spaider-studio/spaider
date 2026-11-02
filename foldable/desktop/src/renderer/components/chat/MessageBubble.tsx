@@ -1,22 +1,74 @@
 import { AlertCircle, Check, Copy, Square } from "lucide-react";
 import { memo, useState } from "react";
 import { cn } from "@/lib/utils";
-import type { Message } from "../../api/types";
+import type { Message, MessageTimings } from "../../api/types";
+import { formatSeconds } from "../../lib/format";
+import type { ActivityTrack } from "../../store/activity";
 import Logo from "../Logo";
+import ActivityLine from "./ActivityLine";
 import { copyText } from "./CodeBlock";
 import Markdown from "./Markdown";
 import SourcesBlock from "./SourcesBlock";
+import ThinkingBlock from "./ThinkingBlock";
 
-function UsageLine({ usage }: { usage: NonNullable<Message["usage"]> }) {
+function timingParts(t: MessageTimings | null | undefined): string[] {
+  if (!t) return [];
   const parts: string[] = [];
-  if (usage.tokens_per_second > 0) parts.push(`${usage.tokens_per_second.toFixed(1)} Token/s`);
-  if (usage.time_to_first_token_ms > 0) parts.push(`erstes Token nach ${(usage.time_to_first_token_ms / 1000).toFixed(1)} s`);
-  if (usage.completion_tokens > 0) parts.push(`${usage.completion_tokens} Token`);
+  if (typeof t.memory_search_ms === "number") parts.push(`Suche ${formatSeconds(t.memory_search_ms)}`);
+  if (typeof t.prompt_processing_ms === "number") parts.push(`Kontext ${formatSeconds(t.prompt_processing_ms)}`);
+  if (typeof t.generation_ms === "number") parts.push(`Antwort ${formatSeconds(t.generation_ms)}`);
+  if (typeof t.total_ms === "number") parts.push(`gesamt ${formatSeconds(t.total_ms)}`);
+  return parts;
+}
+
+function UsageLine({ usage, timings }: { usage: Message["usage"]; timings: MessageTimings | null | undefined }) {
+  const parts: string[] = [];
+  if (usage) {
+    if (usage.tokens_per_second > 0) parts.push(`${usage.tokens_per_second.toLocaleString("de-DE", { maximumFractionDigits: 1 })} Token/s`);
+    if (usage.time_to_first_token_ms > 0) parts.push(`erstes Token nach ${formatSeconds(usage.time_to_first_token_ms)}`);
+    if (usage.completion_tokens > 0) parts.push(`${usage.completion_tokens} Token`);
+  }
+  parts.push(...timingParts(timings));
   if (parts.length === 0) return null;
   return <div className="text-[11px] text-text-secondary/60 mt-1.5 tabular-nums">{parts.join(" · ")}</div>;
 }
 
-function MessageBubbleInner({ message, streaming }: { message: Message; streaming: boolean }) {
+/**
+ * Lightweight renderer while tokens arrive: plain text with preserved line
+ * breaks and a cursor. Full Markdown (+ highlighting) is rendered only once
+ * the message is complete, so no per-token Markdown parsing happens.
+ */
+export function StreamingText({ content }: { content: string }) {
+  return (
+    <div className="streaming-text whitespace-pre-wrap break-words" data-testid="streaming-text">
+      {content}
+      <span className="streaming-cursor" aria-hidden="true">
+        ▍
+      </span>
+    </div>
+  );
+}
+
+function MessageBubbleInner({
+  message,
+  streaming,
+  activity,
+  stopping,
+  thinking,
+  showThinking,
+  onStop,
+}: {
+  message: Message;
+  streaming: boolean;
+  /** Activity track of this message (chat stream + global channel). */
+  activity?: ActivityTrack;
+  stopping?: boolean;
+  /** Thinking text received through `thinking` events. */
+  thinking?: string;
+  /** Active model exposes a reasoning toggle. */
+  showThinking?: boolean;
+  onStop?: () => void;
+}) {
   const [copied, setCopied] = useState(false);
   const onCopy = async () => {
     if (await copyText(message.content)) {
@@ -27,7 +79,7 @@ function MessageBubbleInner({ message, streaming }: { message: Message; streamin
 
   if (message.role === "user") {
     return (
-      <div className="flex justify-end animate-fade-in" data-role="user">
+      <div className="flex justify-end animate-fade-in msg-complete" data-role="user">
         <div className="max-w-[78%] rounded-2xl rounded-br-md bg-bg-tertiary border border-border px-4 py-2.5 text-sm whitespace-pre-wrap break-words leading-relaxed">
           {message.content}
         </div>
@@ -37,11 +89,12 @@ function MessageBubbleInner({ message, streaming }: { message: Message; streamin
 
   const empty = message.content.length === 0;
   return (
-    <div className="flex items-start gap-3 animate-fade-in" data-role="assistant">
+    <div className={cn("flex items-start gap-3 animate-fade-in", !streaming && "msg-complete")} data-role="assistant" data-message-id={message.id}>
       <div className="flex-shrink-0 w-8 h-8 rounded-full bg-bg-secondary border border-border flex items-center justify-center mt-0.5">
         <Logo className="w-5 h-5" />
       </div>
       <div className="min-w-0 flex-1 max-w-[calc(100%-3rem)]">
+        {showThinking && thinking && <ThinkingBlock text={thinking} streaming={streaming && empty} />}
         <div className="text-sm leading-relaxed">
           {empty && streaming ? (
             <span className="inline-flex items-center gap-1 text-text-secondary py-1">
@@ -49,10 +102,14 @@ function MessageBubbleInner({ message, streaming }: { message: Message; streamin
               <span className="w-1.5 h-1.5 rounded-full bg-text-secondary/70 animate-pulse [animation-delay:150ms]" />
               <span className="w-1.5 h-1.5 rounded-full bg-text-secondary/70 animate-pulse [animation-delay:300ms]" />
             </span>
+          ) : streaming ? (
+            <StreamingText content={message.content} />
           ) : (
-            <Markdown content={message.content} className={streaming ? "is-streaming" : undefined} />
+            <Markdown content={message.content} />
           )}
         </div>
+
+        {activity && <ActivityLine track={activity} live={streaming} stopping={Boolean(stopping)} onStop={onStop} />}
 
         {message.status === "error" && (
           <div className="mt-2 inline-flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">
@@ -63,7 +120,7 @@ function MessageBubbleInner({ message, streaming }: { message: Message; streamin
 
         {!streaming && (
           <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-            {message.status === "stopped" && (
+            {message.status === "stopped" && !activity && (
               <span className="inline-flex items-center gap-1 text-[11px] text-text-secondary">
                 <Square className="w-3 h-3" /> Abgebrochen
               </span>
@@ -85,7 +142,7 @@ function MessageBubbleInner({ message, streaming }: { message: Message; streamin
         )}
 
         <SourcesBlock sources={message.sources ?? []} />
-        {message.usage && !streaming && <UsageLine usage={message.usage} />}
+        {!streaming && <UsageLine usage={message.usage} timings={message.timings} />}
       </div>
     </div>
   );

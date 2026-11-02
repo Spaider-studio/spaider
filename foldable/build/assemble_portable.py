@@ -57,7 +57,7 @@ def copytree(src: Path, dst: Path) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--version", default="0.1.0")
+    ap.add_argument("--version", default="0.2.0")
     ap.add_argument("--desktop-out", type=Path, default=FOLDABLE / "desktop" / "out" / "SpAIder-win32-x64")
     ap.add_argument("--core-dist", type=Path, default=HERE / "dist" / "spaider-foldable-core")
     ap.add_argument("--runtime", type=Path, default=HERE / "runtime" / "llama")
@@ -85,8 +85,12 @@ def main() -> int:
     copytree(args.desktop_out, stage)
     print("copying core ...")
     copytree(args.core_dist, stage / "resources" / "core")
-    print("copying runtime ...")
+    print("copying runtime (cpu) ...")
     copytree(args.runtime, stage / "resources" / "runtime" / "llama")
+    vulkan = args.runtime.parent / "llama-vulkan"
+    if vulkan.exists():
+        print("copying runtime (vulkan) ...")
+        copytree(vulkan, stage / "resources" / "runtime" / "llama-vulkan")
 
     lic = stage / "licenses"
     lic.mkdir(exist_ok=True)

@@ -27,6 +27,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from app.models.schemas import Edge, GraphPayload, Node
+from app.services import compressor as _compressor_module
 from app.services.compressor import ExtractionError, SemanticCompressor
 from app.services.entity_resolver import EntityResolver, build_embed_text
 
@@ -42,6 +43,29 @@ logger = logging.getLogger(__name__)
 _FACT_LABEL_PREVIEW_CHARS = 200
 _MIN_TEXT_CHARS = 12
 _GUARD_WORD_RE = re.compile(r"\w+", re.UNICODE)
+
+
+EXTRACTION_MAX_TOKENS = 1500
+
+
+def _install_extraction_budget() -> None:
+    """The reused SemanticCompressor asks for up to 4000 completion tokens per
+    chunk with a 120 s timeout. On a CPU-bound 4B model that budget cannot be
+    produced in time, so every chunk times out three times (observed in the
+    baseline: 6 minutes of wasted work per message). Cap the budget at the
+    adapter boundary; the compressor module keeps its own name binding, so
+    the supersession judge is unaffected."""
+    original = getattr(_compressor_module, "acompletion_with_retry", None)
+    if original is None or getattr(original, "_spaider_capped", False):
+        return
+
+    async def capped(*args, **kwargs):
+        if kwargs.get("max_tokens", 0) and kwargs["max_tokens"] > EXTRACTION_MAX_TOKENS:
+            kwargs["max_tokens"] = EXTRACTION_MAX_TOKENS
+        return await original(*args, **kwargs)
+
+    capped._spaider_capped = True  # type: ignore[attr-defined]
+    _compressor_module.acompletion_with_retry = capped
 
 
 class _NullCache:
@@ -119,6 +143,7 @@ class MemoryIngestor:
         self.db = db
         self.store = store
         self.embeddings = embeddings
+        _install_extraction_budget()
         self.compressor = SemanticCompressor()
         self.compressor._redis = _NullCache()  # adapter injection; see docs/portable/ARCHITECTURE.md
         self.resolver = EntityResolver(embedding_service=embeddings)

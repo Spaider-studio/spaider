@@ -131,3 +131,48 @@ Wiederaufnahmepunkt: Branch feature/spaider-foldable-v1 lokal vollstaendig.
 Offen: (1) Musa gewaehrt `workflow`-Scope und pusht (siehe
 INTEGRATION_HANDOFF.md), (2) Zwei-PC-Test mit USB-SSD (TEST_REPORT.md,
 Abschnitt „Nicht verifiziert“), (3) Integrationsentscheidung mit Cofounder.
+
+
+---
+
+## Folgeauftrag: Performance, Live-Aktivitaet, offene Modelle (2026-11-02, ab 11:40)
+
+Branch `feature/spaider-foldable-performance-models` (von acc3ce1). Push weiterhin
+blockiert (Scope `workflow` fehlt; unveraendert).
+
+### Bestandsaufnahme
+- Nutzerlauf unter `foldable/build/out/SpAIder-Foldable-0.1.0-win-x64/SpAIder/data`
+  mit Modell `qwen3-4b-q4_k_m` (Qwen/Qwen3-4B-GGUF Q4_K_M, SHA verifiziert), 5 Gespraeche,
+  32 Nachrichten, 14 Fakten, 0 Ersetzungen, 2 offene Nachverarbeitungen. Dieser
+  Ordner wird nicht angefasst (assemble_portable.py verweigert jetzt das
+  Ueberschreiben genutzter Ordner; neue Version 0.2.0 in eigenem Ordner).
+- Logs des Nutzerlaufs (nur Zeiten, kein Inhalt): TTFT 0,4 s bis 85 s. Ursache der
+  Ausreisser: Gedaechtnis-Extraktion (bis 4000 Token JSON + Richter) blockiert den
+  einzigen Server-Slot; Prompt-Eval 60 Token/s, Generierung 7 bis 10 Token/s (4B, CPU).
+- Vulkan-Variante b12032 erkennt Intel Arc 140V (17,6 GB frei); 0.6B: 64 Token/s
+  (GPU) vs 26,5 (CPU), TTFT 0,26 s vs 0,44 s, Laden 6,1 s vs 2,1 s.
+
+### Umgesetzt (Commit c275be3)
+- Aktivitaetsereignisse (ACTIVITY_EVENTS.md), globaler Kanal /api/activity,
+  Timings je Nachricht.
+- LLM-Planer: Chat verdraengt Hintergrundarbeit (Item zurueck in die Warteschlange),
+  Cooldown, Duty-Cycle je Modus (auto/quiet/fast).
+- Sofort sichtbare Fakten: Nutzertext wird synchron als roher FACT gespeichert,
+  Extraktion reichert denselben Knoten an; Quellen tragen `processing`.
+- Prompt-Layout cache-stabil (Gedaechtnisblock in der letzten Nutzernachricht),
+  cache_prompt + --cache-reuse 256, return_progress -> Prozent fuer Kontextverarbeitung.
+- Hardwareprofil, Laufzeitoptionen (auto/quiet/fast, GPU-Schichten, CPU-Rueckfall),
+  Vulkan-Runtime gepinnt und gebuendelt.
+- Katalog v2 mit 17 Eintraegen (Qwen3/3.5/3.8, SmolLM3, Llama 3.2, Ministral 3,
+  Phi-4-mini, Gemma 3/4, Embeddings), Suche/Resolve mit Remote-GGUF-Header,
+  Empfehlungen (3 Picks), Kalibrierungsjob, Messprofile je Hardware.
+- 49 Unit-Tests gruen. UI-Agent arbeitet an Aktivitaetszeile, Modellseiten, Mock.
+
+### Laufend / offen
+- Baseline-Messung (measure.py, Worktree repo-baseline @ acc3ce1) mit Qwen3-4B CPU.
+- Downloads fuer Familientests: Llama 3.2 1B Q4_K_M, Ministral 3 3B Q4_K_M (2,96 GB).
+- Danach: Nachher-Messung, reale Tests (Aktivitaet/Sofortkorrektur/Neustart, andere
+  Familien, Vulkan im App-Pfad), Paket 0.2.0, PERFORMANCE_REPORT, TEST_REPORT.
+
+Naechster konkreter Schritt: Baseline abwarten, test_real_activity.py und
+test_real_e2e.py mit neuem Code laufen lassen, Familienmodelle ausfuehren.
