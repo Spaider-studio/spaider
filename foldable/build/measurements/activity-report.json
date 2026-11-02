@@ -10,8 +10,8 @@
     "state": "ready",
     "model_id": "qwen3-0.6b-q8_0",
     "error": null,
-    "port": 50093,
-    "startup_seconds": 2.7,
+    "port": 53926,
+    "startup_seconds": 3.84,
     "backend": "vulkan",
     "options": {
       "backend": "vulkan",
@@ -20,20 +20,20 @@
       "threads": 8,
       "threads_batch": 8,
       "prio": 0,
-      "reason_de": "Alle Schichten auf Intel(R) Arc(TM) 140V GPU (16GB) (geschätzt 1.8 GB von 17.2 GB frei)."
+      "reason_de": "Backend vulkan per Umgebungsvariable SPAIDER_FOLDABLE_BACKEND erzwungen."
     }
   },
   "prompt_progress_events": 1,
   "first_turn_timings": {
-    "memory_search_ms": 16,
-    "prompt_build_ms": 0,
-    "prompt_processing_ms": 217,
-    "generating_ms": 172,
-    "total_ms": 406,
-    "first_token_ms": 217
+    "memory_search_ms": 0,
+    "prompt_build_ms": 15,
+    "prompt_processing_ms": 141,
+    "generating_ms": 422,
+    "total_ms": 578,
+    "first_token_ms": 141
   },
   "pending_after_correction": 2,
-  "immediate_answer": "Aktuell ist die Projektleiterin von Polarstern Mara Muster.",
+  "immediate_answer": "Die Projektleiterin von Polarstern ist **Mara Muster**.",
   "pending_sources_seen": 1,
   "preemptions": 0,
   "stop_to_done_s": 0.031,
@@ -43,6 +43,6 @@
     "entities": 4,
     "pending_ingest": 0
   },
-  "answer_after_restart": "Wer leitet Polarstern jetzt? Mara Muster",
+  "answer_after_restart": "Wer leitet Polarstern jetzt? Mara Muster.",
   "answer_after_restart_names_new_lead": true
 }

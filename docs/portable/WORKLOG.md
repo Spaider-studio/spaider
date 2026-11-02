@@ -202,6 +202,27 @@ blockiert (Scope `workflow` fehlt; unveraendert).
 - Baseline (alter Code, Qwen3-4B CPU) laeuft seit 12:04 weiter; jede Nachverarbeitung
   blockiert dort 3 x 120 s (Extraktions-Timeouts), daher sehr lange Drain-Zeiten.
 
-Naechster konkreter Schritt: Aktivitaetstest gruen bestaetigen, committen,
-test_real_e2e.py + Offline-Test, Baseline abwarten, Nachher-Messung (CPU + Vulkan),
-PyInstaller-Kern neu bauen, Paket 0.2.0, PERFORMANCE_REPORT/TEST_REPORT.
+### Fortschritt ab 13:00
+- 13:01 test_real_activity gruen (0.6B Vulkan): erstes Token 217 ms, Stopp 0,03 s,
+  Sofortfrage und Frage nach Neustart "Mara Muster". Commit 757bce6.
+- 13:06 test_real_e2e deckte auf: v1-"status"-Ereignisse fehlten im neuen Stream
+  (wiederhergestellt); GPU-Fehlerflag wurde auch bei kaputter Modelldatei gesetzt
+  (jetzt nur, wenn derselbe Start auf CPU gelingt); der Test zaehlte fremde
+  llama-server-Prozesse (Baseline) mit (auf eigene Kindprozesse beschraenkt).
+- 13:10 Leerlaufmessung: Kern 0,21 %, llama-server 0,21 % eines Kerns (idle-load.json).
+  GPU-Rueckfalltest (Stellvertreter-Binary scheitert, CPU uebernimmt) gruen. Commit 674230f.
+- 13:12 Offline-Test gruen (57 s), E2E gruen (1:48 min, Bericht e2e-report-0.2.json:
+  erstes Token 172 ms Server / 0,27 s Client, 65,9 Token/s, Prompt 3165 Token/s,
+  Stopp 0,33 s, Kernstart 10,1 s unter Parallellast).
+- 13:15 E2E zeigte: mehrsaetziger Fakt ("Projekt heisst Orion. Leiter ist X. Budget Y.")
+  wurde von der Korrektur nicht ersetzt (Wortueberlappung ueber den ganzen Text zu
+  gering), und die alte Fassung der Korrekturschicht ersetzte auch verwandte, nicht
+  widersprechende Fakten (neuer Wert und Marker zaehlten als Ueberlappung). Neu:
+  Thema/Wert-Zerlegung, satzweise Pruefung, unberuehrte Saetze als abgeleiteter Fakt.
+  52 Unit-Tests gruen.
+- Baseline (alter Code) seit 12:04: Warm-Phase mit ~60 s TTFT je Antwort, weil die
+  Extraktion den einzigen Slot haelt; Ende voraussichtlich ~13:45.
+
+Naechster konkreter Schritt: Aktivitaets-/E2E-Rerun bestaetigen, committen,
+PyInstaller-Kern (laeuft), Baseline abwarten, Nachher-Messung (CPU + Vulkan),
+Paket 0.2.0 + verify_package, PERFORMANCE_REPORT/TEST_REPORT abschliessen.

@@ -220,7 +220,7 @@ Rechners; „NICHT VERIFIZIERT“ markiert, was nicht ausgeführt wurde.
 | Kern, Familien (echt) | `pytest tests/test_real_families.py` (Llama 3.2 1B, Ministral 3 3B, Vulkan) | **2 bestanden**, 2:42 min (`families-report.json`) |
 | Kern, GPU-Rückfall (echt) | `pytest tests/test_real_gpu_fallback.py` (Vulkan-Ordner durch einen sofort scheiternden Stellvertreter ersetzt, Backend erzwungen) | **bestanden**, 19 s: GPU-Start scheitert → CPU-Start in derselben Sitzung, `gpu_failures = ["vulkan"]`, Antwort auf CPU |
 | Kern, E2E (echt) | `pytest tests/test_real_e2e.py` | *(wird eingetragen)* |
-| Kern, Offline | `pytest tests/test_real_offline.py` | *(wird eingetragen)* |
+| Kern, Offline | `pytest tests/test_real_offline.py` (0.6B, Vulkan) | **bestanden**, 57 s: Proxy-Blackhole + Verbindungsstichproben, Autostart, Chat, Dokumentimport und Antwort ohne Netz, 0 Verbindungsverletzungen (V1: 2:44 min) |
 | Desktop | `npm run typecheck`, `npm run lint`, `npm test` | sauber, sauber, **59 bestanden** (9 Dateien; neu: Aktivitäts-Reducer, Token-Batcher, Empfehlungen, Modell-Fehlertexte) |
 | Desktop, Build/Paket | `npm run build`, `npm run package` | ok, 0.2.0 (`VersionInfo` 0.2.0), gegen den Mock mit Screenshot gestartet |
 | Paket 0.2.0 | `verify_package.py` | *(wird eingetragen)* |

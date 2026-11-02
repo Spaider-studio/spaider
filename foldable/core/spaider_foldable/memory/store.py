@@ -625,7 +625,7 @@ class LocalMemoryStore:
         when ``text`` is an explicit correction, older current FACT nodes that
         it rewrites are marked superseded by ``new_fact_id`` right away. Returns
         the ids that were marked. Idempotent."""
-        from .corrections import find_corrected_facts, is_explicit_correction
+        from .corrections import find_corrected_facts_detailed, is_explicit_correction
 
         if not is_explicit_correction(text):
             return []
@@ -640,12 +640,43 @@ class LocalMemoryStore:
         )
         new_row = self.db.query_one("SELECT created_at FROM nodes WHERE id = ?", (new_fact_id,))
         older = [dict(r) for r in rows if new_row is None or (r["created_at"] or "") <= new_row["created_at"]]
-        ids = find_corrected_facts(text, older)
-        if not ids:
+        matched = find_corrected_facts_detailed(text, older)
+        if not matched:
             return []
+        ids = [fid for fid, _ in matched]
         now = utcnow()
         with self.db.transaction() as conn:
-            for fid in ids:
+            for fid, remaining in matched:
+                if remaining and len(remaining) >= 12:
+                    # the untouched sentences of a multi-sentence fact stay current as a
+                    # derived fact (same origin; entities were extracted from the original)
+                    src = conn.execute(
+                        "SELECT origin_kind, origin_id, origin_title, properties_json FROM nodes WHERE id = ?", (fid,)
+                    ).fetchone()
+                    if src is not None:
+                        preview = remaining.replace("\n", " ")[:200] + ("…" if len(remaining) > 200 else "")
+                        props = json.loads(src["properties_json"] or "{}")
+                        props["derived_from"] = fid
+                        conn.execute(
+                            "INSERT INTO nodes(id, agent_id, label, type, description, source_text, properties_json, "
+                            "confidence, origin_kind, origin_id, origin_title, created_at, updated_at, processing) "
+                            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'extracted')",
+                            (
+                                str(uuid.uuid4()),
+                                self.agent_id,
+                                f"fact: {preview}",
+                                "FACT",
+                                remaining,
+                                None,
+                                json.dumps(props, ensure_ascii=False),
+                                1.0,
+                                src["origin_kind"],
+                                src["origin_id"],
+                                src["origin_title"],
+                                now,
+                                now,
+                            ),
+                        )
                 conn.execute(
                     "UPDATE nodes SET superseded = 1, superseded_by = ?, updated_at = ? WHERE id = ? AND superseded = 0",
                     (new_fact_id, now, fid),

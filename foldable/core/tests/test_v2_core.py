@@ -229,6 +229,12 @@ def test_question_and_correction_detection():
     assert find_corrected_facts("Das Budget von Orion beträgt inzwischen 3 Millionen Euro.", old) == ["f-budget"]
     # repeating the same statement is not a correction
     assert find_corrected_facts("Korrektur: Der Projektleiter von Orion ist Max Berg.", old) == []
+    # multi-sentence fact: only the matching sentence is replaced, the rest stays
+    from spaider_foldable.memory.corrections import find_corrected_facts_detailed
+
+    compound = [{"id": "f-c", "description": "Merk dir: Mein Projekt heißt Orion. Der Projektleiter von Orion ist Max Berg. Das Budget beträgt 2 Millionen Euro."}]  # noqa: E501
+    hits = find_corrected_facts_detailed("Korrektur: Der Projektleiter von Orion ist jetzt Priya Nair.", compound)
+    assert hits == [("f-c", "Merk dir: Mein Projekt heißt Orion. Das Budget beträgt 2 Millionen Euro.")]
 
 
 @pytest.mark.asyncio
@@ -253,6 +259,23 @@ async def test_explicit_correction_is_visible_before_extraction(db):
     store.write_raw_fact("f3", "Priya Nair leitet jetzt auch das Projekt Atlas.", origin, source="conversation:c1")
     assert store.apply_explicit_correction("f3", "Priya Nair leitet jetzt auch das Projekt Atlas.") == []
     assert db.scalar("SELECT superseded FROM nodes WHERE id = 'f2'") == 0
+    # compound fact: the untouched sentences survive as a derived current fact
+    store.write_raw_fact(
+        "f4", "Merk dir: Das Projekt Atlas hat 3 Teams. Der Leiter von Atlas ist Max Berg. Start ist im Mai.", origin,  # noqa: E501
+        source="conversation:c1"
+    )  # fmt: skip
+    store.write_raw_fact("f5", "Korrektur: Der Leiter von Atlas ist jetzt Priya Nair.", origin, source="conversation:c1")
+    assert store.apply_explicit_correction("f5", "Korrektur: Der Leiter von Atlas ist jetzt Priya Nair.") == ["f4"]
+    derived = db.query_one(
+        "SELECT description, processing FROM nodes WHERE type = 'FACT' AND superseded = 0 "
+        "AND json_extract(properties_json, '$.derived_from') = 'f4'"
+    )
+    assert derived and "3 Teams" in derived["description"] and "Max Berg" not in derived["description"]
+    assert derived["processing"] == "extracted"
+    ctx = await retriever.retrieve("Wie viele Teams hat Atlas und wer leitet es?")
+    current = [s["excerpt"] for s in ctx.sources if s.get("status") != "superseded"]
+    assert any("3 Teams" in e for e in current) and any("Priya Nair" in e for e in current)
+    assert not any("Max Berg" in e and "Priya" not in e for e in current)
 
 
 # ---------------------------------------------------------------- runtime options

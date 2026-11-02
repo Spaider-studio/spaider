@@ -213,13 +213,19 @@ LLM-Richter der Supersession braucht extrahierte Kanten und ein fähiges Modell;
 kleine Modelle liefern oft keines von beidem. Unabhängig vom Modell gilt daher:
 Trägt eine Nutzernachricht einen expliziten Korrekturmarker („Korrektur“,
 „nicht mehr“, „stattdessen“, „falsch“ … bzw. schwach „jetzt“, „inzwischen“,
-„now“ …) und teilt sie ≥ 50 % (stark) bzw. ≥ 75 % (schwach) der Inhaltswörter
-eines älteren, noch gültigen Fakts (mindestens zwei gemeinsame Wörter, mindestens
-ein neues Wort oder eine neue Zahl), wird der alte Fakt sofort beim Speichern
-des Rohfakts als ersetzt markiert (`LocalMemoryStore.apply_explicit_correction`,
-idempotent; die Extraktion ruft dieselbe Funktion erneut auf). Reine Fragen
-(alle Sätze enden mit „?“, keine Merk-Aufforderung) werden nicht als Fakten
-gespeichert. Keine Sonderbehandlung einzelner Namen.
+„now“ …), wird sie in *Thema* (Wörter vor dem Marker bzw. vor der Kopula:
+„Der Leiter von Atlas“) und *Wert* (danach: „Priya Nair“) zerlegt. Ein älterer,
+noch gültiger Fakt gilt als ersetzt, wenn er mindestens die Hälfte der
+Themawörter enthält, den neuen Wert noch nicht enthält, etwas anderes sagt und
+≥ 50 % (stark) bzw. ≥ 75 % (schwach) seiner Inhaltswörter mit der Korrektur
+teilt (Markerwörter zählen nicht). Mehrsätzige Fakten werden satzweise
+geprüft; die unberührten Sätze bleiben als abgeleiteter Fakt gültig
+(`derived_from`), damit „Das Budget beträgt …“ nicht mit „Der Leiter ist …“
+verschwindet. Die Markierung geschieht sofort beim Speichern des Rohfakts
+(`LocalMemoryStore.apply_explicit_correction`, idempotent; die Extraktion ruft
+dieselbe Funktion erneut auf). Reine Fragen (alle Sätze enden mit „?“, keine
+Merk-Aufforderung) werden nicht als Fakten gespeichert. Keine Sonderbehandlung
+einzelner Namen.
 
 **HTTP-Client zum llama-server**: ein `httpx.AsyncClient` je Serverprozess
 (`inference/client.py`, `verify=False`, kein TLS auf Loopback). Die vorherige
