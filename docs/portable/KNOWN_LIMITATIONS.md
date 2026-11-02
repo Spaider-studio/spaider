@@ -49,11 +49,15 @@ kann. Offene Fehler stehen am Ende.
 
 ## Gedächtnis
 
-- Supersession (Korrekturen) hängt am lokalen Modell als Richter. Mit 0.6B
-  erkennt es einfache Zustandsänderungen (im E2E-Lauf wurde die Projektleiter-
-  Korrektur erkannt), komplexere Fälle nicht zuverlässig. Nicht erkannte
-  Korrekturen bleiben als zwei „aktuelle“ Fakten sichtbar; der Systemprompt
-  weist das Modell an, Widersprüche zu benennen.
+- Supersession (Korrekturen) hängt am lokalen Modell als Richter. Mit 0.6B ist
+  das nicht reproduzierbar: In einem E2E-Lauf wurde die Projektleiter-Korrektur
+  als Ersetzung erkannt, in zwei weiteren Läufen nicht. Nicht erkannte
+  Korrekturen bleiben als zwei „aktuelle“ Fakten sichtbar. Gegenmaßnahme: jeder
+  Fakt trägt im Kontext seinen Speicherzeitpunkt, die neuesten stehen zuerst,
+  und der Systemprompt sagt „neuere Angabe gilt“. Mit dem 0.6B-Modell antwortete
+  Chat B damit korrekt (Priya Nair), ein späteres Gespräch nach dem Umzug nannte
+  dennoch einmal den alten Namen (Temperatur 0,7). Größere Modelle (4B+) sind
+  hier deutlich zuverlässiger, wurden aber nicht gemessen.
 - Vektorsuche nur für Graphknoten (Fakten/Entitäten), nicht für ganze
   Dokumentabschnitte (dort nur Volltext/BM25).
 - Keine automatische Konsolidierung (Hibernation/REM-Sleep aus SpAIder) und

@@ -79,8 +79,8 @@ Fortlaufendes Arbeitsprotokoll. Neueste Einträge unten. Zeiten in lokaler Zeit 
 - [x] C Reales Modell lokal + Chat-Streaming (01:10: Qwen3-0.6B Q8_0, 41 tok/s CPU, Stop, Embeddings 1024-dim)
 - [x] D Verläufe, Dateiimport (TXT/MD/PDF), FTS+Vektor-Retrieval, Erinnerungen, Supersession (01:25)
 - [x] E Modellverwaltung (Katalog, Download mit Resume+SHA-256, Import, Registry) + Aktivierung mit Rollback (01:25)
-- [ ] F Windows-Paket, Offline-/Umzugs-/Fehlertests
-- [ ] G Doku, Test-Build, Übergabe
+- [x] F Windows-Paket (PyInstaller-Kern 315 MB, Electron-Launcher, ZIP 307 MB), E2E-Abnahmelauf und Offline-Lauf gruen (09:55)
+- [x] G Doku (TEST_REPORT), finaler Test-Build, Uebergabe (10:15)
 
 ## Verlauf
 
@@ -100,6 +100,34 @@ Fortlaufendes Arbeitsprotokoll. Neueste Einträge unten. Zeiten in lokaler Zeit 
 - 01:50 Desktop-Agent (Electron + React) hat Renderer, Main, Preload, Mock-Core
   und Tests angelegt; Typecheck/Packaging laufen.
 
-Nächster konkreter Schritt: E2E-Lauf erneut (läuft), Frozen-Core-Start prüfen,
-Desktop-Paket zusammenführen (`assemble_portable.py`), Fresh-Start-/Offline-Test
-mit dem fertigen Paket.
+- 09:30-09:55 Frozen-Kern: neo4j musste im Bundle bleiben (query_service
+  importiert cognitive_engine), Paketdaten explizit in der Spec. Start mit
+  leerem PATH ok (7,7 s). Runtime-Stopp von 17 s auf 2 s (CTRL_BREAK kommt ohne
+  Konsole nicht an; TerminateProcess ist fuer llama-server sicher).
+- 09:55 E2E-Abnahmelauf bestanden (5:24): Aktivierung, Chat, Gedaechtnis ueber
+  Chats, Rollback bei defektem Modell, Stopp, Shutdown, Neustart, Dokument
+  nach Loeschen des Originals, Umzug auf Z: (subst) mit Leerzeichen/Umlauten.
+  Offline-Lauf bestanden (2:44): 119 netstat-Stichproben ohne externe
+  Verbindung, Download bricht offline sofort ab (paused, fortsetzbar).
+  Beobachtung: nach dem Umzug nannte das 0.6B-Modell den alten Projektleiter
+  (Judge sprang in diesem Lauf nicht an). Massnahme: Fakten tragen jetzt
+  Speicherzeitpunkt, neueste zuerst, Prompt-Regel "neuere Angabe gilt".
+- 10:00 Desktop-Agent fertig: Lint, Typecheck, 34 Vitest, Build, Packaging
+  (rcedit ohne Admin ok). Erkenntnis: ELECTRON_RUN_AS_NODE=1 in Agent-/
+  VS-Code-Terminals laesst jede Electron-Binary sofort als Node enden.
+- 10:05 Paket zusammengebaut und aus dem ZIP verifiziert (verify_package.py):
+  Layout, Kern-Start mit leerem PATH 8,4 s, Token-Pflicht, Shutdown, Lock weg.
+
+- 10:08 Finaler E2E-Lauf bestanden (6:47, parallel zu Desktop-Tests). Chat B
+  nennt Priya Nair korrekt; Chat C nach dem Umzug nennt trotz Zeitstempel den
+  alten Namen (0.6B, Temperatur 0,7) -> in KNOWN_LIMITATIONS und TEST_REPORT.
+- 10:12 Finales Paket aus Commit 424377c: SpAIder-Foldable-0.1.0-win-x64.zip,
+  321 949 175 Bytes, SHA-256
+  5c5b06b45ba6603fc769e9730411299ae165811cc3938b4d458cc4da942dc36d,
+  verify_package.py bestanden (Kern 8,1 s, Screenshot des Setup-Bildschirms).
+- Push weiterhin blockiert (B1). Git-Bundle unter backup/ aktualisiert.
+
+Wiederaufnahmepunkt: Branch feature/spaider-foldable-v1 lokal vollstaendig.
+Offen: (1) Musa gewaehrt `workflow`-Scope und pusht (siehe
+INTEGRATION_HANDOFF.md), (2) Zwei-PC-Test mit USB-SSD (TEST_REPORT.md,
+Abschnitt „Nicht verifiziert“), (3) Integrationsentscheidung mit Cofounder.
