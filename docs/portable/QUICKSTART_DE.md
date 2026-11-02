@@ -52,3 +52,26 @@ Download. Die Geschwindigkeit hängt vom jeweiligen Rechner ab.
 - Nach einem Absturz startet die App normal; eine unterbrochene Antwort wird
   als „abgebrochen“ markiert, unterbrochene Downloads können fortgesetzt werden.
 - Logs liegen unter `data/logs/`.
+
+## Neu in Version 0.2
+
+- **Empfehlungen**: Unter Einstellungen → Modelle zeigt „Für diesen Computer
+  empfohlen“ bis zu drei Modelle mit Begründung, Downloadgröße, geschätztem
+  Speicherbedarf und Prüfstatus. Der Schwerpunkt (Alltag, Dokumente,
+  Coding-Fragen) ist umschaltbar. „Weitere Modelle“ sucht auf Hugging Face oder
+  prüft eine eingegebene Repository-ID; Treffer sind so lange „ungeprüft“, bis
+  der Dateikopf gelesen wurde. „Lokales Modell importieren“ bleibt.
+- **Aktivität**: Unter der entstehenden Antwort zeigt eine Zeile den aktuellen
+  Schritt (Gedächtnissuche, Kontextverarbeitung in Prozent, Antwort wird
+  geschrieben, gespeichert, Nachverarbeitung). „Details“ listet die Ereignisse.
+- **Leistung**: Einstellungen → Leistung: „Automatisch“ (Standard), „Leise“,
+  „Schnell“. Eine erkannte Vulkan-fähige GPU wird automatisch genutzt; schlägt
+  das fehl, läuft dieselbe Sitzung auf der CPU weiter. Keine Thread- oder
+  Batch-Einstellungen nötig.
+- **Gedächtnis**: Neue Angaben und Korrekturen stehen sofort für die nächste
+  Antwort bereit; die Nachverarbeitung (Entitäten, Ersetzungen, Vektoren)
+  läuft danach im Hintergrund und wird im Gespräch als „ausstehend“ bzw.
+  „aktualisiert“ angezeigt. Chat-Antworten haben Vorrang vor Hintergrundarbeit.
+- **Kurz messen**: Für das aktive Modell misst ein kurzer, abbrechbarer Test
+  Token/s und Zeit bis zum ersten Token auf diesem Rechner; nur diese echten
+  Werte erscheinen in Empfehlungen.

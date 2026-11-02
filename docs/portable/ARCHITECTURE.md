@@ -183,3 +183,53 @@ WSL oder Datenbanken. Netzwerk nur für bewusst gestartete Modell-Downloads
 - **Weitere Plattformen**: Pfadlogik, Lock, Runtime-Wrapper sind
   plattformneutral gehalten; nur Job-Objects, CTRL_BREAK und Volume-Abfragen
   sind Windows-spezifisch.
+
+## 7. Ergänzungen in Version 0.2 (Performance, Aktivität, Modelle)
+
+**Aufgabenplaner** (`spaider_foldable/scheduler.py`): Der llama-server hat einen
+Slot. `LLMScheduler.chat()` nimmt ihn für eine Antwort; läuft gerade
+Hintergrundarbeit (Extraktion, Richter, Vektoren), wird deren asyncio-Task
+abgebrochen (der Server bricht die Generierung beim Verbindungsabbau ab) und
+das Warteschlangen-Item kehrt unverändert zurück. Hintergrundarbeit wartet
+auf einen Cooldown nach dem letzten Chat und läuft mit einem Duty-Cycle je
+Leistungsmodus (auto 75 %, leise 50 %, schnell 100 %). `pause()` beim Wechsel
+und Beenden.
+
+**Aktivitätsereignisse** (`activity.py`, Vertrag in `ACTIVITY_EVENTS.md`):
+`ActivityTracker` pro Anfrage (request_id = Assistenten-Nachricht), monotone
+Sequenz, Phasen mit gemessenen Zählern; `ActivityBus` für den globalen Kanal
+(`GET /api/activity`) und die Historie je Anfrage (max. 200 Ereignisse, 50
+Anfragen im Speicher). Timings je Nachricht in `messages.timings_json`.
+
+**Gedächtniskonsistenz**: `LocalMemoryStore.write_raw_fact` schreibt den
+Nutzertext synchron als FACT (`processing='raw'`); die Hintergrund-Extraktion
+reichert denselben Knoten an (`fact_id` in `ingest_queue`). Retrieval zeigt
+rohe Fakten mit „Nachverarbeitung ausstehend“ und schließt die gerade
+beantwortete Nachricht aus. Unbearbeitete Items bleiben persistent und werden
+nach Neustart fortgesetzt; der Chat wartet nicht auf sie.
+
+**Prompt-Cache**: Nachrichtenfolge = statischer Systemprompt + Verlauf +
+letzte Nutzernachricht mit Gedächtnisblock. Der Präfix bleibt stabil, so dass
+`cache_prompt`/`--cache-reuse` die Eingabeverarbeitung auf den geänderten Teil
+beschränkt. `return_progress` liefert Prozent für die Teilphase
+„Kontext wird verarbeitet“.
+
+**Hardwareprofil und Laufzeitoptionen** (`hardware.py`, `inference/options.py`):
+CPU-Kerne (physisch/logisch), RAM, Vulkan-Geräte über die gebündelte
+Vulkan-Variante, Treiber per WMI, Datenträger, Akku; Fingerabdruck ohne
+Seriennummern. `plan()` leitet Backend, GPU-Schichten, Threads und Priorität
+aus Modus, Modellgröße und KV-Schätzung ab; `InferenceManager` fällt nach
+GPU-Startfehler in derselben Sitzung auf CPU zurück und merkt sich das.
+
+**Modelle** (`models/`): `catalog.json` v2 (Herkunft, Lizenzart/Gating,
+Verifikation, Belege, Ressourcen-Metadaten), `catalog.local.json` zum
+Erweitern, `hub.py` (Suche, Auflösung, Remote-GGUF-Header per Range,
+Split-Erkennung), `recommend.py` (harte Eignung + Bewertung), `capabilities.py`
++ `families.json` (Fähigkeiten aus Header und Familiendaten), Kalibrierungsjob
+→ `model_profiles` je Hardware-Fingerabdruck.
+
+**Extraktionsbudget**: Der wiederverwendete Kompressor fordert 4000 Tokens mit
+120 s Timeout an; auf einem 4B-CPU-Modell führte das zu dreifachen Timeouts
+pro Abschnitt. Der Adapter begrenzt das Budget auf 1500 Tokens
+(Namensraum des Kompressor-Moduls) und der Server startet mit „Thinking aus“
+als Vorgabe; der Chat-Client überschreibt das pro Anfrage.

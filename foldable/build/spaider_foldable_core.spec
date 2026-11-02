@@ -37,13 +37,15 @@ datas += [
     (str(_PKG / "models" / "catalog.json"), "spaider_foldable/models"),
     (str(_PKG / "models" / "supported_architectures.json"), "spaider_foldable/models"),
     (str(_PKG / "db" / "schema_v1.sql"), "spaider_foldable/db"),
+    (str(_PKG / "db" / "schema_v2.sql"), "spaider_foldable/db"),
+    (str(_PKG / "models" / "families.json"), "spaider_foldable/models"),
 ]
 # SpAIder prompt files used by the compressor.
 datas += [(str(BACKEND_DIR / "app" / "prompts"), "app/prompts")]
 hiddenimports += collect_submodules("app")
 hiddenimports += collect_submodules("spaider_foldable")
 hiddenimports += ["uvicorn.logging", "uvicorn.loops.auto", "uvicorn.protocols.http.auto", "uvicorn.protocols.websockets.auto",
-                  "uvicorn.lifespan.off", "anyio._backends._asyncio", "Levenshtein", "redis.asyncio"]
+                  "uvicorn.lifespan.off", "anyio._backends._asyncio", "Levenshtein", "redis.asyncio", "psutil"]
 
 a = Analysis(
     [str(SPEC_DIR / "core_entry.py")],
