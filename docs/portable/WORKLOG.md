@@ -249,5 +249,16 @@ blockiert (Scope `workflow` fehlt; unveraendert).
   dokumentiert).
 - 15:47 PyInstaller-Kern erneut gebaut (retrieve.py-Aenderung enthalten).
 
-Naechster konkreter Schritt: Paket 0.2.0 (assemble_portable.py) + verify_package mit
-Screenshot, TEST_REPORT E, Bundle, Push-Versuch, Abschlussbericht.
+- 15:55 Paket SpAIder-Foldable-0.2.0-win-x64.zip (353 874 880 Bytes, SHA-256
+  75aa4efa25c93f67e8cabb4e0294db605fcc86bc8f0deedb27e88401f79ec98c, Commit f3b22d3);
+  0.1.0-ZIP und Nutzerordner unveraendert. verify_package: Layout ok, Kern 8,1 s,
+  needs_model, Screenshot des Einrichtungsbildschirms mit echten Empfehlungen.
+- 15:58 Gepackter Kern auf der migrierten Kopie der Nutzerdaten: bereit 4.42 s, 4B auf
+  Vulkan, Gedaechtnis intakt, Testfrage erstes Token 0.719 s, Exit 0.
+- Push erneut abgelehnt (workflow-Scope). Bundle unter backup/ aktualisiert.
+
+Wiederaufnahmepunkt: Branch feature/spaider-foldable-performance-models lokal
+vollstaendig; Paket 0.2.0 gebaut und geprueft. Offen: (1) Push nach
+`gh auth refresh -h github.com -s workflow`, (2) Zwei-PC-Test, (3) Vorschlaege aus
+PERFORMANCE_REPORT "Verbleibende Engpaesse" (Verlauf wie gesendet cachen, zweiter
+Server-Slot, Extraktionslimit fuer lange Eingaben), (4) Integrationsentscheidung.

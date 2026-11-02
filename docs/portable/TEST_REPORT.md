@@ -223,7 +223,7 @@ Rechners; „NICHT VERIFIZIERT“ markiert, was nicht ausgeführt wurde.
 | Kern, Offline | `pytest tests/test_real_offline.py` (0.6B, Vulkan) | **bestanden**, 57 s: Proxy-Blackhole + Verbindungsstichproben, Autostart, Chat, Dokumentimport und Antwort ohne Netz, 0 Verbindungsverletzungen (V1: 2:44 min) |
 | Desktop | `npm run typecheck`, `npm run lint`, `npm test` | sauber, sauber, **59 bestanden** (9 Dateien; neu: Aktivitäts-Reducer, Token-Batcher, Empfehlungen, Modell-Fehlertexte) |
 | Desktop, Build/Paket | `npm run build`, `npm run package` | ok, 0.2.0 (`VersionInfo` 0.2.0), gegen den Mock mit Screenshot gestartet |
-| Paket 0.2.0 | `verify_package.py` | *(wird eingetragen)* |
+| Paket 0.2.0 | `python foldable/build/verify_package.py foldable/build/out/SpAIder-Foldable-0.2.0-win-x64.zip --screenshot …` | **ok**: Layout (11 erwartete Dateien inkl. `llama-vulkan`), Kern bereit in 8,1 s, `needs_model`, 401 ohne Token, Kern-Exit 0, Lock entfernt, Launcher-Exit 0 nach 7,2 s, Screenshot des Einrichtungsbildschirms mit Hardwarezeile und Empfehlungen (`fresh-start-0.2.0.png`) |
 
 ## Testgruppen A–E
 
@@ -286,7 +286,15 @@ als die Echtläufe).
 
 ### E. Paket
 
-*(wird eingetragen: neues ZIP, frischer Start, Offline, Vorher/Nachher)*
+| Prüfung | Ergebnis |
+|---|---|
+| Neues ZIP, Vorgängerversion erhalten | `foldable/build/out/SpAIder-Foldable-0.2.0-win-x64.zip`, 353 874 880 Bytes, SHA-256 `75aa4efa25c93f67e8cabb4e0294db605fcc86bc8f0deedb27e88401f79ec98c`, gebaut aus `f3b22d3` (letzte Codeänderung `353bda0`). 0.1.0-ZIP unverändert (SHA `5c5b06b4…c36d`, `SHA256SUMS.txt` führt beide), Nutzer-Testordner unberührt |
+| Frischer Start (ohne Entwickler-Laufzeiten) | `verify_package.py`: siehe Tabelle oben; Einrichtungsbildschirm zeigt CPU/RAM/GPU, „Aktive Laufzeit: Vulkan“, drei Wege und die Empfehlungen des echten Kerns |
+| Update an Bestandsdaten | Kopie des Nutzer-Datenordners (5 Gespräche, 32 Nachrichten, 25 Knoten, 22 Kanten, 13 Warteschlangen-Einträge) → Migration v1→v2 mit dem Dev-Kern, `quick_check ok`, Zähler unverändert (`update-test.json`); anschließend der **gepackte** 0.2.0-Kern (`resources/core/spaider-foldable-core.exe`) auf derselben Kopie: Kern bereit in 4.42 s, Qwen3-4B des Nutzers automatisch auf Vulkan gestartet (3.84 s), `setup: ready`, Gedächtnis intakt (16 Fakten, 11 Entitäten, 5 Gespräche, 32 Nachrichten, 0 offen), synthetische Testfrage: erstes Token 0.719 s, 26.02 Token/s, Shutdown 1.73 s, Exit 0 (`packaged-update-check.json`; Testgespräch danach gelöscht; Original unberührt) |
+| Offline | `test_real_offline.py` **bestanden** (57 s), Proxy-Blackhole, 0 Verbindungsverletzungen |
+| Vorher/Nachher | `PERFORMANCE_REPORT.md`: Baseline (0.1.0) vs. 0.2.0 auf CPU und Vulkan, gleiches Modell, gleiche Prompts |
+| CPU-Rückfall | `test_real_gpu_fallback.py` **bestanden** |
+| Zwei-PC-Test mit USB-SSD | **NICHT VERIFIZIERT** (Anleitung im V1-Teil) |
 
 **CPU-Rückfall** (echt): siehe `test_real_gpu_fallback.py` oben – der Rückfall läuft in derselben Sitzung ohne Neustart; ein Modell, das auch auf der CPU nicht startet (kaputte Datei), markiert die GPU nicht als fehlerhaft (E2E-Fall „kaputt“).
 
@@ -297,3 +305,13 @@ gestartet (Migration auf Schema 2), `PRAGMA quick_check = ok`, alle Zähler
 unverändert; Original unberührt (`foldable/build/measurements/update-test.json`).
 Das Original unter `foldable/build/out/SpAIder-Foldable-0.1.0-win-x64/SpAIder/data`
 wurde nicht angefasst.
+
+## Build 0.2.0
+
+| | |
+|---|---|
+| Paket | `foldable/build/out/SpAIder-Foldable-0.2.0-win-x64.zip` (353 874 880 Bytes; entpackt 781 MB ohne Modelle) |
+| SHA-256 | `75aa4efa25c93f67e8cabb4e0294db605fcc86bc8f0deedb27e88401f79ec98c` (`SHA256SUMS-0.2.0.txt`, kumulativ in `SHA256SUMS.txt`) |
+| Gebauter Commit | `f3b22d3` (Doku); letzte Codeänderung `353bda0` (Kern), Desktop-Quellen Stand `1b8d444` |
+| Bestandteile | Electron-Shell 0.2.0 (`npm run package`, 12:37), PyInstaller-Kern (`spaider_foldable_core.spec`, 15:53), llama.cpp b12032 CPU + Vulkan |
+| Reproduktion | `python foldable/build/fetch_runtime.py --variant all` → `python -m PyInstaller --noconfirm --clean foldable/build/spaider_foldable_core.spec` → `cd foldable/desktop && npm ci && npm run package` → `python foldable/build/assemble_portable.py --version 0.2.0` |
