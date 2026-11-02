@@ -86,6 +86,11 @@ export class CoreManager {
     return () => this.listeners.delete(cb);
   }
 
+  /** Current backend status (used by the screenshot verification mode). */
+  currentStatus(): BackendStatus {
+    return this.status;
+  }
+
   private setStatus(s: BackendStatus): void {
     this.status = s;
     log(`backend status: ${s.state}${s.message ? ` - ${s.message.split("\n")[0]}` : ""}`);

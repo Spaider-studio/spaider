@@ -238,3 +238,22 @@ async def test_fuzzy_supersession_marks_fact_without_verbatim_quote(db, monkeypa
     ctx = await retriever.retrieve("Wer leitet Orion?")
     assert "Priya Nair" in ctx.context_text and "[veraltet, ersetzt] Merk dir" in ctx.context_text
     assert any(s["status"] == "superseded" and s["excerpt"].startswith("Merk dir") for s in ctx.sources)
+
+
+@pytest.mark.asyncio
+async def test_retrieval_annotates_facts_with_timestamp_and_newest_first(db):
+    import time as _t
+
+    store = LocalMemoryStore(db)
+    old = _payload("Idris Kane", "LEADS", "Orion", "Der Projektleiter von Orion ist Idris Kane.", obj_type="PROJECT")
+    store.write_graph(old, Origin("conversation", "c1", "A"), embedding_model_id=None)
+    _t.sleep(0.01)
+    new = _payload(
+        "Priya Nair", "LEADS", "Orion", "Der Projektleiter von Orion ist jetzt Priya Nair.", obj_type="PROJECT"
+    )
+    store.write_graph(new, Origin("conversation", "c1", "A"), embedding_model_id=None)
+    ctx = await MemoryRetriever(db, store, _NoEmbeddings()).retrieve("Wer leitet Orion?")
+    lines = [ln for ln in ctx.context_text.splitlines() if "[gespeichert " in ln]
+    assert len(lines) == 2, ctx.context_text
+    assert "Priya Nair" in lines[0] and "Idris Kane" in lines[1]  # newest first
+    assert "(FACT): [gespeichert " in lines[0]  # timestamp prefixes the fact text

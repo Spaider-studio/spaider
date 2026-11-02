@@ -3,7 +3,7 @@
   "generated": "2026-11-02",
   "notes": [
     "Revisions and SHA-256 values come from the Hugging Face API (api/models/<repo>?blobs=true, siblings[].lfs.sha256) on 2026-11-02.",
-    "support=executed: the model was downloaded and real inference was run on the pinned runtime during this project's tests; support=documented: architecture listed by the pinned llama.cpp build, not executed here.",
+    "support=executed: the model was downloaded and real inference was run on the pinned runtime (b12032, CPU) during this project's tests on 2026-11-02; support=documented: architecture listed by the pinned llama.cpp build, checksum and license checked, not executed here.",
     "min/recommended RAM are estimates: file size plus KV-cache headroom for the default context; they are not measurements.",
     "Qwen does not publish GGUF files for Qwen3.8; the only Qwen3.8 entry is a community conversion and is flagged as such."
   ],
@@ -18,15 +18,23 @@
       "repo": "Qwen/Qwen3-0.6B-GGUF",
       "revision": "23749fefcc72300e3a2ad315e1317431b06b590a",
       "files": [
-        {"path": "Qwen3-0.6B-Q8_0.gguf", "size": 639446688, "sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031"}
+        {
+          "path": "Qwen3-0.6B-Q8_0.gguf",
+          "size": 639446688,
+          "sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031"
+        }
       ],
-      "license": {"id": "apache-2.0", "name": "Apache License 2.0", "url": "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/blob/main/LICENSE"},
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/blob/main/LICENSE"
+      },
       "architecture": "qwen3",
       "parameters": "0.6B",
       "quantization": "Q8_0",
       "context_length": 32768,
       "embedding_dimensions": null,
-      "support": "documented",
+      "support": "executed",
       "description_de": "Sehr kleines Modell für Smoke-Tests und schwache Hardware. Antwortet schnell, aber mit begrenzter Qualität."
     },
     {
@@ -39,9 +47,17 @@
       "repo": "Qwen/Qwen3-1.7B-GGUF",
       "revision": "90862c4b9d2787eaed51d12237eafdfe7c5f6077",
       "files": [
-        {"path": "Qwen3-1.7B-Q8_0.gguf", "size": 1834426016, "sha256": "061b54daade076b5d3362dac252678d17da8c68f07560be70818cace6590cb1a"}
+        {
+          "path": "Qwen3-1.7B-Q8_0.gguf",
+          "size": 1834426016,
+          "sha256": "061b54daade076b5d3362dac252678d17da8c68f07560be70818cace6590cb1a"
+        }
       ],
-      "license": {"id": "apache-2.0", "name": "Apache License 2.0", "url": "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/blob/main/LICENSE"},
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/blob/main/LICENSE"
+      },
       "architecture": "qwen3",
       "parameters": "1.7B",
       "quantization": "Q8_0",
@@ -60,9 +76,17 @@
       "repo": "Qwen/Qwen3-4B-GGUF",
       "revision": "bc640142c66e1fdd12af0bd68f40445458f3869b",
       "files": [
-        {"path": "Qwen3-4B-Q4_K_M.gguf", "size": 2497280256, "sha256": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5"}
+        {
+          "path": "Qwen3-4B-Q4_K_M.gguf",
+          "size": 2497280256,
+          "sha256": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5"
+        }
       ],
-      "license": {"id": "apache-2.0", "name": "Apache License 2.0", "url": "https://huggingface.co/Qwen/Qwen3-4B-GGUF/blob/main/LICENSE"},
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/Qwen/Qwen3-4B-GGUF/blob/main/LICENSE"
+      },
       "architecture": "qwen3",
       "parameters": "4B",
       "quantization": "Q4_K_M",
@@ -81,9 +105,17 @@
       "repo": "Qwen/Qwen3-4B-GGUF",
       "revision": "bc640142c66e1fdd12af0bd68f40445458f3869b",
       "files": [
-        {"path": "Qwen3-4B-Q8_0.gguf", "size": 4280404704, "sha256": "8c2f07f26af9747e41988551106f149b03eb9b5cb6df636027b6bf6278473300"}
+        {
+          "path": "Qwen3-4B-Q8_0.gguf",
+          "size": 4280404704,
+          "sha256": "8c2f07f26af9747e41988551106f149b03eb9b5cb6df636027b6bf6278473300"
+        }
       ],
-      "license": {"id": "apache-2.0", "name": "Apache License 2.0", "url": "https://huggingface.co/Qwen/Qwen3-4B-GGUF/blob/main/LICENSE"},
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/Qwen/Qwen3-4B-GGUF/blob/main/LICENSE"
+      },
       "architecture": "qwen3",
       "parameters": "4B",
       "quantization": "Q8_0",
@@ -102,9 +134,17 @@
       "repo": "Qwen/Qwen3-8B-GGUF",
       "revision": "7c41481f57cb95916b40956ab2f0b139b296d974",
       "files": [
-        {"path": "Qwen3-8B-Q4_K_M.gguf", "size": 5027783488, "sha256": "d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785"}
+        {
+          "path": "Qwen3-8B-Q4_K_M.gguf",
+          "size": 5027783488,
+          "sha256": "d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785"
+        }
       ],
-      "license": {"id": "apache-2.0", "name": "Apache License 2.0", "url": "https://huggingface.co/Qwen/Qwen3-8B-GGUF/blob/main/LICENSE"},
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/Qwen/Qwen3-8B-GGUF/blob/main/LICENSE"
+      },
       "architecture": "qwen3",
       "parameters": "8B",
       "quantization": "Q4_K_M",
@@ -123,9 +163,17 @@
       "repo": "Qwen/Qwen3-8B-GGUF",
       "revision": "7c41481f57cb95916b40956ab2f0b139b296d974",
       "files": [
-        {"path": "Qwen3-8B-Q6_K.gguf", "size": 6725899040, "sha256": "cb042ccd76795a8830d6be6bd4165245847cc68e41797b13bd61aed4c2cfbce6"}
+        {
+          "path": "Qwen3-8B-Q6_K.gguf",
+          "size": 6725899040,
+          "sha256": "cb042ccd76795a8830d6be6bd4165245847cc68e41797b13bd61aed4c2cfbce6"
+        }
       ],
-      "license": {"id": "apache-2.0", "name": "Apache License 2.0", "url": "https://huggingface.co/Qwen/Qwen3-8B-GGUF/blob/main/LICENSE"},
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/Qwen/Qwen3-8B-GGUF/blob/main/LICENSE"
+      },
       "architecture": "qwen3",
       "parameters": "8B",
       "quantization": "Q6_K",
@@ -144,9 +192,17 @@
       "repo": "unsloth/Qwen3.8-27B-GGUF",
       "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
       "files": [
-        {"path": "Qwen3.8-27B-UD-Q4_K_M.gguf", "size": 16464440224, "sha256": "322e194ff79741c7baa497c240f677f54b201b0efab44ca8e50f122b39123482"}
+        {
+          "path": "Qwen3.8-27B-UD-Q4_K_M.gguf",
+          "size": 16464440224,
+          "sha256": "322e194ff79741c7baa497c240f677f54b201b0efab44ca8e50f122b39123482"
+        }
       ],
-      "license": {"id": "apache-2.0", "name": "Apache License 2.0 (laut Modellkarte; Originalmodell Qwen/Qwen3.8-27B ebenfalls Apache-2.0)", "url": "https://huggingface.co/Qwen/Qwen3.8-27B/blob/main/LICENSE"},
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0 (laut Modellkarte; Originalmodell Qwen/Qwen3.8-27B ebenfalls Apache-2.0)",
+        "url": "https://huggingface.co/Qwen/Qwen3.8-27B/blob/main/LICENSE"
+      },
       "architecture": "qwen35",
       "parameters": "27B",
       "quantization": "Q4_K_M",
@@ -165,15 +221,23 @@
       "repo": "Qwen/Qwen3-Embedding-0.6B-GGUF",
       "revision": "370f27d7550e0def9b39c1f16d3fbaa13aa67728",
       "files": [
-        {"path": "Qwen3-Embedding-0.6B-Q8_0.gguf", "size": 639150592, "sha256": "06507c7b42688469c4e7298b0a1e16deff06caf291cf0a5b278c308249c3e439"}
+        {
+          "path": "Qwen3-Embedding-0.6B-Q8_0.gguf",
+          "size": 639150592,
+          "sha256": "06507c7b42688469c4e7298b0a1e16deff06caf291cf0a5b278c308249c3e439"
+        }
       ],
-      "license": {"id": "apache-2.0", "name": "Apache License 2.0", "url": "https://huggingface.co/Qwen/Qwen3-Embedding-0.6B-GGUF"},
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/Qwen/Qwen3-Embedding-0.6B-GGUF"
+      },
       "architecture": "qwen3",
       "parameters": "0.6B",
       "quantization": "Q8_0",
       "context_length": 32768,
       "embedding_dimensions": 1024,
-      "support": "documented",
+      "support": "executed",
       "description_de": "Embedding-Modell für die semantische Gedächtnissuche und die Entitäten-Zusammenführung. Optional: ohne dieses Modell arbeitet das Gedächtnis mit Volltextsuche."
     }
   ]

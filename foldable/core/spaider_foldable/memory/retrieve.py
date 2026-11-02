@@ -30,6 +30,20 @@ class RetrievedContext:
     approx_chars: int = 0
 
 
+def _short_ts(ts: str | None) -> str:
+    """'2026-11-02T09:41:12.345Z' -> '2026-11-02 09:41'."""
+    if not ts:
+        return "unbekannt"
+    return ts[:16].replace("T", " ")
+
+    return 0.0
+
+
+def _reverse_ts(ts: str | None) -> str:
+    """Sort key that orders ISO timestamps newest-first with a plain ascending sort."""
+    return "".join(chr(0x10FFFF - ord(ch)) for ch in (ts or ""))
+
+
 def _origin(row: dict) -> dict:
     return {
         "kind": row.get("origin_kind") or "conversation",
@@ -82,18 +96,25 @@ class MemoryRetriever:
             r = rows.get(nid)
             if r is None or r["superseded"]:
                 continue
+            description = r["description"]
+            if r["type"] == "FACT" and description:
+                # Small models need the chronology spelled out: prefix each fact
+                # with its storage time so "the newer statement wins" is decidable.
+                description = f"[gespeichert {_short_ts(r['created_at'])}] {description}"
             nodes.append(
                 Node(
                     id=r["id"],
                     label=r["label"],
                     type=r["type"],
-                    description=r["description"],
+                    description=description,
                     properties=json.loads(r["properties_json"] or "{}"),
                     agent_id=r["agent_id"],
                 )
             )
         kept_ids = {n.id for n in nodes}
         edges = [e for e in edges if e.source_id in kept_ids and e.target_id in kept_ids and e.relation != "MENTIONS"]
+        # Facts first, newest first (full timestamp, not the minute shown in the prefix).
+        nodes.sort(key=lambda n: (n.type != "FACT", "" if n.type != "FACT" else _reverse_ts(rows[n.id]["created_at"])))
         subgraph = GraphPayload(nodes=nodes[:40], edges=edges)
         graph_context = QueryService._build_context(subgraph) if nodes else ""
 

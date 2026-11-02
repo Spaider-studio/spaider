@@ -119,6 +119,9 @@ def main() -> int:
 
     if args.screenshot:
         env2 = dict(os.environ)
+        # Some terminals (VS Code, agent harnesses) export ELECTRON_RUN_AS_NODE=1,
+        # which turns any Electron binary into a plain Node process that exits at once.
+        env2.pop("ELECTRON_RUN_AS_NODE", None)
         env2["SPAIDER_FOLDABLE_SCREENSHOT"] = str(args.screenshot.resolve())
         t1 = time.monotonic()
         launcher = subprocess.run([str(app / "SpAIder.exe")], env=env2, timeout=180, capture_output=True)

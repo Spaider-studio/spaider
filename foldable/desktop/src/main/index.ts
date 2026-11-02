@@ -222,8 +222,18 @@ void app.whenReady().then(() => {
   void core.start();
 
   if (SCREENSHOT_PATH) {
+    // Verification mode: capture once the core reports ready (or after 45 s at
+    // the latest), with a short settle time so the first screen has rendered.
     win.webContents.once("did-finish-load", () => {
-      setTimeout(() => void takeScreenshotAndQuit(SCREENSHOT_PATH), 3000);
+      const startedAt = Date.now();
+      const poll = setInterval(() => {
+        const ready = core.currentStatus().state === "ready";
+        const timedOut = Date.now() - startedAt > 45_000;
+        if (ready || timedOut) {
+          clearInterval(poll);
+          setTimeout(() => void takeScreenshotAndQuit(SCREENSHOT_PATH), ready ? 1500 : 0);
+        }
+      }, 250);
     });
   }
 });
