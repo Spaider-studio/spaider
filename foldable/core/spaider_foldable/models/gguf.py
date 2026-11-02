@@ -13,7 +13,7 @@ import struct
 from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
-from typing import Any, BinaryIO
+from typing import Any, BinaryIO, Optional
 
 GGUF_MAGIC = b"GGUF"
 
@@ -118,6 +118,7 @@ class GGUFInfo:
     pooling_type: int | None
     has_chat_template: bool
     metadata: dict[str, Any] = field(default_factory=dict)
+    chat_template: Optional[str] = None
 
     @property
     def is_embedding_model(self) -> bool:
@@ -214,6 +215,7 @@ def read_gguf_info(path: str | Path) -> GGUFInfo:
         pooling_type=_int_or_none(meta.get(f"{arch}.pooling_type")),
         has_chat_template=bool(meta.get("tokenizer.chat_template")),
         metadata={k: v for k, v in meta.items() if k != "tokenizer.chat_template"},
+        chat_template=str(meta.get("tokenizer.chat_template") or "") or None,
     )
 
 

@@ -67,7 +67,9 @@ class MemoryRetriever:
         self.store = store
         self.embeddings = embeddings
 
-    async def retrieve(self, query: str, *, max_chars: int = 6000, top_k: int = 10) -> RetrievedContext:
+    async def retrieve(
+        self, query: str, *, max_chars: int = 6000, top_k: int = 10, exclude_fact_ids: Optional[set[str]] = None
+    ) -> RetrievedContext:
         query = (query or "").strip()
         if not query:
             return RetrievedContext(context_text="")
@@ -84,6 +86,8 @@ class MemoryRetriever:
             except Exception as exc:  # noqa: BLE001
                 logger.warning("vector retrieval failed: %s", exc)
         fused = _rrf_fuse(ranked)[:top_k] if ranked else []
+        if exclude_fact_ids:
+            fused = [n for n in fused if n.id not in exclude_fact_ids]
 
         # Graph expansion: entity nodes -> their relations and facts.
         seed_ids = [n.id for n in fused]
@@ -94,13 +98,14 @@ class MemoryRetriever:
         nodes: list[Node] = []
         for nid in all_ids:
             r = rows.get(nid)
-            if r is None or r["superseded"]:
+            if r is None or r["superseded"] or (exclude_fact_ids and nid in exclude_fact_ids):
                 continue
             description = r["description"]
             if r["type"] == "FACT" and description:
                 # Small models need the chronology spelled out: prefix each fact
                 # with its storage time so "the newer statement wins" is decidable.
-                description = f"[gespeichert {_short_ts(r['created_at'])}] {description}"
+                pending = " · Nachverarbeitung ausstehend" if r.get("processing") == "raw" else ""
+                description = f"[gespeichert {_short_ts(r['created_at'])}{pending}] {description}"
             nodes.append(
                 Node(
                     id=r["id"],
@@ -135,6 +140,7 @@ class MemoryRetriever:
                     "status": _fact_status(r),
                     "origin": _origin(r),
                     "superseded_by": None,
+                    "processing": "pending" if r.get("processing") == "raw" else "done",
                 }
             )
 

@@ -61,6 +61,7 @@ class JobManager:
         *,
         inference,
         on_active_changed: Optional[Callable[[str, Optional[str]], Awaitable[None]]] = None,
+        runtime_options_for=None,
     ):
         self.db = db
         self.paths = paths
@@ -68,6 +69,8 @@ class JobManager:
         self.catalog = catalog
         self.inference = inference
         self.on_active_changed = on_active_changed
+        self.runtime_options_for = runtime_options_for  # callable(model) -> (RuntimeOptions, n_layers)
+        self.on_calibrated = None
         self._tasks: dict[str, asyncio.Task] = {}
         self._cancel: dict[str, Event] = {}
         self._subscribers: dict[str, list[asyncio.Queue]] = {}
@@ -293,6 +296,79 @@ class JobManager:
         self._spawn(job["id"], self._run_activate(job["id"], model, remove_previous))
         return self.get(job["id"])
 
+    async def start_calibrate(self, model_id: str) -> dict:
+        model = self.registry.get(model_id)
+        if model is None:
+            raise JobError("not_found", "Unbekanntes Modell.")
+        if model["role"] != "chat":
+            raise JobError("invalid_state", "Nur Chatmodelle werden kurz gemessen.")
+        if not model["active"] or self.inference.chat.state != "ready":
+            raise JobError("invalid_state", "Bitte das Modell zuerst aktivieren; gemessen wird das laufende Modell.")
+        for j in self.running():
+            if j["kind"] in ("activate", "calibrate"):
+                raise JobError("job_running", "Es läuft bereits ein Modellvorgang.")
+        job = self._insert("calibrate", model_id=model_id, message_de="Kurze Messung läuft …")
+        self._spawn(job["id"], self._run_calibrate(job["id"], model))
+        return self.get(job["id"])
+
+    async def _run_calibrate(self, jid: str, model: dict) -> None:
+        """Synthetic prompt (no user data), 96 tokens, measured through the live runtime."""
+        import time as _t
+
+        self._update(jid, state="running", phase="probe", message_de="Testantwort wird erzeugt …")
+        client = self.inference.chat.client
+        if client is None:
+            self._finish(jid, "failed", error={"detail": "Laufzeit nicht bereit.", "code": "runtime_not_ready"})
+            return
+        prompt = (
+            "Beschreibe in sechs Sätzen, wie ein Fahrrad funktioniert. "
+            "Nenne dabei Rahmen, Kette, Pedale, Bremsen und Reifen."
+        )
+        t0 = _t.monotonic()
+        first = None
+        n = 0
+        usage: dict = {}
+        try:
+            async for ch in client.stream_chat(
+                [{"role": "user", "content": prompt}], temperature=0.0, max_tokens=96, enable_thinking=False
+            ):
+                if ch.done:
+                    usage = ch.usage
+                    break
+                if ch.text:
+                    n += 1
+                    if first is None:
+                        first = int((_t.monotonic() - t0) * 1000)
+        except asyncio.CancelledError:
+            self._finish(jid, "cancelled")
+            raise
+        except Exception as exc:  # noqa: BLE001
+            self._finish(jid, "failed", error={"detail": f"Messung fehlgeschlagen: {exc}", "code": "probe_failed"})
+            return
+        slot = self.inference.chat
+        result = {
+            "backend": slot.backend,
+            "threads": slot.options.get("threads"),
+            "gpu_layers": slot.options.get("gpu_layers"),
+            "tokens_per_second": usage.get("tokens_per_second"),
+            "ttft_ms": first,
+            "prompt_tps": usage.get("prompt_tokens_per_second"),
+            "load_seconds": slot.startup_seconds,
+        }
+        if self.on_calibrated:
+            try:
+                self.on_calibrated(model, result)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("storing calibration failed: %s", exc)
+        self._update(jid, journal_append={"step": "measured", **result})
+        tps = result["tokens_per_second"]
+        msg = (
+            f"Gemessen: {tps} Token/s, erstes Token nach {first} ms ({slot.backend})."
+            if tps
+            else "Messung abgeschlossen."
+        )
+        self._finish(jid, "done", result_model_id=model["id"], message_de=msg)
+
     async def delete_model(self, model_id: str) -> None:
         model = self.registry.get(model_id)
         if model is None:
@@ -452,7 +528,11 @@ class JobManager:
             if previous_id == model["id"] and self.inference.slot(role).state == "ready":
                 self._finish(jid, "done", result_model_id=model["id"], message_de="Modell ist bereits aktiv.")
                 return
-            await self.inference.start(role, model["id"], path, context_tokens=None)
+            opts, n_layers = self.runtime_options_for(model) if self.runtime_options_for else (None, None)
+            if opts is not None and role == "embedding" and opts.backend != "cpu":
+                opts.gpu_layers = opts.gpu_layers or 999
+            self._update(jid, journal_append={"step": "plan", "options": opts.to_dict() if opts else None})
+            await self.inference.start(role, model["id"], path, context_tokens=None, options=opts, n_layers=n_layers)
             # 4. probe
             self._update(jid, phase="probe", message_de="Modell wird getestet …")
             await self._probe(role)
@@ -512,7 +592,10 @@ class JobManager:
         try:
             await self.inference.stop(role)
             if previous and previous["state"] == "ready":
-                await self.inference.start(role, previous["id"], self.registry.abs_path(previous))
+                p_opts, p_layers = self.runtime_options_for(previous) if self.runtime_options_for else (None, None)
+                await self.inference.start(
+                    role, previous["id"], self.registry.abs_path(previous), options=p_opts, n_layers=p_layers
+                )
                 if self.on_active_changed:
                     await self.on_active_changed(role, previous["id"])
                 msg = f"{detail} Das vorherige Modell „{previous['name']}“ ist wieder aktiv."

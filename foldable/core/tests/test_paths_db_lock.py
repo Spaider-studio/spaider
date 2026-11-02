@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from spaider_foldable.db import Database, DatabaseCorruptError
-from spaider_foldable.db.migrations import schema_version
+from spaider_foldable.db.migrations import CURRENT_VERSION, schema_version
 from spaider_foldable.lock import AlreadyRunningError, InstanceLock
 from spaider_foldable.paths import PortablePathError, PortablePaths
 
@@ -51,16 +51,16 @@ def test_relative_paths_survive_move(app_root, tmp_path):
 def test_db_migrates_and_reopens(paths):
     db = Database(paths.db_path)
     db.open()
-    assert schema_version(db.conn) == 1
+    assert schema_version(db.conn) == CURRENT_VERSION
     assert db.scalar("PRAGMA journal_mode") == "wal"
-    assert db.scalar("PRAGMA user_version") == 1
+    assert db.scalar("PRAGMA user_version") == CURRENT_VERSION
     db.execute("INSERT INTO notes(id, text, created_at, updated_at) VALUES ('n1', 'Müller wohnt in Köln', 'x', 'x')")
     db.close()
     # WAL checkpointed on close: no leftover -wal content needed to read the row
     db2 = Database(paths.db_path)
     db2.open()
     assert db2.scalar("SELECT count(*) FROM notes") == 1
-    assert schema_version(db2.conn) == 1  # idempotent
+    assert schema_version(db2.conn) == CURRENT_VERSION  # idempotent
     assert db2.query("SELECT text FROM notes_fts WHERE notes_fts MATCH 'koln'")[0][0] == "Müller wohnt in Köln"
     db2.close()
 

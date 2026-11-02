@@ -332,6 +332,33 @@ class LocalMemoryStore:
     # ------------------------------------------------------------------
     # Writes
     # ------------------------------------------------------------------
+    def write_raw_fact(self, fact_id: str, text: str, origin: Origin, *, source: str) -> None:
+        """Store the verbatim user text as a FACT node immediately (processing='raw').
+        FTS indexes it at once, so the next answer can see it before the
+        background extraction has run."""
+        label_preview = text.strip().replace("\n", " ")[:200] + ("…" if len(text) > 200 else "")
+        now = utcnow()
+        self.db.execute(
+            "INSERT OR IGNORE INTO nodes(id, agent_id, label, type, description, source_text, properties_json, confidence, "  # noqa: E501
+            "origin_kind, origin_id, origin_title, created_at, updated_at, processing) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'raw')",
+            (
+                fact_id,
+                self.agent_id,
+                f"fact: {label_preview}",
+                "FACT",
+                text,
+                None,
+                json.dumps({"source": source}, ensure_ascii=False),
+                1.0,
+                origin.kind,
+                origin.id,
+                origin.title,
+                now,
+                now,
+            ),
+        )
+
     def write_graph(self, payload: GraphPayload, origin: Origin, *, embedding_model_id: Optional[str]) -> dict:
         created = merged = edges_created = 0
         now = utcnow()
@@ -369,7 +396,8 @@ class LocalMemoryStore:
                     old.update(props)
                     conn.execute(
                         "UPDATE nodes SET properties_json = ?, description = COALESCE(?, description), "
-                        "source_text = COALESCE(source_text, ?), updated_at = ? WHERE id = ?",
+                        "source_text = COALESCE(source_text, ?), updated_at = ?, "
+                        "processing = CASE WHEN type = 'FACT' THEN 'extracted' ELSE processing END WHERE id = ?",
                         (json.dumps(old, ensure_ascii=False), description, source_text, now, node.id),
                     )
                     merged += 1

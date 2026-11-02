@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field, ValidationError
 
@@ -19,6 +19,8 @@ class UserSettings(BaseModel):
     threads: Optional[int] = Field(default=None, ge=1, le=256)
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     system_prompt_extra: str = Field(default="", max_length=4000)
+    performance_mode: Literal["auto", "quiet", "fast"] = "auto"
+    gpu_mode: Literal["auto", "off"] = "auto"
 
 
 class SettingsStore:

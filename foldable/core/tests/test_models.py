@@ -43,7 +43,7 @@ def test_catalog_loads_and_has_checksums():
 def test_catalog_fit_levels():
     cat = load_catalog()
     small = cat.get("qwen3-0.6b-q8_0")
-    big = cat.get("qwen3.8-27b-ud-q4_k_m-unsloth")
+    big = cat.get("qwen3.8-27b-q4_k_m-ggml")
     assert small.fit_for(_host(32, 200), installed=False).level == "recommended"
     assert big.fit_for(_host(16, 200), installed=False).level == "too_large"
     assert big.fit_for(_host(32, 200, avail_gb=10), installed=False).level == "tight"

@@ -167,6 +167,10 @@ class LlamaServerProcess:
         context_tokens: int = 8192,
         threads: Optional[int] = None,
         extra_args: Optional[list[str]] = None,
+        gpu_layers: Optional[int] = None,
+        threads_batch: Optional[int] = None,
+        prio: int = 0,
+        backend: str = "cpu",
     ):
         self.runtime_dir = runtime_dir
         self.model_path = model_path
@@ -175,6 +179,10 @@ class LlamaServerProcess:
         self.context_tokens = context_tokens
         self.threads = threads
         self.extra_args = extra_args or []
+        self.gpu_layers = gpu_layers
+        self.threads_batch = threads_batch
+        self.prio = prio
+        self.backend = backend
         self.port: Optional[int] = None
         self.api_key = secrets.token_hex(16)
         self._proc: Optional[subprocess.Popen] = None
@@ -209,6 +217,12 @@ class LlamaServerProcess:
             "--no-webui",
             "--log-timestamps",
         ]
+        if self.threads_batch:
+            args += ["-tb", str(self.threads_batch)]
+        if self.prio:
+            args += ["--prio", str(self.prio)]
+        if self.gpu_layers is not None and self.backend != "cpu":
+            args += ["-ngl", str(self.gpu_layers)]
         if self.role == "embedding":
             args += [
                 "--embeddings",
@@ -222,7 +236,19 @@ class LlamaServerProcess:
                 "1",
             ]
         else:
-            args += ["-c", str(self.context_tokens), "--parallel", "1", "--jinja", "--reasoning-format", "deepseek"]
+            # --cache-reuse: KV shifting lets the server reuse cached prefix chunks even
+            # when the memory block in the middle of the prompt changed.
+            args += [
+                "-c",
+                str(self.context_tokens),
+                "--parallel",
+                "1",
+                "--jinja",
+                "--reasoning-format",
+                "deepseek",
+                "--cache-reuse",
+                "256",
+            ]
         args += self.extra_args
         return args
 

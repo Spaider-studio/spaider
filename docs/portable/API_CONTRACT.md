@@ -163,3 +163,47 @@ interface SpaiderBridge {
 }
 ```
 No other Node/Electron APIs reach the renderer. The renderer never executes content from chat or documents (markdown is rendered without raw HTML; links open only via `openExternal`).
+
+---
+
+# Addendum v1.1 (Performance, Aktivität, Modelle), 2026-11-02
+
+Alles aus v1 bleibt gültig. Neu:
+
+## Aktivität
+
+- Chat-Stream: zusätzliches `event: activity` (Schema in `ACTIVITY_EVENTS.md`).
+- `GET /api/activity` → SSE: `event: activity` (Nachverarbeitung, mit `conversation_id`), `event: scheduler`, `event: runtime`.
+- `GET /api/conversations/{id}/messages/{mid}/activity` → `{"events":[ActivityEvent]}` (nur im Speicher des laufenden Kerns; nach Neustart leer).
+- `Conversation` erhält `postprocessing_pending` (Anzahl offener Nachverarbeitungen dieses Gesprächs).
+- `Message` erhält `timings`: `{"memory_search_ms","prompt_processing_ms","first_token_ms","generation_ms","total_ms"}` (nur gemessen).
+
+## Hardware und Leistung
+
+- `GET /api/system/hardware` →
+  ```json
+  {"cpu":{"name":"…","cores_physical":8,"threads":8,"features":["avx2","avx512"]},
+   "ram_total_bytes":0,"ram_available_bytes":0,
+   "gpus":[{"name":"Intel(R) Arc(TM) 140V GPU","backend":"vulkan","vram_total_bytes":0,"vram_free_bytes":0,"driver":"32.0.101.8860","usable":true}],
+   "disk_free_bytes":0,"power":{"on_battery":false,"power_saver":false},
+   "fingerprint":"<hash>","runtime_variants":["cpu","vulkan"],"active_backend":"vulkan"|"cpu","detected_at":"…"}
+  ```
+- Settings neu: `performance_mode: "auto"|"quiet"|"fast"` (Standard `auto`), `gpu_mode: "auto"|"off"`.
+  `auto`: GPU falls erkannt und nutzbar, Threads = physische Kerne. `quiet`: CPU-Threads halbiert, niedrige Prozesspriorität. `fast`: wie auto, alle Threads, keine Hintergrund-Drosselung.
+- `ModelInstalled` erhält `capabilities` (`{"chat_template":bool,"reasoning_toggle":"enable_thinking"|null,"system_role":bool,"context_length":n,"modalities":["text"],"structured_output":true,"backends":["cpu","vulkan"]}`), `verification` (`{"status":"executed"|"metadata"|"unverified","date":"…","scope":"…"}`) und `measured` (`null` oder `{"backend","tokens_per_second","time_to_first_token_ms","prompt_tokens_per_second","measured_at","fingerprint"}` für diese Hardware).
+- `POST /api/models/{id}/calibrate` → `202 {"job":Job}` (Job-Kind `calibrate`, abbrechbar; misst mit synthetischem Prompt, schreibt nur Messwerte in das Modellprofil).
+
+## Katalog, Suche, Empfehlungen
+
+- `ModelCatalogEntry` erhält: `original_model`, `converter`, `license.kind` (`open-source`|`open-weights`|`other`), `license.gated` (bool), `license.requires_account` (bool), `verification` (wie oben), `evidence` (Liste `{"kind":"benchmark"|"local_measurement"|"model_card","note_de":"…","scope":"…"}`), `resources` (`{"weights_bytes","kv_bytes_per_token_est","est_ram_bytes_8k","est_vram_bytes_8k"}`), `template` (`{"reasoning_toggle":…,"system_role":bool}`), `type` (`chat`|`embedding`|`base`|`vision`|`audio`), `families` (z. B. `["Qwen3"]`), `published`, `checked_at`, `source_kind` (`builtin`|`search`|`user`).
+- `GET /api/models/catalog` zusätzlich: `{"entries":[…],"catalog_date":"…","local_extensions":n}` (Datei `data/catalog.local.json` wird eingemischt).
+- `GET /api/models/recommendations?focus=alltag|dokumente|coding` → `{"hardware":HardwareProfile,"picks":[{"slot":"balanced"|"fast"|"quality","entry":ModelCatalogEntry,"reasons_de":["…"],"estimate":{"ram_bytes","vram_bytes","download_bytes","context_tokens"},"measured":null|{…},"installed_model_id":null|"…"}],"excluded":[{"id":"…","reason_de":"…"}],"catalog_date":"…"}` (höchstens 3 Picks; nie ungemessene Werte als Messung).
+- `GET /api/models/search?q=…&limit=20` → `{"results":[{"repo":"…","author":"…","name":"…","likes":n,"downloads":n,"updated":"…","gguf":true,"status":"unverified"}],"cached_at":"…","offline":bool}`; offline → `offline:true` und leere/gecachte Ergebnisse (kein Fehler).
+- `POST /api/models/resolve` body `{"repo":"…","file":null|"…"}` → `{"entry":ModelCatalogEntry (dynamisch, id "hf:<repo>:<file>", verification unverified|metadata),"files":[{"path","size","sha256"}],"compatibility":{"ok":bool,"reasons_de":["…"],"architecture":"…","context_length":n,"type":"chat"|…},"fit":Fit}`; liest den GGUF-Header per Range-Request (keine Codeausführung). `409 gated` wenn der Zugriff ein Konto erfordert (`requires_account:true`).
+- `POST /api/models/download` akzeptiert auch dynamische IDs (`hf:…`). Split-Dateien werden komplett geladen.
+- `POST /api/models/catalog/refresh` → `{"catalog_date":"…","checked":n,"changed":n,"errors":["…"]}` (ausdrücklicher Netzwerkzugriff; prüft Revisionen/Dateien der eingebauten Einträge).
+- Katalogdatenstand: `catalog_date` in Antworten; die UI zeigt ihn an.
+
+## Electron-Bridge
+
+Unverändert. Zusätzlich `onActivity(cb)` im Renderer ist nicht nötig: der Renderer liest `GET /api/activity` selbst (SSE über fetch).

@@ -1,6 +1,15 @@
 """OpenAI-compatible client for the local llama-server (chat streaming,
 embeddings, tokenize). Cancellation = closing the response: llama-server stops
-generating when the client disconnects."""
+generating when the client disconnects.
+
+Server features used (verified against the bundled build b12032, see
+tools/server/README.md of that tag): ``cache_prompt`` (KV reuse of the common
+prefix), ``return_progress`` (``prompt_progress`` with ``total``/``cache``/
+``processed`` during prompt processing), ``stream_options.include_usage`` and
+``timings`` in the final chunk, ``chat_template_kwargs`` for models whose
+template exposes a reasoning toggle, ``reasoning_format=deepseek`` server-side
+so reasoning arrives separately as ``reasoning_content``.
+"""
 
 from __future__ import annotations
 
@@ -23,6 +32,7 @@ class ChatChunk:
     done: bool = False
     usage: dict = field(default_factory=dict)
     finish_reason: Optional[str] = None
+    progress: Optional[dict] = None  # {"total": n, "cache": n, "processed": n, "time_ms": ms}
 
 
 class LocalLLMClient:
@@ -35,15 +45,23 @@ class LocalLLMClient:
 
     async def health(self) -> bool:
         try:
-            async with httpx.AsyncClient(timeout=3.0) as client:
+            async with httpx.AsyncClient(timeout=3.0, trust_env=False) as client:
                 r = await client.get(f"{self.base_url}/health", headers=self._headers())
                 return r.status_code == 200
         except httpx.HTTPError:
             return False
 
+    async def props(self) -> Optional[dict]:
+        try:
+            async with httpx.AsyncClient(timeout=5.0, trust_env=False) as client:
+                r = await client.get(f"{self.base_url}/props", headers=self._headers())
+                return r.json() if r.status_code == 200 else None
+        except (httpx.HTTPError, ValueError):
+            return None
+
     async def tokenize_count(self, text: str) -> Optional[int]:
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=30.0, trust_env=False) as client:
                 r = await client.post(f"{self.base_url}/tokenize", headers=self._headers(), json={"content": text})
                 if r.status_code == 200:
                     return len(r.json().get("tokens", []))
@@ -54,7 +72,7 @@ class LocalLLMClient:
     async def embeddings(self, texts: list[str], *, timeout: float = 120.0) -> list[list[float]]:
         if not texts:
             return []
-        async with httpx.AsyncClient(timeout=timeout) as client:
+        async with httpx.AsyncClient(timeout=timeout, trust_env=False) as client:
             r = await client.post(
                 f"{self.base_url}/v1/embeddings",
                 headers=self._headers(),
@@ -71,22 +89,27 @@ class LocalLLMClient:
         *,
         temperature: float = 0.7,
         max_tokens: int = 1024,
-        enable_thinking: bool = False,
+        enable_thinking: Optional[bool] = False,
         stop_event: Optional[asyncio.Event] = None,
+        cache_prompt: bool = True,
+        reasoning_toggle: Optional[str] = "enable_thinking",
     ) -> AsyncIterator[ChatChunk]:
-        payload = {
+        payload: dict = {
             "model": "local",
             "messages": messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
             "stream": True,
             "stream_options": {"include_usage": True},
-            "chat_template_kwargs": {"enable_thinking": bool(enable_thinking)},
+            "cache_prompt": cache_prompt,
+            "return_progress": True,
         }
+        if reasoning_toggle and enable_thinking is not None:
+            payload["chat_template_kwargs"] = {reasoning_toggle: bool(enable_thinking)}
         t0 = time.monotonic()
         first_token_ms: Optional[int] = None
         usage: dict = {}
-        async with httpx.AsyncClient(timeout=httpx.Timeout(600.0, connect=10.0)) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(600.0, connect=10.0), trust_env=False) as client:
             async with client.stream(
                 "POST", f"{self.base_url}/v1/chat/completions", headers=self._headers(), json=payload
             ) as resp:
@@ -106,6 +129,8 @@ class LocalLLMClient:
                         obj = json.loads(data)
                     except ValueError:
                         continue
+                    if obj.get("prompt_progress"):
+                        yield ChatChunk(progress=obj["prompt_progress"])
                     if "usage" in obj and obj["usage"]:
                         usage.update(obj["usage"])
                     if "timings" in obj and obj["timings"]:
@@ -127,4 +152,8 @@ class LocalLLMClient:
             usage["tokens_per_second"] = round(float(timings["predicted_per_second"]), 2)
         if timings.get("prompt_per_second"):
             usage["prompt_tokens_per_second"] = round(float(timings["prompt_per_second"]), 2)
+        if timings.get("prompt_n") is not None:
+            usage["prompt_n_processed"] = timings.get("prompt_n")
+        if timings.get("cache_n") is not None:
+            usage["prompt_n_cached"] = timings.get("cache_n")
         yield ChatChunk(done=True, usage=usage, finish_reason=usage.get("finish_reason"))

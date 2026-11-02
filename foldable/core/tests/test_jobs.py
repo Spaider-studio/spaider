@@ -90,7 +90,7 @@ class _FakeInference:
     def slot(self, role):
         return self.chat if role == "chat" else self.embedding
 
-    async def start(self, role, model_id, path, context_tokens=None):
+    async def start(self, role, model_id, path, context_tokens=None, options=None, n_layers=None):
         slot = self.slot(role)
         if "kaputt" in model_id:
             slot.state = "error"
@@ -198,7 +198,7 @@ async def test_activate_rollback_keeps_previous_model(db, paths, tmp_path, monke
             break
         await asyncio.sleep(0.02)
     assert job["state"] == "done" and reg.get_state("active_chat_model_id") == good["id"]
-    assert [j["step"] for j in job["journal"]] == ["begin", "commit"]
+    assert [j["step"] for j in job["journal"]] == ["begin", "plan", "commit"]
 
     job = await jm.start_activate(bad["id"])
     for _ in range(200):

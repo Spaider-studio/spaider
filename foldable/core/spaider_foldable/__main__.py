@@ -111,7 +111,13 @@ def main(argv: list[str] | None = None) -> int:
             if srv is not None:
                 srv.should_exit = True
 
-        ctx = AppContext(paths, Path(runtime_dir).resolve(), on_exit=on_exit)
+        runtime_dirs = {"cpu": Path(runtime_dir).resolve()}
+        vk = os.environ.get("SPAIDER_FOLDABLE_RUNTIME_DIR_VULKAN") or str(
+            Path(runtime_dir).resolve().parent / "llama-vulkan"
+        )
+        if Path(vk).exists():
+            runtime_dirs["vulkan"] = Path(vk).resolve()
+        ctx = AppContext(paths, runtime_dirs, on_exit=on_exit)
         try:
             await loop.run_in_executor(None, ctx.startup_sync)
         except AlreadyRunningError as exc:

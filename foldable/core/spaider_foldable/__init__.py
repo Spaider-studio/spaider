@@ -3,5 +3,5 @@
 Licensed under the GNU AGPL-3.0 like the SpAIder backend it builds on.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 AGENT_ID = "local"

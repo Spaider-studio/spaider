@@ -72,6 +72,12 @@ def main() -> int:
     name = f"SpAIder-Foldable-{args.version}-win-x64"
     stage = args.out / name / "SpAIder"
     if stage.parent.exists():
+        if (stage / "data").exists():
+            # A staged folder that has been RUN holds user data (models, chats).
+            # Never wipe it silently; the caller must pick another --version/--out.
+            print(f"ERROR: {stage} contains a data/ directory (it was used); refusing to overwrite. "
+                  "Use a new --version or --out, or remove it yourself.", file=sys.stderr)
+            return 1
         shutil.rmtree(stage.parent)
     stage.mkdir(parents=True)
 

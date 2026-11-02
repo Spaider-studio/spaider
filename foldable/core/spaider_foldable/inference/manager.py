@@ -1,19 +1,22 @@
-"""InferenceManager: owns the chat and embedding runtimes, exposes their
-state, and keeps ``app.config.settings`` (the reused SpAIder settings
-singleton) pointed at the live loopback endpoints so the reused services
-(compressor, supersession judge) talk to the bundled runtime."""
+"""InferenceManager: owns the chat and embedding runtimes, chooses the runtime
+variant (CPU or GPU backend) from the planned ``RuntimeOptions``, falls back to
+CPU when a GPU start fails, exposes state, and keeps ``app.config.settings``
+(the reused SpAIder settings singleton) pointed at the live loopback endpoints
+so the reused services (compressor, supersession judge) talk to the bundled
+runtime."""
 
 from __future__ import annotations
 
 import asyncio
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from ..paths import PortablePaths
 from .client import LocalLLMClient
+from .options import RuntimeOptions
 from .runtime import LlamaServerProcess, RuntimeError_
 
 logger = logging.getLogger(__name__)
@@ -29,6 +32,7 @@ class RuntimeSlot:
     error: Optional[str] = None
     started_at: Optional[float] = None
     startup_seconds: Optional[float] = None
+    options: dict = field(default_factory=dict)
 
     @property
     def client(self) -> Optional[LocalLLMClient]:
@@ -36,67 +40,154 @@ class RuntimeSlot:
             return LocalLLMClient(self.process.base_url, self.process.api_key)
         return None
 
+    @property
+    def backend(self) -> str:
+        return str(self.options.get("backend") or "cpu")
+
 
 class InferenceManager:
-    def __init__(self, paths: PortablePaths, runtime_dir: Path):
+    def __init__(self, paths: PortablePaths, runtime_dirs: dict[str, Path]):
         self.paths = paths
-        self.runtime_dir = runtime_dir
+        self.runtime_dirs = {k: Path(v) for k, v in runtime_dirs.items() if Path(v).exists()}
+        if "cpu" not in self.runtime_dirs and runtime_dirs:
+            # keep the configured cpu dir even if it does not exist yet (error surfaces at start)
+            self.runtime_dirs["cpu"] = Path(runtime_dirs.get("cpu") or next(iter(runtime_dirs.values())))
         self.chat = RuntimeSlot("chat")
         self.embedding = RuntimeSlot("embedding")
         self._lock = asyncio.Lock()
         self.threads: Optional[int] = None
         self.context_tokens = 8192
+        self.gpu_failures: set[str] = set()  # backend names that failed to start on this machine
+        self.on_state: Optional[Callable[[str, dict], None]] = None
+
+    @property
+    def runtime_dir(self) -> Path:
+        return self.runtime_dirs.get("cpu", next(iter(self.runtime_dirs.values())))
 
     def slot(self, role: str) -> RuntimeSlot:
         return self.chat if role == "chat" else self.embedding
 
+    def _notify(self, role: str) -> None:
+        if self.on_state:
+            try:
+                self.on_state(role, self.status()[role])
+            except Exception:  # noqa: BLE001
+                pass
+
     # ---- start / stop ------------------------------------------------------
     async def start(
-        self, role: str, model_id: str, model_path: Path, *, context_tokens: Optional[int] = None
+        self,
+        role: str,
+        model_id: str,
+        model_path: Path,
+        *,
+        context_tokens: Optional[int] = None,
+        options: Optional[RuntimeOptions] = None,
+        n_layers: Optional[int] = None,
     ) -> RuntimeSlot:
         async with self._lock:
             slot = self.slot(role)
             if slot.process and slot.process.is_running() and slot.model_id == model_id and slot.state == "ready":
                 return slot
             await self._stop_slot(slot)
-            slot.model_id = model_id
-            slot.model_path = model_path
-            slot.state = "starting"
-            slot.error = None
-            slot.started_at = time.monotonic()
-            ctx = context_tokens or self.context_tokens
-            proc = LlamaServerProcess(
-                runtime_dir=self.runtime_dir,
-                model_path=model_path,
-                role=role,
-                log_path=self.paths.logs_dir / f"llama-{role}.log",
-                context_tokens=ctx,
-                threads=self.threads,
-            )
-            slot.process = proc
-            try:
-                size = model_path.stat().st_size if model_path.exists() else 0
-                # Generous: cold reads from a USB SSD at ~100 MB/s plus startup.
-                timeout = 60 + size / (40 * 1024 * 1024)
-                await asyncio.to_thread(proc.start)
-                await asyncio.to_thread(proc.wait_ready, timeout)
-            except Exception as exc:  # noqa: BLE001
-                slot.state = "error"
-                slot.error = str(exc)
-                await asyncio.to_thread(proc.stop)
-                slot.process = None
-                logger.error("runtime %s failed to start: %s", role, exc)
-                raise RuntimeError_(str(exc)) from exc
-            slot.state = "ready"
-            slot.startup_seconds = round(time.monotonic() - slot.started_at, 2)
-            self._apply_app_settings()
-            logger.info("runtime %s ready on port %s (%.1fs)", role, proc.port, slot.startup_seconds)
-            return slot
+            opts = options or RuntimeOptions(threads=self.threads)
+            if opts.backend != "cpu" and opts.backend not in self.runtime_dirs:
+                opts.backend = "cpu"
+                opts.reason_de = "Runtime-Variante für die GPU ist nicht gebündelt; CPU wird verwendet."
+            attempts = [opts]
+            if opts.backend != "cpu":
+                attempts.append(
+                    RuntimeOptions(
+                        backend="cpu",
+                        threads=opts.threads,
+                        threads_batch=opts.threads_batch,
+                        prio=opts.prio,
+                        reason_de="Rückfall auf CPU nach GPU-Startfehler.",
+                    )
+                )
+            last_error: Optional[str] = None
+            for attempt in attempts:
+                try:
+                    await self._start_once(
+                        slot, role, model_id, model_path, context_tokens or self.context_tokens, attempt, n_layers
+                    )
+                    return slot
+                except RuntimeError_ as exc:
+                    last_error = str(exc)
+                    if attempt.backend != "cpu":
+                        logger.error(
+                            "GPU backend %s failed for %s: %s; falling back to CPU", attempt.backend, model_id, exc
+                        )
+                        self.gpu_failures.add(attempt.backend)
+                    else:
+                        break
+            slot.state = "error"
+            slot.error = last_error
+            self._notify(role)
+            raise RuntimeError_(last_error or "runtime start failed")
+
+    async def _start_once(
+        self,
+        slot: RuntimeSlot,
+        role: str,
+        model_id: str,
+        model_path: Path,
+        ctx: int,
+        opts: RuntimeOptions,
+        n_layers: Optional[int],
+    ) -> None:
+        slot.model_id = model_id
+        slot.model_path = model_path
+        slot.state = "starting"
+        slot.error = None
+        slot.started_at = time.monotonic()
+        gpu_layers = opts.gpu_layers
+        if gpu_layers is not None and gpu_layers < 0:  # percentage marker from the planner
+            gpu_layers = max(1, round((-gpu_layers / 100.0) * (n_layers or 32)))
+        slot.options = {**opts.to_dict(), "gpu_layers": gpu_layers}
+        self._notify(role)
+        proc = LlamaServerProcess(
+            runtime_dir=self.runtime_dirs[opts.backend],
+            model_path=model_path,
+            role=role,
+            log_path=self.paths.logs_dir / f"llama-{role}.log",
+            context_tokens=ctx,
+            threads=opts.threads or self.threads,
+            threads_batch=opts.threads_batch,
+            prio=opts.prio,
+            gpu_layers=gpu_layers,
+            backend=opts.backend,
+        )
+        slot.process = proc
+        try:
+            size = model_path.stat().st_size if model_path.exists() else 0
+            timeout = 90 + size / (40 * 1024 * 1024)  # cold USB reads + Vulkan shader compilation
+            await asyncio.to_thread(proc.start)
+            await asyncio.to_thread(proc.wait_ready, timeout)
+        except Exception as exc:  # noqa: BLE001
+            await asyncio.to_thread(proc.stop)
+            slot.process = None
+            slot.state = "error"
+            slot.error = str(exc)
+            raise RuntimeError_(str(exc)) from exc
+        slot.state = "ready"
+        slot.startup_seconds = round(time.monotonic() - slot.started_at, 2)
+        self._apply_app_settings()
+        self._notify(role)
+        logger.info(
+            "runtime %s ready on port %s via %s (%.1fs) %s",
+            role,
+            proc.port,
+            opts.backend,
+            slot.startup_seconds,
+            opts.reason_de,
+        )
 
     async def stop(self, role: str) -> None:
         async with self._lock:
             await self._stop_slot(self.slot(role))
             self._apply_app_settings()
+            self._notify(role)
 
     async def stop_all(self) -> None:
         async with self._lock:
@@ -113,6 +204,7 @@ class InferenceManager:
         slot.model_id = None
         slot.model_path = None
         slot.error = None
+        slot.options = {}
 
     # ---- queries ------------------------------------------------------------
     def running_processes(self) -> int:
@@ -122,22 +214,18 @@ class InferenceManager:
         return self.chat.state
 
     def status(self) -> dict:
-        return {
-            "chat": {
-                "state": self.chat.state,
-                "model_id": self.chat.model_id,
-                "error": self.chat.error,
-                "port": self.chat.process.port if self.chat.process else None,
-                "startup_seconds": self.chat.startup_seconds,
-            },
-            "embedding": {
-                "state": self.embedding.state,
-                "model_id": self.embedding.model_id,
-                "error": self.embedding.error,
-                "port": self.embedding.process.port if self.embedding.process else None,
-                "startup_seconds": self.embedding.startup_seconds,
-            },
-        }
+        def one(s: RuntimeSlot) -> dict:
+            return {
+                "state": s.state,
+                "model_id": s.model_id,
+                "error": s.error,
+                "port": s.process.port if s.process else None,
+                "startup_seconds": s.startup_seconds,
+                "backend": s.backend if s.process else None,
+                "options": s.options,
+            }
+
+        return {"chat": one(self.chat), "embedding": one(self.embedding)}
 
     # ---- reused SpAIder settings ---------------------------------------------
     def _apply_app_settings(self) -> None:

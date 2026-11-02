@@ -7,7 +7,7 @@ from ..db import Database
 from .common import NotFound, new_id, utcnow
 
 
-def _conv(row, count: int) -> dict:
+def _conv(row, count: int, pending: int = 0) -> dict:
     return {
         "id": row["id"],
         "title": row["title"],
@@ -15,7 +15,14 @@ def _conv(row, count: int) -> dict:
         "updated_at": row["updated_at"],
         "message_count": count,
         "last_model_id": row["last_model_id"],
+        "postprocessing_pending": pending,
     }
+
+
+_PENDING_SQL = (
+    "(SELECT count(*) FROM ingest_queue q JOIN messages m ON m.id = q.ref_id "
+    "WHERE m.conversation_id = c.id AND q.state IN ('pending','running'))"
+)
 
 
 def _msg(row) -> dict:
@@ -30,6 +37,7 @@ def _msg(row) -> dict:
         "sources": json.loads(row["sources_json"] or "[]"),
         "error": row["error"],
         "usage": json.loads(row["usage_json"]) if row["usage_json"] else None,
+        "timings": json.loads(row["timings_json"]) if row["timings_json"] else None,
     }
 
 
@@ -39,10 +47,11 @@ class ConversationStore:
 
     def list(self) -> list[dict]:
         rows = self.db.query(
-            "SELECT c.*, (SELECT count(*) FROM messages m WHERE m.conversation_id = c.id) AS n "
-            "FROM conversations c WHERE c.deleted_at IS NULL ORDER BY c.updated_at DESC"
+            "SELECT c.*, (SELECT count(*) FROM messages m WHERE m.conversation_id = c.id) AS n, "
+            + _PENDING_SQL
+            + " AS pending FROM conversations c WHERE c.deleted_at IS NULL ORDER BY c.updated_at DESC"
         )
-        return [_conv(r, r["n"]) for r in rows]
+        return [_conv(r, r["n"], r["pending"]) for r in rows]
 
     def create(self, title: Optional[str] = None) -> dict:
         cid = new_id()
@@ -54,11 +63,14 @@ class ConversationStore:
         return self.get(cid)
 
     def get(self, cid: str) -> dict:
-        row = self.db.query_one("SELECT * FROM conversations WHERE id = ? AND deleted_at IS NULL", (cid,))
+        row = self.db.query_one(
+            "SELECT c.*, " + _PENDING_SQL + " AS pending FROM conversations c WHERE c.id = ? AND c.deleted_at IS NULL",
+            (cid,),
+        )
         if row is None:
             raise NotFound(cid)
         count = self.db.scalar("SELECT count(*) FROM messages WHERE conversation_id = ?", (cid,)) or 0
-        return _conv(row, int(count))
+        return _conv(row, int(count), int(row["pending"] or 0))
 
     def rename(self, cid: str, title: str) -> dict:
         self.get(cid)
@@ -115,6 +127,7 @@ class ConversationStore:
         sources: Optional[list] = None,
         usage: Optional[dict] = None,
         error: Optional[str] = None,
+        timings: Optional[dict] = None,
     ) -> dict:
         sets, params = [], []
         if content is not None:
@@ -132,6 +145,9 @@ class ConversationStore:
         if error is not None:
             sets.append("error = ?")
             params.append(error)
+        if timings is not None:
+            sets.append("timings_json = ?")
+            params.append(json.dumps(timings))
         if sets:
             params.append(mid)
             self.db.execute(f"UPDATE messages SET {', '.join(sets)} WHERE id = ?", params)
