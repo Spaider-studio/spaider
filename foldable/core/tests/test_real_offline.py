@@ -40,7 +40,7 @@ REPORT_ENV = "SPAIDER_FOLDABLE_TEST_REPORT_OFFLINE"
 
 
 def _connections_for(pids: set[int]) -> list[str]:
-    out = subprocess.run(["netstat", "-ano", "-p", "TCP"], capture_output=True, text=True).stdout
+    out = subprocess.run(["netstat", "-ano", "-p", "TCP"], capture_output=True).stdout.decode("utf-8", errors="replace")
     bad = []
     for line in out.splitlines():
         m = re.match(r"\s*TCP\s+(\S+)\s+(\S+)\s+(\S+)\s+(\d+)\s*$", line)
@@ -57,7 +57,9 @@ def _connections_for(pids: set[int]) -> list[str]:
 
 
 def _llama_pids() -> set[int]:
-    out = subprocess.run(["tasklist", "/FI", "IMAGENAME eq llama-server.exe", "/FO", "CSV", "/NH"], capture_output=True, text=True).stdout  # noqa: E501
+    out = subprocess.run(
+        ["tasklist", "/FI", "IMAGENAME eq llama-server.exe", "/FO", "CSV", "/NH"], capture_output=True
+    ).stdout.decode("utf-8", errors="replace")  # noqa: E501
     return {int(m.group(1)) for m in re.finditer(r'"llama-server.exe","(\d+)"', out)}
 
 

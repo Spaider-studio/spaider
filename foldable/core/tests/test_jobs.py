@@ -166,7 +166,9 @@ async def test_download_refuses_without_space(db, paths, fake_hub, monkeypatch):
     with pytest.raises(JobError) as exc:
         await jm.start_download("fake-chat")
     assert exc.value.code == "insufficient_space" and exc.value.extra["free_bytes"] == 100 << 20
-    fat = HostInfo(**{**tiny.__dict__, "disk_free_bytes": 50 << 30, "filesystem": "FAT32", "max_file_bytes": 4_294_967_295})  # noqa: E501
+    fat = HostInfo(
+        **{**tiny.__dict__, "disk_free_bytes": 50 << 30, "filesystem": "FAT32", "max_file_bytes": 4_294_967_295}
+    )  # noqa: E501
     monkeypatch.setattr(jobs, "host_info", lambda p: fat)
     big = catalog.entries[0].model_copy(update={"files": [CatalogFile(path="big.gguf", size=5 << 30, sha256="0" * 64)]})
     jm.catalog = Catalog(version=1, generated="x", entries=[big])

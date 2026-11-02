@@ -267,20 +267,32 @@ class LlamaServerProcess:
             f"llama-server ({self.role}) wurde nicht rechtzeitig bereit ({last_err})." + self._log_tail()
         )
 
-    def stop(self, timeout: float = 8.0) -> None:
+    def stop(self, timeout: float = 5.0) -> None:
+        """Stop the server. llama-server keeps no state that needs flushing (the
+        model is memory-mapped read-only, logs are written by us), so a hard
+        TerminateProcess after a short graceful attempt is safe and keeps
+        shutdown under a second per model."""
         proc = self._proc
         if proc is None:
             return
         if proc.poll() is None:
             try:
                 if sys.platform == "win32":
-                    # CTRL_BREAK is delivered to the new process group; llama-server handles it as SIGINT.
+                    # Without a console (CREATE_NO_WINDOW) the break event may not arrive;
+                    # give it a brief chance, then terminate.
                     proc.send_signal(subprocess.signal.CTRL_BREAK_EVENT)  # type: ignore[attr-defined]
+                    proc.wait(timeout=0.5)
                 else:
                     proc.terminate()
-                proc.wait(timeout=timeout)
+                    proc.wait(timeout=timeout)
             except Exception:  # noqa: BLE001
                 pass
+            if proc.poll() is None:
+                try:
+                    proc.terminate()
+                    proc.wait(timeout=timeout)
+                except Exception:  # noqa: BLE001
+                    pass
             if proc.poll() is None:
                 proc.kill()
                 try:

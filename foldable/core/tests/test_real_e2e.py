@@ -182,9 +182,9 @@ def _wait_ingest_idle(c: httpx.Client, timeout: float = 600) -> None:
 
 
 def _process_mem_mb(pid: int) -> float | None:
-    out = subprocess.run(
-        ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"], capture_output=True, text=True
-    ).stdout
+    out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"], capture_output=True).stdout.decode(
+        "utf-8", errors="replace"
+    )
     m = re.search(r'"([\d.,]+) K"', out)
     if not m:
         return None
@@ -193,8 +193,8 @@ def _process_mem_mb(pid: int) -> float | None:
 
 def _llama_pids() -> list[int]:
     out = subprocess.run(
-        ["tasklist", "/FI", "IMAGENAME eq llama-server.exe", "/FO", "CSV", "/NH"], capture_output=True, text=True
-    ).stdout
+        ["tasklist", "/FI", "IMAGENAME eq llama-server.exe", "/FO", "CSV", "/NH"], capture_output=True
+    ).stdout.decode("utf-8", errors="replace")
     return [int(m.group(1)) for m in re.finditer(r'"llama-server.exe","(\d+)"', out)]
 
 
@@ -430,7 +430,10 @@ def test_real_end_to_end(tmp_path):
             assert docs and docs[0]["status"] == "indexed"
             assert c.get(f"/documents/{docs[0]['id']}/text").json()["text"].startswith("Die Firma Zephyr")
             info = c.get("/system/info").json()
-            assert info["data_dir"].lower().startswith(str(start_root).lower())
+            # A ``subst`` drive is resolved by Path.resolve() to its target directory;
+            # a real removable drive keeps its letter. Accept both spellings.
+            data_dir = info["data_dir"].lower()
+            assert data_dir.startswith(str(start_root).lower()) or data_dir.startswith(str(moved_root).lower()), info
             _wait_runtime_ready(c)
             conv_c = c.post("/conversations", json={"title": "Chat C nach Umzug"}).json()
             r7 = _chat(c, conv_c["id"], "Wie heißt mein Projekt und wer leitet es?")

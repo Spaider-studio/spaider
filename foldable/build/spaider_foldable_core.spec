@@ -30,7 +30,14 @@ for pkg in ("litellm", "tiktoken", "tiktoken_ext", "tokenizers", "openai", "pdfp
     except Exception:  # package may be absent (optional)
         pass
 
-datas += collect_data_files("spaider_foldable", includes=["models/*.json", "db/*.sql"])
+# The package is used from the checkout (not pip-installed), so list its data
+# files explicitly instead of relying on collect_data_files.
+_PKG = CORE_DIR / "spaider_foldable"
+datas += [
+    (str(_PKG / "models" / "catalog.json"), "spaider_foldable/models"),
+    (str(_PKG / "models" / "supported_architectures.json"), "spaider_foldable/models"),
+    (str(_PKG / "db" / "schema_v1.sql"), "spaider_foldable/db"),
+]
 # SpAIder prompt files used by the compressor.
 datas += [(str(BACKEND_DIR / "app" / "prompts"), "app/prompts")]
 hiddenimports += collect_submodules("app")
