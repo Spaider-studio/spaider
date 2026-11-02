@@ -149,3 +149,17 @@ kann. Offene Fehler stehen am Ende.
   Repositories; es gibt keinen Online-Katalogdienst von SpAIder.
 - **Offline-Test** bleibt eine Simulation (Proxy-Blackhole + Verbindungs-
   stichproben), siehe TEST_REPORT.
+- **Zeitziele auf reiner CPU**: Mit einem 4B-Modell verarbeitet diese CPU
+  50–75 Prompt-Tokens/s; jede Nachricht bringt 300–600 neue Tokens, also 5–10 s
+  bis zum ersten Token und 7–11 Token/s. Erreicht werden dort nur Stopp-Latenz
+  und Leerlauf. Auf der Arc 140V (Vulkan) liegen kurze Fragen bei 0,45–1,3 s,
+  lange Verläufe (> 2 000 Tokens) bei 4–8 s (PERFORMANCE_REPORT).
+- **Prompt-Cache**: Eine Hintergrund-Extraktion zwischen zwei Antworten
+  überschreibt den Chat-Präfix im einzigen Server-Slot; die nächste Antwort
+  verarbeitet den Prompt dann vollständig neu. Der Gedächtnisblock in der
+  letzten Nutzernachricht verhindert außerdem, dass die vorige Runde im Cache
+  wiederverwendet wird (nur der Präfix davor). Beides ist dokumentiert, nicht
+  behoben (Vorschläge im PERFORMANCE_REPORT).
+- **Extraktion sehr langer Eingaben** (≈ 1 500 Tokens) dauert im Hintergrund
+  8 min (GPU) bis 13 min (CPU); sie blockiert keine Antwort, hält aber den
+  Rechner beschäftigt. Für lange Texte ist der Dokumentimport der bessere Weg.

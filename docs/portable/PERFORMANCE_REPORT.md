@@ -186,6 +186,92 @@ Kontextblock auf 480 Zeichen gekürzt (Quellenanzeige unverändert); diese
 Änderung lag nach dieser Messung und ist in der Vulkan-Zusatzmessung
 enthalten.
 
+### Vulkan / Intel Arc 140V (Commit ccfbf9d, `after-qwen3-4b-vulkan`, 14:25–15:00, 3 Wiederholungen)
+
+Quelle: `foldable/build/measurements/after-qwen3-4b-vulkan.{json,md}`. Backend
+automatisch gewählt („Alle Schichten auf Intel Arc 140V, geschätzt 5,6 GB von
+17,2 GB frei“), `-ngl 999`, 8 Threads.
+
+**Direkt (llama-server allein, Laden 4,2 s):**
+
+| Art | kalt | n | Erstes Token (Median) | Token/s | Prompt-Token/s | CPU-Zeit/Antwort | Peak RSS |
+|---|---|---|---|---|---|---|---|
+| kurz (≈494 Tokens) | ja | 1 | **0,45 s** | 31,1 | 1 082 | 0,5 s | 4,1 GB |
+| kurz | nein (Cache) | 3 | 0,032 s | 28,8 | – | 0,5 s | 4,1 GB |
+| lang (≈1 476 Tokens) | ja | 1 | **1,30 s** | 29,1 | 674 | 1,4 s | 4,1 GB |
+| lang | nein (Cache) | 3 | 0,031 s | 29,2 | – | 1,2 s | 4,1 GB |
+
+**App-Pfad (Kernstart 4,6 s, Modell bereit nach 4,3 s):**
+
+| Schritt | Gedächtnis | n | Erstes Token (Median, Client) | min/max | Token/s | Prompt-Tokens (aus Cache) | Gesamt |
+|---|---|---|---|---|---|---|---|
+| Kalt, kurze Frage | leer | 1 | **0,45 s** | | 29,5 | 494 (0) | 1,9 s |
+| Kalt, lange Eingabe | leer | 1 | **2,14 s** | | 27,6 | 1 476 (424) | 5,7 s |
+| Drei Fakten nacheinander | füllend | 3 | **1,75 s** | 0,95–1,89 | 27,4 | 1 741–2 077 (1 358–1 528) | 3,0 s |
+| Warm, kurze Frage (neues Gespräch) | gefüllt | 3 | **1,25 s** | 1,20–1,31 | 26,8 | 891–1 125 (1–516) | 4,5 s |
+| Warm, lange Eingabe | gefüllt | 3 | 7,1 s | 4,25–8,02 | 21,4 | 2 442–4 807 (629–2 574) | 11,8 s |
+| Abruf-Frage | gefüllt | 3 | 7,5 s | 7,39–7,64 | 19,7 | 5 332–5 448 (3 543–3 707) | 9,1 s |
+| Stopp nach 5 Token | gefüllt | 1 | 0,67 s | | | | |
+
+| Größe | Wert |
+|---|---|
+| Stopp → `done`-Ereignis | **0,063 s**; llama-server ruhig nach 0,31 s |
+| Warteschlange leer nach kalter Kurz-/Langantwort | 7 s / 484 s |
+| Warteschlange leer nach den drei Fakten | 18 s, 32 s, 22 s |
+| CPU-Zeit je Antwort (Kern + Server) | 0,6–3,1 s (CPU-Variante: 41–302 s) |
+| Shutdown | 2,7 s, keine Restprozesse |
+| Peak RSS llama-server | 4,1 GB (Gewichte im Grafikspeicher, Kopie im RAM) bis 8,9 GB bei vollem Kontext |
+
+Prompt-Verarbeitung auf der Arc 140V fällt mit der Kontextlänge: ≈ 1 100
+Token/s bei 500 Tokens, ≈ 650 bei 1 500, ≈ 240 bei 5 300 (Aufmerksamkeit
+über den langen Kontext). Das 1–2-s-Ziel wird daher mit kurzen Prompts und
+Verlauf unter ≈ 2 000 Tokens erreicht, bei langem Verlauf nicht.
+
+### Zielwerte: erreicht / nicht erreicht (dieser Rechner, Qwen3-4B Q4_K_M)
+
+| Ziel | CPU | Vulkan (Arc 140V) |
+|---|---|---|
+| Erstes Token 1–2 s (kurze Frage, Modell geladen) | **nein**: 6,7 s kalt, 8–11 s warm mit Gedächtnis (Cache-Treffer 0,1 s) | **ja** bei ≤ 1 000 Prompt-Tokens (0,45–1,3 s); **nein** bei langem Verlauf/Eingabe (4–8 s) |
+| ≥ 20–30 Token/s | **nein**: 7–11 | **ja**: 20–31 (19,7 bei 5 400 Tokens Kontext) |
+| Stopp ≤ 500 ms | **ja**: 0,11 s | **ja**: 0,06 s |
+| Keine Leerlauflast | **ja**: 0,42 % eines Kerns (Kern + Server, Kanal offen) | **ja** (gleiche Messung) |
+| UI-Reaktion ≤ 100 ms | Renderer: Token-Batching 40 ms, max. Frame-Lücke 34 ms im Mock-Stream mit Tippen; mit echtem Kern nicht separat gemessen | dito |
+
+Kleine Modelle auf der GPU (Aktivitäts-/Familienläufe, synthetische Prompts):
+0.6B 64–66 Token/s, erstes Token 0,14–0,22 s; Llama 3.2 1B 71 Token/s, 0,45–0,66 s;
+Ministral 3B 28,5 Token/s, 0,59–0,89 s.
+
 ## Verbleibende Engpässe und nicht erreichte Zielwerte
 
-*(wird eingetragen)*
+1. **Prompt-Verarbeitung dominiert die Zeit bis zum ersten Token.** Jede
+   Nachricht bringt 300–600 neue Tokens, obwohl der Präfix gecacht ist: Der
+   Gedächtnisblock sitzt in der letzten Nutzernachricht und ändert sich je
+   Anfrage, und die vorige Nutzernachricht liegt im Verlauf ohne ihren
+   damaligen Gedächtnisblock, so dass der Cache ab dort nicht mehr passt
+   (`cached` 1 358 von 1 741 usw.). Auf der CPU (≈ 60 Token/s) sind das 5–10 s,
+   auf der Arc 140V 1–2 s. Nächster Schritt (nicht umgesetzt): den Verlauf
+   exakt so wiederverwenden, wie er gesendet wurde (Gedächtnisblock je Nachricht
+   speichern), dann kostet eine Folgefrage nur noch neuen Block + neue Nachricht.
+2. **Hintergrundarbeit verdrängt den Prompt-Cache.** Der llama-server hat
+   einen Slot; eine Extraktion dazwischen überschreibt den Chat-Präfix (die
+   erste Frage eines neuen Gesprächs nach einer Extraktion: `cached` 1). Zwei
+   Slots (`--parallel 2`, doppelter KV-Speicher) würden den Chat-Cache halten;
+   nicht umgesetzt, weil der KV-Bedarf auf 8-GB-Rechnern knapp wird.
+3. **Lange Kontexte auf der iGPU**: Prompt-Durchsatz sinkt von 1 100 auf
+   240 Token/s bei 5 000+ Tokens; die Abruf-Frage trug 5 300 Tokens, weil lange
+   Nutzereingaben als Fakten vollständig in den Gedächtnisblock gelangten.
+   Seit 353bda0 werden Fakten im Kontextblock auf 480 Zeichen gekürzt;
+   Zusatzmessung siehe unten.
+4. **Extraktion langer Eingaben** braucht auch mit 1 500-Token-Budget und
+   Thinking aus 8 min (GPU) bzw. 12,6 min (CPU) für eine 1 500-Token-Nachricht
+   (Abschnitte × JSON-Generierung × Richter). Sie läuft unterbrechbar im
+   Hintergrund und blockiert keine Antwort mehr, kostet aber Strom/Zeit.
+   Nächster Schritt: Extraktion für sehr lange Eingaben auf die ersten
+   Abschnitte begrenzen oder Dokumentimport empfehlen.
+5. **CPU-Rechner ohne GPU**: Das 4B-Modell verfehlt dort alle Zeitziele außer
+   Stopp und Leerlauf. Die Empfehlung schlägt auf solchen Rechnern kleinere
+   Modelle vor (1–2B), die Geschwindigkeit ist aber erst nach „Kurz messen“
+   belegt.
+6. **Nicht gemessen**: andere GPUs (NVIDIA/AMD über Vulkan), Teil-Offload,
+   Energie, UI-Latenz mit echtem Kern im Electron-Fenster, p95 (zu wenige
+   Wiederholungen).
