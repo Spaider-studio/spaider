@@ -1,0 +1,30 @@
+{
+  "backend": "vulkan",
+  "drain_s": 9.9,
+  "window_s": 30.0,
+  "processes": [
+    {
+      "name": "python.exe",
+      "cpu_percent_of_one_core": 0.0,
+      "rss_mb": 4.2
+    },
+    {
+      "name": "python.exe",
+      "cpu_percent_of_one_core": 0.21,
+      "rss_mb": 248.5
+    },
+    {
+      "name": "llama-server.exe",
+      "cpu_percent_of_one_core": 0.21,
+      "rss_mb": 1933.2
+    },
+    {
+      "name": "conhost.exe",
+      "cpu_percent_of_one_core": 0.0,
+      "rss_mb": 7.5
+    }
+  ],
+  "total_cpu_percent_of_one_core": 0.42,
+  "logical_cores": 8,
+  "note": "30 s nach einer Antwort und leerer Warteschlange, globaler SSE-Kanal offen, zwei setup/status-Abfragen; CPU-Zeit der eigenen Prozesse (Kern, llama-server) in Prozent eines logischen Kerns. Synthetischer Text."
+}

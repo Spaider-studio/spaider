@@ -110,20 +110,25 @@ class InferenceManager:
                     )
                 )
             last_error: Optional[str] = None
+            failed_gpu_backend: Optional[str] = None
             for attempt in attempts:
                 try:
                     await self._start_once(
                         slot, role, model_id, model_path, context_tokens or self.context_tokens, attempt, n_layers
                     )
+                    if failed_gpu_backend and attempt.backend == "cpu":
+                        # the same file runs on the CPU: the failure was GPU-specific, remember it
+                        self.gpu_failures.add(failed_gpu_backend)
                     return slot
                 except RuntimeError_ as exc:
                     last_error = str(exc)
                     if attempt.backend != "cpu":
                         logger.error(
-                            "GPU backend %s failed for %s: %s; falling back to CPU", attempt.backend, model_id, exc
+                            "GPU backend %s failed for %s: %s; trying CPU", attempt.backend, model_id, exc
                         )
-                        self.gpu_failures.add(attempt.backend)
+                        failed_gpu_backend = attempt.backend
                     else:
+                        # CPU failed as well: the model file is the problem, not the GPU
                         break
             slot.state = "error"
             slot.error = last_error

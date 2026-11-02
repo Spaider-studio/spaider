@@ -202,8 +202,9 @@ class ChatService:
                 client = await self._wait_for_runtime(tracker, pending_sse)
                 for s in flush():
                     yield s
-                # 4. memory search
+                # 4. memory search (v1 "status" events stay for older clients)
                 tracker.start("memory_search", "Gespeicherte Informationen werden gesucht")
+                yield sse("status", {"phase": "retrieving", "message_de": "Gespeicherte Informationen werden gesucht"})
                 for s in flush():
                     yield s
                 ctx_budget_chars = int(prefs.context_tokens * 0.25 * CHARS_PER_TOKEN)
@@ -263,6 +264,7 @@ class ChatService:
                     yield s
                 # 6. generation
                 tracker.start("prompt_processing", "Kontext wird verarbeitet")
+                yield sse("status", {"phase": "generating", "message_de": "Antwort wird erzeugt"})
                 for s in flush():
                     yield s
                 last_persist = time.monotonic()
@@ -402,6 +404,8 @@ class ChatService:
                 )
         for s in flush():
             yield s
+        if fact_id and status != "error":
+            yield sse("status", {"phase": "memorizing", "message_de": "Gedächtnis-Nachverarbeitung ausstehend"})
         if status != "error":
             yield sse("done", {"message": final})
 

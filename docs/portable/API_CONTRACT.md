@@ -172,7 +172,7 @@ Alles aus v1 bleibt gültig. Neu:
 
 ## Aktivität
 
-- Chat-Stream: zusätzliches `event: activity` (Schema in `ACTIVITY_EVENTS.md`).
+- Chat-Stream: zusätzliches `event: activity` (Schema in `ACTIVITY_EVENTS.md`). Die v1-Ereignisse `status` (`retrieving` → `generating` → `memorizing`) bleiben für ältere Clients erhalten; neue Clients lesen `activity`.
 - `GET /api/activity` → SSE: `event: activity` (Nachverarbeitung, mit `conversation_id`), `event: scheduler`, `event: runtime`.
 - `GET /api/conversations/{id}/messages/{mid}/activity` → `{"events":[ActivityEvent]}` (nur im Speicher des laufenden Kerns; nach Neustart leer).
 - Reihenfolge im Chat-Stream: `event: message` kommt vor dem ersten `event: activity`; `request_id` jedes Aktivitätsereignisses ist die Id der `assistant_message`.

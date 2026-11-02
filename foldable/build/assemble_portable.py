@@ -128,9 +128,17 @@ def main() -> int:
             if p.is_file():
                 zf.write(p, p.relative_to(stage.parent.parent))
     digest = sha256_of(zip_path)
-    (args.out / "SHA256SUMS.txt").write_text(
-        f"{digest}  {zip_path.name}\ncommit {git_commit()}\nsize {zip_path.stat().st_size}\n", encoding="utf-8"
-    )
+    record = f"{digest}  {zip_path.name}\ncommit {git_commit()}\nsize {zip_path.stat().st_size}\n"
+    (args.out / f"SHA256SUMS-{args.version}.txt").write_text(record, encoding="utf-8")
+    # cumulative list: keep the records of earlier versions, replace only this zip's block
+    sums = args.out / "SHA256SUMS.txt"
+    blocks = []
+    if sums.exists():
+        for block in sums.read_text(encoding="utf-8").split("\n\n"):
+            if block.strip() and f"  {zip_path.name}" not in block:
+                blocks.append(block.strip() + "\n")
+    blocks.append(record)
+    sums.write_text("\n".join(blocks), encoding="utf-8")
     print(f"done: {zip_path} sha256={digest} size={zip_path.stat().st_size / 2**20:.0f} MB")
     return 0
 

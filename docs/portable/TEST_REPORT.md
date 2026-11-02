@@ -218,6 +218,7 @@ Rechners; „NICHT VERIFIZIERT“ markiert, was nicht ausgeführt wurde.
 | Kern, Unit | `cd foldable/core && pytest` (ohne `real_*`) | **52 bestanden**, 4 übersprungen (Echtläufe ohne Umgebung). Neu: Planer (Verdrängung, Cooldown, Pause), Aktivitäts-Tracker/Bus, Rohfakt sofort sichtbar und Anreicherung, Worker wartet bei ladendem Modell, deterministische Korrekturen und Fragefilter, `plan()`-Entscheidungen, Fähigkeiten/Typen, Empfehlungen mit simulierten Profilen, Remote-GGUF-Header über lokalen Range-Server, Split-Erkennung |
 | Kern, Aktivität (echt) | `pytest tests/test_real_activity.py` (0.6B, Vulkan) | **bestanden** (siehe A/C unten; Rohdaten `foldable/build/measurements/activity-report.json`) |
 | Kern, Familien (echt) | `pytest tests/test_real_families.py` (Llama 3.2 1B, Ministral 3 3B, Vulkan) | **2 bestanden**, 2:42 min (`families-report.json`) |
+| Kern, GPU-Rückfall (echt) | `pytest tests/test_real_gpu_fallback.py` (Vulkan-Ordner durch einen sofort scheiternden Stellvertreter ersetzt, Backend erzwungen) | **bestanden**, 19 s: GPU-Start scheitert → CPU-Start in derselben Sitzung, `gpu_failures = ["vulkan"]`, Antwort auf CPU |
 | Kern, E2E (echt) | `pytest tests/test_real_e2e.py` | *(wird eingetragen)* |
 | Kern, Offline | `pytest tests/test_real_offline.py` | *(wird eingetragen)* |
 | Desktop | `npm run typecheck`, `npm run lint`, `npm test` | sauber, sauber, **59 bestanden** (9 Dateien; neu: Aktivitäts-Reducer, Token-Batcher, Empfehlungen, Modell-Fehlertexte) |
@@ -278,10 +279,13 @@ als die Echtläufe).
 - Stopp: `cancelled`-Ereignis nach dem Serverstopp; Stopp → `done` **0,03 s** (0.6B, Vulkan; Kernmessung mit vorab erzeugtem Client).
 - Renderer: Token-Batching 40 ms; während eines 9-s-Mock-Streams mit 12-ms-Token-Takt und gleichzeitigem Tippen: 535 Frames, max. Lücke 33,6 ms, keine Lücke > 50 ms (Dev-Helfer `window.__spaiderPerf`).
 - Lebenszyklus (Kern): Start, Modell bereit, Shutdown, keine Restprozesse – in jedem Echtlauf (`core exited with code 0`, Shutdown 2,4–2,7 s).
+- Leerlauf: 30 s nach einer Antwort bei leerer Warteschlange, globaler Ereigniskanal offen, zwei `setup/status`-Abfragen: Kern 0,21 %, llama-server 0,21 % eines logischen Kerns, zusammen 0,42 % (`foldable/build/measurements/idle-load.json`). Keine anhaltende Hintergrundlast.
 
 ### E. Paket
 
-*(wird eingetragen: neues ZIP, frischer Start, Update an Bestandsdaten, Offline, Vorher/Nachher, CPU-Rückfall)*
+*(wird eingetragen: neues ZIP, frischer Start, Offline, Vorher/Nachher)*
+
+**CPU-Rückfall** (echt): siehe `test_real_gpu_fallback.py` oben – der Rückfall läuft in derselben Sitzung ohne Neustart; ein Modell, das auch auf der CPU nicht startet (kaputte Datei), markiert die GPU nicht als fehlerhaft (E2E-Fall „kaputt“).
 
 Bereits ausgeführt – **Update an Bestandsdaten (Kopie)**: Der Nutzer-Datenordner
 (5 Gespräche, 32 Nachrichten, 25 Knoten, 22 Kanten, 1 Modell, 13 Warteschlangen-

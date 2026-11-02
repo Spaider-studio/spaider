@@ -272,6 +272,9 @@ class AppContext:
         if forced and forced != "cpu" and forced in self.runtime_dirs:
             opts.backend = forced
             opts.gpu_layers = opts.gpu_layers or 999
+            opts.reason_de = f"Backend {forced} per Umgebungsvariable SPAIDER_FOLDABLE_BACKEND erzwungen."
+        elif forced == "cpu":
+            opts.reason_de = "CPU per Umgebungsvariable SPAIDER_FOLDABLE_BACKEND erzwungen."
         env_layers = os.environ.get("SPAIDER_FOLDABLE_GPU_LAYERS")
         if env_layers and opts.backend != "cpu":
             opts.gpu_layers = int(env_layers)

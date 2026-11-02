@@ -191,11 +191,27 @@ def _process_mem_mb(pid: int) -> float | None:
     return round(int(re.sub(r"[.,]", "", m.group(1))) / 1024, 1)
 
 
-def _llama_pids() -> list[int]:
+def _llama_pids(core_pid: int | None = None) -> list[int]:
+    """llama-server processes; with ``core_pid`` only those started by that core
+    (other SpAIder instances or measurements may run on the same machine)."""
+    if core_pid is not None:
+        try:
+            import psutil
+
+            return [
+                c.pid for c in psutil.Process(core_pid).children(recursive=True) if c.name().lower() == "llama-server.exe"
+            ]
+        except Exception:  # noqa: BLE001
+            return []
     out = subprocess.run(
         ["tasklist", "/FI", "IMAGENAME eq llama-server.exe", "/FO", "CSV", "/NH"], capture_output=True
     ).stdout.decode("utf-8", errors="replace")
     return [int(m.group(1)) for m in re.finditer(r'"llama-server.exe","(\d+)"', out)]
+
+
+def _pids_alive(pids: list[int]) -> list[int]:
+    alive = set(_llama_pids())
+    return [p for p in pids if p in alive]
 
 
 @requires_real()
@@ -250,7 +266,7 @@ def test_real_end_to_end(tmp_path):
                 assert job["state"] == "done", job
                 ov = c.get("/memory/overview").json()
                 assert ov["index"]["vectors"]["enabled"] and ov["index"]["vectors"]["dimensions"] == 1024
-            pids = _llama_pids()
+            pids = _llama_pids(core.proc.pid)
             REPORT["measurements"]["llama_server_rss_mb"] = {str(p): _process_mem_mb(p) for p in pids}
             REPORT["measurements"]["core_rss_mb"] = _process_mem_mb(core.proc.pid)
 
@@ -321,9 +337,10 @@ def test_real_end_to_end(tmp_path):
             _wait_ingest_idle(c)
 
         # ---- case 8b/3: lifecycle: shutdown releases everything
+        own_pids = _llama_pids(core.proc.pid)
         REPORT["measurements"]["shutdown_s"] = core.shutdown()
         assert core.proc.returncode == 0, core.proc.returncode
-        assert not _llama_pids(), "llama-server still running after shutdown"
+        assert not _pids_alive(own_pids), "llama-server still running after shutdown"
         assert not paths.lock_path.exists()
         assert not Path(str(paths.db_path) + "-wal").exists() or Path(str(paths.db_path) + "-wal").stat().st_size == 0
     except BaseException:
@@ -439,6 +456,7 @@ def test_real_end_to_end(tmp_path):
             r7 = _chat(c, conv_c["id"], "Wie heißt mein Projekt und wer leitet es?")
             assert r7["done"]["status"] == "complete" and ("Orion" in r7["text"] or "Priya" in r7["text"]), r7["text"]
             REPORT["cases"]["after_move"] = {"answer": r7["text"][:300], "data_dir": info["data_dir"]}
+        own_pids = _llama_pids(core.proc.pid)
         REPORT["measurements"]["shutdown_3_s"] = core.shutdown()
     except BaseException:
         core.kill()
@@ -447,4 +465,4 @@ def test_real_end_to_end(tmp_path):
         if drive:
             subprocess.run(["subst", f"{drive}:", "/D"], capture_output=True)
         _report()
-    assert not _llama_pids()
+    assert not _pids_alive(own_pids)
