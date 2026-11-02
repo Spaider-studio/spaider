@@ -1,0 +1,162 @@
+{
+  "hardware": {
+    "cpu": "Intel(R) Core(TM) Ultra 7 268V",
+    "cores_physical": 8,
+    "ram_gb": 31.6,
+    "gpus": [
+      [
+        "Intel(R) Arc(TM) 140V GPU (16GB)",
+        null
+      ]
+    ],
+    "backend": "vulkan",
+    "fingerprint": "d5c9be4a263cd1fe"
+  },
+  "alltag": {
+    "picks": [
+      {
+        "slot": "balanced",
+        "catalog_id": null,
+        "name": null,
+        "reason_de": null,
+        "estimated": null,
+        "measured": null,
+        "download_bytes": null,
+        "verification": null
+      },
+      {
+        "slot": "fast",
+        "catalog_id": null,
+        "name": null,
+        "reason_de": null,
+        "estimated": null,
+        "measured": null,
+        "download_bytes": null,
+        "verification": null
+      },
+      {
+        "slot": "quality",
+        "catalog_id": null,
+        "name": null,
+        "reason_de": null,
+        "estimated": null,
+        "measured": null,
+        "download_bytes": null,
+        "verification": null
+      }
+    ],
+    "excluded": [
+      [
+        null,
+        "Kein Chatmodell."
+      ],
+      [
+        null,
+        "Kein Chatmodell."
+      ],
+      [
+        null,
+        "Kein Chatmodell."
+      ]
+    ],
+    "catalog_date": "2026-11-02"
+  },
+  "dokumente": {
+    "picks": [
+      {
+        "slot": "balanced",
+        "catalog_id": null,
+        "name": null,
+        "reason_de": null,
+        "estimated": null,
+        "measured": null,
+        "download_bytes": null,
+        "verification": null
+      },
+      {
+        "slot": "fast",
+        "catalog_id": null,
+        "name": null,
+        "reason_de": null,
+        "estimated": null,
+        "measured": null,
+        "download_bytes": null,
+        "verification": null
+      },
+      {
+        "slot": "quality",
+        "catalog_id": null,
+        "name": null,
+        "reason_de": null,
+        "estimated": null,
+        "measured": null,
+        "download_bytes": null,
+        "verification": null
+      }
+    ],
+    "excluded": [
+      [
+        null,
+        "Kein Chatmodell."
+      ],
+      [
+        null,
+        "Kein Chatmodell."
+      ],
+      [
+        null,
+        "Kein Chatmodell."
+      ]
+    ],
+    "catalog_date": "2026-11-02"
+  },
+  "coding": {
+    "picks": [
+      {
+        "slot": "balanced",
+        "catalog_id": null,
+        "name": null,
+        "reason_de": null,
+        "estimated": null,
+        "measured": null,
+        "download_bytes": null,
+        "verification": null
+      },
+      {
+        "slot": "fast",
+        "catalog_id": null,
+        "name": null,
+        "reason_de": null,
+        "estimated": null,
+        "measured": null,
+        "download_bytes": null,
+        "verification": null
+      },
+      {
+        "slot": "quality",
+        "catalog_id": null,
+        "name": null,
+        "reason_de": null,
+        "estimated": null,
+        "measured": null,
+        "download_bytes": null,
+        "verification": null
+      }
+    ],
+    "excluded": [
+      [
+        null,
+        "Kein Chatmodell."
+      ],
+      [
+        null,
+        "Kein Chatmodell."
+      ],
+      [
+        null,
+        "Kein Chatmodell."
+      ]
+    ],
+    "catalog_date": "2026-11-02"
+  }
+}

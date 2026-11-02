@@ -56,7 +56,47 @@ Renderer (nur über den Dev-Helfer `window.__spaiderPerf` im UI-Mock geprüft).
 
 ## Baseline (0.1.0, Commit acc3ce1, CPU)
 
-*(wird nach Abschluss des Messlaufs eingetragen; Quelle `baseline-qwen3-4b-cpu.md`)*
+Quelle: `foldable/build/measurements/baseline-qwen3-4b-cpu-partial.json`.
+Der Messlauf (Worktree `repo-baseline` auf acc3ce1, `measure.py`, 3 Wiederholungen)
+wurde nach 78 Minuten abgebrochen: In der Warm-Phase wartete jede Antwort rund
+10 Minuten hinter den Extraktionsanfragen des Hintergrunds (5 Abschnitte ×
+120 s Timeout × 3 Versuche im einzigen Server-Slot; 140 protokollierte
+LLM-Timeouts), und keine der fünf Wartephasen „Warteschlange leer“ endete
+innerhalb von 900 s. Die Zahlen stammen deshalb aus den Nachrichten-Datensätzen
+des Messlaufs (serverseitige Zeit bis erstes Token ab Anfragebeginn, Token/s
+aus den Server-Timings) und aus dem llama-server-Log der Direktphase; die
+clientseitigen Marken des Messskripts gingen mit dem Abbruch verloren.
+
+**Direkt (llama-server allein, Qwen3-4B Q4_K_M, 8 Threads, ohne Parallellast):**
+
+| Größe | Wert |
+|---|---|
+| Generierung | Median **10,9 Token/s** (31 Stichproben, 3,9–17,7; Kurzantworten bis 17, lange Kontexte 6–9) |
+| Prompt-Verarbeitung (volle Prompts) | Median **72,8 Token/s**; 468 Tokens ≈ 5,0–6,7 s, 1 400 Tokens ≈ 10,9–18,7 s |
+| Prompt-Cache | 23 von 31 Stichproben mit Cache-Treffer (nur 1 Token neu zu verarbeiten) |
+
+Diese Direktwerte sind unabhängig vom App-Code (gleiche Binärdatei, gleiches
+Modell) und gelten daher auch als Direkt-Referenz für die Nachher-Messung.
+
+**App-Pfad (Kern 0.1.0 + API, gleiche Prompts):**
+
+| Schritt | Zeit bis erstes Token (Server) | Token/s | Bedingung |
+|---|---|---|---|
+| Kalt, kurze Frage (468 Prompt-Tokens) | **5,7 s** | 17,1 | leeres Gedächtnis, keine Hintergrundarbeit |
+| Kalt, lange Eingabe (1 489 Tokens) | **17,9 s** | 9,2 | dito |
+| Fakt 1 (1 525 Tokens) | **86,5 s** | 8,2 | Extraktion der vorigen Nachricht belegt den Slot |
+| Fakt 2 (1 578 Tokens) | **47,1 s** | 10,7 | dito |
+| Fakt 3 (1 637 Tokens) | **65,5 s** | 4,7 | dito |
+| Warm, kurze Frage (568 Tokens) | **63,6 s** | 6,9 | dito; die Antwort danach kam in 12 min nicht |
+| Warteschlange leer (Drain) | **nie** (> 900 s in allen 5 Phasen) | | Extraktion mit Thinking + 4 000-Token-Budget läuft in 120-s-Timeouts |
+
+Median der Zeit bis zum ersten Token unter Hintergrundlast: **64,6 s**
+(Spanne 47–86 s). Das entspricht dem Nutzerbefund (TTFT 18–85 s im
+0.1.0-Paket mit demselben Modell).
+
+Parallellast während der App-Phase: GPU-Testläufe mit 0.6B/1B/3B-Modellen
+(Vulkan) und ab 13:19 ein PyInstaller-Build. Sie erklären Schwankungen der
+Token/s, nicht die Wartezeiten (die entstehen im belegten Server-Slot).
 
 ## Änderungen
 
