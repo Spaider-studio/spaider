@@ -39,7 +39,7 @@ hiddenimports += ["uvicorn.logging", "uvicorn.loops.auto", "uvicorn.protocols.ht
                   "uvicorn.lifespan.off", "anyio._backends._asyncio", "Levenshtein", "redis.asyncio"]
 
 a = Analysis(
-    [str(CORE_DIR / "spaider_foldable" / "__main__.py")],
+    [str(SPEC_DIR / "core_entry.py")],
     pathex=[str(CORE_DIR), str(BACKEND_DIR)],
     binaries=binaries,
     datas=datas,
@@ -47,7 +47,7 @@ a = Analysis(
     hookspath=[],
     runtime_hooks=[],
     excludes=["tkinter", "matplotlib", "PIL.ImageTk", "pytest", "IPython", "jupyter", "notebook", "torch", "transformers",
-              "neo4j", "aiokafka", "asyncpg", "sqlalchemy", "clickhouse_connect", "pandas", "trafilatura", "docx"],
+              "aiokafka", "asyncpg", "sqlalchemy", "clickhouse_connect", "pandas", "trafilatura", "docx"],
     noarchive=False,
     optimize=0,
 )

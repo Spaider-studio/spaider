@@ -76,7 +76,11 @@ def test_validate_rejects_unsupported_architecture(tmp_path):
 
 def test_registry_import_and_reconcile(paths, db, tmp_path):
     reg = ModelRegistry(db, paths)
-    src = write_fake_gguf(tmp_path / "ext" / "Mein Modell ü.gguf", extra_bytes=5000) if (tmp_path / "ext").mkdir() is None else None
+    src = (
+        write_fake_gguf(tmp_path / "ext" / "Mein Modell ü.gguf", extra_bytes=5000)
+        if (tmp_path / "ext").mkdir() is None
+        else None
+    )
     model = reg.import_local(src)
     assert model["source"] == "import" and model["role"] == "chat" and model["sha256_verified"]
     assert Path(model["path"]).exists() and paths.is_inside_data(model["path"])

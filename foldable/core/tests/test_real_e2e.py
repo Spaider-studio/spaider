@@ -25,7 +25,6 @@ import time
 from pathlib import Path
 
 import httpx
-import pytest
 
 from spaider_foldable.db import Database
 from spaider_foldable.models.catalog import load_catalog
@@ -62,7 +61,12 @@ class Core:
         t0 = time.monotonic()
         self.proc = subprocess.Popen(
             [sys.executable, "-m", "spaider_foldable", "--app-root", str(self.app_root)],
-            cwd=str(CORE_DIR), env=env, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, encoding="utf-8",
+            cwd=str(CORE_DIR),
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            encoding="utf-8",
         )
         assert self.proc.stdout is not None
         while True:
@@ -178,7 +182,9 @@ def _wait_ingest_idle(c: httpx.Client, timeout: float = 600) -> None:
 
 
 def _process_mem_mb(pid: int) -> float | None:
-    out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"], capture_output=True, text=True).stdout
+    out = subprocess.run(
+        ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"], capture_output=True, text=True
+    ).stdout
     m = re.search(r'"([\d.,]+) K"', out)
     if not m:
         return None
@@ -186,7 +192,9 @@ def _process_mem_mb(pid: int) -> float | None:
 
 
 def _llama_pids() -> list[int]:
-    out = subprocess.run(["tasklist", "/FI", "IMAGENAME eq llama-server.exe", "/FO", "CSV", "/NH"], capture_output=True, text=True).stdout
+    out = subprocess.run(
+        ["tasklist", "/FI", "IMAGENAME eq llama-server.exe", "/FO", "CSV", "/NH"], capture_output=True, text=True
+    ).stdout
     return [int(m.group(1)) for m in re.finditer(r'"llama-server.exe","(\d+)"', out)]
 
 
@@ -248,15 +256,25 @@ def test_real_end_to_end(tmp_path):
 
             # ---- case 5a: chat A with project facts + a later correction
             conv_a = c.post("/conversations", json={"title": None}).json()
-            r1 = _chat(c, conv_a["id"], "Merk dir bitte: Mein Projekt heißt Orion. Der Projektleiter von Orion ist Idris Kane. Das Budget von Orion beträgt 42000 Euro.")
+            r1 = _chat(
+                c,
+                conv_a["id"],
+                "Merk dir bitte: Mein Projekt heißt Orion. Der Projektleiter von Orion ist Idris Kane. Das Budget von Orion beträgt 42000 Euro.",  # noqa: E501
+            )
             assert r1["done"] and r1["done"]["status"] == "complete" and r1["text"].strip(), r1
             assert "status" in r1["events"] and "message" in r1["events"]
             REPORT["measurements"]["first_answer"] = {
-                "usage": r1["done"]["usage"], "wall_s": r1["wall_s"], "first_token_s": r1["first_token_s"],
+                "usage": r1["done"]["usage"],
+                "wall_s": r1["wall_s"],
+                "first_token_s": r1["first_token_s"],
                 "chars": len(r1["text"]),
             }
             _wait_ingest_idle(c)
-            r2 = _chat(c, conv_a["id"], "Korrektur: Der Projektleiter von Orion ist nicht mehr Idris Kane, sondern jetzt Priya Nair.")
+            r2 = _chat(
+                c,
+                conv_a["id"],
+                "Korrektur: Der Projektleiter von Orion ist nicht mehr Idris Kane, sondern jetzt Priya Nair.",
+            )
             assert r2["done"]["status"] == "complete"
             _wait_ingest_idle(c)
             ov = c.get("/memory/overview").json()
@@ -264,7 +282,9 @@ def test_real_end_to_end(tmp_path):
             REPORT["cases"]["memory_after_two_messages"] = ov
             search = c.get("/memory/search", params={"q": "Projektleiter Orion"}).json()["results"]
             assert search, "memory search found nothing"
-            REPORT["cases"]["search_projektleiter"] = [{"status": s["status"], "excerpt": s["excerpt"][:80]} for s in search[:6]]
+            REPORT["cases"]["search_projektleiter"] = [
+                {"status": s["status"], "excerpt": s["excerpt"][:80]} for s in search[:6]
+            ]
             title_a = c.get(f"/conversations/{conv_a['id']}").json()["conversation"]["title"]
 
             # ---- case 7: model switch failure -> rollback keeps the working model
@@ -272,9 +292,15 @@ def test_real_end_to_end(tmp_path):
             job = _wait_job(c, c.post("/models/import", json={"path": str(fake)}).json()["job"]["id"])
             assert job["state"] == "done", job
             broken_id = job["result_model_id"]
-            job = _wait_job(c, c.post("/models/activate", json={"model_id": broken_id}).json()["job"]["id"], timeout=300)
+            job = _wait_job(
+                c, c.post("/models/activate", json={"model_id": broken_id}).json()["job"]["id"], timeout=300
+            )
             assert job["state"] == "failed" and job["error"]["code"] in ("runtime_start_failed", "probe_failed"), job
-            REPORT["cases"]["switch_failure"] = {"state": job["state"], "error": job["error"], "phases": [j.get("step") for j in job["journal"]]}
+            REPORT["cases"]["switch_failure"] = {
+                "state": job["state"],
+                "error": job["error"],
+                "phases": [j.get("step") for j in job["journal"]],
+            }
             active = _wait_runtime_ready(c)
             assert active["chat"]["id"] == chat_model["id"], "rollback did not restore the previous model"
             assert c.get("/memory/overview").json()["facts"] >= 2  # memory untouched by the failed switch
@@ -284,7 +310,12 @@ def test_real_end_to_end(tmp_path):
             assert c.delete(f"/models/{chat_model['id']}").status_code == 409  # active model protected
 
             # ---- case 8a: stop while streaming
-            r4 = _chat(c, conv_a["id"], "Erzähle eine sehr lange Geschichte über einen Drachen, mindestens 800 Wörter.", stop_after_tokens=8)
+            r4 = _chat(
+                c,
+                conv_a["id"],
+                "Erzähle eine sehr lange Geschichte über einen Drachen, mindestens 800 Wörter.",
+                stop_after_tokens=8,
+            )
             assert r4["done"] and r4["done"]["status"] == "stopped", r4["done"]
             REPORT["cases"]["stop"] = {"status": r4["done"]["status"], "chars": len(r4["text"]), "wall_s": r4["wall_s"]}
             _wait_ingest_idle(c)
@@ -307,7 +338,12 @@ def test_real_end_to_end(tmp_path):
             convs = c.get("/conversations").json()["conversations"]
             assert [x["id"] for x in convs] == [conv_a["id"]] and convs[0]["message_count"] == 8
             msgs = c.get(f"/conversations/{conv_a['id']}").json()["messages"]
-            assert [m["status"] for m in msgs if m["role"] == "assistant"] == ["complete", "complete", "complete", "stopped"]
+            assert [m["status"] for m in msgs if m["role"] == "assistant"] == [
+                "complete",
+                "complete",
+                "complete",
+                "stopped",
+            ]
             assert c.get("/setup/status").json()["state"] == "ready"
             _wait_runtime_ready(c)
             conv_b = c.post("/conversations", json={"title": "Chat B"}).json()
@@ -316,7 +352,15 @@ def test_real_end_to_end(tmp_path):
             srcs = r5["sources"]
             REPORT["cases"]["cross_chat_recall"] = {
                 "answer": r5["text"][:400],
-                "sources": [{"kind": s["kind"], "status": s["status"], "origin": s["origin"]["title"], "excerpt": s["excerpt"][:90]} for s in srcs],
+                "sources": [
+                    {
+                        "kind": s["kind"],
+                        "status": s["status"],
+                        "origin": s["origin"]["title"],
+                        "excerpt": s["excerpt"][:90],
+                    }
+                    for s in srcs
+                ],
             }
             assert any("Priya" in s["excerpt"] and s["status"] == "current" for s in srcs), srcs
             assert any(s["origin"]["title"] == title_a for s in srcs)
@@ -327,18 +371,30 @@ def test_real_end_to_end(tmp_path):
             # ---- case 6: documents, original removed after import
             outside = tmp_path / "außerhalb" / "firmen notiz.txt"
             outside.parent.mkdir()
-            outside.write_text("Die Firma Zephyr hat ihren Hauptsitz in Lissabon. Zephyr stellt das Produkt Lumen her.", encoding="utf-8")
+            outside.write_text(
+                "Die Firma Zephyr hat ihren Hauptsitz in Lissabon. Zephyr stellt das Produkt Lumen her.",
+                encoding="utf-8",
+            )
             with open(outside, "rb") as fh:
-                doc = c.post("/documents", files={"file": (outside.name, fh, "text/plain")}, data={"conversation_id": conv_b["id"]}).json()
+                doc = c.post(
+                    "/documents",
+                    files={"file": (outside.name, fh, "text/plain")},
+                    data={"conversation_id": conv_b["id"]},
+                ).json()
             assert doc["status"] in ("indexing", "indexed"), doc
             outside.unlink()
             _wait_ingest_idle(c)
             doc = c.get(f"/documents/{doc['id']}").json()
             assert doc["status"] == "indexed", doc
             r6 = _chat(c, conv_b["id"], "Wo hat die Firma Zephyr ihren Hauptsitz?")
-            REPORT["cases"]["document_recall"] = {"answer": r6["text"][:300], "sources": [(s["kind"], s["origin"]["title"]) for s in r6["sources"]]}
+            REPORT["cases"]["document_recall"] = {
+                "answer": r6["text"][:300],
+                "sources": [(s["kind"], s["origin"]["title"]) for s in r6["sources"]],
+            }
             assert "Lissabon" in r6["text"], r6["text"]
-            assert any(s["kind"] in ("document", "fact") and "firmen notiz" in s["origin"]["title"] for s in r6["sources"]), r6["sources"]
+            assert any(
+                s["kind"] in ("document", "fact") and "firmen notiz" in s["origin"]["title"] for s in r6["sources"]
+            ), r6["sources"]
 
             # ---- case 9: traversal / security
             assert c.get("/documents/../../etc").status_code in (404, 422)

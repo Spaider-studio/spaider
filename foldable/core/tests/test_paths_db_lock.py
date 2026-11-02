@@ -92,7 +92,9 @@ def test_instance_lock_second_start_refused(paths):
 
 
 def test_instance_lock_stale_after_crash(paths):
-    paths.lock_path.write_text(json.dumps({"pid": 999999, "hostname": "other-host", "started_at": "x"}), encoding="utf-8")
+    paths.lock_path.write_text(
+        json.dumps({"pid": 999999, "hostname": "other-host", "started_at": "x"}), encoding="utf-8"
+    )
     lock = InstanceLock(paths.lock_path)
     lock.acquire()  # stale lock from another host is taken over
     assert json.loads(paths.lock_path.read_text())["pid"] == os.getpid()

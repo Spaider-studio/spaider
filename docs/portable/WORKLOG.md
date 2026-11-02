@@ -75,11 +75,31 @@ Fortlaufendes Arbeitsprotokoll. Neueste Einträge unten. Zeiten in lokaler Zeit 
 - [x] A2 Privates Repo angelegt, Actions deaktiviert, Remotes/Branches/Tag (00:45)
 - [ ] A3 Erster Push (blockiert, siehe B1)
 - [x] A4 Projektskelett, API-Vertrag, Worklog
-- [ ] B Portable Pfade, SQLite, Migrationen
-- [ ] C Reales Modell lokal + minimaler Chat
-- [ ] D Verläufe, Dateiimport, Suche, Erinnerungen
-- [ ] E Modellverwaltung + Wechsel
+- [x] B Portable Pfade, SQLite, Migrationen, Lock (01:00)
+- [x] C Reales Modell lokal + Chat-Streaming (01:10: Qwen3-0.6B Q8_0, 41 tok/s CPU, Stop, Embeddings 1024-dim)
+- [x] D Verläufe, Dateiimport (TXT/MD/PDF), FTS+Vektor-Retrieval, Erinnerungen, Supersession (01:25)
+- [x] E Modellverwaltung (Katalog, Download mit Resume+SHA-256, Import, Registry) + Aktivierung mit Rollback (01:25)
 - [ ] F Windows-Paket, Offline-/Umzugs-/Fehlertests
 - [ ] G Doku, Test-Build, Übergabe
 
-Nächster konkreter Schritt: Python-Kern Phase B (paths, db, migrations) mit Tests.
+## Verlauf
+
+- 01:25 Commit `feat(foldable): portable local SpAIder core …` auf
+  `feature/spaider-foldable-v1` (nur lokal, Push blockiert, siehe B1).
+  Unit-Tests: 33 bestanden. Erster E2E-Lauf: Chat, Gedächtnis, Vektoren ok;
+  Import-Job scheiterte an `call_soon_threadsafe(**kwargs)` (behoben).
+- 01:40 Beobachtung aus dem E2E-Lauf: 0.6B-Modell kopiert Beispieltext aus dem
+  Extraktionsprompt („Electric vehicle manufacturer“). Guard eingebaut
+  (`guard_against_prompt_leakage`): nicht durch den Eingabetext gestützte
+  Attribute werden verworfen und als „unsicher“ markiert. Supersession
+  markierte nur die Kante, nicht den FACT-Knoten (kein wörtliches Zitat);
+  Adapter-Erweiterung: FACT-Knoten mit beiden Endpunkten und ≥80 % Wortüberlappung
+  werden mitmarkiert. Unit-Tests: 35 bestanden.
+- 01:45 PyInstaller-Build (onedir, 312 MB) läuft; erster Versuch scheiterte am
+  relativen Import in `__main__` (eigener Entry `build/core_entry.py`).
+- 01:50 Desktop-Agent (Electron + React) hat Renderer, Main, Preload, Mock-Core
+  und Tests angelegt; Typecheck/Packaging laufen.
+
+Nächster konkreter Schritt: E2E-Lauf erneut (läuft), Frozen-Core-Start prüfen,
+Desktop-Paket zusammenführen (`assemble_portable.py`), Fresh-Start-/Offline-Test
+mit dem fertigen Paket.

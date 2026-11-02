@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -61,6 +62,45 @@ def attach_fact_node(payload: GraphPayload, text: str, source: Optional[str]) ->
     return fact_node
 
 
+_GUARD_WORD_RE = re.compile(r"\w+", re.UNICODE)
+
+
+def _words(text: str) -> set[str]:
+    return {w.lower() for w in _GUARD_WORD_RE.findall(text or "") if len(w) >= 3}
+
+
+def guard_against_prompt_leakage(payload: GraphPayload, text: str) -> GraphPayload:
+    """Small local models sometimes copy the few-shot example of the extraction
+    prompt ("Electric vehicle manufacturer", "founded in 2003") instead of the
+    input. A node or edge whose ``source_text`` shares fewer than half of its
+    words with the ingested text is treated as unsupported: its description and
+    source text are dropped and its confidence is lowered so retrieval shows it
+    as "unsicher". Entities and relations themselves are kept."""
+    input_words = _words(text)
+    if not input_words:
+        return payload
+    for node in payload.nodes:
+        props = node.properties or {}
+        src = props.get("source_text") or ""
+        words = _words(src)
+        if words and len(words & input_words) / len(words) < 0.5:
+            props.pop("source_text", None)
+            props.pop("description", None)
+            props["confidence"] = min(float(props.get("confidence", 1.0) or 1.0), 0.4)
+            props["unsupported_extraction"] = True
+            node.description = None
+            node.properties = props
+    for edge in payload.edges:
+        props = edge.properties or {}
+        src = props.get("source_text") or props.get("description") or ""
+        words = _words(src)
+        if words and len(words & input_words) / len(words) < 0.5:
+            props["confidence"] = min(float(props.get("confidence", 1.0) or 1.0), 0.4)
+            props["unsupported_extraction"] = True
+            edge.properties = props
+    return payload
+
+
 def utcnow() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
 
@@ -94,6 +134,7 @@ class MemoryIngestor:
             except Exception as exc:  # noqa: BLE001
                 extraction_error = f"extraction error: {exc}"
                 payload = GraphPayload()
+        payload = guard_against_prompt_leakage(payload, text)
         fact = attach_fact_node(payload, text, source or origin.kind)
         for node in payload.nodes:
             node.agent_id = AGENT_ID

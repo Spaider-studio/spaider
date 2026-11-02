@@ -140,6 +140,22 @@ class MemoryRetriever:
                 }
             )
 
+        for r in self.store.superseded_facts_for_nodes(entity_ids, limit=5):
+            if any(s["id"] == r["id"] for s in sources):
+                continue
+            history_lines.append(f"• [veraltet, ersetzt] {(r['description'] or '')[:200]}")
+            sources.append(
+                {
+                    "kind": "fact",
+                    "id": r["id"],
+                    "label": (r["label"] or "")[:120],
+                    "excerpt": (r["description"] or "")[:400],
+                    "status": "superseded",
+                    "origin": _origin(r),
+                    "superseded_by": {"id": r.get("superseded_by") or "", "excerpt": ""},
+                }
+            )
+
         # Notes and document chunks (fulltext only).
         note_lines, chunk_lines = [], []
         q = fts_query(query)

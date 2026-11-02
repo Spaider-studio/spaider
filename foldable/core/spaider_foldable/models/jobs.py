@@ -17,6 +17,7 @@ Activation procedure (spec §8), implemented in ``_run_activate``:
 from __future__ import annotations
 
 import asyncio
+import functools
 import json
 import logging
 import shutil
@@ -346,14 +347,16 @@ class JobManager:
                 return
             last["t"] = now
             loop.call_soon_threadsafe(
-                self._update,
-                jid,
-                progress={
-                    "done_bytes": p.done_bytes,
-                    "total_bytes": p.total_bytes,
-                    "speed_bps": int(p.speed_bps),
-                    "eta_seconds": int(p.eta_seconds) if p.eta_seconds is not None else None,
-                },
+                functools.partial(
+                    self._update,
+                    jid,
+                    progress={
+                        "done_bytes": p.done_bytes,
+                        "total_bytes": p.total_bytes,
+                        "speed_bps": int(p.speed_bps),
+                        "eta_seconds": int(p.eta_seconds) if p.eta_seconds is not None else None,
+                    },
+                )
             )
 
         try:
@@ -401,9 +404,11 @@ class JobManager:
 
         def on_progress(done: int, total: int) -> None:
             loop.call_soon_threadsafe(
-                self._update,
-                jid,
-                progress={"done_bytes": done, "total_bytes": total, "speed_bps": 0, "eta_seconds": None},
+                functools.partial(
+                    self._update,
+                    jid,
+                    progress={"done_bytes": done, "total_bytes": total, "speed_bps": 0, "eta_seconds": None},
+                )
             )
 
         try:

@@ -196,6 +196,11 @@ def fts_query(text: str, *, prefix: bool = True, max_terms: int = 12) -> Optiona
     return " OR ".join(parts)
 
 
+def _content_words(text: str) -> set[str]:
+    """Lower-cased words with >= 4 characters, minus stopwords (fuzzy overlap checks)."""
+    return {w.lower() for w in _WORD_RE.findall(text or "") if len(w) >= 4 and w.lower() not in _STOPWORDS}
+
+
 def _vec_to_blob(vec: list[float]) -> bytes:
     return struct.pack(f"<{len(vec)}f", *vec)
 
@@ -486,7 +491,7 @@ class LocalMemoryStore:
         marks = ",".join("?" * len(ids))
         rows = self.db.query(
             f"SELECT DISTINCT n.* FROM edges e JOIN nodes n ON n.id = e.source_id "
-            f"WHERE e.relation = 'MENTIONS' AND e.target_id IN ({marks}) AND n.type = 'FACT' "
+            f"WHERE e.relation = 'MENTIONS' AND e.target_id IN ({marks}) AND n.type = 'FACT' AND n.superseded = 0 "
             f"ORDER BY n.created_at DESC LIMIT ?",
             ids + [limit],
         )
@@ -551,8 +556,54 @@ class LocalMemoryStore:
                     "WHERE agent_id = ? AND type <> 'FACT' AND source_text IS NOT NULL AND instr(?, source_text) > 0",
                     (utcnow(), self.agent_id, t),
                 )
+            # Adapter extension: the LLM rarely quotes the stale sentence verbatim,
+            # so exact containment misses the FACT node that carried the old relation.
+            # Also mark FACT nodes that mention BOTH endpoints of a superseded edge and
+            # share most content words with the stale text. The superseding fact itself
+            # (the one that produced ``new_id``) is never marked.
+            for item in items:
+                stale_words = _content_words(item.get("text") or "")
+                if len(stale_words) < 2:
+                    continue
+                edge = conn.execute(
+                    "SELECT source_id, target_id FROM edges WHERE id = ?", (item["edge_id"],)
+                ).fetchone()
+                if edge is None:
+                    continue
+                rows = conn.execute(
+                    "SELECT f.id, f.description FROM nodes f "
+                    "JOIN edges m1 ON m1.source_id = f.id AND m1.relation = 'MENTIONS' AND m1.target_id = ? "
+                    "JOIN edges m2 ON m2.source_id = f.id AND m2.relation = 'MENTIONS' AND m2.target_id = ? "
+                    "WHERE f.type = 'FACT' AND f.superseded = 0 AND f.agent_id = ? "
+                    "AND NOT EXISTS (SELECT 1 FROM edges n WHERE n.id = ? AND n.origin_id = f.origin_id "
+                    "                AND n.created_at <= f.created_at)",
+                    (edge["source_id"], edge["target_id"], self.agent_id, new_id),
+                ).fetchall()
+                for r in rows:
+                    fact_words = _content_words(r["description"] or "")
+                    overlap = len(stale_words & fact_words) / len(stale_words)
+                    if overlap >= 0.8:
+                        conn.execute(
+                            "UPDATE nodes SET superseded = 1, superseded_by = ?, updated_at = ? "
+                            "WHERE id = ? AND superseded = 0",
+                            (new_id, utcnow(), r["id"]),
+                        )
+                        marked += 1
         self._matrix_dirty = True
         return marked
+
+    def superseded_facts_for_nodes(self, node_ids: Iterable[str], limit: int = 6) -> list[dict]:
+        ids = list(node_ids)
+        if not ids:
+            return []
+        marks = ",".join("?" * len(ids))
+        rows = self.db.query(
+            f"SELECT DISTINCT f.* FROM nodes f JOIN edges m ON m.source_id = f.id AND m.relation = 'MENTIONS' "
+            f"WHERE f.type = 'FACT' AND f.superseded = 1 AND m.target_id IN ({marks}) "
+            f"ORDER BY f.created_at DESC LIMIT ?",
+            ids + [limit],
+        )
+        return [dict(r) for r in rows]
 
     def neutralize(self, items: list[dict]) -> int:
         """Clear the stale denormalised role description on endpoint entities

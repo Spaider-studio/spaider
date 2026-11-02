@@ -57,7 +57,11 @@ def test_conversation_crud(client):
 
 def test_notes_and_memory_overview(client):
     n = client.post("/api/memory/notes", json={"text": "Ich trinke Kaffee ohne Zucker."}).json()
-    assert client.patch(f"/api/memory/notes/{n['id']}", json={"text": "Ich trinke Kaffee mit Milch."}).json()["text"].endswith("Milch.")
+    assert (
+        client.patch(f"/api/memory/notes/{n['id']}", json={"text": "Ich trinke Kaffee mit Milch."})
+        .json()["text"]
+        .endswith("Milch.")
+    )
     ov = client.get("/api/memory/overview").json()
     assert ov["notes"] == 1 and ov["index"]["fts"] is True and ov["index"]["vectors"]["enabled"] is False
     res = client.get("/api/memory/search", params={"q": "Kaffee"}).json()["results"]

@@ -22,7 +22,7 @@ trailer << /Size 6 /Root 1 0 R >>
 startxref
 0
 %%EOF
-"""
+"""  # noqa: E501
 
 SCANNED_PDF = b"""%PDF-1.4
 1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
