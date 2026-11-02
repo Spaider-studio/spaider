@@ -110,3 +110,31 @@ kann. Offene Fehler stehen am Ende.
 - Nach einem harten Absturz des Kerns (nicht der App) bleiben
   `llama-server`-Prozesse dank Job-Object nicht übrig; ein Absturz des
   Launchers selbst wurde nicht getestet.
+
+## Ergänzungen 0.2 (Stand 2026-11-02)
+
+- **GPU**: Nur Vulkan ist gebündelt; verifiziert ausschließlich auf einer
+  Intel Arc 140V. NVIDIA/AMD über Vulkan sind plausibel, aber nicht gemessen;
+  CUDA/ROCm-Varianten fehlen. Teilweises Offload (Schichtenanteil) ist
+  implementiert, aber nicht ausgeführt. Der Vulkan-Shader-Cache des Treibers
+  liegt im Hostprofil (außerhalb der App).
+- **Planer**: Es gibt weiterhin nur einen Modell-Slot. Während einer Antwort
+  wartet die Nachverarbeitung; während einer Nachverarbeitung muss eine neue
+  Antwort erst die Unterbrechung abwarten (gemessen: Sekundenbruchteile bis
+  wenige Sekunden, abhängig vom Server). Zwei Gespräche können nicht
+  gleichzeitig generieren.
+- **Extraktion auf kleinen Modellen**: Die SpAIder-Extraktion verlangt JSON;
+  0.6B–1B-Modelle liefern es oft nicht oder mit kopiertem Beispieltext. Dann
+  bleibt nur der rohe Fakt (Volltext/Vektor) ohne Entitäten und ohne
+  Ersetzungen. Ein größerer Modellwechsel repariert vorhandene falsche
+  Extraktionen nicht automatisch (keine Wiederaufarbeitung in 0.2).
+- **Empfehlungen**: Qualitätsbelege stammen aus Modellkarten; echte
+  Leistungswerte nur nach „Kurz messen“. Die Größenklasse ist ein Proxy, kein
+  Qualitätsmaß.
+- **Suche**: Hugging-Face-Suchtreffer sind ungeprüft; die Auflösung liest nur
+  den GGUF-Header. Zugangsbeschränkte Repositories werden gemeldet, nicht
+  umgangen. Ohne Netz liefert die Suche gecachte Ergebnisse oder nichts.
+- **Katalog aktualisieren** prüft nur die eingebauten Einträge gegen ihre
+  Repositories; es gibt keinen Online-Katalogdienst von SpAIder.
+- **Offline-Test** bleibt eine Simulation (Proxy-Blackhole + Verbindungs-
+  stichproben), siehe TEST_REPORT.

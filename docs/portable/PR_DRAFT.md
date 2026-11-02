@@ -54,3 +54,20 @@ keine Signatur, Qwen3.8 nur als Community-GGUF dokumentiert, nicht ausgeführt).
 - [ ] Zwei-PC-Test mit echtem USB-Datenträger (siehe TEST_REPORT.md)
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+---
+
+## Nachtrag: Update 0.2 (Performance, Live-Aktivität, offene Modelle)
+
+**Titel:** `feat(foldable): live activity, chat-first scheduling, GPU backend, multi-family model catalog`
+
+**Zusätzlich zum V1-Umfang:**
+- Aktivitätszeile mit echten Ereignissen (Vertrag `docs/portable/ACTIVITY_EVENTS.md`),
+  globaler Ereigniskanal, Timings je Nachricht.
+- Planer: Chat verdrängt Hintergrund-Gedächtnisarbeit; sofort sichtbare Rohfakten;
+  Prompt-Cache-stabile Nachrichtenfolge; Extraktionsbudget begrenzt.
+- Hardwareprofil, automatische GPU-Nutzung (Vulkan) mit CPU-Rückfall, Leistungsmodi.
+- Katalog v2 mit mehreren Familien, Suche/Auflösung über Hugging Face,
+  Empfehlungen für den jeweiligen Rechner, Kalibrierung.
+- Messwerkzeug `foldable/build/measure.py`, Berichte `PERFORMANCE_REPORT.md`,
+  `MODEL_COMPATIBILITY.md`, `MODEL_RECOMMENDATIONS.md`.

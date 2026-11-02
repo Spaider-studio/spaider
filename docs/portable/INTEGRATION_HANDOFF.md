@@ -98,3 +98,27 @@ git push -u origin feature/spaider-foldable-v1
 
 Bis dahin liegen Git-Bundles unter `C:\Users\mucbay\spaider-foldable\backup\`
 (`git bundle verify <datei>`, `git clone <datei> -b feature/spaider-foldable-v1`).
+
+---
+
+## Nachtrag 2026-11-02: Branch `feature/spaider-foldable-performance-models`
+
+- Basis: `acc3ce1` (Ende des V1-Branches `feature/spaider-foldable-v1`), damit
+  die Historie linear bleibt: `73762b3 (upstream) → V1-Commits → 0.2-Commits`.
+- Enthält ausschließlich Änderungen unter `foldable/` und `docs/portable/`
+  (plus die bereits vorhandenen 17 Zeilen in `.gitignore`). Keine Änderung an
+  `backend/`, `frontend/`, `cli/`, `sdk/`.
+- Datenbank: Migration v2 (`foldable/core/spaider_foldable/db/schema_v2.sql`:
+  Spalte `nodes.processing`, `ingest_queue.fact_id`, `messages.timings_json`,
+  Tabellen `hardware_profiles`, `model_profiles`, `catalog_entries`,
+  `catalog_cache`). Vorwärts-Migration beim Start, getestet an einer Kopie
+  des Nutzer-Datenordners (siehe TEST_REPORT, Abschnitt „Update an Bestandsdaten“).
+- Neue Laufzeit-Variante im Paket (`resources/runtime/llama-vulkan`, llama.cpp
+  b12032 Vulkan, SHA-256 `19a8bbf2…cc32`), gepinnt in `foldable/build/fetch_runtime.py`.
+- Integrationsweg unverändert (Fetch des privaten Repos, Merge/Cherry-pick,
+  PR-Entwurf in `PR_DRAFT.md`). Für den 0.2-Stand den Branch
+  `feature/spaider-foldable-performance-models` verwenden; er enthält V1.
+- Upstream-Vorschläge (nicht umgesetzt, um Fremdcode nicht zu ändern):
+  `SemanticCompressor._extract_with_retry` sollte `max_tokens`/Timeout
+  konfigurierbar machen (der Adapter kappt derzeit im Modul-Namensraum), und
+  `_attach_fact_node` sollte in ein Service-Modul wandern.
