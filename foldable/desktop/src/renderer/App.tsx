@@ -41,6 +41,26 @@ function useBackendBootstrap() {
   }, [setBackendStatus, connect, setAppInfo, refreshSetup]);
 }
 
+/** v1.2: hotkey events and requests coming from the overlay window. */
+function useShellEvents() {
+  useEffect(() => {
+    const bridge = window.spaider;
+    if (!bridge?.onHotkey) return;
+    const unsubscribes = [
+      bridge.onHotkey((e) => useAppStore.getState().applyHotkey(e)),
+      bridge.onOpenConversation((id) => {
+        const s = useAppStore.getState();
+        s.setMainView("chat");
+        void s.loadConversations().then(() => s.selectConversation(id));
+      }),
+      bridge.onOpenTaskForm((prefill) => useAppStore.getState().openTaskFormFromOverlay(prefill)),
+    ];
+    return () => {
+      for (const u of unsubscribes) u();
+    };
+  }, []);
+}
+
 /** Loads the main-screen data once the setup is ready and keeps runtime state fresh. */
 function useMainData(ready: boolean) {
   const client = useAppStore((s) => s.client);
@@ -49,6 +69,7 @@ function useMainData(ready: boolean) {
   const loadSettings = useAppStore((s) => s.loadSettings);
   const loadDocuments = useAppStore((s) => s.loadDocuments);
   const loadHardware = useAppStore((s) => s.loadHardware);
+  const loadTasks = useAppStore((s) => s.loadTasks);
   const startActivityChannel = useAppStore((s) => s.startActivityChannel);
 
   useEffect(() => {
@@ -57,7 +78,8 @@ function useMainData(ready: boolean) {
     void loadSettings();
     void loadDocuments();
     void loadHardware();
-  }, [client, ready, loadConversations, loadSettings, loadDocuments, loadHardware]);
+    void loadTasks();
+  }, [client, ready, loadConversations, loadSettings, loadDocuments, loadHardware, loadTasks]);
 
   // One global activity connection per app session (reconnects by itself).
   useEffect(() => {
@@ -104,6 +126,7 @@ function AppInner() {
   const requestQuit = useAppStore((s) => s.requestQuit);
 
   useBackendBootstrap();
+  useShellEvents();
   const ready = Boolean(client && setup?.state === "ready");
   useMainData(ready);
   useKeyboardShortcuts(ready && !quitting);

@@ -1,4 +1,4 @@
-import { Brain, ChevronLeft, ChevronRight, MessageSquarePlus, Power, Settings } from "lucide-react";
+import { BookOpen, Brain, ChevronLeft, ChevronRight, ListChecks, ListPlus, MessageSquare, MessageSquarePlus, Power, Radio, Settings } from "lucide-react";
 import { useState } from "react";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
@@ -8,6 +8,7 @@ import { RUNTIME_STATE_LABEL } from "../lib/labels";
 import { useAppStore } from "../store/useAppStore";
 import ConversationItem from "./ConversationItem";
 import Logo from "./Logo";
+import TasksSidebarList from "./tasks/TasksSidebarList";
 import { EmptyState } from "./ui";
 
 const RUNTIME_DOT = {
@@ -31,6 +32,19 @@ export default function Sidebar() {
   const requestQuit = useAppStore((s) => s.requestQuit);
   const setup = useAppStore((s) => s.setup);
   const scheduler = useAppStore((s) => s.scheduler);
+  // v1.2
+  const mainView = useAppStore((s) => s.mainView);
+  const setMainView = useAppStore((s) => s.setMainView);
+  const tasks = useAppStore((s) => s.tasks);
+  const tasksLoaded = useAppStore((s) => s.tasksLoaded);
+  const taskFeeds = useAppStore((s) => s.taskFeeds);
+  const selectedTaskId = useAppStore((s) => s.selectedTaskId);
+  const selectTask = useAppStore((s) => s.selectTask);
+  const openTaskForm = useAppStore((s) => s.openTaskForm);
+  const showRecipes = useAppStore((s) => s.showRecipes);
+  const cancelTask = useAppStore((s) => s.cancelTask);
+  const pauseTask = useAppStore((s) => s.pauseTask);
+  const resumeTask = useAppStore((s) => s.resumeTask);
 
   const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null);
   const [quitOpen, setQuitOpen] = useState(false);
@@ -41,12 +55,14 @@ export default function Sidebar() {
   const backgroundText = background
     ? `Gedächtnis wird im Hintergrund aktualisiert${background.pending > 0 ? ` · ${background.pending} ausstehend` : ""}${scheduler?.paused ? " (pausiert)" : ""}`
     : null;
+  const waiting = tasks.filter((t) => t.state === "waiting_for_user").length;
+  const tasksMode = mainView === "tasks";
 
   return (
     <aside
       className={cn(
         "relative flex flex-col h-full flex-shrink-0 bg-bg-secondary/80 border-r border-border transition-[width] duration-200",
-        collapsed ? "w-16" : "w-[260px]",
+        collapsed ? "w-16" : "w-[280px]",
       )}
       aria-label="Seitenleiste"
     >
@@ -60,23 +76,112 @@ export default function Sidebar() {
         )}
       </div>
 
-      <div className={cn("px-3 pt-3", collapsed && "px-2")}>
-        <button
-          type="button"
-          onClick={() => void newConversation()}
-          title="Neues Gespräch (Strg+N)"
-          className={cn(
-            "w-full flex items-center justify-center gap-2 rounded-lg border border-border bg-bg-tertiary hover:bg-[#22222e] hover:border-[#3A3A45] text-sm font-medium transition-colors",
-            collapsed ? "p-2.5" : "px-3 py-2",
-          )}
-        >
-          <MessageSquarePlus className="w-4 h-4 text-accent-blue flex-shrink-0" />
-          {!collapsed && <span>Neues Gespräch</span>}
-        </button>
+      {/* Section switch: Gespräche | Aufgaben */}
+      <div className={cn("px-3 pt-3", collapsed && "px-2")} role="tablist" aria-label="Bereich">
+        <div className={cn("flex rounded-lg border border-border bg-bg-primary/40 p-0.5", collapsed && "flex-col")}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={!tasksMode}
+            onClick={() => setMainView("chat")}
+            title="Gespräche"
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+              !tasksMode ? "bg-white/10 text-text-primary" : "text-text-secondary hover:text-text-primary",
+            )}
+            data-testid="section-chats"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            {!collapsed && "Gespräche"}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tasksMode}
+            onClick={() => setMainView("tasks")}
+            title="Aufgaben"
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+              tasksMode ? "bg-white/10 text-text-primary" : "text-text-secondary hover:text-text-primary",
+            )}
+            data-testid="section-tasks"
+          >
+            <ListChecks className="w-3.5 h-3.5" />
+            {!collapsed && "Aufgaben"}
+            {waiting > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[16px] h-4 rounded-full bg-violet-500/30 text-violet-200 text-[10px] px-1" title={`${waiting} Rückfrage(n)`} data-testid="tasks-waiting-badge">
+                {waiting}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
-      <nav className={cn("flex-1 overflow-y-auto px-2 py-3 flex flex-col gap-0.5", collapsed && "hidden")} aria-label="Gespräche">
-        {!conversationsLoaded ? (
+      <div className={cn("px-3 pt-3", collapsed && "px-2")}>
+        {tasksMode ? (
+          <div className={cn("flex gap-1.5", collapsed && "flex-col")}>
+            <button
+              type="button"
+              onClick={() => openTaskForm()}
+              title="Neue Aufgabe"
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 rounded-lg border border-border bg-bg-tertiary hover:bg-[#22222e] hover:border-[#3A3A45] text-sm font-medium transition-colors",
+                collapsed ? "p-2.5" : "px-3 py-2",
+              )}
+              data-testid="sidebar-new-task"
+            >
+              <ListPlus className="w-4 h-4 text-accent-blue flex-shrink-0" />
+              {!collapsed && <span>Neue Aufgabe</span>}
+            </button>
+            <button
+              type="button"
+              onClick={showRecipes}
+              title="Abläufe"
+              className={cn(
+                "flex items-center justify-center gap-2 rounded-lg border border-border bg-bg-tertiary hover:bg-[#22222e] hover:border-[#3A3A45] text-sm transition-colors",
+                collapsed ? "p-2.5" : "px-3 py-2",
+              )}
+              data-testid="sidebar-recipes"
+            >
+              <BookOpen className="w-4 h-4 text-accent-purple flex-shrink-0" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => void newConversation()}
+            title="Neues Gespräch (Strg+N)"
+            className={cn(
+              "w-full flex items-center justify-center gap-2 rounded-lg border border-border bg-bg-tertiary hover:bg-[#22222e] hover:border-[#3A3A45] text-sm font-medium transition-colors",
+              collapsed ? "p-2.5" : "px-3 py-2",
+            )}
+          >
+            <MessageSquarePlus className="w-4 h-4 text-accent-blue flex-shrink-0" />
+            {!collapsed && <span>Neues Gespräch</span>}
+          </button>
+        )}
+      </div>
+
+      <nav className={cn("flex-1 overflow-y-auto px-2 py-3 flex flex-col gap-0.5", collapsed && "hidden")} aria-label={tasksMode ? "Aufgaben" : "Gespräche"}>
+        {tasksMode ? (
+          !tasksLoaded ? (
+            <div className="flex justify-center py-6">
+              <LoadingSpinner size="sm" />
+            </div>
+          ) : tasks.length === 0 ? (
+            <EmptyState title="Noch keine Aufgaben" description="Mit „Neue Aufgabe“ ein Ziel beschreiben und die erlaubten Zugriffe festlegen." className="py-8" />
+          ) : (
+            <TasksSidebarList
+              tasks={tasks}
+              feeds={taskFeeds}
+              selectedId={selectedTaskId}
+              onSelect={(id) => void selectTask(id)}
+              onCancel={(id) => void cancelTask(id)}
+              onPause={(id) => void pauseTask(id)}
+              onResume={(id) => void resumeTask(id)}
+            />
+          )
+        ) : !conversationsLoaded ? (
           <div className="flex justify-center py-6">
             <LoadingSpinner size="sm" />
           </div>
@@ -122,6 +227,19 @@ export default function Sidebar() {
             {!collapsed && <span className="truncate">{backgroundText}</span>}
           </div>
         )}
+        <button
+          type="button"
+          onClick={() => void window.spaider.overlay.toggle()}
+          title="Live-Fenster (Hotkey: siehe Einstellungen → Live & Agent)"
+          className={cn(
+            "flex items-center gap-2 rounded-lg text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors",
+            collapsed ? "p-2.5 justify-center" : "px-3 py-2",
+          )}
+          data-testid="sidebar-overlay"
+        >
+          <Radio className="w-4 h-4 flex-shrink-0" />
+          {!collapsed && <span>Live-Fenster</span>}
+        </button>
         <button
           type="button"
           onClick={() => openSettings()}

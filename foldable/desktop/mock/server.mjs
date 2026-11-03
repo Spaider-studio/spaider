@@ -24,6 +24,7 @@
  */
 import http from "node:http";
 import { randomUUID } from "node:crypto";
+import { registerLiveAgent } from "./live-agent.mjs";
 
 const args = process.argv.slice(2);
 const argValue = (name, fallback) => {
@@ -56,6 +57,14 @@ const state = {
     system_prompt_extra: "",
     performance_mode: "auto",
     gpu_mode: "auto",
+    // v1.2 (the defaults can be overridden for test machines where a
+    // combination is already taken: --hotkey-overlay "Ctrl+Alt+F9")
+    hotkey_overlay: argValue("hotkey-overlay", "Ctrl+Alt+Space"),
+    hotkey_stop: argValue("hotkey-stop", "Ctrl+Alt+Backspace"),
+    tray_mode: false,
+    live_preview: true,
+    agent_max_steps: 20,
+    agent_max_seconds: 600,
   },
   installed: new Map(),
   activeChat: null,
@@ -687,7 +696,12 @@ const LONG_ANSWER = Array.from({ length: 12 }, (_, i) => `Absatz ${i + 1}: ${MOC
 const MOCK_THINKING =
   "Der Nutzer fragt nach dem Projekt. Ich sollte zuerst die gespeicherten Fakten durchgehen: Das Projekt läuft von einem USB-SSD, die Kontextlänge wurde auf 8192 erhöht. Die Antwort sollte kurz und sachlich auf Deutsch sein, mit einer Liste und einem kleinen Codebeispiel zur Darstellung. ";
 
-function startGeneration(conversationId, content, res) {
+/**
+ * Streams one answer. `live` (v1.2) = { session, snapshot, useImage }: adds the
+ * phases capture / observe / image_encode and the `observation` event before
+ * the regular timeline.
+ */
+function startGeneration(conversationId, content, res, live = null) {
   const conv = state.conversations.get(conversationId);
   const list = state.messages.get(conversationId);
   const model = state.installed.get(state.activeChat);
@@ -797,19 +811,54 @@ function startGeneration(conversationId, content, res) {
     tick();
   };
 
+  // v1.2 live phases before the regular timeline (only for /live/sessions/{id}/ask).
+  let base = 0;
+  if (live) {
+    const snap = live.snapshot;
+    base = live.useImage ? 420 : 260;
+    setTimeout(() => act("capture", "started", "Quelle wird aufgenommen"), 10);
+    setTimeout(() => {
+      if (gen.stopped) return finish("stopped");
+      act("capture", "done", snap.quality === "ok" ? "Quelle aufgenommen" : `Quelle aufgenommen (${snap.quality})`, { counters: { width: snap.target.rect.w, height: snap.target.rect.h } });
+      act("observe", "started", "Struktur wird gelesen");
+    }, 70);
+    setTimeout(() => {
+      if (gen.stopped) return finish("stopped");
+      act("observe", "done", `${snap.elements_total} Elemente, ${snap.text_chars} Zeichen gelesen`, { counters: { elements: snap.elements_total, text_chars: snap.text_chars } });
+      if (live.useImage) {
+        act("image_encode", "started", "Bild wird vorbereitet", { counters: { image_total: 100, image_done: 0 } });
+        setTimeout(() => act("image_encode", "progress", "Bild wird vorbereitet", { counters: { image_total: 100, image_done: 55 } }), 80);
+        setTimeout(() => act("image_encode", "done", "Bild vorbereitet", { counters: { image_total: 100, image_done: 100 } }), 150);
+      }
+    }, 190);
+    setTimeout(() => {
+      if (gen.closed) return;
+      sseSend(res, "observation", {
+        snapshot_id: snap.snapshot_id,
+        source_kind: snap.source_kind,
+        quality: snap.quality,
+        used_image: Boolean(live.useImage),
+        used_structure: snap.elements_total > 0,
+        elements: snap.elements_total,
+        text_chars: snap.text_chars,
+        age_ms: Date.now() - started,
+      });
+    }, base - 10);
+  }
+
   // Phase timeline (measured against the wall clock of this mock, nothing invented beyond that).
   setTimeout(() => {
     act("memory_search", "started", "Gespeicherte Informationen werden gesucht");
     if (!gen.closed) sseSend(res, "status", { phase: "retrieving", message_de: "Gedächtnis wird durchsucht …" });
-  }, 20);
+  }, base + 20);
   setTimeout(() => {
     if (gen.stopped) return finish("stopped");
     assistant.sources = facts.slice(0, 3);
     if (!gen.closed) sseSend(res, "sources", { sources: assistant.sources });
-    timings.memory_search_ms = Date.now() - started - 20;
+    timings.memory_search_ms = Date.now() - started - base - 20;
     act("memory_search", "done", `${assistant.sources.length} passende Quellen gefunden`, { counters: { sources: assistant.sources.length }, source_ids: assistant.sources.map((s) => s.id) });
     act("prompt_build", "started", "Kontext wird vorbereitet");
-  }, 180);
+  }, base + 180);
   setTimeout(() => {
     if (gen.stopped) return finish("stopped");
     act("prompt_build", "done", "Kontext vorbereitet", { counters: { prompt_total: 412, prompt_cached: 64 } });
@@ -828,7 +877,7 @@ function startGeneration(conversationId, content, res) {
       setTimeout(pp, 110);
     };
     setTimeout(pp, 110);
-  }, 260);
+  }, base + 260);
 }
 
 // ---------------------------------------------------------------------------
@@ -889,7 +938,7 @@ const routes = [];
 const route = (method, pattern, handler) => routes.push({ method, pattern, handler });
 
 // health / setup / system
-route("GET", /^\/api\/health$/, (ctx) => json(ctx.res, 200, { status: "ok", version: "0.2.0-mock", app_root: "D:\\SpAIder", data_dir: "D:\\SpAIder\\data" }));
+route("GET", /^\/api\/health$/, (ctx) => json(ctx.res, 200, { status: "ok", version: "0.3.0-mock", app_root: "D:\\SpAIder", data_dir: "D:\\SpAIder\\data" }));
 route("GET", /^\/api\/setup\/status$/, (ctx) =>
   json(ctx.res, 200, {
     state: state.activeChat ? "ready" : "needs_model",
@@ -955,6 +1004,15 @@ route("PATCH", /^\/api\/settings$/, (ctx) => {
   if (patch.temperature !== undefined && (patch.temperature < 0 || patch.temperature > 2)) return error(ctx.res, 422, "Temperatur muss zwischen 0 und 2 liegen.", "invalid_setting");
   if (patch.performance_mode !== undefined && !["auto", "quiet", "fast"].includes(patch.performance_mode)) return error(ctx.res, 422, "Ungültiger Leistungsmodus.", "invalid_setting");
   if (patch.gpu_mode !== undefined && !["auto", "off"].includes(patch.gpu_mode)) return error(ctx.res, 422, "Ungültiger GPU-Modus.", "invalid_setting");
+  // v1.2
+  for (const key of ["hotkey_overlay", "hotkey_stop"]) {
+    if (patch[key] !== undefined && (typeof patch[key] !== "string" || !patch[key].trim() || patch[key].length > 64)) return error(ctx.res, 422, "Ungültige Tastenkombination.", "invalid_setting");
+  }
+  for (const key of ["tray_mode", "live_preview"]) {
+    if (patch[key] !== undefined && typeof patch[key] !== "boolean") return error(ctx.res, 422, `Ungültiger Wert für ${key}.`, "invalid_setting");
+  }
+  if (patch.agent_max_steps !== undefined && (!Number.isInteger(patch.agent_max_steps) || patch.agent_max_steps < 1 || patch.agent_max_steps > 500)) return error(ctx.res, 422, "Schritte: 1 bis 500.", "invalid_setting");
+  if (patch.agent_max_seconds !== undefined && (!Number.isInteger(patch.agent_max_seconds) || patch.agent_max_seconds < 10 || patch.agent_max_seconds > 86400)) return error(ctx.res, 422, "Zeitlimit: 10 bis 86400 Sekunden.", "invalid_setting");
   Object.assign(state.settings, patch);
   json(ctx.res, 200, state.settings);
 });
@@ -1348,6 +1406,15 @@ route("DELETE", /^\/api\/memory\/notes\/([^/]+)$/, (ctx) => {
   json(ctx.res, 200, { ok: true });
 });
 route("GET", /^\/api\/memory\/facts$/, (ctx) => json(ctx.res, 200, { facts, total: facts.length }));
+
+// v1.2: live sources / sessions, agent tasks, recipes, global stop
+function createConversation(title) {
+  const conv = { id: randomUUID(), title, created_at: now(), updated_at: now(), message_count: 0, last_model_id: null };
+  state.conversations.set(conv.id, conv);
+  state.messages.set(conv.id, []);
+  return conv;
+}
+registerLiveAgent({ route, json, error, sseStart, sseSend, state, broadcast, now, startGeneration, createConversation, createJob, updateJob, timers, args });
 
 const server = http.createServer(async (req, res) => {
   cors(req, res);

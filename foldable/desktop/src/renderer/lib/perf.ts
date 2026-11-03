@@ -1,15 +1,23 @@
 /**
- * Development-only frame-gap measurement (`window.__spaiderPerf`).
+ * Development-only measurement helper (`window.__spaiderPerf`).
  *
  * Installed when the renderer runs under `vite dev` or the page is loaded
- * with `?perf=1` (verification harness). The store starts a measurement at
- * the beginning of every chat stream and stops it when the stream ends; the
- * result (max gap between two animation frames, frame count, duration) is
- * available as `window.__spaiderPerf.last` and via `report()`.
+ * with `?perf=1` (verification harness). The chat store starts a frame-gap
+ * measurement at the beginning of every stream and stops it when the stream
+ * ends; the result (max gap between two animation frames, frame count,
+ * duration) is available as `window.__spaiderPerf.last` and via `report()`.
  *
- * A frame gap well above 16–33 ms means the main thread was blocked (e.g. a
- * Markdown re-render per token). Nothing here affects the production UI.
+ * v1.2 additions:
+ * - `samples` / `addSample()`: renderer-side latencies measured in the overlay
+ *   (keystroke -> DOM update of the input, Stopp click -> status text change);
+ * - `mainSamples()`: the main-process samples (hotkey -> overlay shown /
+ *   painted) through the bridge; `all()` returns both.
+ *
+ * Every number is a real performance.now() difference. Nothing here affects
+ * the production UI.
  */
+import type { PerfSample } from "../../shared-types/bridge";
+
 export interface PerfReport {
   label: string;
   startedAt: number;
@@ -20,12 +28,24 @@ export interface PerfReport {
   gapsOver50ms: number;
 }
 
+export interface RendererSample {
+  name: string;
+  ms: number;
+  at: number;
+}
+
 export interface SpaiderPerf {
   start(label?: string): void;
   stop(): PerfReport | null;
   report(): PerfReport | null;
   last: PerfReport | null;
   readonly running: boolean;
+  /** Renderer-side latency samples (last 50). */
+  samples: RendererSample[];
+  addSample(name: string, ms: number): void;
+  /** Main-process samples (overlay hotkey -> show / painted). */
+  mainSamples(): Promise<PerfSample[]>;
+  all(): Promise<{ renderer: RendererSample[]; main: PerfSample[] }>;
 }
 
 declare global {
@@ -33,6 +53,8 @@ declare global {
     __spaiderPerf?: SpaiderPerf;
   }
 }
+
+const MAX_RENDERER_SAMPLES = 50;
 
 function createPerf(): SpaiderPerf {
   let raf: number | null = null;
@@ -68,6 +90,7 @@ function createPerf(): SpaiderPerf {
 
   const perf: SpaiderPerf = {
     last: null,
+    samples: [],
     get running() {
       return raf !== null;
     },
@@ -91,6 +114,20 @@ function createPerf(): SpaiderPerf {
     },
     report() {
       return raf !== null ? snapshot() : perf.last;
+    },
+    addSample(name, ms) {
+      perf.samples.push({ name, ms: Math.round(ms * 100) / 100, at: Date.now() });
+      while (perf.samples.length > MAX_RENDERER_SAMPLES) perf.samples.shift();
+    },
+    async mainSamples() {
+      try {
+        return (await window.spaider?.getPerfSamples?.()) ?? [];
+      } catch {
+        return [];
+      }
+    },
+    async all() {
+      return { renderer: perf.samples.slice(), main: await perf.mainSamples() };
     },
   };
   return perf;

@@ -1,10 +1,11 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { Brain, Cpu, FileText, HardDrive, Info, SlidersHorizontal, X } from "lucide-react";
+import { Brain, Cpu, FileText, HardDrive, Info, Radio, SlidersHorizontal, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useAppStore, type SettingsTab } from "../../store/useAppStore";
 import DocumentsTab from "./DocumentsTab";
 import InfoTab from "./InfoTab";
+import LiveAgentTab from "./LiveAgentTab";
 import MemoryTab from "./MemoryTab";
 import ModelsTab from "./ModelsTab";
 import PreferencesTab from "./PreferencesTab";
@@ -16,6 +17,7 @@ const TABS: { id: SettingsTab; label: string; icon: ReactNode }[] = [
   { id: "memory", label: "Erinnerungen", icon: <Brain className="w-4 h-4" /> },
   { id: "documents", label: "Dokumente", icon: <FileText className="w-4 h-4" /> },
   { id: "preferences", label: "Einstellungen", icon: <SlidersHorizontal className="w-4 h-4" /> },
+  { id: "live", label: "Live & Agent", icon: <Radio className="w-4 h-4" /> },
   { id: "info", label: "Info", icon: <Info className="w-4 h-4" /> },
 ];
 
@@ -70,6 +72,7 @@ export default function SettingsDialog() {
               {tab === "memory" && <MemoryTab />}
               {tab === "documents" && <DocumentsTab />}
               {tab === "preferences" && <PreferencesTab />}
+              {tab === "live" && <LiveAgentTab />}
               {tab === "info" && <InfoTab />}
             </div>
           </div>

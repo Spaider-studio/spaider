@@ -431,3 +431,19 @@
   accent-color: var(--accent-blue);
   width: 100%;
 }
+
+/* ---- live overlay window (v1.2) ---- */
+/* Frameless window: the header / footer act as drag handles, controls do not. */
+.overlay-drag {
+  -webkit-app-region: drag;
+  user-select: none;
+}
+.overlay-no-drag,
+.overlay-drag button,
+.overlay-drag input,
+.overlay-drag textarea {
+  -webkit-app-region: no-drag;
+}
+html[data-window="overlay"] body {
+  background: var(--bg-secondary);
+}

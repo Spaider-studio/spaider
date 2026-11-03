@@ -3,9 +3,27 @@
  * request and maps every failure to an ApiError { detail, code, status }.
  */
 import type {
+  Action,
   ActiveModels,
   ActivityEvent,
+  AgentCapabilities,
+  AgentStopResult,
+  AnswerRequest,
+  BrowserInstallResponse,
+  BrowserStatus,
   CatalogRefreshResult,
+  CreateTaskRequest,
+  ForegroundResponse,
+  LiveAskRequest,
+  LiveSession,
+  LiveSources,
+  Recipe,
+  RecipeParameter,
+  Snapshot,
+  SnapshotRequest,
+  StopEvent,
+  Task,
+  TaskStreamEvent,
   CatalogResponse,
   Conversation,
   Document,
@@ -266,16 +284,25 @@ export class ApiClient {
       onActivity?: (ev: ActivityEvent) => void;
       onScheduler?: (ev: SchedulerEvent) => void;
       onRuntime?: (ev: RuntimeEvent) => void;
+      /** v1.2 */
+      onLive?: (session: LiveSession) => void;
+      /** v1.2 */
+      onTask?: (task: Task) => void;
+      /** v1.2 */
+      onStop?: (ev: StopEvent) => void;
       onOpen?: () => void;
     },
     signal?: AbortSignal,
   ) =>
-    this.subscribe<ActivityEvent | SchedulerEvent | RuntimeEvent>(
+    this.subscribe<ActivityEvent | SchedulerEvent | RuntimeEvent | LiveSession | Task | StopEvent>(
       "/api/activity",
       (event, data) => {
         if (event === "activity") handlers.onActivity?.(data as ActivityEvent);
         else if (event === "scheduler") handlers.onScheduler?.(data as SchedulerEvent);
         else if (event === "runtime") handlers.onRuntime?.(data as RuntimeEvent);
+        else if (event === "live") handlers.onLive?.(data as LiveSession);
+        else if (event === "task") handlers.onTask?.(data as Task);
+        else if (event === "stop") handlers.onStop?.(data as StopEvent);
       },
       signal,
       handlers.onOpen,
@@ -312,4 +339,58 @@ export class ApiClient {
 
   // ----- system --------------------------------------------------------------------------
   shutdown = () => this.request<{ ok: boolean }>("POST", "/api/system/shutdown");
+
+  // ----- v1.2: live sources and sessions ------------------------------------------------
+  liveSources = () => this.request<LiveSources>("GET", "/api/live/sources");
+  liveForeground = () => this.request<ForegroundResponse>("POST", "/api/live/foreground");
+  liveSessions = async () => (await this.request<{ sessions: LiveSession[] }>("GET", "/api/live/sessions")).sessions;
+  createLiveSession = async (sourceId: string, conversationId: string | null = null) =>
+    (await this.request<{ session: LiveSession }>("POST", "/api/live/sessions", { json: { source_id: sourceId, conversation_id: conversationId } }))
+      .session;
+  getLiveSession = async (id: string) =>
+    (await this.request<{ session: LiveSession }>("GET", `/api/live/sessions/${encodeURIComponent(id)}`)).session;
+  /** Deliberate source switch (never silent). */
+  switchLiveSource = async (id: string, sourceId: string) =>
+    (await this.request<{ session: LiveSession }>("PATCH", `/api/live/sessions/${encodeURIComponent(id)}`, { json: { source_id: sourceId } })).session;
+  endLiveSession = (id: string) => this.request<{ ok: boolean }>("DELETE", `/api/live/sessions/${encodeURIComponent(id)}`);
+  liveSnapshot = async (id: string, req: SnapshotRequest) =>
+    (await this.request<{ snapshot: Snapshot }>("POST", `/api/live/sessions/${encodeURIComponent(id)}/snapshot`, { json: req })).snapshot;
+  /** Starts a live question; the returned response is an SSE stream (same events as chat + `observation`). */
+  liveAsk = (id: string, req: LiveAskRequest, signal?: AbortSignal) =>
+    this.raw("POST", `/api/live/sessions/${encodeURIComponent(id)}/ask`, { json: req, signal, accept: "text/event-stream" });
+  liveStop = (id: string) =>
+    this.request<{ ok: boolean; stopped: boolean }>("POST", `/api/live/sessions/${encodeURIComponent(id)}/stop`);
+
+  // ----- v1.2: agent ---------------------------------------------------------------------------
+  agentCapabilities = () => this.request<AgentCapabilities>("GET", "/api/agent/capabilities");
+  tasks = async () => (await this.request<{ tasks: Task[] }>("GET", "/api/agent/tasks")).tasks;
+  createTask = async (req: CreateTaskRequest) => (await this.request<{ task: Task }>("POST", "/api/agent/tasks", { json: req })).task;
+  getTask = (id: string) => this.request<{ task: Task; actions: Action[] }>("GET", `/api/agent/tasks/${encodeURIComponent(id)}`);
+  taskEvents = (id: string, onEvent: (ev: TaskStreamEvent) => void, signal?: AbortSignal) =>
+    this.subscribe<TaskStreamEvent["data"]>(
+      `/api/agent/tasks/${encodeURIComponent(id)}/events`,
+      (event, data) => {
+        if (["task", "action", "activity", "token", "question", "done"].includes(event)) {
+          onEvent({ type: event, data } as TaskStreamEvent);
+        }
+      },
+      signal,
+    );
+  cancelTask = async (id: string) => (await this.request<{ task: Task }>("POST", `/api/agent/tasks/${encodeURIComponent(id)}/cancel`)).task;
+  pauseTask = async (id: string) => (await this.request<{ task: Task }>("POST", `/api/agent/tasks/${encodeURIComponent(id)}/pause`)).task;
+  resumeTask = async (id: string) => (await this.request<{ task: Task }>("POST", `/api/agent/tasks/${encodeURIComponent(id)}/resume`)).task;
+  answerTask = async (id: string, answer: AnswerRequest) =>
+    (await this.request<{ task: Task }>("POST", `/api/agent/tasks/${encodeURIComponent(id)}/answer`, { json: answer })).task;
+  saveRecipe = async (taskId: string, name: string, parameters: RecipeParameter[]) =>
+    (await this.request<{ recipe: Recipe }>("POST", `/api/agent/tasks/${encodeURIComponent(taskId)}/save-recipe`, { json: { name, parameters } }))
+      .recipe;
+  recipes = async () => (await this.request<{ recipes: Recipe[] }>("GET", "/api/agent/recipes")).recipes;
+  recipe = async (id: string) => (await this.request<{ recipe: Recipe }>("GET", `/api/agent/recipes/${encodeURIComponent(id)}`)).recipe;
+  deleteRecipe = (id: string) => this.request<{ ok: boolean }>("DELETE", `/api/agent/recipes/${encodeURIComponent(id)}`);
+  /** Global stop (hotkey): locks immediately, does not wait for the model. */
+  agentStop = () => this.request<AgentStopResult>("POST", "/api/agent/stop");
+  /** On-demand browser package for tasks (status). */
+  agentBrowser = () => this.request<BrowserStatus>("GET", "/api/agent/browser");
+  /** Starts the browser download (job kind `browser`, followed like a model download). */
+  installBrowser = () => this.request<BrowserInstallResponse>("POST", "/api/agent/browser/install");
 }

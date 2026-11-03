@@ -36,6 +36,7 @@ export const JOB_KIND_LABEL: Record<JobKind, string> = {
   activate: "Aktivierung",
   delete: "Löschen",
   calibrate: "Messung",
+  browser: "Browser-Paket",
 };
 
 export const JOB_STATE_LABEL: Record<JobState, string> = {

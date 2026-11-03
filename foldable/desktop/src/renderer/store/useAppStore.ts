@@ -9,28 +9,55 @@
  * sends generating progress at most every 250 ms).
  */
 import { create } from "zustand";
-import type { AppInfo, BackendInfo, BackendStatus } from "../../shared-types/bridge";
+import { DEFAULT_HOTKEYS, type AppInfo, type BackendInfo, type BackendStatus, type HotkeyEvent, type TaskFormPrefill } from "../../shared-types/bridge";
 import { ApiClient, errorMessage, isApiError } from "../api/client";
 import { parseJsonData, readSseStream } from "../api/sse";
+import {
+  isTerminalJob,
+  type Action,
+  type ActivityEvent,
+  type AgentCapabilities,
+  type AnswerRequest,
+  type BrowserStatus,
+  type ChatEvent,
+  type Job,
+} from "../api/types";
 import type {
-  ActivityEvent,
-  ChatEvent,
   Conversation,
   Document,
   HardwareProfile,
+  LiveSession,
   Message,
+  Recipe,
+  RecipeParameter,
   RuntimeEvent,
   RuntimeState,
   SchedulerEvent,
   Settings,
   SetupStatus,
+  StopEvent,
+  Task,
 } from "../api/types";
 import { startActivityChannel, type ChannelState } from "../lib/activityChannel";
 import { createTokenBatcher } from "../lib/batch";
+import { followJob } from "../lib/jobs";
 import { CHAT_ERROR_LABEL, documentWarningText } from "../lib/labels";
 import { notify } from "../lib/notify";
 import { getPerf } from "../lib/perf";
 import { createTrack, reduceActivity, type ActivityTrack } from "./activity";
+import {
+  applyTaskStreamEvent,
+  draftFromScopes,
+  draftToRequest,
+  emptyDraft,
+  emptyFeed,
+  isTerminalTaskState,
+  sortTasksNewestFirst,
+  upsertTask,
+  validateDraft,
+  type TaskDraft,
+  type TaskFeed,
+} from "./tasks";
 import {
   adjustPostprocessing,
   applyChatEvent,
@@ -42,7 +69,9 @@ import {
   upsertConversation,
 } from "./reducers";
 
-export type SettingsTab = "models" | "storage" | "memory" | "documents" | "preferences" | "info";
+export type SettingsTab = "models" | "storage" | "memory" | "documents" | "preferences" | "live" | "info";
+export type MainView = "chat" | "tasks";
+export type TasksView = "create" | "detail" | "recipes";
 
 export interface StreamingState {
   conversationId: string;
@@ -87,6 +116,61 @@ export interface AppState {
   settingsOpen: boolean;
   settingsTab: SettingsTab;
   quitting: boolean;
+
+  // ----- v1.2: tasks, recipes, live sessions -----------------------------------
+  tasks: Task[];
+  tasksLoaded: boolean;
+  /** Action timeline / notes / question per task id (from the task event stream). */
+  taskFeeds: Record<string, TaskFeed>;
+  recipes: Recipe[];
+  recipesLoaded: boolean;
+  agentCapabilities: AgentCapabilities | null;
+  liveSessions: LiveSession[];
+  mainView: MainView;
+  tasksView: TasksView;
+  selectedTaskId: string | null;
+  taskDraft: TaskDraft;
+  taskSubmitting: boolean;
+  /** Last global stop (hotkey / api), shown briefly in the UI. */
+  lastStop: StopEvent | null;
+  /** On-demand browser package for tasks (GET /api/agent/browser). */
+  browserStatus: BrowserStatus | null;
+  /** Running / last browser download job (kind `browser`). */
+  browserJob: Job | null;
+
+  loadBrowserStatus(): Promise<void>;
+  installBrowser(): Promise<void>;
+  cancelBrowserJob(): Promise<void>;
+
+  setMainView(view: MainView): void;
+  loadTasks(): Promise<void>;
+  loadRecipes(): Promise<void>;
+  loadAgentCapabilities(): Promise<void>;
+  loadLiveSessions(): Promise<void>;
+  selectTask(id: string | null): Promise<void>;
+  /** Opens the create form, optionally prefilled (recipe / overlay). */
+  openTaskForm(prefill?: Partial<TaskDraft>): void;
+  openTaskFormFromOverlay(prefill: TaskFormPrefill): void;
+  showRecipes(): void;
+  setTaskDraft(patch: Partial<TaskDraft>): void;
+  resetTaskDraft(): void;
+  submitTask(): Promise<Task | null>;
+  cancelTask(id: string): Promise<void>;
+  pauseTask(id: string): Promise<void>;
+  resumeTask(id: string): Promise<void>;
+  answerTask(id: string, answer: AnswerRequest): Promise<void>;
+  saveRecipe(taskId: string, name: string, parameters: RecipeParameter[]): Promise<Recipe | null>;
+  deleteRecipe(id: string): Promise<void>;
+  startWithRecipe(recipe: Recipe): void;
+  /** Subscribes to GET /api/agent/tasks/{id}/events until the task is terminal. */
+  followTask(id: string): void;
+  applyGlobalTask(task: Task): void;
+  applyGlobalLive(session: LiveSession): void;
+  applyGlobalStop(ev: StopEvent): void;
+  /** Hotkey events from the main process (stop: mark streaming as stopping). */
+  applyHotkey(ev: HotkeyEvent): void;
+  /** Re-registers the global hotkeys from the current settings (after a change). */
+  syncHotkeys(): Promise<void>;
 
   setBackendStatus(s: BackendStatus): void;
   connect(info: BackendInfo): ApiClient;
@@ -135,8 +219,29 @@ function pruneTracks(tracks: Record<string, ActivityTrack>): Record<string, Acti
   return next;
 }
 
+/** Actions from GET /tasks/{id} merged with those already received through events. */
+function mergeActions(current: Action[], loaded: Action[]): Action[] {
+  const byId = new Map<string, Action>();
+  for (const a of loaded) byId.set(a.action_id, a);
+  for (const a of current) if (!byId.has(a.action_id)) byId.set(a.action_id, a);
+  return [...byId.values()].sort((a, b) => a.seq - b.seq);
+}
+
 let channelStop: (() => void) | null = null;
 let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+/** Open task event streams by task id. */
+const taskFollowers = new Map<string, AbortController>();
+const TASK_FOLLOW_RETRY_MS = 1000;
+const TASK_FOLLOW_MAX_RETRIES = 30;
+
+/** Tells the main process which conversations are streaming (for the stop hotkey). */
+function reportActive(streaming: StreamingState | null): void {
+  try {
+    window.spaider?.reportActiveConversations(streaming ? [streaming.conversationId] : []);
+  } catch {
+    /* no bridge (tests) */
+  }
+}
 
 export const useAppStore = create<AppState>()((set, get) => ({
   backend: { state: "starting", message: "SpAIder startet …" },
@@ -167,6 +272,362 @@ export const useAppStore = create<AppState>()((set, get) => ({
   settingsOpen: false,
   settingsTab: "models",
   quitting: false,
+
+  tasks: [],
+  tasksLoaded: false,
+  taskFeeds: {},
+  recipes: [],
+  recipesLoaded: false,
+  agentCapabilities: null,
+  liveSessions: [],
+  mainView: "chat",
+  tasksView: "create",
+  selectedTaskId: null,
+  taskDraft: emptyDraft(),
+  taskSubmitting: false,
+  lastStop: null,
+  browserStatus: null,
+  browserJob: null,
+
+  // ----- v1.2: browser package -------------------------------------------------
+  async loadBrowserStatus() {
+    const { client } = get();
+    if (!client) return;
+    try {
+      set({ browserStatus: await client.agentBrowser() });
+    } catch {
+      // Core without the browser endpoint: the toggle stays available, no hint.
+      set({ browserStatus: null });
+    }
+  },
+  async installBrowser() {
+    const { client, browserJob } = get();
+    if (!client) return;
+    if (browserJob && !isTerminalJob(browserJob)) return;
+    try {
+      const res = await client.installBrowser();
+      if (!res.job) {
+        notify("Der Browser ist bereits installiert.", "info");
+        await get().loadBrowserStatus();
+        return;
+      }
+      set({ browserJob: res.job });
+      const final = await followJob(client, res.job.id, (job) => set({ browserJob: job }));
+      set({ browserJob: final });
+      await get().loadBrowserStatus();
+      void get().loadAgentCapabilities();
+      if (final.state === "done") notify("Browser für Aufgaben installiert.", "success");
+      else if (final.state === "failed") notify(final.error?.detail ?? "Browser-Download fehlgeschlagen.", "error");
+    } catch (e) {
+      notify(`Browser-Download fehlgeschlagen: ${errorMessage(e)}`, "error");
+    }
+  },
+  async cancelBrowserJob() {
+    const { client, browserJob } = get();
+    if (!client || !browserJob || isTerminalJob(browserJob)) return;
+    try {
+      set({ browserJob: await client.cancelJob(browserJob.id) });
+    } catch (e) {
+      notify(`Abbrechen fehlgeschlagen: ${errorMessage(e)}`, "error");
+    }
+  },
+
+  // ----- v1.2: tasks ----------------------------------------------------------
+  setMainView(view) {
+    set({ mainView: view });
+    if (view === "tasks") {
+      const s = get();
+      if (!s.tasksLoaded) void s.loadTasks();
+      if (!s.agentCapabilities) void s.loadAgentCapabilities();
+    }
+  },
+  async loadTasks() {
+    const { client } = get();
+    if (!client) return;
+    try {
+      const list = sortTasksNewestFirst(await client.tasks());
+      set({ tasks: list, tasksLoaded: true });
+      // Keep following every task that is still running.
+      for (const t of list) if (!isTerminalTaskState(t.state)) get().followTask(t.id);
+    } catch (e) {
+      set({ tasksLoaded: true });
+      notify(`Aufgaben konnten nicht geladen werden: ${errorMessage(e)}`, "error");
+    }
+  },
+  async loadRecipes() {
+    const { client } = get();
+    if (!client) return;
+    try {
+      set({ recipes: await client.recipes(), recipesLoaded: true });
+    } catch (e) {
+      set({ recipesLoaded: true });
+      notify(`Abläufe konnten nicht geladen werden: ${errorMessage(e)}`, "error");
+    }
+  },
+  async loadAgentCapabilities() {
+    const { client } = get();
+    if (!client) return;
+    try {
+      set({ agentCapabilities: await client.agentCapabilities() });
+    } catch {
+      // Older core without the agent: the panel simply shows no tool details.
+      set({ agentCapabilities: null });
+    }
+  },
+  async loadLiveSessions() {
+    const { client } = get();
+    if (!client) return;
+    try {
+      set({ liveSessions: await client.liveSessions() });
+    } catch {
+      set({ liveSessions: [] });
+    }
+  },
+  async selectTask(id) {
+    const { client } = get();
+    if (!id) {
+      set({ selectedTaskId: null, tasksView: "create" });
+      return;
+    }
+    set({ selectedTaskId: id, tasksView: "detail", mainView: "tasks" });
+    if (!client) return;
+    try {
+      const { task, actions } = await client.getTask(id);
+      set((s) => {
+        const existing = s.taskFeeds[id];
+        const feed: TaskFeed = existing ? { ...existing, actions: mergeActions(existing.actions, actions), question: task.pending_question } : { ...emptyFeed(actions), question: task.pending_question };
+        return { tasks: upsertTask(s.tasks, task), taskFeeds: { ...s.taskFeeds, [id]: feed } };
+      });
+      if (!isTerminalTaskState(task.state)) get().followTask(id);
+    } catch (e) {
+      if (isApiError(e) && e.status === 404) {
+        set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id), selectedTaskId: null, tasksView: "create" }));
+      }
+      notify(`Aufgabe konnte nicht geladen werden: ${errorMessage(e)}`, "error");
+    }
+  },
+  openTaskForm(prefill) {
+    const { settings } = get();
+    const base = emptyDraft({ max_steps: settings?.agent_max_steps, max_seconds: settings?.agent_max_seconds });
+    set({ taskDraft: { ...base, ...(prefill ?? {}) }, tasksView: "create", selectedTaskId: null, mainView: "tasks" });
+    const s = get();
+    if (!s.tasksLoaded) void s.loadTasks();
+    if (!s.agentCapabilities) void s.loadAgentCapabilities();
+  },
+  openTaskFormFromOverlay(prefill) {
+    get().openTaskForm({
+      goal: prefill.goal,
+      live_session_id: prefill.live_session_id,
+      conversation_id: prefill.conversation_id,
+      windowsEnabled: Boolean(prefill.source_id),
+      windowSourceIds: prefill.source_id ? [prefill.source_id] : [],
+      allowedProcesses: prefill.process ? [prefill.process] : [],
+    });
+  },
+  showRecipes() {
+    set({ tasksView: "recipes", mainView: "tasks", selectedTaskId: null });
+    if (!get().recipesLoaded) void get().loadRecipes();
+  },
+  setTaskDraft(patch) {
+    set((s) => ({ taskDraft: { ...s.taskDraft, ...patch } }));
+  },
+  resetTaskDraft() {
+    const { settings } = get();
+    set({ taskDraft: emptyDraft({ max_steps: settings?.agent_max_steps, max_seconds: settings?.agent_max_seconds }) });
+  },
+  async submitTask() {
+    const { client, taskDraft } = get();
+    if (!client) return null;
+    const problem = validateDraft(taskDraft);
+    if (problem) {
+      notify(problem, "error");
+      return null;
+    }
+    set({ taskSubmitting: true });
+    try {
+      const task = await client.createTask(draftToRequest(taskDraft));
+      set((s) => ({
+        tasks: upsertTask(s.tasks, task),
+        taskFeeds: { ...s.taskFeeds, [task.id]: { ...emptyFeed(), question: task.pending_question } },
+        selectedTaskId: task.id,
+        tasksView: "detail",
+      }));
+      get().resetTaskDraft();
+      get().followTask(task.id);
+      notify("Aufgabe gestartet.", "success");
+      return task;
+    } catch (e) {
+      notify(`Aufgabe konnte nicht gestartet werden: ${errorMessage(e)}`, "error");
+      return null;
+    } finally {
+      set({ taskSubmitting: false });
+    }
+  },
+  async cancelTask(id) {
+    const { client } = get();
+    if (!client) return;
+    try {
+      const task = await client.cancelTask(id);
+      set((s) => ({ tasks: upsertTask(s.tasks, task) }));
+    } catch (e) {
+      notify(`Stoppen fehlgeschlagen: ${errorMessage(e)}`, "error");
+    }
+  },
+  async pauseTask(id) {
+    const { client } = get();
+    if (!client) return;
+    try {
+      const task = await client.pauseTask(id);
+      set((s) => ({ tasks: upsertTask(s.tasks, task) }));
+    } catch (e) {
+      notify(`Pausieren fehlgeschlagen: ${errorMessage(e)}`, "error");
+    }
+  },
+  async resumeTask(id) {
+    const { client } = get();
+    if (!client) return;
+    try {
+      const task = await client.resumeTask(id);
+      set((s) => ({ tasks: upsertTask(s.tasks, task) }));
+      get().followTask(id);
+    } catch (e) {
+      notify(`Fortsetzen fehlgeschlagen: ${errorMessage(e)}`, "error");
+    }
+  },
+  async answerTask(id, answer) {
+    const { client } = get();
+    if (!client) return;
+    try {
+      const task = await client.answerTask(id, answer);
+      set((s) => {
+        const feed = s.taskFeeds[id];
+        return {
+          tasks: upsertTask(s.tasks, task),
+          taskFeeds: feed ? { ...s.taskFeeds, [id]: { ...feed, question: task.pending_question } } : s.taskFeeds,
+        };
+      });
+      get().followTask(id);
+    } catch (e) {
+      notify(`Antwort konnte nicht übermittelt werden: ${errorMessage(e)}`, "error");
+    }
+  },
+  async saveRecipe(taskId, name, parameters) {
+    const { client } = get();
+    if (!client) return null;
+    try {
+      const recipe = await client.saveRecipe(taskId, name, parameters);
+      set((s) => ({ recipes: [recipe, ...s.recipes.filter((r) => r.id !== recipe.id)] }));
+      // The core owns the list (other recipes may exist): re-sync.
+      void get().loadRecipes();
+      notify(`Ablauf „${recipe.name}“ gespeichert.`, "success");
+      return recipe;
+    } catch (e) {
+      notify(`Ablauf konnte nicht gespeichert werden: ${errorMessage(e)}`, "error");
+      return null;
+    }
+  },
+  async deleteRecipe(id) {
+    const { client } = get();
+    if (!client) return;
+    try {
+      await client.deleteRecipe(id);
+      set((s) => ({ recipes: s.recipes.filter((r) => r.id !== id) }));
+      notify("Ablauf gelöscht.", "success");
+    } catch (e) {
+      notify(`Löschen fehlgeschlagen: ${errorMessage(e)}`, "error");
+    }
+  },
+  startWithRecipe(recipe) {
+    const { settings } = get();
+    const base = emptyDraft({ max_steps: settings?.agent_max_steps, max_seconds: settings?.agent_max_seconds });
+    const draft = draftFromScopes({ ...base, goal: recipe.purpose_de, recipe_id: recipe.id }, recipe.scope);
+    set({ taskDraft: draft, tasksView: "create", selectedTaskId: null, mainView: "tasks" });
+  },
+  followTask(id) {
+    const { client } = get();
+    if (!client || taskFollowers.has(id)) return;
+    const controller = new AbortController();
+    taskFollowers.set(id, controller);
+    let retries = 0;
+    const run = async (): Promise<void> => {
+      while (!controller.signal.aborted) {
+        let done = false;
+        try {
+          await client.taskEvents(
+            id,
+            (ev) => {
+              set((s) => {
+                const feed = s.taskFeeds[id] ?? emptyFeed();
+                const next = applyTaskStreamEvent(feed, ev);
+                const patch: Partial<AppState> = { taskFeeds: { ...s.taskFeeds, [id]: next.feed } };
+                if (next.task) patch.tasks = upsertTask(s.tasks, next.task);
+                return patch;
+              });
+              if (ev.type === "done") done = true;
+            },
+            controller.signal,
+          );
+        } catch {
+          /* dropped / refused: fall through */
+        }
+        if (controller.signal.aborted || done) break;
+        // Stream ended without `done`: re-check the task, resubscribe while it runs.
+        try {
+          const { task } = await client.getTask(id);
+          set((s) => ({ tasks: upsertTask(s.tasks, task) }));
+          if (isTerminalTaskState(task.state)) break;
+        } catch {
+          break;
+        }
+        retries += 1;
+        if (retries > TASK_FOLLOW_MAX_RETRIES) break;
+        await new Promise((r) => setTimeout(r, TASK_FOLLOW_RETRY_MS));
+      }
+      taskFollowers.delete(id);
+    };
+    void run();
+  },
+  applyGlobalTask(task) {
+    set((s) => ({ tasks: upsertTask(s.tasks, task), tasksLoaded: true }));
+    if (!isTerminalTaskState(task.state)) get().followTask(task.id);
+  },
+  applyGlobalLive(session) {
+    set((s) => {
+      const idx = s.liveSessions.findIndex((x) => x.id === session.id);
+      const list = idx === -1 ? [session, ...s.liveSessions] : s.liveSessions.map((x) => (x.id === session.id ? session : x));
+      return { liveSessions: list.filter((x) => x.state !== "ended") };
+    });
+  },
+  applyGlobalStop(ev) {
+    // A stop the launcher triggered from the hotkey arrives here as "api" a
+    // moment later; keep the more precise local source for that window.
+    const local = get().lastStop;
+    const recentHotkey = local?.source === "hotkey" && Date.now() - Date.parse(local.at) < 3000;
+    set({ lastStop: recentHotkey ? local : ev });
+    // The core locked everything; refresh the lists so the badges tell the truth.
+    void get().loadTasks();
+  },
+  applyHotkey(ev) {
+    if (ev.kind === "stop") {
+      set((s) => (s.streaming ? { streaming: { ...s.streaming, stopping: true } } : {}));
+      set({ lastStop: { source: "hotkey", at: new Date().toISOString() } });
+      setTimeout(() => void get().loadTasks(), 300);
+    }
+  },
+  async syncHotkeys() {
+    const { settings } = get();
+    const bridge = window.spaider;
+    if (!bridge?.registerHotkeys) return;
+    try {
+      const result = await bridge.registerHotkeys({
+        overlay: settings?.hotkey_overlay || DEFAULT_HOTKEYS.overlay,
+        stop: settings?.hotkey_stop || DEFAULT_HOTKEYS.stop,
+      });
+      for (const err of result.errors) notify(err, "error");
+    } catch (e) {
+      notify(`Hotkeys konnten nicht registriert werden: ${errorMessage(e)}`, "error");
+    }
+  },
 
   // ----- lifecycle ---------------------------------------------------------
   setBackendStatus(backend) {
@@ -209,6 +670,9 @@ export const useAppStore = create<AppState>()((set, get) => ({
     if (settings) set({ settings: { ...settings, ...patch } });
     try {
       set({ settings: await client.patchSettings(patch) });
+      // The launcher owns the global hotkeys and the tray behaviour: re-apply.
+      if (patch.hotkey_overlay !== undefined || patch.hotkey_stop !== undefined) void get().syncHotkeys();
+      if (patch.tray_mode !== undefined) void window.spaider?.setTrayMode?.(Boolean(get().settings?.tray_mode)).catch(() => undefined);
       return true;
     } catch (e) {
       set({ settings: previous });
@@ -322,13 +786,16 @@ export const useAppStore = create<AppState>()((set, get) => ({
       convId = conv.id;
     }
     const id = convId;
-    set({ streaming: { conversationId: id, assistantId: null, statusText: null, stopping: false } });
+    const streamingState: StreamingState = { conversationId: id, assistantId: null, statusText: null, stopping: false };
+    set({ streaming: streamingState });
+    reportActive(streamingState);
 
     let response: Response;
     try {
       response = await client.sendMessage(id, text);
     } catch (e) {
       set({ streaming: null });
+      reportActive(null);
       const label = isApiError(e) ? CHAT_ERROR_LABEL[e.code] : undefined;
       notify(label ?? errorMessage(e), "error");
       return;
@@ -403,6 +870,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
       const finalized = gotDone ? list : finalizeDanglingStream(list, streamError);
       return { messages: { ...s.messages, [id]: finalized }, streaming: null };
     });
+    reportActive(null);
     if (streamError) notify(streamError, "error");
     void get().loadConversations();
   },
@@ -475,6 +943,9 @@ export const useAppStore = create<AppState>()((set, get) => ({
       onActivity: (ev) => get().applyGlobalActivity(ev),
       onScheduler: (ev) => get().applyScheduler(ev),
       onRuntime: (ev) => get().applyRuntime(ev),
+      onLive: (session) => get().applyGlobalLive(session),
+      onTask: (task) => get().applyGlobalTask(task),
+      onStop: (ev) => get().applyGlobalStop(ev),
       onState: (state) => set({ activityChannel: state }),
     });
     channelStop = () => {
@@ -567,6 +1038,8 @@ export const useAppStore = create<AppState>()((set, get) => ({
   async requestQuit() {
     set({ quitting: true, settingsOpen: false });
     channelStop?.();
+    for (const c of taskFollowers.values()) c.abort();
+    taskFollowers.clear();
     try {
       await window.spaider.requestQuit();
     } catch {

@@ -170,6 +170,10 @@ export const ACTIVITY_PHASE_LABEL: Record<ActivityPhase, string> = {
   postprocess_running: "Nachverarbeitung läuft",
   postprocess_done: "Nachverarbeitung fertig",
   failed: "Fehler",
+  // v1.2 (live sessions)
+  capture: "Quelle aufnehmen",
+  observe: "Struktur lesen",
+  image_encode: "Bild vorbereiten",
 };
 
 export const ACTIVITY_STATE_LABEL: Record<ActivityEvent["state"], string> = {

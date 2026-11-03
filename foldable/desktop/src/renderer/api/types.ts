@@ -96,6 +96,19 @@ export interface Settings {
   performance_mode?: PerformanceMode;
   /** v1.1 */
   gpu_mode?: GpuMode;
+  // ----- v1.2 ---------------------------------------------------------------
+  /** Electron accelerator, default "Ctrl+Alt+Space" */
+  hotkey_overlay?: string;
+  /** Electron accelerator, default "Ctrl+Alt+Backspace" */
+  hotkey_stop?: string;
+  /** Closing the main window hides it to the tray (default false) */
+  tray_mode?: boolean;
+  /** Small preview image in the overlay (default true) */
+  live_preview?: boolean;
+  /** Default budget for agent tasks (20) */
+  agent_max_steps?: number;
+  /** Default budget for agent tasks (600) */
+  agent_max_seconds?: number;
 }
 
 export type LicenseKind = "open-source" | "open-weights" | "other";
@@ -237,7 +250,7 @@ export interface ModelInstalled {
   measured?: Measured | null;
 }
 
-export type JobKind = "download" | "import" | "activate" | "delete" | "calibrate";
+export type JobKind = "download" | "import" | "activate" | "delete" | "calibrate" | "browser";
 export type JobState = "queued" | "running" | "paused" | "done" | "failed" | "cancelled";
 export type JobPhase =
   | "check_space"
@@ -409,7 +422,11 @@ export type ActivityPhase =
   | "postprocess_pending"
   | "postprocess_running"
   | "postprocess_done"
-  | "failed";
+  | "failed"
+  // v1.2 (live sessions)
+  | "capture"
+  | "observe"
+  | "image_encode";
 
 export type ActivityState = "started" | "progress" | "done" | "failed" | "cancelled";
 
@@ -462,6 +479,7 @@ export type ChatEvent =
   | { type: "thinking"; data: { text: string } }
   | { type: "activity"; data: ActivityEvent }
   | { type: "sources"; data: { sources: Source[] } }
+  | { type: "observation"; data: ObservationEvent }
   | { type: "done"; data: { message: Message } }
   | { type: "error"; data: { detail: string; code: string } };
 
@@ -510,4 +528,323 @@ export interface Note {
   text: string;
   created_at: string;
   updated_at: string;
+}
+
+// ----- v1.2: live sources and sessions -----------------------------------------------
+
+/** `event: observation` in a live ask stream (before the first token). */
+export interface ObservationEvent {
+  snapshot_id: string;
+  source_kind: "window" | "screen";
+  quality: SnapshotQuality;
+  used_image: boolean;
+  used_structure: boolean;
+  elements: number;
+  text_chars: number;
+  age_ms: number;
+}
+
+export interface SourceRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface WindowSource {
+  id: string;
+  hwnd: number;
+  pid: number;
+  process: string;
+  exe: string | null;
+  title: string;
+  class: string;
+  rect: SourceRect;
+  monitor_id: string;
+  minimized: boolean;
+  is_self: boolean;
+}
+
+export interface ScreenSource {
+  id: string;
+  name: string;
+  rect: SourceRect;
+  scale: number;
+  primary: boolean;
+}
+
+export type LiveSource = WindowSource | ScreenSource;
+
+export function isWindowSource(s: LiveSource | null | undefined): s is WindowSource {
+  return Boolean(s && typeof (s as WindowSource).process === "string" && typeof (s as WindowSource).hwnd === "number");
+}
+
+export interface LiveSources {
+  windows: WindowSource[];
+  screens: ScreenSource[];
+  foreground_id: string | null;
+}
+
+export interface ForegroundResponse {
+  source: WindowSource | null;
+  captured_at: string;
+}
+
+export type SnapshotQuality = "ok" | "black" | "minimized" | "occluded" | "lost" | "error";
+export type LiveSessionState = "active" | "lost" | "ended";
+
+export interface LiveSession {
+  id: string;
+  source: LiveSource;
+  capture_mode: "window" | "screen";
+  state: LiveSessionState;
+  conversation_id: string;
+  created_at: string;
+  last_snapshot: { snapshot_id: string; captured_at: string; age_ms: number; quality: SnapshotQuality } | null;
+  vision_available: boolean;
+  notes_de: string[];
+}
+
+export interface SnapshotElement {
+  id: string;
+  role: string;
+  name: string;
+  value: string | null;
+  rect: SourceRect;
+  enabled: boolean;
+  focused: boolean;
+  path: string;
+}
+
+export interface Snapshot {
+  snapshot_id: string;
+  session_id: string;
+  captured_at: string;
+  age_ms: number;
+  source_kind: "window" | "screen";
+  target: { hwnd: number | null; pid: number | null; process: string | null; title: string; rect: SourceRect; monitor_id: string; scale: number };
+  quality: SnapshotQuality;
+  error: string | null;
+  text_excerpt: string;
+  text_chars: number;
+  elements: SnapshotElement[];
+  elements_total: number;
+  truncated: boolean;
+  image: { width: number; height: number; bytes: number; png_base64: string | null; preview_png_base64: string | null } | null;
+  transform: { origin_x: number; origin_y: number; scale: number };
+}
+
+export interface SnapshotRequest {
+  include_image: boolean;
+  preview: boolean;
+  max_elements: number;
+}
+
+export type UseImage = "auto" | "always" | "never";
+
+export interface LiveAskRequest {
+  content: string;
+  use_memory: boolean;
+  use_image: UseImage;
+}
+
+// ----- v1.2: agent ---------------------------------------------------------------------
+
+export type ToolScope = "files" | "browser" | "windows" | "vision" | "memory";
+
+export interface ToolInfo {
+  name: string;
+  description_de: string;
+  scope: ToolScope;
+  side_effect: "none" | "local" | "external";
+  available: boolean;
+  reason_de: string | null;
+}
+
+export interface AgentCapabilities {
+  tools: ToolInfo[];
+  model: {
+    id: string;
+    vision_input: boolean;
+    image_grounding: "none" | "untested" | "verified";
+    tool_call_format: "json_schema" | "native" | "none";
+    structured_output: boolean;
+  };
+  browser: { installed: boolean; version: string | null; path: string | null };
+  windows_automation: { available: boolean; reason_de: string };
+  desktop_interactive: boolean;
+}
+
+export interface Scopes {
+  files: { roots: string[]; write_dir: string | null } | null;
+  browser: { enabled: boolean; allowed_origins: string[] | null } | null;
+  windows: { source_ids: string[]; allowed_processes: string[] } | null;
+  memory: boolean;
+  external_effects: boolean;
+}
+
+export interface TaskBudget {
+  max_steps: number;
+  max_seconds: number;
+}
+
+export interface CreateTaskRequest {
+  goal: string;
+  conversation_id: string | null;
+  live_session_id: string | null;
+  recipe_id: string | null;
+  scopes: Scopes;
+  budget: TaskBudget | null;
+  parameters: Record<string, unknown> | null;
+}
+
+export type TaskState =
+  | "created"
+  | "observing"
+  | "planning"
+  | "validating"
+  | "executing"
+  | "verifying"
+  | "completed"
+  | "failed"
+  | "cancelled"
+  | "paused"
+  | "waiting_for_user"
+  | "interrupted";
+
+export interface TaskArtifact {
+  kind: "file" | "url" | "text";
+  path: string | null;
+  url: string | null;
+  label: string;
+}
+
+export interface TaskResult {
+  ok: boolean;
+  summary_de: string;
+  artifacts: TaskArtifact[];
+  verified: boolean;
+}
+
+export type ActionState = "proposed" | "validated" | "rejected" | "executing" | "done" | "failed" | "unknown_outcome" | "cancelled";
+
+export interface Action {
+  action_id: string;
+  task_id: string;
+  seq: number;
+  tool: string;
+  arguments: Record<string, unknown>;
+  state: ActionState;
+  reason_de: string | null;
+  expected_effect: string;
+  observation_ref: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  duration_ms: number | null;
+  result: { ok: boolean; summary_de: string; evidence: Record<string, unknown> | null; snapshot_id: string | null } | null;
+}
+
+export interface PendingQuestion {
+  id: string;
+  text_de: string;
+  kind: "approval" | "input";
+  action: Action | null;
+}
+
+export interface Task {
+  id: string;
+  goal: string;
+  state: TaskState;
+  step: number;
+  max_steps: number;
+  created_at: string;
+  updated_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  summary_de: string;
+  result: TaskResult | null;
+  scopes: Scopes;
+  pending_question: PendingQuestion | null;
+  conversation_id: string | null;
+  live_session_id: string | null;
+  recipe_id: string | null;
+  llm_calls: number;
+  host_bound: boolean;
+  last_error: string | null;
+}
+
+export interface AnswerRequest {
+  question_id: string;
+  approve: boolean | null;
+  text: string | null;
+}
+
+export interface RecipeParameter {
+  name: string;
+  description_de: string;
+  example: string;
+}
+
+export interface Recipe {
+  id: string;
+  version: number;
+  name: string;
+  purpose_de: string;
+  parameters: RecipeParameter[];
+  origin: { task_id: string; created_at: string };
+  requires: { tools: string[]; apps: string[]; vision: boolean };
+  preconditions: string[];
+  scope: Scopes;
+  steps: { tool: string; arguments_template: Record<string, unknown>; check: string }[];
+  final_checks: string[];
+  last_verified_at: string | null;
+  known_limits_de: string[];
+}
+
+export interface AgentStopResult {
+  stopped_tasks: number;
+  stopped_live: number;
+}
+
+/** `event: stop` on the global channel. */
+export interface StopEvent {
+  source: "hotkey" | "api";
+  at: string;
+}
+
+/** Events of `GET /api/agent/tasks/{id}/events`. */
+export type TaskStreamEvent =
+  | { type: "task"; data: Task }
+  | { type: "action"; data: Action }
+  | { type: "activity"; data: ActivityEvent }
+  | { type: "token"; data: { text: string } }
+  | { type: "question"; data: PendingQuestion }
+  | { type: "done"; data: Task };
+
+// ----- v1.2: on-demand browser package for agent tasks ----------------------------------
+
+export interface BrowserPackage {
+  name: string;
+  revision: string;
+  file: string;
+  size: number;
+  sha256: string;
+  license: string;
+  playwright: boolean;
+}
+
+/** `GET /api/agent/browser` */
+export interface BrowserStatus {
+  installed: boolean;
+  version: string | null;
+  path: string | null;
+  playwright: boolean;
+  reason_de: string | null;
+  package: BrowserPackage;
+}
+
+/** `POST /api/agent/browser/install`: a job (kind `browser`) or already installed. */
+export interface BrowserInstallResponse {
+  job: Job | null;
+  installed?: boolean;
 }

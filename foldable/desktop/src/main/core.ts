@@ -27,14 +27,22 @@ function sleep(ms: number): Promise<void> {
 }
 
 async function coreRequest(
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "PATCH",
   url: string,
   token: string,
   timeoutMs: number,
+  json?: unknown,
 ): Promise<Response> {
+  const headers: Record<string, string> = { "X-SpAIder-Token": token, Accept: "application/json" };
+  let body: string | undefined;
+  if (json !== undefined) {
+    headers["Content-Type"] = "application/json";
+    body = JSON.stringify(json);
+  }
   return fetch(url, {
     method,
-    headers: { "X-SpAIder-Token": token, Accept: "application/json" },
+    headers,
+    body,
     signal: AbortSignal.timeout(timeoutMs),
   });
 }
@@ -89,6 +97,20 @@ export class CoreManager {
   /** Current backend status (used by the screenshot verification mode). */
   currentStatus(): BackendStatus {
     return this.status;
+  }
+
+  /**
+   * Request against the running core from the main process (hotkeys, settings).
+   * Resolves to null when the core is not ready; never throws on HTTP errors.
+   */
+  async apiRequest(
+    method: "GET" | "POST" | "PATCH",
+    apiPath: string,
+    opts: { json?: unknown; timeoutMs?: number } = {},
+  ): Promise<Response | null> {
+    const base = this.backend?.baseUrl;
+    if (!base) return null;
+    return coreRequest(method, `${base}${apiPath}`, this.token, opts.timeoutMs ?? 3000, opts.json);
   }
 
   private setStatus(s: BackendStatus): void {
