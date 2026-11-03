@@ -187,8 +187,8 @@ class BrowserAdapter:
         d = await self.snapshot(limit=60)
         lines = [f"Browser: {d['title'][:80]!r} {d['url'][:120]}" + (" (Elemente gekürzt)" if d["truncated"] else "")]
         for e in d["elements"][:60]:
-            val = f" = {e['value'][:60]!r}" if e.get("value") else ""
-            lines.append(f"- {e['ref']} {e['role']}: {e['name'][:80]!r}{val}{' [Fokus]' if e['focused'] else ''}")
+            val = f", value={e['value'][:60]!r}" if e.get("value") else ""
+            lines.append(f"- ref={e['ref']} role={e['role']} name={e['name'][:80]!r}{val}{' focused' if e['focused'] else ''}")
         lines.append("Seitentext (Auszug): " + d["text"][:1200].replace("\n", " "))
         return "\n".join(lines)
 
@@ -282,7 +282,7 @@ def _under(p: Path, root: Path) -> bool:
 
 
 def register(broker: Broker, adapter: BrowserAdapter) -> None:
-    ref = {"type": "string", "maxLength": 12}
+    ref = {"type": "string", "pattern": "^b[0-9]{1,4}$", "maxLength": 6}  # exactly the ref from browser.snapshot (b0, b1, …), never a field name
 
     def _origins(ctx: ToolContext):
         return (ctx.scopes.browser.allowed_origins if ctx.scopes.browser else None)
@@ -293,8 +293,8 @@ def register(broker: Broker, adapter: BrowserAdapter) -> None:
 
     async def t_snapshot(args, ctx):
         d = await adapter.snapshot(limit=int(args.get("max_elements") or 120))
-        lines = [f"{e['ref']} {e['role']}: {e['name'][:80]!r}" + (f" = {e['value'][:60]!r}" if e.get("value") else "") + (" [Fokus]" if e["focused"] else "") for e in d["elements"]]
-        return ToolOutcome(ok=True, summary_de=f"{len(d['elements'])} Elemente auf „{d['title'][:50]}“", data={"url": d["url"], "title": d["title"], "elements": lines, "truncated": d["truncated"], "text": d["text"][:2500]}, verified=True)
+        elements = [{"ref": e["ref"], "role": e["role"], "name": e["name"][:80], **({"value": e["value"][:60]} if e.get("value") else {}), **({"focused": True} if e["focused"] else {})} for e in d["elements"]]
+        return ToolOutcome(ok=True, summary_de=f"{len(d['elements'])} Elemente auf „{d['title'][:50]}“", data={"url": d["url"], "title": d["title"], "elements": elements, "hint": "Für click/fill/select/press genau den Wert aus 'ref' verwenden (z. B. b3).", "truncated": d["truncated"], "text": d["text"][:2500]}, verified=True)
 
     async def t_click(args, ctx):
         d = await adapter.click(args["ref"])
@@ -328,9 +328,9 @@ def register(broker: Broker, adapter: BrowserAdapter) -> None:
 
     av = adapter.availability
     broker.register(Tool("browser.open", "Öffnet eine Adresse im eigenen Browser (http/https; lokale Adressen nur mit Freigabe).", "browser", "local", {"type": "object", "properties": {"url": {"type": "string", "minLength": 5, "maxLength": 2000}}, "required": ["url"], "additionalProperties": False}, t_open, 45, availability=av))
-    broker.register(Tool("browser.snapshot", "Liest die aktuelle Seite: Elemente mit ref (Links, Buttons, Felder) und Textauszug. Refs gelten bis zur nächsten Navigation.", "browser", "none", {"type": "object", "properties": {"max_elements": {"type": "integer", "minimum": 10, "maximum": 300}}, "additionalProperties": False}, t_snapshot, 30, availability=av))
+    broker.register(Tool("browser.snapshot", "Liest die aktuelle Seite: Elemente als Objekte mit ref (b0, b1, …), role, name, value und einen Textauszug. Die ref-Kennung (nicht der Feldname!) wird für click/fill/select verwendet; Refs gelten bis zur nächsten Navigation.", "browser", "none", {"type": "object", "properties": {"max_elements": {"type": "integer", "minimum": 10, "maximum": 300}}, "additionalProperties": False}, t_snapshot, 30, availability=av))
     broker.register(Tool("browser.click", "Klickt ein Element (ref aus browser.snapshot); wartet auf Bedienbarkeit.", "browser", "local", {"type": "object", "properties": {"ref": ref}, "required": ["ref"], "additionalProperties": False}, t_click, 30, needs_fresh_element=True, availability=av))
-    broker.register(Tool("browser.fill", "Füllt ein Eingabefeld (ref) mit Text und liest den Wert zurück.", "browser", "local", {"type": "object", "properties": {"ref": ref, "text": {"type": "string", "maxLength": 4000}}, "required": ["ref", "text"], "additionalProperties": False}, t_fill, 30, needs_fresh_element=True, availability=av))
+    broker.register(Tool("browser.fill", "Füllt ein Eingabefeld mit Text und liest den Wert zurück. ref = Kennung aus browser.snapshot (z. B. b2).", "browser", "local", {"type": "object", "properties": {"ref": ref, "text": {"type": "string", "maxLength": 4000}}, "required": ["ref", "text"], "additionalProperties": False}, t_fill, 30, needs_fresh_element=True, availability=av))
     broker.register(Tool("browser.select", "Wählt eine Option in einem Auswahlfeld (ref) per Wert oder Beschriftung.", "browser", "local", {"type": "object", "properties": {"ref": ref, "value": {"type": "string", "maxLength": 200}}, "required": ["ref", "value"], "additionalProperties": False}, t_select, 30, needs_fresh_element=True, availability=av))
     broker.register(Tool("browser.press", "Sendet eine Taste (Enter, Tab, Escape, ArrowDown, ArrowUp, PageDown, PageUp) an ein Element oder die Seite.", "browser", "local", {"type": "object", "properties": {"ref": ref, "key": {"type": "string", "enum": ["Enter", "Tab", "Escape", "ArrowDown", "ArrowUp", "PageDown", "PageUp"]}}, "required": ["key"], "additionalProperties": False}, t_press, 20, availability=av))
     broker.register(Tool("browser.scroll", "Scrollt die Seite nach unten oder oben.", "browser", "none", {"type": "object", "properties": {"direction": {"type": "string", "enum": ["down", "up"]}}, "required": ["direction"], "additionalProperties": False}, t_scroll, 10, availability=av))

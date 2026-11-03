@@ -21,8 +21,8 @@ BROWSER_PACKAGE = {
         "https://cdn.playwright.dev/builds/cft/156.0.8078.4/win64/chrome-win64.zip",
     ],
     "file": "chrome-win64.zip",
-    "size": None,  # filled from the pinned record below when known
-    "sha256": None,
+    "size": 207073013,
+    "sha256": "220021ecfdad08c116fc71a153e65e3861ba841c531afc4f7acc7bd5d44b41db",  # pinned 2026-11-04
     "license": "BSD-3-Clause (Chromium) – siehe LICENSE im Paket",
     "playwright": "1.64.1",
 }

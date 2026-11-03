@@ -267,6 +267,8 @@ Ids sind opak (`live_…`, `task_…`, `act_…`, `snap_…`, `rcp_…`).
 - `GET /api/agent/recipes` → `{"recipes":[Recipe]}`; `GET /api/agent/recipes/{id}`; `DELETE /api/agent/recipes/{id}`
   - `Recipe` = `{"id","version":int,"name","purpose_de","parameters":[…],"origin":{"task_id","created_at"},"requires":{"tools":[string],"apps":[string],"vision":bool},"preconditions":[string],"scope":Scopes,"steps":[{"tool","arguments_template":object,"check":string}],"final_checks":[string],"last_verified_at":string|null,"known_limits_de":[string]}`
 - `POST /api/agent/stop` → `{"stopped_tasks":int,"stopped_live":int}` — globaler Stopp (Hotkey); sperrt sofort, wartet nicht auf das Modell.
+- `GET /api/agent/browser` → `{"installed":bool,"version":string|null,"path":string|null,"playwright":bool,"reason_de":string|null,"package":{"name","revision","file","size","sha256","license","playwright"}}`
+- `POST /api/agent/browser/install` → `202 {"job":Job}` (Job-Kind `browser`; Fortschritt/Ereignisse über `GET /api/models/jobs/{id}` bzw. `/events` wie bei Modell-Downloads; ≈ 207 MB) oder `{"job":null,"installed":true}`.
 
 ## Einstellungen (Ergänzung)
 

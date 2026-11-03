@@ -124,6 +124,8 @@ def _check_schema(value: Any, schema: dict, path: str = "") -> Optional[str]:
             return f"{path} ist zu kurz"
         if "enum" in schema and value not in schema["enum"]:
             return f"{path} muss eines von {schema['enum']} sein"
+        if "pattern" in schema and not re.search(schema["pattern"], value):
+            return f"{path} hat nicht das erwartete Format ({schema['pattern']})"
         return None
     if t == "integer":
         if not isinstance(value, int) or isinstance(value, bool):

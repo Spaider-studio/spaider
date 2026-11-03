@@ -28,7 +28,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 USER_AGENT = "SpAIder-Foldable/0.1 (+https://github.com/Spaider-studio/spaider)"
-ALLOWED_HOST_SUFFIXES = ("huggingface.co", "hf.co")
+ALLOWED_HOST_SUFFIXES = ("huggingface.co", "hf.co", "cdn.playwright.dev", "storage.googleapis.com")  # models; browser package (CDN redirects to the Chrome-for-Testing bucket)
 CHUNK = 1 << 20  # 1 MiB
 RETRIES = 4
 
@@ -121,6 +121,8 @@ def download_file(
         attempt += 1
         if cancel.is_set():
             raise DownloadCancelled()
+        if have == expected_size:
+            break  # a complete .part only needs the checksum check below (no Range request)
         try:
             have, hasher = _stream(url, dest_part, have, hasher, expected_size, progress, cancel, timeout)
             break
