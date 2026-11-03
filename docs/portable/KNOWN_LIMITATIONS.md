@@ -163,3 +163,47 @@ kann. Offene Fehler stehen am Ende.
 - **Extraktion sehr langer Eingaben** (≈ 1 500 Tokens) dauert im Hintergrund
   8 min (GPU) bis 13 min (CPU); sie blockiert keine Antwort, hält aber den
   Rechner beschäftigt. Für lange Texte ist der Dokumentimport der bessere Weg.
+
+## Ergänzungen 0.3 (Agent und Live, Stand 2026-11-04)
+
+- **Kein Autopilot.** Unterstützt sind: Dateien in freigegebenen Ordnern
+  (lesen/suchen/schreiben von Textformaten), der eigene Browser (öffnen,
+  Struktur lesen, klicken, füllen, auswählen, Tasten, scrollen, warten) und
+  Windows-Fenster mit UI-Automation-Controls (lesen, Fokus, auslösen, Wert
+  setzen, Tippen, erlaubte Tastenkombinationen, Klick an Position, Start von
+  Notepad/Rechner/Explorer). Anwendungen ohne zugängliche Controls gehen nur
+  über Bild + Klickposition und sind unzuverlässiger.
+- **Folgenreiche Aktionen** erkennt der Kern über die Wirkungsklasse des
+  Werkzeugs und einen Namensfilter (senden, kaufen, löschen, veröffentlichen
+  …). Das ist konservativ, aber keine Garantie: ein anders beschrifteter Button
+  mit Außenwirkung wird nicht erkannt. `external_effects` bleibt standardmäßig
+  aus.
+- **Erfolgsbelege** sind werkzeugabhängig; für Klicks auf gezeichnete
+  Oberflächen gibt es nur die anschließende Beobachtung, keinen Rückkanal.
+- **Modellqualität**: Mit 4B-Modellen dauern Planungsaufrufe 5–10 s; sie
+  fragen gelegentlich nach bereits Erlaubtem oder brauchen mehrere
+  Beobachtungen, bis sie ein Ergebnis erkennen. Die Aufgabenmatrix zeigt die
+  tatsächlichen Erfolgsquoten; 20 Aufgaben beweisen keine allgemeine
+  PC-Kompetenz.
+- **Bildmodell**: Nur Qwen3-VL-4B wurde für Bildfragen und Grounding geprüft
+  (Koordinaten normiert 0–1000, kalibriert). Ohne Projektor gibt es keine
+  Bildfragen; der Live-Modus zeigt das an. Vision-Encoder-Offload wurde nur auf
+  der Arc 140V gemessen; ohne Offload dauert eine Bildfrage ~11 s, auf CPU ~21 s.
+- **Aufnahme**: PrintWindow liefert bei manchen Anwendungen (GPU-exklusive
+  Oberflächen, geschützte Inhalte) schwarze Bilder; dann wird auf einen
+  Bildschirmausschnitt zurückgegriffen, der verdeckte Teile nicht zeigt.
+  Vollbildquellen nehmen alles auf diesem Monitor auf (außer SpAIder).
+  Passwortfelder werden nur über UIA-Merkmale ausgenommen, nicht im Bild.
+- **UIPI/UAC**: Fenster erhöhter Prozesse, Sperrbildschirm und sicherer
+  Desktop können nicht bedient werden; das wird gemeldet, nicht umgangen.
+- **Browser**: Der eigene Browser läuft sichtbar (headed). Normale, bereits
+  offene Tabs des persönlichen Browsers werden nicht angebunden (nur Live-
+  Beobachtung des Fensters). Downloads landen in `data/browser/downloads`.
+  Anmeldungen im Agentenbrowser sind nicht portabel.
+- **Nicht enthalten**: Mikrofon/Sprache, virtueller Zweitdesktop, IDE-
+  Autonomie, freie Shell, MCP-Server, DXGI-Aufnahme, native Tool-Calls (der
+  Planer nutzt Grammatik-JSON; `native_tool_calls` bleibt „ungetestet“).
+- **Wiederaufnahme** nach Absturz: unterbrochene Aktionen sind `unknown_outcome`;
+  es wird nichts automatisch wiederholt. Rezepte stammen aus genau einem
+  belegten Lauf und werden bei veränderter Oberfläche neu geplant.
+
