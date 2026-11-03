@@ -123,7 +123,10 @@ class LiveManager:
         return {"source": fg.to_dict() if fg else None, "captured_at": _iso()}
 
     def resolve_source(self, source_id: str) -> W.WindowSource | W.MonitorInfo:
-        kind, a, b = W.parse_source_id(source_id)
+        try:
+            kind, a, b = W.parse_source_id(source_id)
+        except ValueError:
+            raise SourceNotFound(source_id)
         if kind == "screen":
             for m in W.monitors():
                 if m.id == source_id:
