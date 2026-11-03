@@ -90,7 +90,7 @@ class WindowsTools:
         if args.get("element_id"):
             el = self._element(snap, args["element_id"])
             text = el.value or el.name
-        return ToolOutcome(ok=True, summary_de=f"{len(text)} Zeichen gelesen", data={"text": text[:6000], "truncated": len(text) > 6000}, snapshot_id=snap.snapshot_id, verified=True)
+        return ToolOutcome(ok=True, summary_de=f"{len(text)} Zeichen gelesen", data={"text": text[:6000], "truncated": len(text) > 6000}, evidence={"text_excerpt": text[:600]}, snapshot_id=snap.snapshot_id, verified=True)
 
     async def focus(self, args: dict, ctx: ToolContext) -> ToolOutcome:
         src = self._source(ctx, args["source_id"])

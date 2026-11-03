@@ -224,7 +224,8 @@ class BrowserAdapter:
         name = (await loc.inner_text(timeout=2000)) if await loc.count() else ""
         await loc.click(timeout=8000)
         await self._page.wait_for_load_state("domcontentloaded", timeout=10000)
-        return {"clicked": name[:80], "url": self._page.url, "title": await self._page.title()}
+        await asyncio.sleep(0.15)
+        return {"clicked": name[:80], "url": self._page.url, "title": await self._page.title(), "text_after": await self._body_text(900)}
 
     async def fill(self, ref: str, text: str) -> dict:
         loc = self._locator(ref)
@@ -236,7 +237,7 @@ class BrowserAdapter:
         loc = self._locator(ref)
         chosen = await loc.select_option(value, timeout=8000)
         got = await loc.input_value(timeout=2000)
-        return {"selected": chosen, "value_after": got, "verified": bool(chosen)}
+        return {"selected": chosen, "value_after": got, "verified": bool(chosen), "text_after": await self._body_text(600)}
 
     async def press(self, ref: Optional[str], key: str) -> dict:
         if key not in ("Enter", "Tab", "Escape", "ArrowDown", "ArrowUp", "PageDown", "PageUp"):
@@ -246,7 +247,14 @@ class BrowserAdapter:
         else:
             await self._page.keyboard.press(key)
         await self._page.wait_for_load_state("domcontentloaded", timeout=10000)
-        return {"url": self._page.url, "title": await self._page.title()}
+        return {"url": self._page.url, "title": await self._page.title(), "text_after": await self._body_text(900)}
+
+    async def _body_text(self, n: int) -> str:
+        try:
+            t = await self._page.evaluate("() => (document.body ? document.body.innerText : '')")
+            return t[:n]
+        except Exception:  # noqa: BLE001
+            return ""
 
     async def scroll(self, direction: str) -> dict:
         dy = 600 if direction == "down" else -600
@@ -294,11 +302,11 @@ def register(broker: Broker, adapter: BrowserAdapter) -> None:
     async def t_snapshot(args, ctx):
         d = await adapter.snapshot(limit=int(args.get("max_elements") or 120))
         elements = [{"ref": e["ref"], "role": e["role"], "name": e["name"][:80], **({"value": e["value"][:60]} if e.get("value") else {}), **({"focused": True} if e["focused"] else {})} for e in d["elements"]]
-        return ToolOutcome(ok=True, summary_de=f"{len(d['elements'])} Elemente auf „{d['title'][:50]}“", data={"url": d["url"], "title": d["title"], "elements": elements, "hint": "Für click/fill/select/press genau den Wert aus 'ref' verwenden (z. B. b3).", "truncated": d["truncated"], "text": d["text"][:2500]}, verified=True)
+        return ToolOutcome(ok=True, summary_de=f"{len(d['elements'])} Elemente auf „{d['title'][:50]}“", data={"url": d["url"], "title": d["title"], "elements": elements, "hint": "Für click/fill/select/press genau den Wert aus 'ref' verwenden (z. B. b3).", "truncated": d["truncated"], "text": d["text"][:2500]}, evidence={"url": d["url"], "title": d["title"], "text_excerpt": d["text"][:600]}, verified=True)
 
     async def t_click(args, ctx):
         d = await adapter.click(args["ref"])
-        return ToolOutcome(ok=True, summary_de=f"Geklickt: {d['clicked'][:40]!r} → {d['title'][:50]}", data=d, verified=False)
+        return ToolOutcome(ok=True, summary_de=f"Geklickt: {d['clicked'][:40]!r} → {d['title'][:50]}", data=d, evidence={"url": d["url"], "title": d["title"], "text_excerpt": d.get("text_after", "")[:600]}, verified=False)
 
     async def t_fill(args, ctx):
         d = await adapter.fill(args["ref"], args["text"])
@@ -310,18 +318,18 @@ def register(broker: Broker, adapter: BrowserAdapter) -> None:
 
     async def t_press(args, ctx):
         d = await adapter.press(args.get("ref"), args["key"])
-        return ToolOutcome(ok=True, summary_de=f"Taste {args['key']} gesendet", data=d, verified=False)
+        return ToolOutcome(ok=True, summary_de=f"Taste {args['key']} gesendet", data=d, evidence={"url": d["url"], "text_excerpt": d.get("text_after", "")[:600]}, verified=False)
 
     async def t_scroll(args, ctx):
         return ToolOutcome(ok=True, summary_de="gescrollt", data=await adapter.scroll(args["direction"]), verified=True)
 
     async def t_wait(args, ctx):
         d = await adapter.wait_for_text(args["text"], int(args.get("timeout_ms") or 10000))
-        return ToolOutcome(ok=d["found"], summary_de=("Text erschienen" if d["found"] else "Text nicht erschienen"), data=d, verified=d["found"])
+        return ToolOutcome(ok=d["found"], summary_de=("Text erschienen" if d["found"] else "Text nicht erschienen"), data=d, evidence={"text": args["text"], "found": d["found"]}, verified=d["found"])
 
     async def t_read(args, ctx):
         d = await adapter.read(int(args.get("max_chars") or 4000))
-        return ToolOutcome(ok=True, summary_de=f"{len(d['text'])} Zeichen gelesen", data=d, verified=True)
+        return ToolOutcome(ok=True, summary_de=f"{len(d['text'])} Zeichen gelesen", data=d, evidence={"url": d["url"], "title": d["title"], "text_excerpt": d["text"][:600]}, verified=True)
 
     async def t_back(args, ctx):
         return ToolOutcome(ok=True, summary_de="zurück", data=await adapter.back(), verified=False)

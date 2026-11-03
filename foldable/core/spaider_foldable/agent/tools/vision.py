@@ -121,7 +121,7 @@ class VisionTools:
             snap.prepared.to_data_url(),
             400,
         )
-        return ToolOutcome(ok=True, summary_de=f"Bildantwort ({int((time.monotonic() - t0) * 1000)} ms)", data={"answer": text[:1500], "image": f"{snap.prepared.width}x{snap.prepared.height}"}, snapshot_id=snap.snapshot_id, verified=False)
+        return ToolOutcome(ok=True, summary_de=f"Bildantwort ({int((time.monotonic() - t0) * 1000)} ms)", data={"answer": text[:1500], "image": f"{snap.prepared.width}x{snap.prepared.height}"}, evidence={"answer": text[:600], "image": f"{snap.prepared.width}x{snap.prepared.height}"}, snapshot_id=snap.snapshot_id, verified=False)
 
     async def locate(self, args: dict, ctx: ToolContext) -> ToolOutcome:
         snap = await self._snap(ctx, args["source_id"])
