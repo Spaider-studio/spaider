@@ -433,7 +433,7 @@ class AgentManager:
                     d["result"]["data"] = data[a.action_id]
             recent.append(d)
         notes = list(getattr(self, "_notes", {}).get(task.id, []))
-        user = step_user_message(goal=task.goal, parameters=task.parameters, step=task.step, max_steps=task.max_steps, recent_actions=recent, observations=observations, notes=notes)
+        user = step_user_message(goal=task.goal, parameters=task.parameters, step=task.step, max_steps=task.max_steps, recent_actions=recent, observations=observations, notes=notes, scopes=task.scopes)
         messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
         toggle = self.reasoning_toggle()
         for attempt in range(MAX_REPAIRS + 1):

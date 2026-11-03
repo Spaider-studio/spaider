@@ -148,21 +148,23 @@ def register_self_pid(pid: int) -> None:
 
 
 def self_pids() -> set[int]:
+    """SpAIder's own process family: this core, its llama-server children and the
+    Electron launcher (parent) with its windows. Processes the agent starts on purpose
+    (windows.launch) are children of the core but NOT part of this set."""
     pids = set(_SELF_PIDS)
     pids.add(os.getpid())
     try:
         import psutil
 
         me = psutil.Process(os.getpid())
+        for c in me.children(recursive=False):
+            if c.name().lower().startswith("llama-server"):
+                pids.add(c.pid)
         parent = me.parent()
-        if parent is not None:
+        if parent is not None and parent.name().lower() in _SELF_NAMES | {"electron.exe"}:
             pids.add(parent.pid)
             for c in parent.children(recursive=True):
-                pids.add(c.pid)
-            gp = parent.parent()
-            if gp is not None and gp.name().lower() in _SELF_NAMES | {"electron.exe"}:
-                pids.add(gp.pid)
-                for c in gp.children(recursive=True):
+                if c.name().lower() in _SELF_NAMES | {"electron.exe"} or c.name().lower().startswith("llama-server"):
                     pids.add(c.pid)
     except Exception:  # noqa: BLE001
         pass
