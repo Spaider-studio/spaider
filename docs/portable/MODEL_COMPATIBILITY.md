@@ -118,3 +118,22 @@ spezifischen Prompt und keine `/think`-Annahme.
   abgeleitet, bis der Header beim Download gelesen wurde.
 - Vulkan auf anderen GPUs als Intel Arc 140V, Partial-Offload (Teilschichten)
   und Modelle über 8B wurden nicht ausgeführt.
+
+## Ergänzung 0.3: Bild, Grounding und Werkzeuge getrennt geprüft
+
+Runtime unverändert llama.cpp b12032 (CPU + Vulkan). Projektordateien
+(`mmproj-*.gguf`, Architektur `clip`) werden mit den Gewichten als Einheit
+installiert (Katalog `kind: mmproj`, lokaler Import nimmt eine `mmproj-*.gguf`
+daneben mit) und mit `--mmproj`, `--mmproj-offload` (nur Vulkan) und
+`--image-max-tokens` gestartet.
+
+| Modell | Text-Chat | Bildeingabe | Grounding (Koordinaten) | Werkzeuge (JSON-Schema-Planer) | Native Tool-Calls | Backend/Messung |
+|---|---|---|---|---|---|---|
+| Qwen3-VL 4B Instruct Q4_K_M + mmproj Q8_0 (Qwen, offiziell) | ausgeführt | **ausgeführt**: Live-Frage auf echter Fensteraufnahme, Antwort korrekt (TEST_REPORT 0.3) | 0–1000 normiert, Kalibrierung mit synthetischem Ziel (Fehler < 2 % der Bildbreite, siehe `vlm-smoke-qwen3vl4b.json`) | ausgeführt (Aufgabenmatrix) | ungetestet (Planer nutzt Grammatik) | Vulkan + Projektor-Offload: erstes Token 2,7–4,7 s je nach Bildgröße, 28 Token/s; ohne Offload 11,5 s; CPU 21 s / 16,5 Token/s |
+| Qwen3 4B Q4_K_M (Textbaseline) | ausgeführt | nein (kein Projektor) | – | **ausgeführt**: Datei- und Browseraufgaben (TEST_REPORT 0.3) | ungetestet | Vulkan 28 Token/s, Planungsaufruf ≈ 7 s bei ≈ 1 200 Prompt-Tokens |
+| Gemma 4 E2B it Q4_0 + mmproj Q8_0 (ggml-org) | Metadaten | geladen und SHA-geprüft; Ausführung siehe TEST_REPORT 0.3 (Teilmenge) | ungetestet | ungetestet | ungetestet | – |
+
+Modellkarten bleiben Herstellerangaben; „ausgeführt“ heißt hier: auf diesem
+Rechner über den App-Pfad (Kern + API) mit synthetischen Daten geprüft. Ein
+erfolgreicher GGUF-Start beweist keine Agentenleistung; die Aufgabenmatrix
+(`AGENT_LIVE_TEST_REPORT.md`) zeigt Erfolge je Aufgabe und Modell.

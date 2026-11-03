@@ -303,6 +303,24 @@ blockiert (workflow-Scope).
 - Echtlauf Dateiaufgabe mit Qwen3-4B über die API; Adapter-Smoke (WinForms-Testapp, lokales Formular).
 - Desktop-Agent: Overlay, Hotkeys, Tray, Aufgabenpanel.
 
-Naechster konkreter Schritt: Echtläufe auswerten, Fehler beheben, Browserpaket-Download in den Kern,
-Paketierbarkeit (Playwright-Treiber, pywinauto/comtypes) prüfen, Aufgabenmatrix, Docs, Paket 0.3.0.
+### Fortschritt 00:10–00:40 (2026-11-04)
+- Echtläufe: Live-Frage mit Qwen3-VL auf der WinForms-Testapp (erstes Token 2,8 s, Aufnahme
+  94 ms, Antwort korrekt; test_real_live.py). Adapter-Smoke: UIA set_value/invoke + Datei
+  geschrieben, Browser (Playwright) Formular befuellt/bestaetigt, private Hosts gesperrt,
+  veraltete Refs abgelehnt (tools-smoke.json).
+- Agent mit Qwen3-4B: Dateiaufgabe 6 Schritte/46 s, Ausgabe belegt (agent-file-task-qwen3-4b.json).
+  Befunde und Fixes: Modell fragte nach bereits erlaubtem Lesen (jetzt deterministisch bejaht,
+  Scopes im Prompt, Beispiel), meldete Erfolg ohne Aktion (jetzt abgelehnt), Browser-Refs
+  verwechselt (jetzt Muster ^b\d+$ in Schema/Grammatik, Objekte statt Zeilen). Browseraufgabe:
+  Formular korrekt gefuellt und abgeschickt; Abschluss-Erkennung ueber Seitentext nach Klick.
+- Eigene Prozessfamilie korrekt erkannt (vorher wurden alle Geschwisterprozesse als "self"
+  ausgeblendet). Browserpaket: Chrome for Testing 156.0.8078.4 (207 073 013 B, SHA 220021ec…)
+  als Job installierbar; Downloader kennt CDN-Hosts und fertige .part-Dateien.
+- PyInstaller-Build mit pywinauto/comtypes/mss/playwright: 4,3 min, 40 MB exe; comtypes-Cache
+  im Datenordner. Frozen-Check und 20er-Aufgabenmatrix (Qwen3-VL-4B, 3 Wiederholungen) laufen.
+- Docs: AGENT_LIVE_ARCHITECTURE.md, PORTABLE_AGENT_STATE.md, QUICKSTART/MODEL_COMPATIBILITY 0.3.
+
+Naechster konkreter Schritt: Matrix auswerten, Gemma-Teilmenge, Desktop-Agent-Ergebnis
+einbauen (Overlay/Hotkeys real messen), Paket 0.3.0 bauen und frisch starten, Migration auf
+Datenkopie, Offline, Testbericht/Performance-Bericht, Bundle, Abschluss.
 

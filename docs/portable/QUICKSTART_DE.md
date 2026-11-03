@@ -79,3 +79,38 @@ Download. Die Geschwindigkeit hängt vom jeweiligen Rechner ab.
 - **Kurz messen**: Für das aktive Modell misst ein kurzer, abbrechbarer Test
   Token/s und Zeit bis zum ersten Token auf diesem Rechner; nur diese echten
   Werte erscheinen in Empfehlungen.
+
+## Neu in Version 0.3: Live-Bildschirmhilfe und Agent
+
+**Live-Fenster (Hotkey).** `Strg+Alt+Leertaste` (änderbar unter Einstellungen →
+Live & Agent) öffnet ein kleines Fenster über der aktuellen Anwendung. Es schlägt
+das Fenster vor, das gerade im Vordergrund war; beim ersten Mal bestätigst du die
+Quelle (oder wählst ein anderes Fenster bzw. einen Bildschirm). Dann fragst du
+direkt: „Was steht hier?“, „Was bedeutet dieser Fehler?“, „Nutze unser
+Projektwissen für einen Entwurf“. Die Antwort nutzt die lesbare Struktur des
+Fensters und – wenn ein Bildmodell aktiv ist – ein aktuelles Bild. Beobachten
+löst keine Aktionen aus. `Esc` schließt das Fenster; die Antworten stehen auch im
+Hauptfenster im Gespräch „Live: …“. SpAIder-eigene Fenster werden nie aufgenommen.
+
+**Bildmodell.** Für Bildfragen und den Agenten empfiehlt SpAIder „Qwen3-VL 4B
+Instruct“ (Text + Bilder, mit Projektor). Mit einem reinen Textmodell (z. B.
+Qwen3 4B) funktionieren Live-Fragen nur über die Fensterstruktur; das wird im
+Live-Fenster angezeigt.
+
+**Aufgaben (Agent).** Unter „Aufgaben“ beschreibst du, was erledigt werden
+soll, und gibst den Umfang frei: Ordner (lesen) und Schreibordner, eigener
+Browser, Fenster (Auswahl) – mehr darf der Agent nicht. Er arbeitet Schritt für
+Schritt mit sichtbarem Fortschritt, prüft jedes Ergebnis (Datei zurückgelesen,
+Feldwert, Dialogzustand) und fragt nur bei folgenreichen Wirkungen (senden,
+veröffentlichen, kaufen, löschen) nach. „Stopp“ sperrt sofort weitere Aktionen.
+Erfolgreiche Aufgaben kannst du als Ablauf speichern und später mit anderen
+Parametern starten.
+
+**Eigener Browser.** Für Web-Aufgaben lädt SpAIder einmalig ein eigenes,
+geprüftes Chromium-Paket (≈ 207 MB) in den Datenordner; dein normaler Browser,
+seine Anmeldungen und Profile bleiben unberührt.
+
+**Stoppen und Beenden.** `Strg+Alt+Rücktaste` stoppt alles sofort (Antwort,
+Aufgabe, Aufnahme). „Sicher beenden“ bricht laufende Aufgaben an einer sicheren
+Grenze ab, schließt Browser und Modell und gibt den Datenträger frei; mit
+Tray-Modus bleibt SpAIder im Infobereich.
