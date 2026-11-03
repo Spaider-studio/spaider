@@ -232,6 +232,7 @@ class AgentManager:
                 self._latest_refs[task_id] = refs
                 self._latest_snapshot_ids[task_id] = snapshot_ids
                 tracker.done("observe", "Beobachtung fertig", {"sources": len(snapshot_ids)})
+                self._timing(task_id, "observe_ms", tracker.timings_ms.get("observe_ms", 0) if hasattr(tracker, "timings_ms") else 0)
                 # ---- planning
                 self._set_state(task_id, "planning", summary_de=f"Schritt {step}: nächster Schritt wird geplant.")
                 tracker.start("planning", f"Schritt {step}: Planung")
@@ -321,6 +322,7 @@ class AgentManager:
                 action = self.store.set_action_state(action.action_id, state, result=result, finished=True, duration_ms=duration)
                 self._publish_action(action)
                 tracker.done("executing", outcome.summary_de[:120], {"ok": outcome.ok, "duration_ms": duration})
+                self._timing(task_id, "executing_ms", duration)
                 self._remember_data(task_id, action.action_id, outcome)
                 if outcome.artifacts:
                     self._add_artifacts(task_id, outcome.artifacts)
@@ -346,10 +348,19 @@ class AgentManager:
             self._latest_snapshot_ids.pop(task_id, None)
 
     # ---- helpers ---------------------------------------------------------------------
+    def _timing(self, task_id: str, key: str, ms: int) -> None:
+        if not hasattr(self, "_timings"):
+            self._timings = {}
+        t = self._timings.setdefault(task_id, {})
+        t[key] = t.get(key, 0) + int(ms or 0)
+
+    def timings(self, task_id: str) -> dict:
+        return dict(getattr(self, "_timings", {}).get(task_id, {}))
+
     def _finish(self, task_id: str, *, ok: bool, summary: str, verified: bool, verified_by: Optional[str] = None) -> None:
         task = self.store.get(task_id)
         prev = task.result.model_dump() if task.result else {}
-        result = TaskResult(ok=ok, summary_de=summary, artifacts=[Artifact(**a) for a in (prev.get("artifacts") or [])], verified=verified, verified_by=verified_by)
+        result = TaskResult(ok=ok, summary_de=summary, artifacts=[Artifact(**a) for a in (prev.get("artifacts") or [])], verified=verified, verified_by=verified_by, timings=self.timings(task_id))
         self._set_state(task_id, "completed" if ok else "failed", summary_de=summary, finished=True, result_json=result.model_dump_json())
 
     def _note(self, task_id: str, text: str) -> None:
@@ -430,7 +441,10 @@ class AgentManager:
             if client is None:
                 raise RuntimeError("Kein Chatmodell bereit.")
             text = ""
-            async with self.scheduler.chat():
+            t_llm = time.monotonic()
+            async with self.scheduler.agent():
+                self._timing(task.id, "wait_ms", int((time.monotonic() - t_llm) * 1000))
+                t_llm = time.monotonic()
                 self.store.update(task.id, llm_calls=self.store.get(task.id).llm_calls + 1)
                 async for chunk in client.stream_chat(
                     messages,
@@ -445,6 +459,7 @@ class AgentManager:
                         return None
                     if chunk.text:
                         text += chunk.text
+            self._timing(task.id, "planning_ms", int((time.monotonic() - t_llm) * 1000))
             try:
                 decision = json.loads(text.strip())
                 if not isinstance(decision, dict) or decision.get("decision") not in ("action", "ask_user", "done"):

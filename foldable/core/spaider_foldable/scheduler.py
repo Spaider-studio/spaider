@@ -40,6 +40,7 @@ class LLMScheduler:
         self.cooldown_s = cooldown_s
         self.mode = mode
         self._chat_active = 0
+        self._agent_active = 0
         self._last_chat_end = 0.0
         self._bg_task: Optional[asyncio.Task] = None
         self._bg_kind: Optional[str] = None
@@ -56,6 +57,7 @@ class LLMScheduler:
     def state(self) -> dict:
         return {
             "chat_active": self._chat_active > 0,
+            "agent_active": self._agent_active > 0,
             "background": {
                 "kind": self._bg_kind,
                 "running_s": round(time.monotonic() - self._bg_started, 1) if self._bg_kind else 0,
@@ -91,6 +93,28 @@ class LLMScheduler:
             self._last_chat_end = time.monotonic()
             self._notify()
 
+    @contextlib.asynccontextmanager
+    async def agent(self):
+        """Hold the slot for one agent step: preempts background work like a chat,
+        but waits while a user-facing answer (chat/live question) is running, so the
+        user keeps priority. A chat that starts mid-step is not interrupted; the
+        step ends within one bounded model call."""
+        while self._chat_active > 0:
+            await asyncio.sleep(0.1)
+        self._agent_active += 1
+        try:
+            await self.preempt_background()
+            self._notify()
+            yield
+        finally:
+            self._agent_active -= 1
+            self._last_chat_end = time.monotonic()
+            self._notify()
+
+    @property
+    def agent_active(self) -> bool:
+        return self._agent_active > 0
+
     async def preempt_background(self, wait_s: float = 3.0) -> bool:
         task = self._bg_task
         if task is None or task.done():
@@ -124,7 +148,7 @@ class LLMScheduler:
     async def wait_for_background_slot(self) -> None:
         """Block until background work may run (no chat, cooldown elapsed, not paused)."""
         while True:
-            if not self._paused and self._chat_active == 0:
+            if not self._paused and self._chat_active == 0 and self._agent_active == 0:
                 remaining = self.cooldown_s - (time.monotonic() - self._last_chat_end)
                 if remaining <= 0:
                     return
@@ -175,6 +199,6 @@ class LLMScheduler:
             try:
                 return await task
             except asyncio.CancelledError:
-                if task.cancelled() and self._chat_active > 0:
+                if task.cancelled() and (self._chat_active > 0 or self._agent_active > 0):
                     raise Preempted()
                 raise

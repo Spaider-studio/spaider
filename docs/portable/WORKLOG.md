@@ -262,3 +262,47 @@ vollstaendig; Paket 0.2.0 gebaut und geprueft. Offen: (1) Push nach
 `gh auth refresh -h github.com -s workflow`, (2) Zwei-PC-Test, (3) Vorschlaege aus
 PERFORMANCE_REPORT "Verbleibende Engpaesse" (Verlauf wie gesendet cachen, zweiter
 Server-Slot, Extraktionslimit fuer lange Eingaben), (4) Integrationsentscheidung.
+
+
+---
+
+## Folgeauftrag: lokaler Agent, Live-Bildschirmhilfe (2026-11-03 23:35 bis …)
+
+Branch `feature/spaider-foldable-agent-live` (von debc9be). Sicherung vorab:
+`backup/spaider-foldable-pre-agent-20261103.bundle` (verifiziert). Push weiterhin
+blockiert (workflow-Scope).
+
+### Bestandsaufnahme (23:38)
+- Desktop interaktiv (Input-Desktop „Default“), 3 Monitore (1920x1080 x2, 1920x1200 @125 %),
+  Bildschirm-/Fensteraufnahme und UIA (pywinauto 0.6.9) funktionieren.
+- llama-server b12032 kann `--mmproj`, `--mmproj-offload`, `--image-max-tokens`, `--json-schema`,
+  `--parallel`. Dev-Abhängigkeiten installiert: pywinauto, pywin32, mss, playwright 1.64.1
+  (Chromium 1248 „Chrome for Testing 156“, 437 MB, unter dev-app/browser).
+- Vision-Kandidaten (offiziell/ungated, Apache-2.0): Qwen/Qwen3-VL-4B-Instruct-GGUF (Q4_K_M 2,33 GiB +
+  mmproj Q8_0 0,42 GiB) und ggml-org/gemma-4-E2B-it-GGUF (Q4_0 2,65 GiB + mmproj 0,52 GiB). Beide
+  geladen und SHA-geprüft (dev-app/data/downloads/vision, 5,9 GiB von 10 GiB Budget).
+
+### Umgesetzt (Commits 5adf805, 69ff738, 30aaf71)
+- API-Vertrag v1.2 (Live, Agent, Overlay-Bridge) in API_CONTRACT.md; Desktop-Agent arbeitet gegen Mock.
+- observe/: Fenster mit Prozessidentität, Monitore/DPI, PrintWindow/mss-Aufnahme, UIA auf eigenem
+  COM-Thread mit Zeitbudget, Snapshots mit Transformation + Bildhash. Gemessen: Fensteraufnahme 46 ms,
+  UIA-Lesen 360 ms kalt / 63 ms warm (Notepad, 28 Elemente), Snapshot 156 ms.
+- live/: Sitzungen (eine Quelle), Snapshot auf Abruf, Frage mit Struktur + optional Bild über den
+  bestehenden Chat (observation-Ereignis, Phasen capture/observe/image_encode).
+- Vision: Projektor-Paarung in Registry/Katalog (kind=mmproj), Runtime-Flags, Fähigkeiten
+  vision_input/tool_call_format/image_grounding. Messung Qwen3-VL-4B (vlm-smoke-qwen3vl4b.json):
+  Vulkan+Projektor-Offload erstes Token 4,7 s bei 915 Prompt-Tokens, 28 Token/s; ohne Offload 11,5 s;
+  CPU 21,4 s / 16,5 Token/s. Grounding liefert normierte 0-1000-Koordinaten (kalibriert).
+- agent/: Schema v3 (tasks/actions/recipes), Broker (Scopes, Schema-Prüfung, Frische, Freigaben,
+  Abbruch-Generation), Runner (Zustandsmaschine, Budgets, Stagnation, Fragen, Artefakte, Rezepte),
+  Werkzeuge files/memory/windows/vision/browser, Routen /api/agent/*. Scheduler: Agentenschritte
+  warten auf laufende Nutzerantworten.
+- 57 Unit-Tests grün (Agent: Dateiaufgabe mit skriptiertem Modell, Scope-Ausbrüche, Freigabe, Abbruch).
+
+### Laufend
+- Echtlauf Dateiaufgabe mit Qwen3-4B über die API; Adapter-Smoke (WinForms-Testapp, lokales Formular).
+- Desktop-Agent: Overlay, Hotkeys, Tray, Aufgabenpanel.
+
+Naechster konkreter Schritt: Echtläufe auswerten, Fehler beheben, Browserpaket-Download in den Kern,
+Paketierbarkeit (Playwright-Treiber, pywinauto/comtypes) prüfen, Aufgabenmatrix, Docs, Paket 0.3.0.
+

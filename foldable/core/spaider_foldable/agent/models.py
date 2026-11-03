@@ -86,6 +86,7 @@ class TaskResult(BaseModel):
     artifacts: list[Artifact] = Field(default_factory=list)
     verified: bool = False
     verified_by: Optional[str] = None
+    timings: dict[str, int] = Field(default_factory=dict)  # observe_ms / wait_ms / planning_ms / executing_ms (sums)
 
 
 class PendingQuestion(BaseModel):
