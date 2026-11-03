@@ -320,7 +320,21 @@ blockiert (workflow-Scope).
   im Datenordner. Frozen-Check und 20er-Aufgabenmatrix (Qwen3-VL-4B, 3 Wiederholungen) laufen.
 - Docs: AGENT_LIVE_ARCHITECTURE.md, PORTABLE_AGENT_STATE.md, QUICKSTART/MODEL_COMPATIBILITY 0.3.
 
-Naechster konkreter Schritt: Matrix auswerten, Gemma-Teilmenge, Desktop-Agent-Ergebnis
-einbauen (Overlay/Hotkeys real messen), Paket 0.3.0 bauen und frisch starten, Migration auf
-Datenkopie, Offline, Testbericht/Performance-Bericht, Bundle, Abschluss.
+### Fortschritt 00:40–00:55
+- Frozen-Check nach Rebuild gruen (UIA 311 ms, Browserpaket + Playwright im Bundle, Exit 0).
+- Migration einer konsistenten Kopie der Nutzerdaten (Backup-API) auf Schema 3: ok, Zaehler
+  unveraendert, Original unberuehrt (update-test-0.3.json). Live/Agent-API-Tests (ohne Modell)
+  ergaenzt: 66 Unit-Tests gruen.
+- Desktop-Agent fertig (Commit 614c916): Overlay, Hotkeys (Ctrl+Alt+Space hier belegt ->
+  ehrlich gemeldet, Messung mit Ctrl+Alt+F9), Tray, Aufgabenpanel, Einstellungen, Mock v1.2,
+  84 Vitest, Paket 0.3.0; Mock-Latenzen: Hotkey->show 12,3 ms, ->Paint 16,7 ms (Median).
+- Zweiter Desktop-Agent misst jetzt gegen den echten Kern (Overlay-Frage mit Bildmodell,
+  Stopp-Hotkey, Aufgabe aus der UI) und behebt zwei Luecken (Live-Sitzung beenden beim
+  Schliessen, Agent-Aktivitaet im Zeitstrahl).
+- Matrix Qwen3-VL-4B: Dateigruppe 13/15 (F4 zweimal ohne Dateinamen = Fehlerfolg),
+  Browsergruppe laeuft.
+
+Naechster konkreter Schritt: Matrix abschliessen, Qwen3-4B- und Gemma-Teilmengen, UI-Ergebnis
+einbauen, Kern final bauen, Paket 0.3.0 assemblieren + verify_package + Offline, Berichte,
+Bundle, Abschluss.
 

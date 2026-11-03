@@ -43,6 +43,25 @@ zusätzlichen Modellaufrufe.
 | `postprocess_running` / `postprocess_done` | läuft / fertig (kommen über den globalen Kanal, auch nach Ende des Chat-Streams) | „Gedächtnis wird aktualisiert“ / „Gedächtnis aktualisiert“ | |
 | `failed` | Fehler mit verständlicher Ursache (`message_de`) | „Fehlgeschlagen: …“ | |
 
+Zusätzliche Phasen seit 0.3 (Live-Fragen, `request_id` = Assistenten-Nachricht):
+
+| Phase | Wann | Anzeige (Beispiel) | Prozent |
+|---|---|---|---|
+| `capture` | Zielfenster wird neu validiert und aufgenommen (vor der Gedächtnissuche) | „Quelle wird aufgenommen“ → done: „Aufnahme fertig (ok)“ mit `capture_ms`, `quality` | nein |
+| `observe` | UI-Automation-Struktur wird gelesen (begrenzt) | „Struktur wird gelesen“ → „16 Elemente, 242 Zeichen“ (`elements`, `text_chars`, `uia_ms`) | nein |
+| `image_encode` | Bild wird für das Bildmodell vorbereitet (nur mit Projektor) | „Bild wird vorbereitet“ → „Bild 626×413“ (`image_w`, `image_h`, `image_bytes`) | nein (Encoding im Server zählt zu `prompt_processing`) |
+
+Phasen einer Agentenaufgabe (`request_id` = Aufgaben-Id, über `GET /api/agent/tasks/{id}/events`):
+
+| Phase | Wann | Anzeige (Beispiel) |
+|---|---|---|
+| `observe` | frische, begrenzte Beobachtung der Quellen im Umfang je Schritt | „Schritt 3: Beobachtung“ → „Beobachtung fertig“ (`sources`) |
+| `planning` | ein Modellaufruf mit Grammatik-JSON | „Schritt 3: Planung“ → „Entscheidung erhalten“ (`llm_calls`) |
+| `executing` | Werkzeugaufruf nach Validierung/Freigabe | „files.write“ → „232 Bytes geschrieben und zurückgelesen“ (`ok`, `duration_ms`) |
+
+Dazu `event: task` (Zustand), `event: action` (Vorschlag → validiert → läuft → done/failed/rejected/unknown_outcome),
+`event: question` (Rückfrage/Freigabe), `event: token` (Erklärtext, kein Beleg), `event: done`.
+
 Unterschiedliche Zustände, die die UI nicht vermischt: *Gespräch gespeichert*
 (`saved`), *Gedächtnis aktualisiert* (`postprocess_done`), *Nachverarbeitung
 ausstehend* (`postprocess_pending`).
