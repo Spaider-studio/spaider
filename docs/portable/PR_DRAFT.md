@@ -71,3 +71,21 @@ keine Signatur, Qwen3.8 nur als Community-GGUF dokumentiert, nicht ausgeführt).
   Empfehlungen für den jeweiligen Rechner, Kalibrierung.
 - Messwerkzeug `foldable/build/measure.py`, Berichte `PERFORMANCE_REPORT.md`,
   `MODEL_COMPATIBILITY.md`, `MODEL_RECOMMENDATIONS.md`.
+
+---
+
+## Nachtrag: Update 0.3 (lokaler Agent, Live-Bildschirmhilfe)
+
+**Titel:** `feat(foldable): live screen help (hotkey overlay), scoped local agent with file/browser/windows tools, vision models`
+
+**Zusätzlich zum 0.2-Umfang:**
+- Live-Sitzungen (Quelle = Fenster/Bildschirm, UIA-Struktur + Bild, keine Dauerschleife, Overlay
+  per Hotkey, geteiltes Gespräch).
+- Agent: persistente Zustandsmaschine, Broker mit Scopes/Validierung/Journal/Abbruch,
+  Werkzeuge für Dateien, Gedächtnis, Windows (UIA/SendInput), Bild (Beschreiben, Grounding mit
+  Kalibrierung) und eigenen Browser (Playwright + gepinnter Chromium-Download), Rezepte.
+- Modelle: Projektor-Paarung, Fähigkeiten text/vision/grounding/tools getrennt; Qwen3-VL-4B
+  als Standard für Bildfragen.
+- Berichte: `AGENT_LIVE_ARCHITECTURE.md`, `AGENT_LIVE_PERFORMANCE.md`, `AGENT_LIVE_TEST_REPORT.md`,
+  `PORTABLE_AGENT_STATE.md`.
+

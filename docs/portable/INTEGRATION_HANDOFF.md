@@ -126,3 +126,29 @@ Bis dahin liegen Git-Bundles unter `C:\Users\mucbay\spaider-foldable\backup\`
   `SemanticCompressor._extract_with_retry` sollte `max_tokens`/Timeout
   konfigurierbar machen (der Adapter kappt derzeit im Modul-Namensraum), und
   `_attach_fact_node` sollte in ein Service-Modul wandern.
+
+---
+
+## Nachtrag 2026-11-04: Branch `feature/spaider-foldable-agent-live` (0.3)
+
+- Basis: `debc9be` (Ende des 0.2-Branches); Historie weiter linear. Nur `foldable/` und
+  `docs/portable/` geändert; `backend/`, `frontend/`, `cli/`, `sdk/` unverändert.
+- Neue Kernmodule: `spaider_foldable/observe/` (windows, capture, uia, snapshot),
+  `spaider_foldable/live/sessions.py`, `spaider_foldable/agent/` (models, store, broker, loop,
+  prompts, browserpkg, tools/{files,memory,windows,vision,browser}), Routen `routes_live.py`,
+  `routes_agent.py`, Schema `db/schema_v3.sql` (Migration 3: `agent_tasks`, `agent_actions`,
+  `agent_recipes`). Tests: `test_agent_core.py`, `test_agent_tools.py`, `test_real_live.py`,
+  Fixtures `tests/fixtures/winforms_*.ps1`, Aufgabenmatrix `tests/matrix/`.
+- Neue Abhängigkeiten (pyproject gepinnt, Lizenzen): pywinauto 0.6.9 (BSD-3), comtypes 1.4.17
+  (MIT), pywin32 312 (PSF), mss 10.2.0 (MIT), playwright 1.64.1 (Apache-2.0; der Node-Treiber wird
+  als Daten in den PyInstaller-Bundle gelegt). Browser: Chrome for Testing 156.0.8078.4
+  (BSD-3, Playwright-Build 1248), **nicht** im ZIP, sondern per Job in `data/browser/`
+  (207 073 013 Bytes, SHA-256 `220021ec…41db`, Host `cdn.playwright.dev` → Weiterleitung
+  `storage.googleapis.com`; beide im Downloader erlaubt).
+- Vision-Modelle: Katalogeinträge mit `kind: mmproj` (Qwen/Qwen3-VL-4B-Instruct-GGUF offiziell,
+  ggml-org/gemma-4-E2B-it-GGUF); Registry paart Projektor und Gewichte.
+- Electron: Overlay-Fenster, globale Hotkeys, Tray, Aufgabenpanel, Einstellungen „Live & Agent“
+  (Desktop-Teil, siehe `foldable/desktop/NOTES.md`).
+- Upstream-Vorschläge (nicht umgesetzt): keine; die Agentenschicht liegt vollständig unter
+  `foldable/` und nutzt den Kompressor/Retriever nur lesend.
+
