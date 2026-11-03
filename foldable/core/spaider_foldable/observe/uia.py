@@ -94,6 +94,22 @@ class UiaProvider:
         self._lock = threading.Lock()
         self.available = IS_WIN
         self.last_error: Optional[str] = None
+        self.warm = False
+        self.warmup_ms: Optional[int] = None
+
+    def warmup(self) -> None:
+        """Import pywinauto on the worker thread and touch the desktop once (generates comtypes wrappers)."""
+        if not self.available or self.warm:
+            return
+        t0 = time.monotonic()
+        try:
+            self.call(_warmup, timeout=120.0)
+            self.warm = True
+            self.warmup_ms = int((time.monotonic() - t0) * 1000)
+            logger.info("uia warm-up done in %d ms", self.warmup_ms)
+        except Exception as exc:  # noqa: BLE001
+            self.last_error = f"UIA-Aufwärmen fehlgeschlagen: {exc}"[:300]
+            logger.warning(self.last_error)
 
     def _get_worker(self) -> _Worker:
         with self._lock:
@@ -119,8 +135,12 @@ class UiaProvider:
 
     # ---- reads -----------------------------------------------------------------
     def read_window(self, hwnd: int, *, max_depth: int = 12, max_elements: int = 250, max_text: int = 4000, time_budget_s: float = 4.0, timeout: float = 10.0) -> UiTree:
+        if not self.warm:
+            timeout = max(timeout, 60.0)  # first use may still be generating wrappers
         try:
-            return self.call(_read_window, timeout=timeout, hwnd=hwnd, max_depth=max_depth, max_elements=max_elements, max_text=max_text, time_budget_s=time_budget_s)
+            tree = self.call(_read_window, timeout=timeout, hwnd=hwnd, max_depth=max_depth, max_elements=max_elements, max_text=max_text, time_budget_s=time_budget_s)
+            self.warm = True
+            return tree
         except TimeoutError as exc:
             return UiTree(error=str(exc), truncated=True)
         except Exception as exc:  # noqa: BLE001
@@ -249,6 +269,12 @@ def _read_window(hwnd: int, max_depth: int, max_elements: int, max_text: int, ti
     tree.text_excerpt = "\n".join(texts)[:max_text]
     tree.duration_ms = int((time.monotonic() - t0) * 1000)
     return tree
+
+
+def _warmup():
+    from pywinauto import Desktop
+
+    return len(Desktop(backend="uia").windows())
 
 
 def _find_by_path(hwnd: int, path: str):

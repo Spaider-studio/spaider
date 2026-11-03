@@ -99,6 +99,7 @@ class AppContext:
             on_change=lambda s: self.bus.publish("live", s),
             max_side=lambda: self.settings.load().live_image_max_side,
         )
+        self.agent_snapshots = {}
         self.tasks = TaskStore(self.db, current_host_id())
         self.broker = Broker()
         files_tools.register(self.broker, parse_document=self._parse_document_file)
@@ -164,7 +165,6 @@ class AppContext:
         self.shutting_down = False
         self._runtime_version: Optional[str] = None
         self.agent_snapshots: dict = {}
-        self.browser = None  # set by the browser adapter when Playwright is available
 
     # ---- lifecycle ----------------------------------------------------------
     def startup_sync(self) -> None:
@@ -191,6 +191,9 @@ class AppContext:
 
     async def startup_async(self) -> None:
         self.worker.start()
+        # UI Automation warm-up in the background: the first pywinauto/comtypes use generates
+        # typelib wrappers (seconds in a frozen build); doing it now keeps the first live question fast
+        asyncio.get_running_loop().run_in_executor(None, self.uia.warmup)
         self._hardware_task = asyncio.create_task(self._detect_hardware(), name="hardware-detect")
         self._autostart_task = asyncio.create_task(self._autostart_models(), name="autostart-models")
 

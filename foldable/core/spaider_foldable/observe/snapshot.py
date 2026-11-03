@@ -56,7 +56,7 @@ class Snapshot:
             "source_kind": self.source_kind,
             "target": self.target,
             "quality": self.quality,
-            "error": self.error,
+            "error": self.error or self.tree.error,
             "text_excerpt": self.tree.text_excerpt,
             "text_chars": len(self.tree.text_excerpt),
             "elements": [e.to_dict() for e in self.tree.elements],
