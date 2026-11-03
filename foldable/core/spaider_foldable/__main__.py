@@ -117,6 +117,9 @@ def main(argv: list[str] | None = None) -> int:
         )
         if Path(vk).exists():
             runtime_dirs["vulkan"] = Path(vk).resolve()
+        from .observe.uia import configure_comtypes_cache
+
+        configure_comtypes_cache(paths.data_dir / "cache")
         ctx = AppContext(paths, runtime_dirs, on_exit=on_exit)
         try:
             await loop.run_in_executor(None, ctx.startup_sync)

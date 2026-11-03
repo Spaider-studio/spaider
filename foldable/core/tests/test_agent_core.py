@@ -161,7 +161,8 @@ async def test_approval_required_for_consequential_targets(db, tmp_path):
     t = await _wait_terminal(store, task.id)
     acts = store.actions(task.id)
     assert acts[0].state == "rejected" and "abgelehnt" in (acts[0].reason_de or "")
-    assert t.state == "completed" and t.result.verified is False  # nothing verified was executed
+    # a success claim without any executed action is refused; the scripted client then runs out of decisions
+    assert t.state == "failed" and not t.result.verified
 
 
 @pytest.mark.asyncio

@@ -154,6 +154,7 @@ class AppContext:
         )
         self.scheduler.on_change(lambda st: self.bus.publish("scheduler", st))
         self.jobs.on_calibrated = self._on_calibrated
+        self.jobs.on_browser_installed = lambda chrome: setattr(self.browser, "chrome_path", chrome)
         self.inference.on_state = lambda role, st: self.bus.publish("runtime", {"role": role, **st})
         self._shutdown_task: Optional[asyncio.Task] = None
         self._autostart_task: Optional[asyncio.Task] = None

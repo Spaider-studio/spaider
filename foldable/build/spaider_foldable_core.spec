@@ -47,6 +47,22 @@ hiddenimports += collect_submodules("app")
 hiddenimports += collect_submodules("spaider_foldable")
 hiddenimports += ["uvicorn.logging", "uvicorn.loops.auto", "uvicorn.protocols.http.auto", "uvicorn.protocols.websockets.auto",
                   "uvicorn.lifespan.off", "anyio._backends._asyncio", "Levenshtein", "redis.asyncio", "psutil"]
+# 0.3: desktop observation/automation and the own browser
+for _mod in ("pywinauto", "comtypes", "mss", "playwright", "greenlet", "pyee"):
+    try:
+        hiddenimports += collect_submodules(_mod)
+    except Exception:  # noqa: BLE001
+        pass
+hiddenimports += ["win32gui", "win32api", "win32con", "win32process", "win32clipboard", "pywintypes", "win32ui", "win32event",
+                  "comtypes.gen", "comtypes.client", "pywinauto.controls.uiawrapper", "pywinauto.uia_defines", "PIL.ImageDraw", "PIL.ImageFont"]
+try:
+    # Playwright's node driver (node.exe + package) must travel as data; the browser itself is a separate download.
+    import playwright as _pw
+    _pw_dir = Path(_pw.__file__).parent
+    datas += [(str(_pw_dir / "driver"), "playwright/driver")]
+    datas += collect_data_files("comtypes")
+except Exception:  # noqa: BLE001
+    pass
 
 a = Analysis(
     [str(SPEC_DIR / "core_entry.py")],

@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import time
 import uuid
 from typing import Any, Callable, Optional
@@ -247,16 +248,36 @@ class AgentManager:
                 kind = decision.get("decision")
                 if kind == "done":
                     d = decision.get("done") or {}
+                    executed = [a for a in self.store.actions(task_id) if a.state == "done"]
+                    if d.get("ok") and not executed:
+                        # a success claim without a single executed action is never accepted
+                        premature = self._counter(task_id, "premature_done")
+                        if premature >= 2:
+                            self._finish(task_id, ok=False, summary="Das Modell meldete Erfolg, ohne eine Aktion ausgeführt zu haben.", verified=False)
+                            return
+                        self._note(task_id, "Abschluss abgelehnt: Es wurde noch keine Aktion ausgeführt. Erst Werkzeuge verwenden (z. B. files.list/files.read), dann done.")
+                        continue
                     verified = self._verified_claim(task_id, d.get("verified_by") or "")
                     self._finish(task_id, ok=bool(d.get("ok")), summary=str(d.get("summary") or "")[:600], verified=verified, verified_by=d.get("verified_by"))
                     return
                 if kind == "ask_user":
                     q = decision.get("ask_user") or {}
-                    answer = await self._ask(task_id, text=str(q.get("text") or "Rückfrage")[:400], kind=q.get("kind") or "input", action=None)
+                    qtext = str(q.get("text") or "Rückfrage")[:400]
+                    if (q.get("kind") or "input") == "approval" and _is_read_only_request(qtext):
+                        # reading/listing inside the granted scope needs no approval: answer deterministically
+                        n = self._counter(task_id, "auto_answers")
+                        ev.publish("token", {"text": f"(Rückfrage „{qtext[:80]}“ betrifft nur Lesen im freigegebenen Umfang – automatisch bejaht.)"})
+                        self._note(task_id, f"Deine Rückfrage „{qtext[:120]}“ ist unnötig: Lesen/Auflisten im freigegebenen Umfang ist bereits erlaubt. Führe die Aktion jetzt direkt aus (decision=\"action\").")
+                        if n >= 3:
+                            self._finish(task_id, ok=False, summary="Das Modell fragte wiederholt nach bereits erteilten Freigaben, statt zu handeln.", verified=False)
+                            return
+                        continue
+                    answer = await self._ask(task_id, text=qtext, kind=q.get("kind") or "input", action=None)
                     if answer is None:
                         return
                     self.store.update(task_id, pending_question_json=None)
-                    self._note(task_id, f"Antwort des Nutzers: {answer.get('text') or ('Freigabe erteilt' if answer.get('approve') else 'abgelehnt')}")
+                    reply = answer.get("text") or ("Ja, freigegeben." if answer.get("approve") else "Nein, abgelehnt.")
+                    self._note(task_id, f"Auf deine Frage „{qtext[:120]}“ hat der Nutzer geantwortet: „{reply[:200]}“. Frage dazu nicht erneut; handle entsprechend.")
                     continue
                 # ---- validating
                 act = decision.get("action") or {}
@@ -362,6 +383,13 @@ class AgentManager:
         prev = task.result.model_dump() if task.result else {}
         result = TaskResult(ok=ok, summary_de=summary, artifacts=[Artifact(**a) for a in (prev.get("artifacts") or [])], verified=verified, verified_by=verified_by, timings=self.timings(task_id))
         self._set_state(task_id, "completed" if ok else "failed", summary_de=summary, finished=True, result_json=result.model_dump_json())
+
+    def _counter(self, task_id: str, key: str) -> int:
+        if not hasattr(self, "_counters"):
+            self._counters = {}
+        c = self._counters.setdefault(task_id, {})
+        c[key] = c.get(key, 0) + 1
+        return c[key]
 
     def _note(self, task_id: str, text: str) -> None:
         notes = self._notes.setdefault(task_id, []) if hasattr(self, "_notes") else None
@@ -472,6 +500,14 @@ class AgentManager:
                 messages.append({"role": "assistant", "content": text[:2000]})
                 messages.append({"role": "user", "content": f"Die Antwort war kein gültiges Entscheidungs-JSON ({exc}). Antworte erneut nur mit dem JSON-Objekt."})
         return None
+
+
+_READ_ONLY = re.compile(r"\b(lesen|auflisten|auflistung|öffnen|anzeigen|ansehen|prüfen|durchsuchen|suchen|einsehen|read|list|open|inspect|search|view)\b", re.IGNORECASE)
+_CONSEQUENTIAL = re.compile(r"\b(senden|send|löschen|delete|kaufen|buy|veröffentlichen|publish|überweisen|bezahlen|pay|ändern|change|schreiben|write|speichern|save|schließen|close|installieren|install)\b", re.IGNORECASE)
+
+
+def _is_read_only_request(text: str) -> bool:
+    return bool(_READ_ONLY.search(text)) and not _CONSEQUENTIAL.search(text)
 
 
 def _now() -> str:

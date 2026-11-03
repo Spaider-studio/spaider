@@ -22,7 +22,13 @@ AGENT_SYSTEM_PROMPT = (
     "nachweislich erreicht ist, und nenne, welches Ergebnis es belegt. Wenn das Ziel nicht erreichbar ist, melde "
     "done mit ok=false und erkläre kurz, warum.\n"
     "6. Bleibe im Umfang des Auftrags. Keine zusätzlichen Aktionen „nebenbei“.\n"
-    "7. Antworte auf Deutsch (Felder thought, expected_effect, summary)."
+    "7. Antworte auf Deutsch (Felder thought, expected_effect, summary).\n\n"
+    "Beispiel für einen ersten Schritt bei freigegebenem Ordner (so sieht eine Aktion aus):\n"
+    '{"thought": "Zuerst den Ordner auflisten, dann die Dateien lesen.", "decision": "action", '
+    '"action": {"tool": "files.list", "arguments": {"path": "C:/Beispiel/Ordner"}}, "expected_effect": "Dateiliste"}'
+    "\nBeispiel für den Abschluss (erst nach belegten Ergebnissen):\n"
+    '{"thought": "Die Datei wurde geschrieben und zurückgelesen.", "decision": "done", '
+    '"done": {"ok": true, "summary": "Kurzbericht erstellt: …", "verified_by": "files.write (Rücklesen, sha256)"}}'
 )
 
 

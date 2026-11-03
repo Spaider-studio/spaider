@@ -185,6 +185,23 @@ async def delete_recipe(recipe_id: str, ctx: AppContext = Depends(get_ctx)):
     return {"ok": True}
 
 
+@router.get("/browser")
+async def browser_status(ctx: AppContext = Depends(get_ctx)):
+    from ..agent import browserpkg
+
+    st = ctx.browser.status() if ctx.browser is not None else {"installed": False}
+    st["package"] = {k: v for k, v in browserpkg.BROWSER_PACKAGE.items() if k != "urls"}
+    return st
+
+
+@router.post("/browser/install", status_code=202)
+async def browser_install(ctx: AppContext = Depends(get_ctx)):
+    if ctx.browser is not None and ctx.browser.status().get("installed"):
+        return {"job": None, "installed": True}
+    job = await ctx.jobs.start_browser_install()
+    return {"job": job}
+
+
 @router.post("/stop")
 async def stop_all(ctx: AppContext = Depends(get_ctx)):
     stopped_tasks = ctx.agent.cancel_all()

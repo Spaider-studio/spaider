@@ -264,6 +264,35 @@ def _find_by_path(hwnd: int, path: str):
     return UIAWrapper(info)
 
 
+def configure_comtypes_cache(cache_dir) -> None:
+    """Frozen builds: comtypes writes generated typelib wrappers next to its package,
+    which is read-only inside the PyInstaller bundle. Point it at a writable folder
+    under the portable data directory before pywinauto is imported anywhere."""
+    try:
+        from pathlib import Path
+
+        gen = Path(cache_dir) / "comtypes_gen"
+        gen.mkdir(parents=True, exist_ok=True)
+        import comtypes
+        import comtypes.client
+
+        comtypes.client.gen_dir = str(gen)
+        try:
+            import comtypes.gen as cgen  # noqa: F401
+
+            if str(gen) not in cgen.__path__:
+                cgen.__path__.append(str(gen))
+        except ImportError:
+            import types
+
+            mod = types.ModuleType("comtypes.gen")
+            mod.__path__ = [str(gen)]  # type: ignore[attr-defined]
+            sys.modules["comtypes.gen"] = mod
+            comtypes.gen = mod  # type: ignore[attr-defined]
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("comtypes cache setup failed: %s", exc)
+
+
 def available() -> bool:
     if not IS_WIN:
         return False

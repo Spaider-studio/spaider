@@ -71,6 +71,7 @@ class JobManager:
         self.on_active_changed = on_active_changed
         self.runtime_options_for = runtime_options_for  # callable(model) -> (RuntimeOptions, n_layers)
         self.on_calibrated = None
+        self.on_browser_installed = None
         self._tasks: dict[str, asyncio.Task] = {}
         self._cancel: dict[str, Event] = {}
         self._subscribers: dict[str, list[asyncio.Queue]] = {}
@@ -295,6 +296,50 @@ class JobManager:
         job = self._insert("activate", model_id=model_id, message_de="Modellwechsel wird vorbereitet …")
         self._spawn(job["id"], self._run_activate(job["id"], model, remove_previous))
         return self.get(job["id"])
+
+    async def start_browser_install(self) -> dict:
+        for j in self.running():
+            if j["kind"] == "browser":
+                raise JobError("job_running", "Das Browserpaket wird bereits geladen.")
+        job = self._insert("browser", message_de="Browserpaket wird geladen …")
+        self._spawn(job["id"], self._run_browser_install(job["id"]))
+        return self.get(job["id"])
+
+    async def _run_browser_install(self, jid: str) -> None:
+        from ..agent import browserpkg
+
+        cancel = self._cancel[jid]
+        loop = asyncio.get_running_loop()
+        self._update(jid, state="running", phase="download", message_de=f"{browserpkg.BROWSER_PACKAGE['name']} wird heruntergeladen …")
+        last = {"t": 0.0}
+
+        def on_progress(p: Progress) -> None:
+            import time as _t
+
+            now = _t.monotonic()
+            if now - last["t"] < 0.5 and p.done_bytes < p.total_bytes:
+                return
+            last["t"] = now
+            loop.call_soon_threadsafe(functools.partial(self._update, jid, progress={"done_bytes": p.done_bytes, "total_bytes": p.total_bytes, "speed_bps": int(p.speed_bps), "eta_seconds": int(p.eta_seconds) if p.eta_seconds is not None else None}))
+
+        try:
+            chrome = await asyncio.to_thread(browserpkg.install, self.paths.data_dir, self.paths.downloads_dir, progress=on_progress, cancel=cancel)
+            if self.on_browser_installed:
+                self.on_browser_installed(chrome)
+            self._finish(jid, "done", message_de="Browserpaket installiert.")
+        except DownloadCancelled:
+            self._update(jid, state="paused", message_de="Download angehalten; kann fortgesetzt werden.")
+        except DownloadError as exc:
+            if exc.code == "network":
+                self._update(jid, state="paused", message_de="Netzwerkfehler; der Download kann fortgesetzt werden.", error={"detail": exc.detail, "code": exc.code})
+            else:
+                self._finish(jid, "failed", error={"detail": exc.detail, "code": exc.code})
+        except asyncio.CancelledError:
+            self._update(jid, state="paused", message_de="Download unterbrochen; kann fortgesetzt werden.")
+            raise
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("browser install %s failed", jid)
+            self._finish(jid, "failed", error={"detail": f"Unerwarteter Fehler: {exc}", "code": "internal"})
 
     async def start_calibrate(self, model_id: str) -> dict:
         model = self.registry.get(model_id)
