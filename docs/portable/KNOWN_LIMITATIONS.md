@@ -206,6 +206,11 @@ kann. Offene Fehler stehen am Ende.
 - **Wiederaufnahme** nach Absturz: unterbrochene Aktionen sind `unknown_outcome`;
   es wird nichts automatisch wiederholt. Rezepte stammen aus genau einem
   belegten Lauf und werden bei veränderter Oberfläche neu geplant.
+- **Hotkeys**: Der Standard `Strg+Alt+Leertaste` kann von anderen Programmen
+  belegt sein (auf dem Entwicklungsrechner ist er es); SpAIder meldet das und
+  bleibt ohne Hotkey, bis unter Einstellungen → Live & Agent eine freie
+  Kombination geprüft und gespeichert wird. Hotkeys gelten nur, solange SpAIder
+  läuft (Tray-Modus empfohlen); kein Autostart.
 - **Host-Spuren**: comtypes (UI Automation) legt beim ersten Start einen
   kleinen Wrapper-Cache unter `%TEMP%\comtypes_cache\spaider-foldable-core-312`
   an; der Agentenbrowser schreibt sein Profil nur in `data/browser/profile`.

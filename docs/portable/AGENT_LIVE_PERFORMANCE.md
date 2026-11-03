@@ -64,6 +64,27 @@ stabil und wird vom Prompt-Cache getragen; Beobachtungen und Aktionsverlauf
 *(wird eingetragen: Erfolg/Nenner, Median-Wandzeit, Modellaufrufe, Rückfragen je
 Gruppe und Modell; Qwen3-VL-4B vollständig, Qwen3-4B und Gemma 4 E2B Teilmenge)*
 
+## Oberfläche (echtes Electron-Fenster, echte Tastatureingabe, Backend = Mock)
+
+Desktop-Teil, gemessen im gepackten Launcher-Code (`dist/main`) mit vorgeladenem,
+versteckten Overlay-Fenster; 12 Hotkey-Auslösungen je Lauf, vier Läufe:
+
+| Größe | Median | min / max | Anmerkung |
+|---|---|---|---|
+| Hotkey → Overlay `show` | 12,3 ms | 10,5 / 24,0 | frühere Läufe 10,7 / 13,3 / 13,4 ms |
+| Hotkey → erster Paint des Overlays | 16,7 ms | 13,6 / 54,4 | Ausreißer 44–54 ms bei einzelnen Auslösungen |
+| darin `POST /api/live/foreground` (Mock) | 1,6 ms | – / 2,0 | mit echtem Kern höher (siehe unten) |
+| Tastendruck → DOM-Update im Eingabefeld (n = 49) | 1,2 ms | – / 2,5 | |
+| Stopp-Klick → Status „Wird gestoppt …“ | 1,0 ms | 0,7 / 1,0 | je Lauf eine Messung |
+| Frame-Lücken während Streaming | Mittel 16,7 ms | max 17,3 (lang 33,4) | 0 Lücken > 50 ms |
+
+Zielwerte „Overlay ≤ 200 ms“, „Reaktion ≤ 100 ms“ sind mit Mock-Backend erfüllt;
+die Werte mit echtem Kern (Foreground-Aufruf, Snapshot, Modell) folgen unten.
+
+## Oberfläche mit echtem Kern
+
+*(wird eingetragen)*
+
 ## Leerlauf
 
 Ohne Live-Sitzung findet keine Aufnahme statt (keine Timer). In einer

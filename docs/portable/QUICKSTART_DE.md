@@ -83,7 +83,8 @@ Download. Die Geschwindigkeit hängt vom jeweiligen Rechner ab.
 ## Neu in Version 0.3: Live-Bildschirmhilfe und Agent
 
 **Live-Fenster (Hotkey).** `Strg+Alt+Leertaste` (änderbar unter Einstellungen →
-Live & Agent) öffnet ein kleines Fenster über der aktuellen Anwendung. Es schlägt
+Live & Agent; ist die Kombination schon belegt, zeigt „Prüfen“ das an – dann
+z. B. `Strg+Alt+F9` wählen) öffnet ein kleines Fenster über der aktuellen Anwendung. Es schlägt
 das Fenster vor, das gerade im Vordergrund war; beim ersten Mal bestätigst du die
 Quelle (oder wählst ein anderes Fenster bzw. einen Bildschirm). Dann fragst du
 direkt: „Was steht hier?“, „Was bedeutet dieser Fehler?“, „Nutze unser

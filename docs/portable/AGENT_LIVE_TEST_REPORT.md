@@ -48,9 +48,22 @@ eigenen Browser); keine echten Konten, Mails oder privaten Inhalte.
 
 ## Live und Oberfläche
 
-*(wird ergänzt, sobald der Desktop-Teil vorliegt: Hotkey bei nicht fokussiertem
-SpAIder, belegter Hotkey, Tray, Quellenwahl, Overlay-Fokus, An/Aus-Zyklen,
-reale Eingabe-/Stoppreaktion mit gepacktem Backend)*
+Desktop-Teil (Electron 45, React), geprüft mit dem **Mock-Kern** (alle v1.2-
+Endpunkte) und dem gepackten Launcher:
+
+| Prüfung | Ergebnis |
+|---|---|
+| Desktop-Tests | `npm run typecheck`/`lint` sauber, `npm test` **84 bestanden** (12 Dateien; neu: Aufgaben-Reducer 11, Hotkey-Syntax 5, Overlay-Zustand 8), `npm run build`, `npm run package` (VersionInfo 0.3.0) |
+| Hotkey bei nicht fokussiertem SpAIder | echte Tastatureingabe (keybd_event) bei fokussiertem Fremdfenster: Overlay erscheint, Quelle = Vordergrundfenster vorgeschlagen (Mock) |
+| Belegter Hotkey | `Ctrl+Alt+Space` ist auf diesem Rechner von einer anderen Anwendung belegt: Registrierung schlägt fehl, wird im Log und unter Einstellungen → „Prüfen“ gemeldet; Messungen mit `Ctrl+Alt+F9` |
+| Tray | Symbol und Menü (Öffnen, Live-Fenster, Stopp, Beenden); Tray-Modus: Schließen versteckt das Fenster; `openAtLogin = false` (kein Autostart); Menü nicht als Bild aufnehmbar (natives Menü) |
+| Quellenwahl / Overlay-Fokus | Picker mit Fenstern und Bildschirmen, eigene Fenster ausgeschlossen, Vordergrund hervorgehoben; Esc versteckt das Overlay; Enter auf dem Vorschlag bestätigt und sendet |
+| Qualitätszustände | `minimized`, `lost`, `black` als kurze Texte mit „Quelle neu wählen“ (Screenshots 03/04) |
+| Aufgabenpanel | Anlegen mit Scopes (Ordner-Dialog, Browser, Fenster), Zeitstrahl der Aktionen, Rückfrage-Dialog (Freigabe/Ablehnung), Rezepte, Browserpaket-Download als Job mit Fortschritt (Screenshots 05–12) |
+| Gepackte EXE gegen Mock | Tray erzeugt, Attach ≈ 40 ms, Hotkeys registriert, Screenshot, Shutdown, Exit 0 |
+| An/Aus-Zyklen (30×), Handles/Listener | **NICHT VERIFIZIERT** im Mock-Lauf (nur 12 Zyklen je Messlauf, keine Handle-Zählung) |
+
+Mit dem **echten Kern** (Bildmodell, UIA, Agent): *(wird eingetragen)*
 
 ## Grenzen und Fehler (ausgeführt)
 
