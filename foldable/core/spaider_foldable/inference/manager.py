@@ -88,6 +88,7 @@ class InferenceManager:
         context_tokens: Optional[int] = None,
         options: Optional[RuntimeOptions] = None,
         n_layers: Optional[int] = None,
+        mmproj_path: Optional[Path] = None,
     ) -> RuntimeSlot:
         async with self._lock:
             slot = self.slot(role)
@@ -114,7 +115,7 @@ class InferenceManager:
             for attempt in attempts:
                 try:
                     await self._start_once(
-                        slot, role, model_id, model_path, context_tokens or self.context_tokens, attempt, n_layers
+                        slot, role, model_id, model_path, context_tokens or self.context_tokens, attempt, n_layers, mmproj_path
                     )
                     if failed_gpu_backend and attempt.backend == "cpu":
                         # the same file runs on the CPU: the failure was GPU-specific, remember it
@@ -144,6 +145,7 @@ class InferenceManager:
         ctx: int,
         opts: RuntimeOptions,
         n_layers: Optional[int],
+        mmproj_path: Optional[Path] = None,
     ) -> None:
         slot.model_id = model_id
         slot.model_path = model_path
@@ -153,7 +155,7 @@ class InferenceManager:
         gpu_layers = opts.gpu_layers
         if gpu_layers is not None and gpu_layers < 0:  # percentage marker from the planner
             gpu_layers = max(1, round((-gpu_layers / 100.0) * (n_layers or 32)))
-        slot.options = {**opts.to_dict(), "gpu_layers": gpu_layers}
+        slot.options = {**opts.to_dict(), "gpu_layers": gpu_layers, "mmproj": str(mmproj_path) if mmproj_path else None}
         self._notify(role)
         proc = LlamaServerProcess(
             runtime_dir=self.runtime_dirs[opts.backend],
@@ -166,6 +168,9 @@ class InferenceManager:
             prio=opts.prio,
             gpu_layers=gpu_layers,
             backend=opts.backend,
+            mmproj_path=mmproj_path,
+            mmproj_offload=opts.mmproj_offload,
+            image_max_tokens=opts.image_max_tokens,
         )
         slot.process = proc
         try:

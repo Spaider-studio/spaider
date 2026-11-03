@@ -210,3 +210,78 @@ Alles aus v1 bleibt gültig. Neu:
 ## Electron-Bridge
 
 Unverändert. Zusätzlich `onActivity(cb)` im Renderer ist nicht nötig: der Renderer liest `GET /api/activity` selbst (SSE über fetch).
+
+
+---
+
+# Addendum v1.2 (Live-Beobachtung, Agent, Overlay), 2026-11-03
+
+Alles aus v1 und v1.1 bleibt gültig. Neue Endpunkte, Ereignisse und
+Bridge-Methoden. Alle Zeiten `t_ms`/`age_ms` sind Millisekunden, Zeitstempel ISO-UTC.
+Ids sind opak (`live_…`, `task_…`, `act_…`, `snap_…`, `rcp_…`).
+
+## Quellen und Live-Sitzungen
+
+- `GET /api/live/sources` → `{"windows":[WindowSource],"screens":[ScreenSource],"foreground_id":string|null}`
+  - `WindowSource` = `{"id":"win:<hwnd>:<pid>","hwnd":int,"pid":int,"process":"notepad.exe","exe":string|null,"title":string,"class":string,"rect":{"x","y","w","h"},"monitor_id":string,"minimized":bool,"is_self":bool}`
+    (`is_self` = Fenster von SpAIder selbst, werden nie als Ziel angeboten).
+  - `ScreenSource` = `{"id":"screen:<n>","name":string,"rect":{"x","y","w","h"},"scale":number,"primary":bool}`
+  - `foreground_id`: das Fenster, das beim Aufruf im Vordergrund war (ohne SpAIder-Fenster), sonst `null`.
+- `POST /api/live/foreground` → `{"source":WindowSource|null,"captured_at":string}`.
+  Der Launcher ruft das **unmittelbar beim Hotkey** auf, bevor das Overlay erscheint, damit die
+  Zielidentität (hwnd + pid + Prozess + Titel) noch stimmt. Antwort ≤ 50 ms angestrebt.
+- `POST /api/live/sessions` body `{"source_id":string,"conversation_id":string|null}` → `201 {"session":LiveSession}`
+  - 404 `source_not_found`, 409 `source_is_self`, 409 `live_unavailable` (kein Desktop / keine Rechte).
+  - `LiveSession` = `{"id","source":WindowSource|ScreenSource,"capture_mode":"window"|"screen","state":"active"|"lost"|"ended","conversation_id":string,"created_at","last_snapshot":{"snapshot_id","captured_at","age_ms","quality"}|null,"vision_available":bool,"notes_de":[string]}`
+  - Eine Live-Sitzung legt (falls `conversation_id` fehlt) ein Gespräch „Live: <Titel>“ an; Hauptchat und Overlay teilen es.
+- `GET /api/live/sessions` → `{"sessions":[LiveSession]}`; `GET /api/live/sessions/{id}` → `{"session":LiveSession}`
+- `PATCH /api/live/sessions/{id}` body `{"source_id":string}` → Quelle bewusst wechseln (kein stiller Wechsel).
+- `DELETE /api/live/sessions/{id}` → `{"ok":true}`; beendet Aufnahme, gibt Hooks/Abonnements frei.
+- `POST /api/live/sessions/{id}/snapshot` body `{"include_image":bool,"preview":bool,"max_elements":int}` → `{"snapshot":Snapshot}`
+  - `Snapshot` = `{"snapshot_id","session_id","captured_at","age_ms","source_kind":"window"|"screen","target":{"hwnd","pid","process","title","rect","monitor_id","scale"},"quality":"ok"|"black"|"minimized"|"occluded"|"lost"|"error","error":string|null,"text_excerpt":string,"text_chars":int,"elements":[Element],"elements_total":int,"truncated":bool,"image":{"width","height","bytes","png_base64":string|null,"preview_png_base64":string|null}|null,"transform":{"origin_x","origin_y","scale"}}`
+  - `Element` = `{"id":string,"role":string,"name":string,"value":string|null,"rect":{"x","y","w","h"},"enabled":bool,"focused":bool,"path":string}` (Koordinaten in physischen Bildschirmpixeln).
+  - `preview:true` liefert nur ein kleines Vorschaubild (max. 480 px breit) für das Overlay; das Vollbild bleibt im Kern.
+- `POST /api/live/sessions/{id}/ask` body `{"content":string,"use_memory":bool,"use_image":"auto"|"always"|"never"}` → `text/event-stream` mit denselben Ereignissen wie `POST /conversations/{id}/messages` (`message`, `activity`, `status`, `token`, `thinking`, `sources`, `done`, `error`) plus
+  - `event: observation` `{"snapshot_id","source_kind","quality","used_image":bool,"used_structure":bool,"elements":int,"text_chars":int,"age_ms"}` (vor `token`).
+  - Aktivitätsphasen zusätzlich: `capture` (Quelle wird aufgenommen), `observe` (Struktur wird gelesen), `image_encode` (Bild wird vorbereitet; Prozent nur bei bekannter Größe).
+  - 409 `source_lost`, 409 `vision_unavailable` wenn `use_image="always"` und kein Bildmodell.
+- `POST /api/live/sessions/{id}/stop` → `{"ok":true,"stopped":bool}`
+
+## Agent (Aufgaben)
+
+- `GET /api/agent/capabilities` → `{"tools":[ToolInfo],"model":{"id","vision_input":bool,"image_grounding":"none"|"untested"|"verified","tool_call_format":"json_schema"|"native"|"none","structured_output":bool},"browser":{"installed":bool,"version":string|null,"path":string|null},"windows_automation":{"available":bool,"reason_de":string},"desktop_interactive":bool}`
+  - `ToolInfo` = `{"name","description_de","scope":"files"|"browser"|"windows"|"vision"|"memory","side_effect":"none"|"local"|"external","available":bool,"reason_de":string|null}`
+- `POST /api/agent/tasks` body:
+  `{"goal":string,"conversation_id":string|null,"live_session_id":string|null,"recipe_id":string|null,"scopes":Scopes,"budget":{"max_steps":int,"max_seconds":int}|null,"parameters":object|null}` → `201 {"task":Task}`
+  - `Scopes` = `{"files":{"roots":[string],"write_dir":string|null}|null,"browser":{"enabled":bool,"allowed_origins":[string]|null}|null,"windows":{"source_ids":[string],"allowed_processes":[string]}|null,"memory":bool,"external_effects":bool}`
+    Scopes kommen ausschließlich aus dieser Anfrage (UI-Auswahl), nie aus Modelltext.
+  - `Task` = `{"id","goal","state":TaskState,"step":int,"max_steps":int,"created_at","updated_at","started_at","finished_at","summary_de":string,"result":{"ok":bool,"summary_de":string,"artifacts":[{"kind":"file"|"url"|"text","path":string|null,"url":string|null,"label":string}],"verified":bool}|null,"scopes":Scopes,"pending_question":{"id","text_de","kind":"approval"|"input","action":Action|null}|null,"conversation_id","live_session_id","recipe_id","llm_calls":int,"host_bound":bool,"last_error":string|null}`
+  - `TaskState` = `created|observing|planning|validating|executing|verifying|completed|failed|cancelled|paused|waiting_for_user|interrupted`
+- `GET /api/agent/tasks` → `{"tasks":[Task]}` (neueste zuerst); `GET /api/agent/tasks/{id}` → `{"task":Task,"actions":[Action]}`
+- `GET /api/agent/tasks/{id}/events` → SSE: `event: task {Task}` bei jeder Zustandsänderung, `event: action {Action}`, `event: activity {ActivityEvent}` (request_id = task id), `event: token {"text"}` (Erklärtext des Agenten, kein Beleg), `event: question {PendingQuestion}`, `event: done {Task}`; Keep-alive-Kommentar alle 15 s.
+  - `Action` = `{"action_id","task_id","seq","tool","arguments":object,"state":"proposed"|"validated"|"rejected"|"executing"|"done"|"failed"|"unknown_outcome"|"cancelled","reason_de":string|null,"expected_effect":string,"observation_ref":string|null,"started_at","finished_at","duration_ms","result":{"ok":bool,"summary_de":string,"evidence":object|null,"snapshot_id":string|null}|null}`
+- `POST /api/agent/tasks/{id}/cancel` → `{"task":Task}` (sofortige Sperre neuer Aktionen; laufende Betriebssystemaufrufe werden gemeldet, nicht als rückgängig gemacht behauptet)
+- `POST /api/agent/tasks/{id}/pause` / `/resume` → `{"task":Task}`
+- `POST /api/agent/tasks/{id}/answer` body `{"question_id","approve":bool|null,"text":string|null}` → `{"task":Task}`
+- `POST /api/agent/tasks/{id}/save-recipe` body `{"name":string,"parameters":[{"name","description_de","example"}]}` → `201 {"recipe":Recipe}`
+- `GET /api/agent/recipes` → `{"recipes":[Recipe]}`; `GET /api/agent/recipes/{id}`; `DELETE /api/agent/recipes/{id}`
+  - `Recipe` = `{"id","version":int,"name","purpose_de","parameters":[…],"origin":{"task_id","created_at"},"requires":{"tools":[string],"apps":[string],"vision":bool},"preconditions":[string],"scope":Scopes,"steps":[{"tool","arguments_template":object,"check":string}],"final_checks":[string],"last_verified_at":string|null,"known_limits_de":[string]}`
+- `POST /api/agent/stop` → `{"stopped_tasks":int,"stopped_live":int}` — globaler Stopp (Hotkey); sperrt sofort, wartet nicht auf das Modell.
+
+## Einstellungen (Ergänzung)
+
+`hotkey_overlay` (Standard `"Ctrl+Alt+Space"`), `hotkey_stop` (`"Ctrl+Alt+Backspace"`), `tray_mode` (bool, Standard false), `live_preview` (bool, true), `agent_max_steps` (int, 20), `agent_max_seconds` (int, 600). Der Launcher liest/schreibt sie über `GET/PATCH /api/settings` wie alle anderen.
+
+## Globaler Kanal (Ergänzung)
+
+`GET /api/activity` liefert zusätzlich `event: live {LiveSession}` (Zustandswechsel) und `event: task {Task}` (Zustandswechsel aller Aufgaben), `event: stop {"source":"hotkey"|"api","at"}`.
+
+## Electron-Bridge (Ergänzung, `window.spaider`)
+
+- `onHotkey(cb: (e: {kind: "overlay"|"stop", at: number}) => void): () => void`
+- `overlay.show(opts?: {sourceHint?: WindowSource|null}) / overlay.hide() / overlay.toggle()` – vom Renderer des Hauptfensters nutzbar; der Launcher ruft bei Hotkey selbst `POST /api/live/foreground` auf und übergibt das Ergebnis als `sourceHint`.
+- `getOverlayState(): Promise<{visible: boolean, sourceHint: WindowSource|null, shownAt: number|null}>`
+- `pickFolder(): Promise<string|null>`, `pickFiles(): Promise<string[]>` (native Dialoge für Datei-Scopes)
+- `registerHotkeys(cfg: {overlay: string, stop: string}): Promise<{overlay: boolean, stop: boolean, errors: string[]}>` – Konflikte (Registrierung schlägt fehl) werden gemeldet, nicht verschluckt.
+- `setTrayMode(enabled: boolean): Promise<void>` – Schließen des Hauptfensters minimiert in den Tray statt zu beenden; kein Autostart.
+- Overlay-Fenster: eigenes BrowserWindow (frameless, alwaysOnTop, `setContentProtection(true)` → nicht in Aufnahmen), lädt denselben Renderer mit `#/overlay`. Es nutzt dieselbe API (Token über `getBackend()`).

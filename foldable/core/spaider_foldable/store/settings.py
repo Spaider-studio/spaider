@@ -21,6 +21,14 @@ class UserSettings(BaseModel):
     system_prompt_extra: str = Field(default="", max_length=4000)
     performance_mode: Literal["auto", "quiet", "fast"] = "auto"
     gpu_mode: Literal["auto", "off"] = "auto"
+    # 0.3: live overlay, hotkeys, agent budgets (the launcher reads them through /api/settings)
+    hotkey_overlay: str = Field(default="Ctrl+Alt+Space", max_length=60)
+    hotkey_stop: str = Field(default="Ctrl+Alt+Backspace", max_length=60)
+    tray_mode: bool = False
+    live_preview: bool = True
+    live_image_max_side: int = Field(default=1280, ge=512, le=2560)
+    agent_max_steps: int = Field(default=20, ge=1, le=100)
+    agent_max_seconds: int = Field(default=600, ge=30, le=7200)
 
 
 class SettingsStore:

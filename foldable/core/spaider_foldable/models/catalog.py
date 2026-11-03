@@ -26,6 +26,7 @@ class CatalogFile(BaseModel):
     path: str
     size: int
     sha256: Optional[str] = None
+    kind: str = "weights"  # weights | mmproj | split
 
 
 class License(BaseModel):

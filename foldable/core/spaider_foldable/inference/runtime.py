@@ -171,7 +171,13 @@ class LlamaServerProcess:
         threads_batch: Optional[int] = None,
         prio: int = 0,
         backend: str = "cpu",
+        mmproj_path: Optional[Path] = None,
+        mmproj_offload: bool = True,
+        image_max_tokens: Optional[int] = None,
     ):
+        self.mmproj_path = mmproj_path
+        self.mmproj_offload = mmproj_offload
+        self.image_max_tokens = image_max_tokens
         self.runtime_dir = runtime_dir
         self.model_path = model_path
         self.role = role
@@ -254,6 +260,15 @@ class LlamaServerProcess:
                 "--chat-template-kwargs",
                 '{"enable_thinking": false}',
             ]
+            if self.mmproj_path is not None:
+                # multimodal projector (vision). Offload follows the backend: with the CPU
+                # runtime there is nothing to offload; with Vulkan it is measured per model.
+                args += ["--mmproj", _short_path_if_needed(self.mmproj_path)]
+                args += ["--mmproj-offload" if (self.mmproj_offload and self.backend != "cpu") else "--no-mmproj-offload"]
+                if self.image_max_tokens:
+                    args += ["--image-max-tokens", str(int(self.image_max_tokens))]
+            else:
+                args += ["--no-mmproj-auto"]
         args += self.extra_args
         return args
 

@@ -47,13 +47,17 @@ def validate_gguf(path: Path, *, expected_role: Optional[str] = None) -> GGUFInf
         raise ModelValidationError("gguf_invalid", f"Die Datei ist keine gültige GGUF-Modelldatei: {exc}") from exc
     except OSError as exc:
         raise ModelValidationError("gguf_invalid", f"Datei nicht lesbar: {exc}") from exc
+    if is_projector_info(info):
+        if expected_role and expected_role != "projector":
+            raise ModelValidationError("role_mismatch", "Die Datei ist ein Bild-Projektor (mmproj), kein Chatmodell.")
+        return info
     if not is_architecture_supported(info.architecture):
         raise ModelValidationError(
             "arch_unsupported",
             f"Die Modellarchitektur „{info.architecture}“ wird vom gebündelten llama.cpp-Build nicht unterstützt.",
         )
     role = "embedding" if info.is_embedding_model else "chat"
-    if expected_role and role != expected_role:
+    if expected_role and expected_role != "projector" and role != expected_role:
         raise ModelValidationError(
             "role_mismatch",
             f"Die Datei ist ein {'Embedding' if role == 'embedding' else 'Chat'}-Modell, erwartet wurde {expected_role}.",  # noqa: E501
@@ -61,8 +65,31 @@ def validate_gguf(path: Path, *, expected_role: Optional[str] = None) -> GGUFInf
     return info
 
 
+PROJECTOR_ARCHS = {"clip", "mtmd"}
+
+
+def is_projector_info(info: GGUFInfo) -> bool:
+    return (info.architecture or "").lower() in PROJECTOR_ARCHS
+
+
 def model_role_from_info(info: GGUFInfo) -> str:
+    if is_projector_info(info):
+        return "projector"
     return "embedding" if info.is_embedding_model else "chat"
+
+
+def find_sibling_projector(model_file: Path) -> Optional[Path]:
+    """``mmproj-*.gguf`` next to a locally imported model file (same folder)."""
+    folder = model_file.parent
+    stem = model_file.stem.lower()
+    candidates = sorted(p for p in folder.glob("*.gguf") if p.name.lower().startswith("mmproj"))
+    if not candidates:
+        return None
+    base = stem.split("-q")[0].split("_q")[0].split("-ud-")[0]
+    for c in candidates:
+        if base and base[:12] in c.stem.lower():
+            return c
+    return candidates[0] if len(candidates) == 1 else None
 
 
 class ModelRegistry:
@@ -113,6 +140,15 @@ class ModelRegistry:
         # Same volume: rename is atomic. Verified bytes only.
         part_path.replace(target)
         info = validate_gguf(target, expected_role=entry.role)
+        mmproj_rel = None
+        for extra in entry.files[1:]:
+            # projector downloaded next to the weights by the download job
+            cand = part_path.parent / extra.path
+            if cand.exists() and getattr(extra, "kind", "") == "mmproj":
+                dst = target_dir / extra.path
+                cand.replace(dst)
+                validate_gguf(dst, expected_role="projector")
+                mmproj_rel = self.paths.relative_to_data(dst)
         manifest = self._manifest(
             model_id=model_id,
             name=entry.name,
@@ -127,6 +163,9 @@ class ModelRegistry:
             context_length=entry.context_length,
             embedding_dimensions=entry.embedding_dimensions,
         )
+        if mmproj_rel:
+            manifest["metadata"]["mmproj_rel_path"] = mmproj_rel
+            manifest["metadata"]["mmproj_file"] = Path(mmproj_rel).name
         self._write_manifest(target_dir, manifest)
         self._upsert(manifest)
         return self.get(model_id)  # type: ignore[return-value]
@@ -153,6 +192,9 @@ class ModelRegistry:
         free = shutil.disk_usage(self.paths.models_dir).free
         if free < size + 64 * (1 << 20):
             raise ModelValidationError("insufficient_space", "Nicht genug freier Speicher zum Kopieren des Modells.")
+        if role == "projector":
+            raise ModelValidationError("role_mismatch", "Bitte die Modelldatei importieren; der Bild-Projektor (mmproj) daneben wird automatisch mitgenommen.")  # noqa: E501
+        projector_src = find_sibling_projector(src) if role == "chat" else None
         model_id = self._new_id(_slug(src.stem))
         target_dir = self.paths.models_dir / model_id
         target_dir.mkdir(parents=True, exist_ok=False)
@@ -174,6 +216,12 @@ class ModelRegistry:
                     if progress:
                         progress(done, size)
             tmp.replace(target)
+            mmproj_rel = None
+            if projector_src is not None:
+                pdst = target_dir / projector_src.name
+                shutil.copy2(projector_src, pdst)
+                validate_gguf(pdst, expected_role="projector")
+                mmproj_rel = self.paths.relative_to_data(pdst)
         except BaseException:
             shutil.rmtree(target_dir, ignore_errors=True)
             raise
@@ -191,6 +239,9 @@ class ModelRegistry:
             context_length=info.context_length or 4096,
             embedding_dimensions=info.embedding_length if role == "embedding" else None,
         )
+        if mmproj_rel:
+            manifest["metadata"]["mmproj_rel_path"] = mmproj_rel
+            manifest["metadata"]["mmproj_file"] = Path(mmproj_rel).name
         self._write_manifest(target_dir, manifest)
         self._upsert(manifest)
         return self.get(model_id)  # type: ignore[return-value]
@@ -359,10 +410,19 @@ class ModelRegistry:
             "embedding_dimensions": row["embedding_dimensions"],
             "license": json.loads(row["license_json"]) if row["license_json"] else None,
             "metadata": json.loads(row["metadata_json"] or "{}"),
+            "mmproj_path": self._mmproj_path(row),
             "state": row["state"],
             "active": active.get(row["role"]) == row["id"],
             "created_at": row["created_at"],
         }
+
+    def _mmproj_path(self, row) -> Optional[str]:
+        meta = json.loads(row["metadata_json"] or "{}")
+        rel = meta.get("mmproj_rel_path")
+        if not rel:
+            return None
+        p = self.paths.from_relative(rel)
+        return str(p) if p.exists() else None
 
 
 def _slug(text: str) -> str:

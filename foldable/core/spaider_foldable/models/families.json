@@ -1,15 +1,164 @@
 {
   "_doc": "Family-specific facts used by the inference adapter (not by UI or memory logic). reasoning_toggle = name of the chat-template kwarg that switches thinking on/off (null = no toggle); system_role = whether the chat template accepts a system message; detect = substrings of general.architecture or general.name (lower-case) that identify the family. Verified against the templates shipped in the GGUF files of the catalog entries on 2026-11-02; 'tested' lists the entries actually executed in this project.",
   "families": [
-    {"id": "Qwen3", "detect_arch": ["qwen3"], "detect_name": ["qwen3"], "reasoning_toggle": "enable_thinking", "system_role": true, "notes_de": "Thinking standardmäßig aus; Umschalten über die Chatvorlage.", "tested": ["qwen3-0.6b-q8_0", "qwen3-4b-q4_k_m"]},
-    {"id": "Qwen3.5", "detect_arch": ["qwen35", "qwen35moe"], "detect_name": ["qwen3.5", "qwen3.8"], "reasoning_toggle": "enable_thinking", "system_role": true, "notes_de": "Hybride Aufmerksamkeit; Thinking-Umschalter wie Qwen3 (laut Chatvorlage).", "tested": []},
-    {"id": "Qwen4", "detect_arch": ["qwen4exp"], "detect_name": ["flash-next"], "reasoning_toggle": "enable_thinking", "system_role": true, "notes_de": "", "tested": []},
-    {"id": "SmolLM3", "detect_arch": ["smollm3"], "detect_name": ["smollm3"], "reasoning_toggle": "enable_thinking", "system_role": true, "notes_de": "Thinking-Umschalter über die Chatvorlage.", "tested": []},
-    {"id": "SmolLM2", "detect_arch": [], "detect_name": ["smollm2"], "reasoning_toggle": null, "system_role": true, "notes_de": "", "tested": []},
-    {"id": "Llama", "detect_arch": ["llama"], "detect_name": ["llama"], "reasoning_toggle": null, "system_role": true, "notes_de": "", "tested": []},
-    {"id": "Mistral", "detect_arch": ["mistral3", "mistral4"], "detect_name": ["ministral", "mistral"], "reasoning_toggle": null, "system_role": true, "notes_de": "", "tested": []},
-    {"id": "Phi", "detect_arch": ["phi3", "phimoe", "phi2"], "detect_name": ["phi-4", "phi4", "phi-3"], "reasoning_toggle": null, "system_role": true, "notes_de": "", "tested": []},
-    {"id": "Gemma", "detect_arch": ["gemma3", "gemma3n", "gemma4", "gemma2"], "detect_name": ["gemma"], "reasoning_toggle": null, "system_role": false, "notes_de": "Die Gemma-Chatvorlage kennt keine Systemrolle; llama.cpp hängt den Systemtext an die erste Nutzernachricht an.", "tested": []},
-    {"id": "LFM", "detect_arch": ["lfm2", "lfm2moe", "lfm3"], "detect_name": ["lfm"], "reasoning_toggle": null, "system_role": true, "notes_de": "", "tested": []}
+    {
+      "id": "Qwen3",
+      "detect_arch": [
+        "qwen3"
+      ],
+      "detect_name": [
+        "qwen3"
+      ],
+      "reasoning_toggle": "enable_thinking",
+      "system_role": true,
+      "notes_de": "Thinking standardmäßig aus; Umschalten über die Chatvorlage.",
+      "tested": [
+        "qwen3-0.6b-q8_0",
+        "qwen3-4b-q4_k_m"
+      ]
+    },
+    {
+      "id": "Qwen3-VL",
+      "detect_arch": [
+        "qwen3vl",
+        "qwen3vlmoe"
+      ],
+      "detect_name": [
+        "qwen3-vl",
+        "qwen3vl"
+      ],
+      "reasoning_toggle": "enable_thinking",
+      "system_role": true,
+      "notes_de": "Multimodal (Text + Bild) mit Projektor (mmproj); Instruct-Vorlage ohne Denkmodus, Thinking-Variante mit Umschalter (laut Chatvorlage).",
+      "tested": []
+    },
+    {
+      "id": "Qwen3.5",
+      "detect_arch": [
+        "qwen35",
+        "qwen35moe"
+      ],
+      "detect_name": [
+        "qwen3.5",
+        "qwen3.8"
+      ],
+      "reasoning_toggle": "enable_thinking",
+      "system_role": true,
+      "notes_de": "Hybride Aufmerksamkeit; Thinking-Umschalter wie Qwen3 (laut Chatvorlage).",
+      "tested": []
+    },
+    {
+      "id": "Qwen4",
+      "detect_arch": [
+        "qwen4exp"
+      ],
+      "detect_name": [
+        "flash-next"
+      ],
+      "reasoning_toggle": "enable_thinking",
+      "system_role": true,
+      "notes_de": "",
+      "tested": []
+    },
+    {
+      "id": "SmolLM3",
+      "detect_arch": [
+        "smollm3"
+      ],
+      "detect_name": [
+        "smollm3"
+      ],
+      "reasoning_toggle": "enable_thinking",
+      "system_role": true,
+      "notes_de": "Thinking-Umschalter über die Chatvorlage.",
+      "tested": []
+    },
+    {
+      "id": "SmolLM2",
+      "detect_arch": [],
+      "detect_name": [
+        "smollm2"
+      ],
+      "reasoning_toggle": null,
+      "system_role": true,
+      "notes_de": "",
+      "tested": []
+    },
+    {
+      "id": "Llama",
+      "detect_arch": [
+        "llama"
+      ],
+      "detect_name": [
+        "llama"
+      ],
+      "reasoning_toggle": null,
+      "system_role": true,
+      "notes_de": "",
+      "tested": []
+    },
+    {
+      "id": "Mistral",
+      "detect_arch": [
+        "mistral3",
+        "mistral4"
+      ],
+      "detect_name": [
+        "ministral",
+        "mistral"
+      ],
+      "reasoning_toggle": null,
+      "system_role": true,
+      "notes_de": "",
+      "tested": []
+    },
+    {
+      "id": "Phi",
+      "detect_arch": [
+        "phi3",
+        "phimoe",
+        "phi2"
+      ],
+      "detect_name": [
+        "phi-4",
+        "phi4",
+        "phi-3"
+      ],
+      "reasoning_toggle": null,
+      "system_role": true,
+      "notes_de": "",
+      "tested": []
+    },
+    {
+      "id": "Gemma",
+      "detect_arch": [
+        "gemma3",
+        "gemma3n",
+        "gemma4",
+        "gemma2"
+      ],
+      "detect_name": [
+        "gemma"
+      ],
+      "reasoning_toggle": null,
+      "system_role": false,
+      "notes_de": "Die Gemma-Chatvorlage kennt keine Systemrolle; llama.cpp hängt den Systemtext an die erste Nutzernachricht an.",
+      "tested": []
+    },
+    {
+      "id": "LFM",
+      "detect_arch": [
+        "lfm2",
+        "lfm2moe",
+        "lfm3"
+      ],
+      "detect_name": [
+        "lfm"
+      ],
+      "reasoning_toggle": null,
+      "system_role": true,
+      "notes_de": "",
+      "tested": []
+    }
   ]
 }

@@ -320,7 +320,7 @@ def test_capabilities_and_type_classification():
     assert capabilities_for_model(m2)["reasoning_toggle"] is None  # template without the switch
     assert classify_type({"architecture": "qwen3", "name": "x", "metadata": {"qwen3.pooling_type": 3}}) == "embedding"
     assert classify_type({"architecture": "llama", "name": "x", "metadata": {"has_chat_template": False}}) == "base"
-    assert classify_type({"architecture": "clip", "name": "mmproj", "metadata": {}}) == "vision"
+    assert classify_type({"architecture": "clip", "name": "mmproj", "metadata": {}}) == "projector"
     assert classify_type({"architecture": "whisper", "name": "x", "metadata": {}}) == "audio"
 
 

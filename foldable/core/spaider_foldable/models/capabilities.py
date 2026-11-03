@@ -61,7 +61,7 @@ def classify_type(info_or_model: dict) -> str:
     if arch in AUDIO_ARCHS:
         return "audio"
     if arch in VISION_PROJECTOR_ARCHS:
-        return "vision"
+        return "projector"
     pooling = meta.get(f"{arch}.pooling_type")
     if arch in EMBEDDING_ARCHS or (pooling not in (None, 0)) or info_or_model.get("role") == "embedding":
         return "embedding"
@@ -83,8 +83,19 @@ def capabilities_for_model(model: dict, runtime_dirs: dict[str, Path] | None = N
     if reasoning_toggle and template_text and reasoning_toggle not in template_text:
         reasoning_toggle = None  # the shipped template does not expose the switch
     backends = sorted(k for k in (runtime_dirs or {"cpu": Path(".")}).keys())
+    has_mmproj = bool(model.get("mmproj_path") or meta.get("mmproj_rel_path"))
+    tested = (model.get("measured") or {}) if isinstance(model.get("measured"), dict) else {}
+    agent_checks = model.get("agent_checks") or {}
     return {
         "chat_template": has_template,
+        "text_chat": has_template,
+        "vision_input": has_mmproj,
+        "image_grounding": agent_checks.get("image_grounding", "untested" if has_mmproj else "none"),
+        "tool_call_format": "json_schema" if has_template else "none",
+        "native_tool_calls": agent_checks.get("native_tool_calls", "untested"),
+        "agent_tested": agent_checks.get("agent_tested", []),
+        "projector_file": meta.get("mmproj_file"),
+        "measured": tested or None,
         "reasoning_toggle": reasoning_toggle,
         "system_role": fam.get("system_role", True) if fam else True,
         "context_length": model.get("context_length"),

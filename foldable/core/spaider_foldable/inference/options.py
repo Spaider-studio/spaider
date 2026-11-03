@@ -29,6 +29,8 @@ class RuntimeOptions:
     threads_batch: Optional[int] = None
     prio: int = 0
     reason_de: str = ""
+    mmproj_offload: bool = True  # vision projector on the GPU when the backend is not cpu
+    image_max_tokens: Optional[int] = None
 
     def to_dict(self) -> dict:
         return {
@@ -39,6 +41,8 @@ class RuntimeOptions:
             "threads_batch": self.threads_batch,
             "prio": self.prio,
             "reason_de": self.reason_de,
+            "mmproj_offload": self.mmproj_offload,
+            "image_max_tokens": self.image_max_tokens,
         }
 
 

@@ -18,6 +18,7 @@ from .errors import ApiError
 from .routes_activity import router as activity_router
 from .routes_conversations import router as conversations_router
 from .routes_documents import router as documents_router
+from .routes_live import router as live_router
 from .routes_memory import router as memory_router
 from .routes_models import router as models_router
 from .routes_system import router as system_router
@@ -79,4 +80,5 @@ def create_app(ctx: AppContext, token: str) -> FastAPI:
     app.include_router(documents_router, prefix="/api")
     app.include_router(memory_router, prefix="/api")
     app.include_router(activity_router, prefix="/api")
+    app.include_router(live_router, prefix="/api")
     return app

@@ -90,7 +90,7 @@ class _FakeInference:
     def slot(self, role):
         return self.chat if role == "chat" else self.embedding
 
-    async def start(self, role, model_id, path, context_tokens=None, options=None, n_layers=None):
+    async def start(self, role, model_id, path, context_tokens=None, options=None, n_layers=None, mmproj_path=None):
         slot = self.slot(role)
         if "kaputt" in model_id:
             slot.state = "error"

@@ -25,7 +25,9 @@ from .memory.embedding_local import LocalEmbeddingService
 from .memory.ingest import IngestQueue, IngestWorker, MemoryIngestor
 from .memory.retrieve import MemoryRetriever
 from .memory.store import LocalMemoryStore
+from .live.sessions import LiveManager
 from .models.capabilities import capabilities_for_model
+from .observe.uia import UiaProvider
 from .models.catalog import load_catalog
 from .models.jobs import JobManager
 from .models.registry import ModelRegistry
@@ -79,6 +81,14 @@ class AppContext:
             self.bus,
             self.store,
             capabilities_for=self.capabilities_for,
+        )
+        self.uia = UiaProvider()
+        self.live = LiveManager(
+            uia=self.uia,
+            conversations=self.conversations,
+            vision_available=self.vision_available,
+            on_change=lambda s: self.bus.publish("live", s),
+            max_side=lambda: self.settings.load().live_image_max_side,
         )
         self.worker = IngestWorker(
             self.ingest_queue,
@@ -280,6 +290,10 @@ class AppContext:
             opts.gpu_layers = int(env_layers)
         return opts, n_layers
 
+    def vision_available(self) -> bool:
+        slot = self.inference.chat
+        return slot.state == "ready" and bool((slot.options or {}).get("mmproj"))
+
     # ---- models -----------------------------------------------------------------
     def capabilities_for(self, model_id: str) -> Optional[dict]:
         model = self.registry.get(model_id)
@@ -305,7 +319,9 @@ class AppContext:
                 opts, n_layers = self.runtime_options_for(model)
                 if role == "embedding":
                     opts.gpu_layers = None if opts.backend == "cpu" else opts.gpu_layers
-                await self.inference.start(role, mid, self.registry.abs_path(model), options=opts, n_layers=n_layers)
+                await self.inference.start(
+                    role, mid, self.registry.abs_path(model), options=opts, n_layers=n_layers, mmproj_path=_mmproj(model)
+                )
                 await self._on_active_changed(role, mid)
             except Exception as exc:  # noqa: BLE001
                 logger.error("autostart of %s model %s failed: %s", role, mid, exc)
@@ -564,6 +580,11 @@ class AppContext:
             return p.read_text(encoding="utf-8", errors="replace").splitlines()[-n:]
         except OSError:
             return []
+
+
+def _mmproj(model: dict):
+    p = model.get("mmproj_path")
+    return Path(p) if p else None
 
 
 def _meta_int(meta: dict, key: str) -> Optional[int]:

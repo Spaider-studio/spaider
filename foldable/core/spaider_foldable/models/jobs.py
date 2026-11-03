@@ -447,6 +447,21 @@ class JobManager:
                 progress=on_progress,
                 cancel=cancel,
             )
+            # further files of the entry (vision projector): verified, final name next to the weights
+            for extra in entry.files[1:]:
+                extra_url = hf_resolve_url(entry.repo, entry.revision, extra.path)
+                extra_part = part_dir / (extra.path + ".part")
+                self._update(jid, phase="download", message_de=f"{extra.path} wird heruntergeladen …", journal_append={"step": "download", "url": extra_url})
+                await asyncio.to_thread(
+                    download_file,
+                    extra_url,
+                    extra_part,
+                    expected_size=extra.size,
+                    expected_sha256=extra.sha256,
+                    progress=on_progress,
+                    cancel=cancel,
+                )
+                extra_part.replace(part_dir / extra.path)
             self._update(jid, phase="verify", message_de="Prüfsumme wurde bestätigt, Modell wird installiert …")
             model = await asyncio.to_thread(self.registry.install_from_download, entry, part, sha_verified=True)
             shutil.rmtree(part_dir, ignore_errors=True)
@@ -532,7 +547,10 @@ class JobManager:
             if opts is not None and role == "embedding" and opts.backend != "cpu":
                 opts.gpu_layers = opts.gpu_layers or 999
             self._update(jid, journal_append={"step": "plan", "options": opts.to_dict() if opts else None})
-            await self.inference.start(role, model["id"], path, context_tokens=None, options=opts, n_layers=n_layers)
+            mm = model.get("mmproj_path")
+            await self.inference.start(
+                role, model["id"], path, context_tokens=None, options=opts, n_layers=n_layers, mmproj_path=Path(mm) if mm else None
+            )
             # 4. probe
             self._update(jid, phase="probe", message_de="Modell wird getestet …")
             await self._probe(role)
@@ -593,8 +611,9 @@ class JobManager:
             await self.inference.stop(role)
             if previous and previous["state"] == "ready":
                 p_opts, p_layers = self.runtime_options_for(previous) if self.runtime_options_for else (None, None)
+                pm = previous.get("mmproj_path")
                 await self.inference.start(
-                    role, previous["id"], self.registry.abs_path(previous), options=p_opts, n_layers=p_layers
+                    role, previous["id"], self.registry.abs_path(previous), options=p_opts, n_layers=p_layers, mmproj_path=Path(pm) if pm else None
                 )
                 if self.on_active_changed:
                     await self.on_active_changed(role, previous["id"])
