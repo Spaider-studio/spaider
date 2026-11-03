@@ -124,6 +124,9 @@ class LocalLLMClient:
         stop_event: Optional[asyncio.Event] = None,
         cache_prompt: bool = True,
         reasoning_toggle: Optional[str] = "enable_thinking",
+        json_schema: Optional[dict] = None,
+        tools: Optional[list[dict]] = None,
+        timeout_s: float = 600.0,
     ) -> AsyncIterator[ChatChunk]:
         payload: dict = {
             "model": "local",
@@ -137,6 +140,11 @@ class LocalLLMClient:
         }
         if reasoning_toggle and enable_thinking is not None:
             payload["chat_template_kwargs"] = {reasoning_toggle: bool(enable_thinking)}
+        if json_schema is not None:
+            # grammar-constrained output (llama-server converts the schema to a GBNF grammar)
+            payload["response_format"] = {"type": "json_schema", "json_schema": {"name": "decision", "schema": json_schema}}
+        if tools:
+            payload["tools"] = tools
         t0 = time.monotonic()
         first_token_ms: Optional[int] = None
         usage: dict = {}
@@ -145,7 +153,7 @@ class LocalLLMClient:
             f"{self.base_url}/v1/chat/completions",
             headers=self._headers(),
             json=payload,
-            timeout=httpx.Timeout(600.0, connect=10.0),
+            timeout=httpx.Timeout(timeout_s, connect=10.0),
         ) as resp:
             if resp.status_code != 200:
                 body = (await resp.aread()).decode("utf-8", errors="replace")
@@ -173,6 +181,8 @@ class LocalLLMClient:
                     delta = choice.get("delta") or {}
                     text = delta.get("content") or ""
                     reasoning = delta.get("reasoning_content") or ""
+                    if delta.get("tool_calls"):
+                        usage.setdefault("tool_calls", []).extend(delta["tool_calls"])
                     if (text or reasoning) and first_token_ms is None:
                         first_token_ms = int((time.monotonic() - t0) * 1000)
                     if text or reasoning:

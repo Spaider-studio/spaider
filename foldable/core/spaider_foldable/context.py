@@ -25,7 +25,13 @@ from .memory.embedding_local import LocalEmbeddingService
 from .memory.ingest import IngestQueue, IngestWorker, MemoryIngestor
 from .memory.retrieve import MemoryRetriever
 from .memory.store import LocalMemoryStore
+from .agent.broker import Broker
+from .agent.loop import AgentManager
+from .agent.store import TaskStore
+from .agent.tools import files as files_tools
+from .agent.tools import memory as memory_tools
 from .live.sessions import LiveManager
+from .tools.contracts import current_host_id
 from .models.capabilities import capabilities_for_model
 from .observe.uia import UiaProvider
 from .models.catalog import load_catalog
@@ -90,6 +96,20 @@ class AppContext:
             on_change=lambda s: self.bus.publish("live", s),
             max_side=lambda: self.settings.load().live_image_max_side,
         )
+        self.tasks = TaskStore(self.db, current_host_id())
+        self.broker = Broker()
+        files_tools.register(self.broker, parse_document=self._parse_document_file)
+        memory_tools.register(self.broker, retriever=self.retriever)
+        self.agent = AgentManager(
+            store=self.tasks,
+            broker=self.broker,
+            scheduler=self.scheduler,
+            bus=self.bus,
+            get_client=lambda: self.inference.chat.client,
+            observe_sources=self._observe_for_agent,
+            settings_loader=self.settings.load,
+            reasoning_toggle=self._active_reasoning_toggle,
+        )
         self.worker = IngestWorker(
             self.ingest_queue,
             self.ingestor,
@@ -118,6 +138,8 @@ class AppContext:
         self._hardware: Optional[HardwareProfile] = None
         self.shutting_down = False
         self._runtime_version: Optional[str] = None
+        self.agent_snapshots: dict = {}
+        self.browser = None  # set by the browser adapter when Playwright is available
 
     # ---- lifecycle ----------------------------------------------------------
     def startup_sync(self) -> None:
@@ -127,6 +149,9 @@ class AppContext:
         self.db.open()
         self.registry.reconcile()
         self.jobs.recover_after_crash()
+        interrupted = self.tasks.mark_interrupted_after_crash()
+        if interrupted:
+            logger.info("agent: %d task(s) marked interrupted after restart", len(interrupted))
         self._load_dynamic_catalog()
         self.chat.recover_after_crash()
         prefs = self.settings.load()
@@ -290,6 +315,68 @@ class AppContext:
             opts.gpu_layers = int(env_layers)
         return opts, n_layers
 
+    # ---- agent ---------------------------------------------------------------------
+    def _active_reasoning_toggle(self):
+        mid = self.inference.chat.model_id
+        caps = self.capabilities_for(mid) if mid else None
+        return (caps or {}).get("reasoning_toggle")
+
+    def _parse_document_file(self, path):
+        from app.services.parser_service import parse_sync
+
+        data = path.read_bytes()
+        ct = "application/pdf" if path.suffix.lower() == ".pdf" else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        return parse_sync(data, content_type=ct, filename=path.name)
+
+    async def _observe_for_agent(self, task, latest_refs):
+        """Fresh, bounded observations for the planner: one UIA read per window source in scope
+        (structure only; images are fetched explicitly by vision tools). Returns
+        (text, {source_id: {element ids}}, {source_id: snapshot_id})."""
+        texts, refs, snaps = [], {}, {}
+        ws = task.scopes.windows
+        if ws and ws.source_ids:
+            names: dict[str, str] = {}
+            for sid in ws.source_ids[:4]:
+                try:
+                    src = self.live.resolve_source(sid)
+                except Exception as exc:  # noqa: BLE001
+                    texts.append(f"Quelle {sid}: nicht verfügbar ({exc.__class__.__name__}).")
+                    continue
+                snap = await asyncio.to_thread(self.live.taker.take, task.id, src, want_image=False, max_elements=120)
+                snaps[sid] = snap.snapshot_id
+                refs[sid] = {e.id for e in snap.tree.elements}
+                for e in snap.tree.elements:
+                    names[e.id] = e.name
+                self.agent_snapshots[(task.id, sid)] = snap
+                texts.append(f"[source_id {sid}] " + snap.context_text(max_elements=60, max_chars=2500))
+            self.agent.remember_element_names(task.id, names)
+        if self.browser is not None and task.scopes.browser and task.scopes.browser.enabled:
+            try:
+                texts.append(await self.browser.observe_text(task.id))
+            except Exception as exc:  # noqa: BLE001
+                texts.append(f"Browser: {str(exc)[:160]}")
+        return "\n\n".join(texts), refs, snaps
+
+    def agent_capabilities(self) -> dict:
+        mid = self.inference.chat.model_id
+        caps = (self.capabilities_for(mid) if mid else None) or {}
+        from .observe import windows as W
+        from .observe.uia import available as uia_available
+
+        return {
+            "tools": self.broker.infos(None),
+            "model": {
+                "id": mid,
+                "vision_input": bool(caps.get("vision_input")),
+                "image_grounding": caps.get("image_grounding", "none"),
+                "tool_call_format": caps.get("tool_call_format", "none"),
+                "structured_output": bool(caps.get("structured_output", True)),
+            },
+            "browser": self.browser.status() if self.browser is not None else {"installed": False, "version": None, "path": None},
+            "windows_automation": {"available": uia_available(), "reason_de": "" if uia_available() else "UI Automation (pywinauto) nicht verfügbar."},
+            "desktop_interactive": W.desktop_interactive(),
+        }
+
     def vision_available(self) -> bool:
         slot = self.inference.chat
         return slot.state == "ready" and bool((slot.options or {}).get("mmproj"))
@@ -393,6 +480,11 @@ class AppContext:
             self._shutdown_task = asyncio.create_task(self.shutdown(), name="shutdown")
 
     async def shutdown(self) -> None:
+        try:
+            self.agent.cancel_all()
+            self.live.end_all()
+        except Exception:  # noqa: BLE001
+            pass
         if self.shutting_down:
             return
         self.shutting_down = True

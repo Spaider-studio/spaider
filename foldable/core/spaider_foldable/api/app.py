@@ -16,6 +16,7 @@ from ..models.jobs import JobError
 from ..store.common import NotFound
 from .errors import ApiError
 from .routes_activity import router as activity_router
+from .routes_agent import router as agent_router
 from .routes_conversations import router as conversations_router
 from .routes_documents import router as documents_router
 from .routes_live import router as live_router
@@ -81,4 +82,5 @@ def create_app(ctx: AppContext, token: str) -> FastAPI:
     app.include_router(memory_router, prefix="/api")
     app.include_router(activity_router, prefix="/api")
     app.include_router(live_router, prefix="/api")
+    app.include_router(agent_router, prefix="/api")
     return app

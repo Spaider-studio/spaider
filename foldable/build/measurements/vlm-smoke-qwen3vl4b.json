@@ -1,0 +1,77 @@
+[
+  {
+    "backend": "vulkan",
+    "mmproj_offload": true,
+    "load_s": 13.1,
+    "q0": {
+      "ttft_s": 4.7,
+      "total_s": 8.36,
+      "answer": "Auf dem Bildschirm steht:\n\n- **Rechnungsnummer**: RE-2026-0417\n- **Betrag**: 1.284,50 EUR\n- **Fälligkeitsdatum**: 15.11.2026\n\nZusätzlich ist ein Fehlerhinweis sichtbar: „Fehler: Die Verbindung zum Server wurde zurückgese",
+      "prompt_n": 915,
+      "prompt_ms": 4672.559,
+      "predicted_per_second": 28.187739099760243
+    },
+    "q1": {
+      "ttft_s": 4.95,
+      "total_s": 5.77,
+      "answer": "Die Verbindung zum Server wurde zurückgesetzt (Code 0x80004005).",
+      "prompt_n": 903,
+      "prompt_ms": 4092.851,
+      "predicted_per_second": 28.042248695730628
+    },
+    "ground": {
+      "s": 5.36,
+      "answer": "```json\n{\"x\":107,\"y\":367}\n```"
+    }
+  },
+  {
+    "backend": "vulkan",
+    "mmproj_offload": false,
+    "load_s": 4.1,
+    "q0": {
+      "ttft_s": 11.52,
+      "total_s": 15.16,
+      "answer": "Auf dem Bildschirm steht:\n\n- **Rechnungsnummer**: RE-2026-0417\n- **Betrag**: 1.284,50 EUR\n- **Fälligkeitsdatum**: 15.11.2026\n\nZusätzlich ist ein Fehlerhinweis sichtbar: „Fehler: Die Verbindung zum Server wurde zurückgese",
+      "prompt_n": 915,
+      "prompt_ms": 11487.292,
+      "predicted_per_second": 28.257065775316274
+    },
+    "q1": {
+      "ttft_s": 12.28,
+      "total_s": 13.09,
+      "answer": "Die Verbindung zum Server wurde zurückgesetzt (Code 0x80004005).",
+      "prompt_n": 903,
+      "prompt_ms": 11417.476,
+      "predicted_per_second": 28.31825283767362
+    },
+    "ground": {
+      "s": 12.8,
+      "answer": "```json\n{\"x\":100,\"y\":367}\n```"
+    }
+  },
+  {
+    "backend": "cpu",
+    "mmproj_offload": false,
+    "load_s": 4.4,
+    "q0": {
+      "ttft_s": 21.42,
+      "total_s": 27.69,
+      "answer": "Auf dem Bildschirm steht:\n\n- **Rechnungsnummer**: RE-2026-0417\n- **Betrag**: 1.284,50 EUR\n- **Fälligkeitsdatum**: 15.11.2026\n\nZusätzlich ist ein Fehlerhinweis sichtbar: „Fehler: Die Verbindung zum Server wurde zurückgese",
+      "prompt_n": 915,
+      "prompt_ms": 21388.564,
+      "predicted_per_second": 16.531130124229037
+    },
+    "q1": {
+      "ttft_s": 21.95,
+      "total_s": 23.56,
+      "answer": "Fehler: Die Verbindung zum Server wurde zurückgesetzt (Code 0x80004005).",
+      "prompt_n": 903,
+      "prompt_ms": 21874.591,
+      "predicted_per_second": 16.078979949512004
+    },
+    "ground": {
+      "s": 24.27,
+      "answer": "```json\n{\"x\":100,\"y\":367}\n```"
+    }
+  }
+]
