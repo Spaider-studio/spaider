@@ -29,7 +29,10 @@ from .agent.broker import Broker
 from .agent.loop import AgentManager
 from .agent.store import TaskStore
 from .agent.tools import files as files_tools
+from .agent.tools import browser as browser_tools
 from .agent.tools import memory as memory_tools
+from .agent.tools import vision as vision_tools
+from .agent.tools import windows as windows_tools
 from .live.sessions import LiveManager
 from .tools.contracts import current_host_id
 from .models.capabilities import capabilities_for_model
@@ -110,6 +113,27 @@ class AppContext:
             settings_loader=self.settings.load,
             reasoning_toggle=self._active_reasoning_toggle,
         )
+        windows_tools.register(
+            self.broker,
+            uia=self.uia,
+            take_snapshot=self._agent_snapshot,
+            get_snapshot=lambda tid, sid: self.agent_snapshots.get((tid, sid)),
+            resolve_source=self.live.resolve_source,
+            remember_names=self.agent.remember_element_names,
+        )
+        self.grounding = vision_tools.GroundingCalibrator()
+        vision_tools.register(
+            self.broker,
+            vision_available=self.vision_available,
+            active_model_id=lambda: self.inference.chat.model_id,
+            ask_vlm=self.ask_vlm,
+            take_snapshot=self._agent_snapshot,
+            resolve_source=self.live.resolve_source,
+            calibrator=self.grounding,
+            max_side=lambda: self.settings.load().live_image_max_side,
+        )
+        self.browser = browser_tools.BrowserAdapter(paths.data_dir, browser_tools.find_chrome(paths.data_dir))
+        browser_tools.register(self.broker, self.browser)
         self.worker = IngestWorker(
             self.ingest_queue,
             self.ingestor,
@@ -357,6 +381,31 @@ class AppContext:
                 texts.append(f"Browser: {str(exc)[:160]}")
         return "\n\n".join(texts), refs, snaps
 
+    def _agent_snapshot(self, task_id: str, src, want_image: bool = False):
+        snap = self.live.taker.take(task_id, src, want_image=want_image, max_elements=150, max_side=self.settings.load().live_image_max_side)
+        self.agent_snapshots[(task_id, src.id)] = snap
+        return snap
+
+    async def ask_vlm(self, prompt: str, image_data_url: str, max_tokens: int = 300) -> str:
+        """One bounded vision call on the active model (scheduler: user-facing priority)."""
+        client = self.inference.chat.client
+        if client is None:
+            raise RuntimeError("Kein Chatmodell bereit.")
+        toggle = self._active_reasoning_toggle()
+        text = ""
+        async with self.scheduler.chat():
+            async for chunk in client.stream_chat(
+                [{"role": "user", "content": [{"type": "text", "text": prompt}, {"type": "image_url", "image_url": {"url": image_data_url}}]}],
+                temperature=0.0,
+                max_tokens=max_tokens,
+                enable_thinking=(False if toggle else None),
+                reasoning_toggle=toggle,
+                timeout_s=180.0,
+            ):
+                if chunk.text:
+                    text += chunk.text
+        return text
+
     def agent_capabilities(self) -> dict:
         mid = self.inference.chat.model_id
         caps = (self.capabilities_for(mid) if mid else None) or {}
@@ -483,6 +532,8 @@ class AppContext:
         try:
             self.agent.cancel_all()
             self.live.end_all()
+            if self.browser is not None:
+                await self.browser.close()
         except Exception:  # noqa: BLE001
             pass
         if self.shutting_down:
