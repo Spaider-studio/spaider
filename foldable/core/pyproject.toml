@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "spaider-foldable-core"
-version = "0.2.0"
+version = "0.3.0"
 description = "SpAIder Foldable: portable, local SpAIder chat core (reuses backend/app as a library)"
 license = "AGPL-3.0-only"
 requires-python = ">=3.11"
@@ -29,6 +29,12 @@ dependencies = [
     "neo4j==6.3.1",
     # hardware profile (physical cores, battery), process accounting
     "psutil>=6.0",
+    # 0.3: desktop observation/automation and the own browser (pinned to the versions used in the frozen build)
+    "pywinauto==0.6.9",
+    "pywin32==312",
+    "comtypes==1.4.17",
+    "mss==10.2.0",
+    "playwright==1.64.1",
 ]
 
 [project.optional-dependencies]

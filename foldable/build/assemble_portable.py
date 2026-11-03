@@ -57,7 +57,7 @@ def copytree(src: Path, dst: Path) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--version", default="0.2.0")
+    ap.add_argument("--version", default="0.3.0")
     ap.add_argument("--desktop-out", type=Path, default=FOLDABLE / "desktop" / "out" / "SpAIder-win32-x64")
     ap.add_argument("--core-dist", type=Path, default=HERE / "dist" / "spaider-foldable-core")
     ap.add_argument("--runtime", type=Path, default=HERE / "runtime" / "llama")
