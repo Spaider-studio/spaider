@@ -1,0 +1,3 @@
+{"zip": "foldable/build/out/SpAIder-Foldable-0.3.0-win-x64.zip", "size_bytes": 395662072, "sha256": "20462c919b5c1f255427732df8afeea30bd4af830792c7043aff3a80e8a3e72c", "assembled_at_commit": "836ca98", "core_code": "f01a359 (+catalog 166101e)", "desktop_code": "a85dca6",
+ "verify_package": {"extracted_to": "temp folder with umlaut and space in the name", "layout_ok": true, "expected_files": 11, "core_start_s": 8.81, "runtime": "llama.cpp b12032 cpu+vulkan", "setup_state": "needs_model", "token_required": true, "core_exit_code": 0, "lock_removed": true, "launcher_exit": 0, "launcher_wall_s": 12.7, "screenshot": "scratchpad/verify-0.3.0.png (setup page with hardware line and recommendations)"},
+ "date": "2026-11-04T01:03Z"}
