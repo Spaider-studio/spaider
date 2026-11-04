@@ -17,9 +17,12 @@ Rohdaten unter `foldable/build/measurements/` (synthetische Inhalte).
 ## Baseline (0.2, unverändert)
 
 Chat ohne Live/Agent: siehe `PERFORMANCE_REPORT.md` (Qwen3-4B, Vulkan: kurze
-Frage 0,45 s bis zum ersten Token, 20–31 Token/s; CPU 6–10 s). Diese Werte
-werden nach dem 0.3-Paket erneut geprüft (Regression bei deaktiviertem
-Live/Agent) – *(wird eingetragen)*.
+Frage 0,45 s bis zum ersten Token, 20–31 Token/s; CPU 6–10 s). **Nachprüfung
+mit dem 0.3.0-Paket** (gepackter Kern, Qwen3-VL-4B + Projektor auf Vulkan,
+keine Live-Sitzung, kein Agent aktiv; `package-check-0.3.0.json`): fünf kurze
+Fragen, erstes Token Median **0.25 s** (min 0.2, max 0.47,
+erste Frage kalt) – keine Verschlechterung gegenüber 0.2. CPU-Rückfall
+(`gpu_mode: off`, Neustart): erstes Token 9.08 s beim 4B-Bildmodell.
 
 ## Beobachtung (ohne Modell)
 

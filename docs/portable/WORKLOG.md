@@ -384,5 +384,13 @@ blockiert (workflow-Scope).
   4,9 s, Agentenaufgabe belegt in 21,5 s, Abbruch 10 ms, CPU-Rueckfall 1,8 s TTFT; Endlauf mit
   Netstat/Beenden folgt.
 
-Naechster konkreter Schritt: Paket-Volltest eintragen, Bundle, Push-Versuch, Abschlussbericht.
+### Abschluss 03:20-03:35
+- Paket-Volltest gruen (package-check-0.3.0.json): Chat-TTFT 0,25 s Median, Live 0,24 s / Bild 5,1 s,
+  Agentenaufgabe belegt 19,7 s, Abbruch 20 ms, CPU-Rueckfall per gespeicherter Einstellung nach
+  Neustart (Backend cpu, 9,1 s TTFT), Aufgabenzustaende ueber Neustart erhalten, sauberes Beenden,
+  22 Netstat-Stichproben ohne externe Verbindung.
+- Push-Versuch erwartungsgemaess abgelehnt (workflow-Scope). Bundle erstellt, Abschlussbericht.
+
+Stand bei Uebergabe: Branch feature/spaider-foldable-agent-live, Paket 0.3.0 (SHA 87058242...73fa).
+Offen fuer Musa: gh auth refresh -s workflow, dann push; erster Nutzertest laut QUICKSTART_DE.md.
 

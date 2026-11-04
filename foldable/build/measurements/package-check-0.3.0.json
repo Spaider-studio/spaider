@@ -1,0 +1,138 @@
+{
+ "zip": "C:\\Users\\mucbay\\spaider-foldable\\repo\\foldable\\build\\out\\SpAIder-Foldable-0.3.0-win-x64.zip",
+ "zip_bytes": 395662613,
+ "started_at": "2026-11-04T02:08:42Z",
+ "steps": [
+  {
+   "files": 8642,
+   "gguf_in_zip": [],
+   "data_dir_in_zip": false,
+   "app_root": "C:\\Users\\mucbay\\spaider-foldable\\measure\\pkgcheck-0.3\\SpAIder-Foldable-0.3.0-win-x64\\SpAIder",
+   "name": "extract"
+  },
+  {
+   "id": "qwen3-vl-4b-instruct-q4_k_m",
+   "mmproj": true,
+   "name": "model_installed"
+  },
+  {
+   "seconds": 6.7,
+   "port": 62733,
+   "version": "0.3.0",
+   "name": "core_ready"
+  },
+  {
+   "state": "ready",
+   "seconds": 4.1,
+   "backend": "vulkan",
+   "error": null,
+   "name": "model_ready"
+  },
+  {
+   "runs": [
+    {
+     "ttft_s": 0.47,
+     "total_s": 0.75,
+     "done": null
+    },
+    {
+     "ttft_s": 0.2,
+     "total_s": 0.31,
+     "done": null
+    },
+    {
+     "ttft_s": 0.25,
+     "total_s": 0.33,
+     "done": null
+    },
+    {
+     "ttft_s": 0.22,
+     "total_s": 0.47,
+     "done": null
+    },
+    {
+     "ttft_s": 0.28,
+     "total_s": 0.73,
+     "done": null
+    }
+   ],
+   "ttft_median_s": 0.25,
+   "ttft_min_s": 0.2,
+   "ttft_max_s": 0.47,
+   "name": "chat"
+  },
+  {
+   "sources": {
+    "windows": 14,
+    "screens": 3
+   },
+   "self_excluded": true,
+   "snapshot_quality": "ok",
+   "preview": true,
+   "structure_question": {
+    "ttft_s": 0.24,
+    "total_s": 3.67,
+    "done": null
+   },
+   "image_question": {
+    "ttft_s": 4.83,
+    "total_s": 7.36,
+    "done": null
+   },
+   "vision_available": true,
+   "sessions_after": 0,
+   "name": "live"
+  },
+  {
+   "state": "completed",
+   "ok": true,
+   "verified": true,
+   "llm_calls": 3,
+   "step_count": 3,
+   "wall_s": 19.7,
+   "output_ok": true,
+   "name": "agent_file_task"
+  },
+  {
+   "state": "cancelled",
+   "cancel_to_terminal_s": 0.02,
+   "output_absent": true,
+   "name": "agent_cancel"
+  },
+  {
+   "first_exit_code": 0,
+   "restart_ready_s": 17.0,
+   "state": "ready",
+   "backend": "cpu",
+   "chat": {
+    "ttft_s": 9.08,
+    "total_s": 9.97,
+    "done": null
+   },
+   "error": null,
+   "tasks_after_restart": [
+    [
+     "task_d5f698d5a98f",
+     "cancelled"
+    ],
+    [
+     "task_063e20e6c0d6",
+     "completed"
+    ]
+   ],
+   "name": "cpu_fallback"
+  },
+  {
+   "exit_code": 0,
+   "leftover_pids": [],
+   "lock_removed": true,
+   "name": "shutdown"
+  }
+ ],
+ "netstat": {
+  "samples": 22,
+  "external": [],
+  "external_count": 0
+ },
+ "finished_at": "2026-11-04T02:10:08Z"
+}
