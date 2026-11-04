@@ -151,4 +151,14 @@ Bis dahin liegen Git-Bundles unter `C:\Users\mucbay\spaider-foldable\backup\`
   (Desktop-Teil, siehe `foldable/desktop/NOTES.md`).
 - Upstream-Vorschläge (nicht umgesetzt): keine; die Agentenschicht liegt vollständig unter
   `foldable/` und nutzt den Kompressor/Retriever nur lesend.
+- Nachträge aus der Aufgabenmatrix (Commits `ad42cac`, `f01a359`): Scope-Erweiterung durch
+  Werkzeuge wird persistiert; Browserwerkzeuge sind an die öffnende Aufgabe gebunden;
+  `bring_to_front` arbeitet gegen die Vordergrund-Sperre; unbelegte Erfolgsmeldungen werden einmal
+  zurückgewiesen; `vision.locate` prüft die Koordinatenkonvention je Antwort; Rezepte werden
+  deterministisch über den Broker wiedergegeben (Parameter `{name}`, Rückfall auf den Planer).
+  Vertrag v1.2 ergänzt: `max_elements` 0..1000 beim Snapshot, `save-recipe`-Parameter mit `value`,
+  Ausführungssemantik von `recipe_id`. Keine neuen Abhängigkeiten.
+- Für eine spätere Integration in den SpAIder-Hauptzweig: Die Werkzeuge sind über
+  `agent/broker.py` registriert (ein `Tool` je Fähigkeit, Schema + Scope + Wirkungsklasse); ein
+  MCP-Adapter könnte dieselbe Registrierung nutzen, ist aber nicht enthalten.
 

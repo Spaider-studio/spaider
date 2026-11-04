@@ -88,4 +88,9 @@ keine Signatur, Qwen3.8 nur als Community-GGUF dokumentiert, nicht ausgeführt).
   als Standard für Bildfragen.
 - Berichte: `AGENT_LIVE_ARCHITECTURE.md`, `AGENT_LIVE_PERFORMANCE.md`, `AGENT_LIVE_TEST_REPORT.md`,
   `PORTABLE_AGENT_STATE.md`.
+- Aus der 20er-Aufgabenmatrix (Qwen3-VL-4B ×3, Qwen3-4B ×2, Gemma 4 E2B ×2) behoben: Scope-Verlust
+  nach `windows.launch`, Browserseite der Voraufgabe als Beobachtung, Vordergrund-Sperre beim
+  Aktivieren von Zielfenstern, Erfolgsmeldung ohne Lesen; Rezepte werden jetzt tatsächlich
+  deterministisch wiedergegeben (Rückfall auf den Planer). Ergebnisse je Aufgabe und Modell im
+  Prüfbericht; „alles grün“ gibt es nicht – Windows-/Bildaufgaben bleiben mit 4B-Modellen unsicher.
 

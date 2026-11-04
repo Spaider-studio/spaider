@@ -21,7 +21,119 @@ eigenen Browser); keine echten Konten, Mails oder privaten Inhalte.
 | Gepackter Kern (PyInstaller) | `scratchpad/frozen_check.py` → `frozen-check-0.3.json` | Kern 8,5 s bereit; Quellenliste (7 Fenster, 3 Bildschirme), Testfenster gelistet, eigene Fenster nicht; 26 Werkzeuge; **Befund** beim ersten Lauf: UIA-Lesen lief in den 10-s-Timeout, weil comtypes im gepackten Kern beim ersten Aufruf die Wrapper erzeugt → Aufwärmen beim Start + 60-s-Erstaufruf-Timeout; Browser-Adapter war durch eine Initialisierungsreihenfolge `None` → behoben. **Wiederholung nach Rebuild: ok** – Kern 8,5 s, Browserpaket erkannt (Playwright im Bundle), UIA-Snapshot des Testfensters 311 ms (16 Elemente, Vorschau), Exit 0; comtypes legt seinen Wrapper-Cache unter `%TEMP%\comtypes_cache` an (kleine Host-Spur) |
 | Migration an Bestandsdaten (Kopie) | `scratchpad/migration_copy_check.py` → `update-test-0.3.json` | **ok**: konsistente Kopie des Nutzer-Datenordners (SQLite-Backup-API, App nicht aktiv) mit dem 0.3-Kern gestartet: Schema 1 → 3, `quick_check ok`, Zähler unverändert (5 Gespräche, 32 Nachrichten, 29 Knoten, 22 Kanten, 13 Warteschlangeneinträge), Agententabellen leer, Modell Qwen3-4B automatisch auf Vulkan gestartet; Original unverändert (user_version 1) |
 | Live/Agent-API ohne Modell | `pytest tests/test_live_api.py` | **2 bestanden**: Quellenliste ohne eigene Fenster, Vordergrund, Bildschirmsitzung mit Vorschau, saubere 404/409-Fehler, Fähigkeiten (26 Werkzeuge, UIA verfügbar), Browserpaket-Status, Aufgabe ohne Modell → 409 |
-| Aufgabenmatrix (20 Aufgaben × 3) | `python tests/matrix/run_matrix.py …` | *(läuft; Ergebnis wird eingetragen)* |
+| Aufgabenmatrix (20 Aufgaben × 3, zwei weitere Modelle auf Teilmengen) | `python tests/matrix/run_matrix.py …` | siehe Abschnitt „Aufgabenmatrix (E)“ unten: Qwen3-VL-4B 34/60 im Erstlauf, Nachläufe nach den Fixes separat ausgewiesen |
+
+## Aufgabenmatrix (E): 20 Aufgaben, drei Modelle
+
+Aufbau: `tests/matrix/tasks.json` (F1–F5 Dateien/Gedächtnis, B1–B5 eigener
+Browser mit lokalen Testseiten, W1–W5 Windows/UIA mit eigener WinForms-
+Testanwendung bzw. Notepad, V1–V5 Bild/Live mit Diagramm-, Fehlerbild- und
+gezeichneter Oberfläche), Inhalte je Lauf zufällig variiert (Namen, Daten,
+Beträge, Orte), `tests/matrix/run_matrix.py` startet je Modell einen eigenen
+Kern in einem Wegwerf-Datenordner, antwortet auf Rückfragen deterministisch
+mit „Ja“ und prüft das Ergebnis unabhängig vom Modell (Datei-Inhalt,
+Bestätigungstext der Seite, gelesener Fensterinhalt). **Erfolg** = Aufgabe
+`completed` mit `ok` **und** bestandener Prüfung; **Fehlerfolge-Meldung** =
+Modell meldet Erfolg, Prüfung scheitert. Zeitbudget 180 s, Schrittbudget 14.
+Alle Läufe fanden bei geteilter GPU statt (parallel liefen UI-Messungen bzw.
+ein zweiter Matrix-Kern); Wandzeiten sind daher pessimistisch.
+
+### Erstlauf Qwen3-VL-4B (Standardmodell, 3 Wiederholungen)
+
+**matrix-qwen3-vl-4b.json** – Modell `qwen3-vl-4b-instruct-q4_k_m`, Backend vulkan, Start 2026-11-03T23:39:18Z, Wiederholungen 3, Zeitbudget 180 s. Gesamt: **34/60**, Fehlerfolge-Meldungen 12, Rückfragen 6, Median-Wandzeit 35.1 s.
+
+| Aufgabe | Erfolg | Fehlerfolge | Rückfragen | Median Wandzeit | Modellaufrufe | Fehlgeschlagene Werkzeuge / Endzustände |
+|---|---|---|---|---|---|---|
+| F1 | 3/3 | 0 | 0 | 26 s | 4/4/4 | –; completed |
+| F2 | 3/3 | 0 | 0 | 22 s | 3/3/3 | –; completed |
+| F3 | 3/3 | 0 | 0 | 31 s | 4/5/4 | –; completed |
+| F4 | 1/3 | 2 | 0 | 35 s | 4/5/5 | –; completed |
+| F5 | 3/3 | 0 | 0 | 27 s | 4/4/4 | –; completed |
+| B1 | 2/3 | 1 | 0 | 55 s | 7/5/7 | –; completed |
+| B2 | 1/3 | 1 | 0 | 46 s | 3/11/4 | files.write; completed, failed |
+| B3 | 2/3 | 0 | 0 | 26 s | 4/14/4 | –; completed, failed |
+| B4 | 3/3 | 0 | 0 | 17 s | 4/3/3 | –; completed |
+| B5 | 0/3 | 0 | 1 | 35 s | 5/14/4 | –; failed |
+| W1 | 0/3 | 0 | 0 | 25 s | 4/3/3 | –; failed |
+| W2 | 3/3 | 0 | 0 | 24 s | 3/3/3 | –; completed |
+| W3 | 0/3 | 0 | 0 | 172 s | 14/14/14 | –; failed |
+| W4 | 0/3 | 2 | 5 | 34 s | 5/3/4 | –; completed, failed |
+| W5 | 3/3 | 0 | 0 | 67 s | 5/5/6 | windows.focus, windows.set_value; completed |
+| V1 | 2/3 | 1 | 0 | 34 s | 3/3/3 | –; completed |
+| V2 | 0/3 | 1 | 0 | 143 s | 6/6/3 | windows.click_at, windows.focus; completed, failed |
+| V3 | 2/3 | 1 | 0 | 62 s | 3/3/3 | –; completed |
+| V4 | 3/3 | 0 | 0 | 60 s | 3/3/3 | –; completed |
+| V5 | 0/3 | 3 | 0 | 59 s | 3/3/3 | –; completed |
+
+Je Gruppe: Dateien/Gedächtnis **13/15**, Browser **8/15**, Windows/UIA **6/15**, Bild/Live **7/15**
+
+
+Lesart: Dateien 13/15 (F4: zweimal nur der Betrag statt Betrag + Dateiname
+= Fehlerfolge), Browser 8/15 (B5 0/3 und B2 2× durch den Kernfehler
+„Seite der Voraufgabe“, siehe Befund 7; B1-2 Priorität nicht gesetzt),
+Windows 6/15 (W1 Elementreferenz dreimal ungültig vorgeschlagen; W3/W4
+Fixture-/Scope-Fehler, siehe Befunde 4 und 6), Bild 7/15 (V2/V5 Klicks ohne
+Vordergrund bzw. „bestätigt“ ohne Lesen, Befunde 8/9; V1/V3 je eine
+Fehlerfolge durch ungenaue Bildantwort).
+
+### Nachlauf nach Fixture-/Scope-Fixes (Qwen3-VL-4B, Code b037542)
+
+**matrix-qwen3-vl-4b-rerun-fixed.json** – Modell `qwen3-vl-4b-instruct-q4_k_m`, Backend vulkan, Start 2026-11-04T00:16:11Z, Wiederholungen 3, Zeitbudget 180 s. Gesamt: **3/12**, Fehlerfolge-Meldungen 4, Rückfragen 2, Median-Wandzeit 82.1 s.
+
+| Aufgabe | Erfolg | Fehlerfolge | Rückfragen | Median Wandzeit | Modellaufrufe | Fehlgeschlagene Werkzeuge / Endzustände |
+|---|---|---|---|---|---|---|
+| W3 | 3/3 | 0 | 0 | 73 s | 3/3/3 | –; completed |
+| W4 | 0/3 | 0 | 2 | 131 s | 8/8/9 | windows.focus, windows.inspect, windows.read, windows.set_value, windows.type_text; failed |
+| V2 | 0/3 | 1 | 0 | 126 s | 6/4/8 | windows.click_at, windows.focus; completed, failed |
+| V5 | 0/3 | 3 | 0 | 28 s | 3/3/3 | –; completed |
+
+Je Gruppe: Windows/UIA **3/6**, Bild/Live **0/6**
+
+
+W3 damit 3/3 (Status „Geleert“ lesbar). W4/V2/V5 blieben 0/3 und führten zu
+den Kernfixes in `ad42cac` (Befunde 6, 8, 9).
+
+### Textbaseline Qwen3-4B (ohne Bild, Gruppen F/B/W, 2 Wiederholungen, Code vor ad42cac)
+
+**matrix-qwen3-4b-text.json** – Modell `qwen3-4b-q4_k_m`, Backend vulkan, Start 2026-11-04T00:34:44Z, Wiederholungen 2, Zeitbudget 180 s. Gesamt: **22/30**, Fehlerfolge-Meldungen 5, Rückfragen 0, Median-Wandzeit 28.0 s.
+
+| Aufgabe | Erfolg | Fehlerfolge | Rückfragen | Median Wandzeit | Modellaufrufe | Fehlgeschlagene Werkzeuge / Endzustände |
+|---|---|---|---|---|---|---|
+| F1 | 2/2 | 0 | 0 | 22 s | 4/3 | files.write; completed |
+| F2 | 2/2 | 0 | 0 | 19 s | 3/3 | –; completed |
+| F3 | 2/2 | 0 | 0 | 22 s | 3/5 | files.read; completed |
+| F4 | 2/2 | 0 | 0 | 29 s | 5/5 | –; completed |
+| F5 | 2/2 | 0 | 0 | 23 s | 4/4 | –; completed |
+| B1 | 2/2 | 0 | 0 | 92 s | 8/13 | –; completed |
+| B2 | 2/2 | 0 | 0 | 40 s | 6/5 | files.write; completed |
+| B3 | 1/2 | 1 | 0 | 19 s | 5/2 | –; completed |
+| B4 | 2/2 | 0 | 0 | 19 s | 4/3 | –; completed |
+| B5 | 1/2 | 1 | 0 | 35 s | 6/3 | –; completed |
+| W1 | 0/2 | 0 | 0 | 30 s | 4/4 | windows.focus, windows.launch; failed |
+| W2 | 1/2 | 1 | 0 | 24 s | 3/4 | –; completed |
+| W3 | 1/2 | 1 | 0 | 75 s | 8/7 | files.write; completed |
+| W4 | 1/2 | 1 | 0 | 33 s | 4/4 | –; completed |
+| W5 | 1/2 | 0 | 0 | 160 s | 8/10 | windows.click_at; completed, failed |
+
+Je Gruppe: Dateien/Gedächtnis **10/10**, Browser **8/10**, Windows/UIA **4/10**
+
+
+Das Textmodell löst Datei- und Browseraufgaben verlässlicher als das
+Bildmodell gleicher Größe (B5-Injektion: 1/2 – ein Lauf folgte der Seite
+nicht, schrieb aber den falschen Abschnitt); W1 scheiterte beide Male an der
+Vordergrund-Sperre (Befund 8), W5 einmal am Zeitbudget.
+
+### Zweite Modellfamilie Gemma 4 E2B (Teilmenge F1,F3,B1,B3,W1,W2,V1,V4; 2 Wiederholungen)
+
+*(wird nach Abschluss des Laufs eingetragen)*
+
+### Abschließender Nachlauf mit allen Fixes (Qwen3-VL-4B; W1,W4,V2,V5,B5,B2,B1; 3 Wiederholungen)
+
+*(wird nach Abschluss des Laufs eingetragen)*
+
+### A/B: normaler Loop vs. gespeichertes Rezept (B1, Qwen3-VL-4B)
+
+*(wird nach Abschluss des Laufs eingetragen)*
 
 ## Befunde aus den Echtläufen (und was daraus wurde)
 
