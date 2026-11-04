@@ -196,9 +196,27 @@ Lesart je Aufgabe:
 
 *(wird nach Abschluss des Laufs eingetragen)*
 
-### A/B: normaler Loop vs. gespeichertes Rezept (B1, Qwen3-VL-4B)
+### A/B: normaler Loop vs. gespeichertes Rezept (B1 Formular, Qwen3-VL-4B)
 
-*(wird nach Abschluss des Laufs eingetragen)*
+Aufbau (`scratchpad/recipe_ab.py`, Bericht `recipe-ab-qwen3-vl-4b*.json`):
+Arm A = drei normale Läufe der Formularaufgabe B1 (Seite öffnen, Quelldatei
+lesen, zwei Felder füllen, Priorität wählen, absenden, Bestätigung); aus dem
+ersten erfolgreichen Lauf wird per `save-recipe` ein Ablauf mit den
+Parametern `url`, `src`, `projname`, `budget` gespeichert; Arm B = drei Läufe
+mit `recipe_id` und neuen Werten (andere Ordner, Projektnamen, Beträge).
+
+**Lauf 1 (Code 1d2bbd8):** Arm A 2/3 (ein Lauf ohne Prioritätsauswahl =
+Fehlerfolge), Median 68,9 s, je 9 Modellaufrufe. Rezept mit 7 Schritten
+(`browser.open`, `files.read`, 2× `browser.fill`, `browser.select`,
+`browser.click`, `browser.wait_for_text`). Arm B 3/3 **erfolgreich, aber ohne
+Ersparnis** (8–9 Modellaufrufe, Median 87 s): Der Planer hatte den Pfad der
+Quelldatei mit Schrägstrichen aufgezeichnet, der Parameterwert enthielt
+Backslashes – der Literalersatz griff nicht, Schritt 2 (`files.read` mit dem
+alten Pfad) scheiterte außerhalb der Wurzeln, der Loop fiel wie vorgesehen auf
+den Planer zurück und löste die Aufgabe normal. Fix: Parameterwerte werden in
+beiden Schrägstrich-Schreibweisen ersetzt (Unit-Test, Commit 371a503).
+
+**Lauf 2 (Code 371a503):** *(wird nach Abschluss des Laufs eingetragen)*
 
 ## Befunde aus den Echtläufen (und was daraus wurde)
 
