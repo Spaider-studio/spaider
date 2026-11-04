@@ -78,8 +78,13 @@ warm, `set_value` mit Rücklesen ≈ 400 ms, Browser-Klick mit Textauszug
 ≈ 300 ms). Die Wandzeit einer Aufgabe ist damit fast ausschließlich
 Modellzeit: 3 Schritte ≈ 20–30 s, 5–6 Schritte ≈ 45–60 s, 9 Schritte ≈ 70 s.
 Hebel: weniger Schritte durch deterministische Prüfungen (Klick meldet
-Veränderung, Rücklesen nach `set_value`) und Rezepte (siehe A/B im
-Prüfbericht).
+Veränderung, Rücklesen nach `set_value`) und Rezepte.
+
+**A/B Rezept vs. Loop (B1 Formular, Qwen3-VL-4B, je 3 Läufe):** normaler Loop
+3/3 in 71,0 s Median mit 9–10 Modellaufrufen; gespeicherter Ablauf mit neuen
+Parametern 3/3 in **0,4 s** mit **0** Modellaufrufen (8 Werkzeugschritte,
+Bestätigung per `wait_for_text` belegt). Rohdaten `recipe-ab-qwen3-vl-4b.json`
+(Lauf 1 mit dem Pfad-Befund: `…-run1.json`).
 
 ## Oberfläche (echtes Electron-Fenster, echte Tastatureingabe, Backend = Mock)
 

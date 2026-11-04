@@ -249,7 +249,15 @@ alten Pfad) scheiterte außerhalb der Wurzeln, der Loop fiel wie vorgesehen auf
 den Planer zurück und löste die Aufgabe normal. Fix: Parameterwerte werden in
 beiden Schrägstrich-Schreibweisen ersetzt (Unit-Test, Commit 371a503).
 
-**Lauf 2 (Code 371a503):** *(wird nach Abschluss des Laufs eingetragen)*
+**Lauf 2 (Code 371a503, `recipe-ab-qwen3-vl-4b.json`):** Arm A 3/3, Median
+71,0 s, 9/9/10 Modellaufrufe. Arm B (Rezept mit neuen Werten) **3/3
+erfolgreich, 0 Modellaufrufe, 8 Schritte, Median 0,4 s** – die Bestätigung
+„Entwurf gespeichert: <neuer Projektname> | <neuer Betrag> | hoch“ erschien
+jeweils; `browser.wait_for_text` als letzter, belegter Schritt schloss die
+Aufgabe ohne Modellaufruf ab. Der Unterschied Loop vs. Rezept liegt damit bei
+≈ 70 s und 9 Modellaufrufen je Wiederholung dieser Aufgabe; Grenzen der
+Rezepte siehe `KNOWN_LIMITATIONS.md` (nur parametrisierte Literale, keine
+inhaltliche Ableitung).
 
 ## Befunde aus den Echtläufen (und was daraus wurde)
 
