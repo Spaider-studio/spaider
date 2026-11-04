@@ -167,31 +167,49 @@ def _elem_rect(info) -> Rect:
 
 
 def _elem_value(info, role: str) -> Optional[str]:
+    """Text/value of an element: ValuePattern, then TextPattern (documents, rich edits),
+    then the legacy accessible value; toggle state for check boxes."""
     if role not in ("Edit", "Document", "ComboBox", "Spinner", "Slider", "Text", "CheckBox", "RadioButton"):
         return None
-    try:
-        el = info.element  # IUIAutomationElement
-        # ValuePattern (10002) first, then LegacyIAccessible value
-        pat = el.GetCurrentPattern(10002)
-        if pat:
-            from comtypes import POINTER  # noqa: F401
-            from comtypes.gen import UIAutomationClient as uia
-
-            vp = pat.QueryInterface(uia.IUIAutomationValuePattern)
-            return str(vp.CurrentValue)
-    except Exception:  # noqa: BLE001
-        pass
-    try:
-        if role in ("CheckBox", "RadioButton"):
-            el = info.element
-            pat = el.GetCurrentPattern(10010)  # TogglePattern
+    if role in ("CheckBox", "RadioButton"):
+        try:
+            pat = info.element.GetCurrentPattern(10010)  # TogglePattern
             if pat:
                 from comtypes.gen import UIAutomationClient as uia
 
                 tp = pat.QueryInterface(uia.IUIAutomationTogglePattern)
                 return {0: "off", 1: "on", 2: "indeterminate"}.get(int(tp.CurrentToggleState), None)
+        except Exception:  # noqa: BLE001
+            return None
+    try:
+        pat = info.element.GetCurrentPattern(10002)  # ValuePattern
+        if pat:
+            from comtypes.gen import UIAutomationClient as uia
+
+            vp = pat.QueryInterface(uia.IUIAutomationValuePattern)
+            val = vp.CurrentValue
+            if val is not None and str(val) != "":
+                return str(val)
     except Exception:  # noqa: BLE001
         pass
+    if role in ("Document", "Edit", "Text"):
+        try:
+            from pywinauto.controls.uiawrapper import UIAWrapper
+
+            w = UIAWrapper(info)
+            txt = w.iface_text.DocumentRange.GetText(4000)
+            if txt is not None and str(txt).strip():
+                return str(txt)
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            from pywinauto.controls.uiawrapper import UIAWrapper
+
+            val = UIAWrapper(info).legacy_properties().get("Value")
+            if val:
+                return str(val)
+        except Exception:  # noqa: BLE001
+            pass
     return None
 
 

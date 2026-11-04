@@ -21,7 +21,6 @@ $form.StartPosition = "CenterScreen"
 $status = New-Object System.Windows.Forms.Label
 $status.Text = "Bereit"
 $status.Left = 20; $status.Top = 480; $status.Width = 700
-$status.AccessibleName = "Status"
 $status.Name = "labelStatus"
 $form.Controls.Add($status)
 

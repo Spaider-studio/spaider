@@ -47,7 +47,7 @@ $status = New-Object System.Windows.Forms.Label
 $status.Text = "Bereit"
 $status.Left = 20; $status.Top = 330; $status.Width = 400
 $status.Name = "labelStatus"
-$status.AccessibleName = "Status"
+# no AccessibleName: WinForms would then report the fixed name instead of the label text
 $form.Controls.Add($status)
 
 $save = New-Object System.Windows.Forms.Button

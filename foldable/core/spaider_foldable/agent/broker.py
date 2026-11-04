@@ -87,7 +87,7 @@ def scope_allows(scope: str, scopes: Scopes) -> bool:
     if scope == "browser":
         return bool(scopes.browser and scopes.browser.enabled)
     if scope == "windows":
-        return bool(scopes.windows and scopes.windows.source_ids)
+        return bool(scopes.windows and (scopes.windows.source_ids or scopes.windows.allowed_processes))
     if scope == "vision":
         return bool(scopes.windows and scopes.windows.source_ids)
     if scope == "memory":
