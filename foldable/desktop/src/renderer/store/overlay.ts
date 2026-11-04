@@ -16,8 +16,10 @@ import {
   type LiveSources,
   type ScreenSource,
   type SnapshotQuality,
+  type Task,
   type WindowSource,
 } from "../api/types";
+import { isTerminalTaskState } from "./tasks";
 
 export interface OverlaySourceState {
   /** The source the user confirmed (what a session targets). */
@@ -129,4 +131,12 @@ export function sessionStateText(state: LiveSessionState | null | undefined): st
   if (state === "lost") return "Quelle verloren – bitte neu wählen";
   if (state === "ended") return "Sitzung beendet";
   return null;
+}
+
+/**
+ * A live session is kept alive while a task that is not finished references
+ * it (`Task.live_session_id`); otherwise hiding the overlay ends it.
+ */
+export function isSessionReferenced(tasks: readonly Task[], sessionId: string): boolean {
+  return tasks.some((t) => t.live_session_id === sessionId && !isTerminalTaskState(t.state));
 }

@@ -1,9 +1,10 @@
 /**
  * Detail of one task: header with state / step / buttons, result, the
  * question dialog for `pending_question` (approve / deny / input ->
- * POST .../answer), "Als Ablauf speichern" and the action timeline
- * (tool, compact arguments, state, result summary, evidence path) fed by
- * GET /api/agent/tasks/{id}/events.
+ * POST .../answer), "Als Ablauf speichern", the agent's activity line
+ * (observe / planning / executing phases from `event: activity`) and the
+ * action timeline (tool, compact arguments, state, result summary, evidence
+ * path) fed by GET /api/agent/tasks/{id}/events.
  */
 import * as Dialog from "@radix-ui/react-dialog";
 import { Check, ChevronDown, ChevronRight, Copy, Pause, Play, Save, Square, X } from "lucide-react";
@@ -11,6 +12,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import type { Action, PendingQuestion, RecipeParameter, Task } from "../../api/types";
 import { formatDateTime, formatSeconds } from "../../lib/format";
+import ActivityLine from "../chat/ActivityLine";
 import { copyText } from "../chat/CodeBlock";
 import {
   ACTION_STATE_LABEL,
@@ -20,6 +22,7 @@ import {
   canSaveRecipe,
   compactArguments,
   evidencePath,
+  isTerminalTaskState,
   scopeSummary,
   type TaskFeed,
 } from "../../store/tasks";
@@ -279,6 +282,11 @@ export default function TaskDetail({ task, feed }: { task: Task; feed: TaskFeed 
           </p>
         )}
         {task.last_error && <p className="mt-2 text-xs text-red-300">{task.last_error}</p>}
+        {feed?.activity && (
+          <div data-testid="task-activity">
+            <ActivityLine track={feed.activity} live={!isTerminalTaskState(task.state) && !feed.done} stopping={false} />
+          </div>
+        )}
         {task.result && (
           <div className={cn("mt-3 rounded-lg border px-3 py-2 text-sm", task.result.ok ? "border-emerald-500/30 bg-emerald-500/10" : "border-red-500/30 bg-red-500/10")} data-testid="task-result">
             <div className="flex items-center gap-2">

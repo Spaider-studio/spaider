@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { LiveSources, ScreenSource, WindowSource } from "../src/renderer/api/types";
+import type { LiveSources, ScreenSource, Task, WindowSource } from "../src/renderer/api/types";
 import {
   applyShown,
   closePicker,
   confirmSource,
   effectiveTarget,
   initialSourceState,
+  isSessionReferenced,
   needsNewSource,
   openPicker,
   preselectedId,
@@ -116,5 +117,22 @@ describe("quality texts", () => {
     expect(needsNewSource("black", "active")).toBe(true);
     expect(needsNewSource("occluded", "active")).toBe(false);
     expect(needsNewSource("ok", "lost")).toBe(true);
+  });
+});
+
+describe("session lifetime", () => {
+  const task = (state: Task["state"], live_session_id: string | null): Task =>
+    ({ id: `t-${state}`, state, live_session_id, goal: "x" }) as unknown as Task;
+
+  it("keeps a session only while an unfinished task references it", () => {
+    expect(isSessionReferenced([], "s1")).toBe(false);
+    expect(isSessionReferenced([task("executing", "s2")], "s1")).toBe(false);
+    expect(isSessionReferenced([task("executing", "s1")], "s1")).toBe(true);
+    expect(isSessionReferenced([task("waiting_for_user", "s1")], "s1")).toBe(true);
+    expect(isSessionReferenced([task("paused", "s1")], "s1")).toBe(true);
+    for (const done of ["completed", "failed", "cancelled"] as const) {
+      expect(isSessionReferenced([task(done, "s1")], "s1")).toBe(false);
+    }
+    expect(isSessionReferenced([task("completed", "s1"), task("planning", "s1")], "s1")).toBe(true);
   });
 });

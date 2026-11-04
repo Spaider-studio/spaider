@@ -133,6 +133,8 @@ export interface SpaiderBridge {
   onOverlayShown(cb: (e: OverlayShownEvent) => void): () => void;
   /** Overlay renderer: first paint after a show (two animation frames later). */
   reportOverlayPainted(showId: number): void;
+  /** Overlay renderer: the window was hidden (Esc, toggle hotkey, tray, close) - the live session ends. */
+  onOverlayHidden(cb: () => void): () => void;
   /** Renderers report the conversations whose answer is currently streaming (for the stop hotkey). */
   reportActiveConversations(ids: string[]): void;
   /** Overlay: focus the main window on a conversation ("Im Hauptfenster öffnen"). */
@@ -162,6 +164,7 @@ export const IPC = {
   getOverlayState: "spaider:get-overlay-state",
   overlayShownEvent: "spaider:overlay-shown",
   overlayPainted: "spaider:overlay-painted",
+  overlayHiddenEvent: "spaider:overlay-hidden",
   pickFolder: "spaider:pick-folder",
   pickFiles: "spaider:pick-files",
   registerHotkeys: "spaider:register-hotkeys",

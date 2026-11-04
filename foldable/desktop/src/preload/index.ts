@@ -37,6 +37,7 @@ const CH = {
   getOverlayState: "spaider:get-overlay-state",
   overlayShownEvent: "spaider:overlay-shown",
   overlayPainted: "spaider:overlay-painted",
+  overlayHiddenEvent: "spaider:overlay-hidden",
   pickFolder: "spaider:pick-folder",
   pickFiles: "spaider:pick-files",
   registerHotkeys: "spaider:register-hotkeys",
@@ -126,6 +127,9 @@ const bridge: SpaiderBridge = {
   },
   reportOverlayPainted(showId: number): void {
     ipcRenderer.send(CH.overlayPainted, Number(showId));
+  },
+  onOverlayHidden(cb: () => void): () => void {
+    return subscribe<void>(CH.overlayHiddenEvent, () => cb());
   },
   reportActiveConversations(ids: string[]): void {
     ipcRenderer.send(CH.activeConversations, Array.isArray(ids) ? ids.map(String) : []);

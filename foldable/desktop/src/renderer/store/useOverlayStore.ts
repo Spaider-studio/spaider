@@ -7,6 +7,12 @@
  * Nothing here acts on the target application: the overlay only asks
  * questions (`POST /api/live/sessions/{id}/ask`); tasks are created
  * explicitly in the main window ("Als Aufgabe ausführen" only prefills).
+ *
+ * Session lifetime: the session lives while the overlay is visible. Hiding
+ * the overlay (Esc, toggle hotkey, tray, close) ends it with
+ * `DELETE /api/live/sessions/{id}` - unless a task that is not finished
+ * references it - and the next question creates a fresh session on the same
+ * conversation (`conversationId`), so the turns stay.
  */
 import { create } from "zustand";
 import type { BackendInfo, BackendStatus, HotkeyEvent, OverlayShownEvent } from "../../shared-types/bridge";
@@ -34,6 +40,7 @@ import {
   confirmSource,
   effectiveTarget,
   initialSourceState,
+  isSessionReferenced,
   openPicker,
   type OverlaySourceState,
 } from "./overlay";
@@ -70,6 +77,8 @@ export interface OverlayAppState {
   sourceState: OverlaySourceState;
 
   session: LiveSession | null;
+  /** Conversation shared by all live sessions of this overlay (survives a session end). */
+  conversationId: string | null;
   quality: SnapshotQuality | null;
   observation: ObservationEvent | null;
   preview: string | null;
@@ -87,6 +96,10 @@ export interface OverlayAppState {
   loadSettings(): Promise<void>;
   onShown(e: OverlayShownEvent): void;
   hide(): void;
+  /** The main process hid the window (Esc, toggle hotkey, tray, close). */
+  onHidden(): void;
+  /** Ends the live session (DELETE) unless a running task references it; keeps the conversation. */
+  endSession(): Promise<void>;
   refreshSources(): Promise<void>;
   openPicker(): void;
   closePicker(): void;
@@ -129,6 +142,7 @@ export const useOverlayStore = create<OverlayAppState>()((set, get) => ({
   sourceState: initialSourceState(),
 
   session: null,
+  conversationId: null,
   quality: null,
   observation: null,
   preview: null,
@@ -170,7 +184,37 @@ export const useOverlayStore = create<OverlayAppState>()((set, get) => ({
   },
   hide() {
     set({ visible: false, sourceState: closePicker(get().sourceState) });
-    void window.spaider?.overlay.hide();
+    // The main process answers with the hidden event (-> onHidden -> endSession);
+    // without a bridge (tests) the session is ended right here.
+    if (window.spaider) void window.spaider.overlay.hide();
+    else void get().endSession();
+  },
+  onHidden() {
+    set({ visible: false, sourceState: closePicker(get().sourceState) });
+    void get().endSession();
+  },
+  async endSession() {
+    const { client, session, streaming } = get();
+    if (!client || !session) return;
+    // While an answer streams the session is needed; ask() ends it afterwards.
+    if (streaming) return;
+    if (session.state !== "ended") {
+      try {
+        const tasks = await client.tasks();
+        if (isSessionReferenced(tasks, session.id)) return;
+      } catch {
+        /* unknown task state: end the session anyway (the task keeps its own hooks) */
+      }
+      if (get().session?.id !== session.id || get().visible) return;
+      try {
+        await client.endLiveSession(session.id);
+      } catch {
+        /* already gone (404) or core unreachable: nothing to keep */
+      }
+    }
+    if (get().session?.id === session.id) {
+      set({ session: null, preview: null, previewLoading: false, observation: null, quality: null });
+    }
   },
   async refreshSources() {
     const { client } = get();
@@ -223,12 +267,31 @@ export const useOverlayStore = create<OverlayAppState>()((set, get) => ({
       set({ sourceState: state });
     }
 
-    // Session: create on the first question, switch deliberately when the target changed.
+    // Session: create on the first question (continuing the conversation of the
+    // previous session, if any), switch deliberately when the target changed.
     let session = get().session;
     try {
       if (!session || session.state === "ended") {
-        session = await client.createLiveSession(target.id, null);
-        set({ session, messages: [], activity: {}, observation: null, preview: null, quality: session.last_snapshot?.quality ?? null });
+        const previousConversation = get().conversationId;
+        let created: LiveSession;
+        try {
+          created = await client.createLiveSession(target.id, previousConversation);
+        } catch (e) {
+          // The conversation was deleted in the meantime: start a fresh one.
+          if (!previousConversation || !isApiError(e) || e.code !== "not_found") throw e;
+          created = await client.createLiveSession(target.id, null);
+        }
+        session = created;
+        const sameConversation = previousConversation !== null && created.conversation_id === previousConversation;
+        set((s) => ({
+          session: created,
+          conversationId: created.conversation_id,
+          messages: sameConversation ? s.messages : [],
+          activity: sameConversation ? s.activity : {},
+          observation: null,
+          preview: null,
+          quality: created.last_snapshot?.quality ?? null,
+        }));
       } else if (session.source.id !== target.id) {
         session = await client.switchLiveSource(session.id, target.id);
         set({ session, observation: null, preview: null, quality: session.last_snapshot?.quality ?? null });
@@ -281,6 +344,11 @@ export const useOverlayStore = create<OverlayAppState>()((set, get) => ({
     set((s) => ({ messages: result.gotDone ? s.messages : finalizeDanglingStream(s.messages, result.error), streaming: null }));
     reportActive(null);
     if (result.error) set({ problem: result.error });
+    if (!get().visible) {
+      // Hidden while the answer streamed: end the session now (the turns stay).
+      void get().endSession();
+      return;
+    }
     if (get().settings?.live_preview !== false) void get().refreshPreview();
   },
   async stop() {
@@ -300,7 +368,8 @@ export const useOverlayStore = create<OverlayAppState>()((set, get) => ({
     if (settings && settings.live_preview === false) return;
     set({ previewLoading: true });
     try {
-      const snap = await client.liveSnapshot(session.id, { include_image: false, preview: true, max_elements: 0 });
+      // The core requires max_elements >= 1 (422 otherwise); the elements are not used here.
+      const snap = await client.liveSnapshot(session.id, { include_image: false, preview: true, max_elements: 1 });
       set({ preview: snap.image?.preview_png_base64 ?? null, quality: snap.quality });
       if (snap.quality === "lost") set((s) => (s.session ? { session: { ...s.session, state: "lost" } } : {}));
     } catch (e) {

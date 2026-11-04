@@ -2,7 +2,7 @@
  * Entry of the overlay window (`#/overlay`): connects to the core through the
  * same bridge, listens for show events / hotkeys, reports the first paint of
  * every show to the main process (two animation frames after the show
- * event) and hides on Esc.
+ * event), hides on Esc and ends the live session when the window was hidden.
  */
 import { useEffect } from "react";
 import { ToastProvider, useToast } from "@/components/shared/Toast";
@@ -19,6 +19,7 @@ function OverlayInner() {
   const onShown = useOverlayStore((s) => s.onShown);
   const applyHotkey = useOverlayStore((s) => s.applyHotkey);
   const hide = useOverlayStore((s) => s.hide);
+  const onHidden = useOverlayStore((s) => s.onHidden);
 
   useEffect(() => {
     const bridge = window.spaider;
@@ -34,6 +35,7 @@ function OverlayInner() {
         requestAnimationFrame(() => requestAnimationFrame(() => bridge.reportOverlayPainted(e.showId)));
       }),
       bridge.onHotkey(applyHotkey),
+      bridge.onOverlayHidden(onHidden),
     ];
     let cancelled = false;
     bridge
@@ -52,7 +54,7 @@ function OverlayInner() {
       cancelled = true;
       for (const u of unsubscribes) u();
     };
-  }, [setBackendStatus, connect, onShown, applyHotkey]);
+  }, [setBackendStatus, connect, onShown, applyHotkey, onHidden]);
 
   // Esc anywhere hides the overlay (the picker handles its own Esc first).
   useEffect(() => {

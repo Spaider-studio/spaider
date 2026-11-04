@@ -174,6 +174,10 @@ export const ACTIVITY_PHASE_LABEL: Record<ActivityPhase, string> = {
   capture: "Quelle aufnehmen",
   observe: "Struktur lesen",
   image_encode: "Bild vorbereiten",
+  // v1.2 (agent tasks)
+  planning: "Planung",
+  executing: "Ausführung",
+  verifying: "Prüfung",
 };
 
 export const ACTIVITY_STATE_LABEL: Record<ActivityEvent["state"], string> = {

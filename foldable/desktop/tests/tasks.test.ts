@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Action, Task, TaskState } from "../src/renderer/api/types";
+import type { Action, ActivityEvent, Task, TaskState } from "../src/renderer/api/types";
 import {
   ACTION_STATE_LABEL,
   applyTaskStreamEvent,
@@ -14,6 +14,7 @@ import {
   emptyFeed,
   evidencePath,
   isTerminalTaskState,
+  reduceTaskActivity,
   scopeSummary,
   sortTasksNewestFirst,
   TASK_STATE_LABEL,
@@ -211,5 +212,55 @@ describe("task draft", () => {
     expect(d.external_effects).toBe(true);
     expect(scopeSummary(scopes)).toBe("Dateien (1) · Fenster (1) · externe Wirkung");
     expect(scopeSummary({ files: null, browser: null, windows: null, memory: false, external_effects: false })).toBe("ohne Zugriffe");
+  });
+});
+
+describe("agent activity in the task feed", () => {
+  const act = (seq: number, phase: string, state: ActivityEvent["state"], message_de: string, request_id = "t1"): ActivityEvent => ({
+    request_id,
+    seq,
+    phase,
+    state,
+    t_ms: seq * 100,
+    at: "2026-11-04T10:00:00Z",
+    message_de,
+    counters: null,
+    source_ids: [],
+  });
+
+  it("collects observe / planning / executing phases into one track", () => {
+    let feed = emptyFeed();
+    expect(feed.activity).toBeNull();
+    feed = applyTaskStreamEvent(feed, { type: "activity", data: act(0, "observe", "started", "Schritt 1: Beobachtung") }, 5000).feed;
+    expect(feed.activity?.requestId).toBe("t1");
+    expect(feed.activity?.startedAt).toBe(5000);
+    expect(feed.activity?.current.message_de).toBe("Schritt 1: Beobachtung");
+    feed = applyTaskStreamEvent(feed, { type: "activity", data: act(1, "observe", "done", "Beobachtung fertig") }, 5100).feed;
+    feed = applyTaskStreamEvent(feed, { type: "activity", data: act(2, "planning", "started", "Schritt 1: Planung") }, 5200).feed;
+    feed = applyTaskStreamEvent(feed, { type: "activity", data: act(3, "executing", "started", "files.read") }, 5300).feed;
+    expect(feed.activity?.events.map((e) => e.phase)).toEqual(["observe", "observe", "planning", "executing"]);
+    expect(feed.activity?.lastSeq).toBe(3);
+    expect(feed.activity?.outcome).toBe("live");
+    // other feed fields untouched
+    expect(feed.actions).toEqual([]);
+    expect(feed.done).toBe(false);
+  });
+
+  it("starts a fresh track when the run restarts (seq from 0 again) or the request id changes", () => {
+    let track = reduceTaskActivity(null, act(0, "observe", "started", "a"), 1);
+    track = reduceTaskActivity(track, act(1, "planning", "started", "b"), 2);
+    expect(track.events).toHaveLength(2);
+    const restarted = reduceTaskActivity(track, act(0, "observe", "started", "c"), 3);
+    expect(restarted.events).toHaveLength(1);
+    expect(restarted.startedAt).toBe(3);
+    const other = reduceTaskActivity(restarted, act(5, "executing", "started", "d", "t2"), 4);
+    expect(other.requestId).toBe("t2");
+    expect(other.events).toHaveLength(1);
+  });
+
+  it("ignores malformed activity events", () => {
+    const feed = emptyFeed();
+    const broken = applyTaskStreamEvent(feed, { type: "activity", data: { seq: "x" } as unknown as ActivityEvent }).feed;
+    expect(broken).toBe(feed);
   });
 });

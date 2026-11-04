@@ -426,7 +426,11 @@ export type ActivityPhase =
   // v1.2 (live sessions)
   | "capture"
   | "observe"
-  | "image_encode";
+  | "image_encode"
+  // v1.2 (agent tasks, request_id = task id)
+  | "planning"
+  | "executing"
+  | "verifying";
 
 export type ActivityState = "started" | "progress" | "done" | "failed" | "cancelled";
 

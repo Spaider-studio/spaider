@@ -7,6 +7,7 @@
 import type {
   Action,
   ActionState,
+  ActivityEvent,
   CreateTaskRequest,
   PendingQuestion,
   Scopes,
@@ -14,6 +15,7 @@ import type {
   TaskState,
   TaskStreamEvent,
 } from "../api/types";
+import { createTrack, reduceActivity, type ActivityTrack } from "./activity";
 
 export const TASK_STATE_LABEL: Record<TaskState, string> = {
   created: "Angelegt",
@@ -117,14 +119,26 @@ export interface TaskFeed {
   question: PendingQuestion | null;
   /** The stream ended with `done`. */
   done: boolean;
+  /** Agent activity (`event: activity`, request_id = task id): observe / planning / executing phases. */
+  activity: ActivityTrack | null;
 }
 
 export function emptyFeed(actions: Action[] = []): TaskFeed {
-  return { actions: [...actions].sort((a, b) => a.seq - b.seq), notes: "", question: null, done: false };
+  return { actions: [...actions].sort((a, b) => a.seq - b.seq), notes: "", question: null, done: false, activity: null };
+}
+
+/**
+ * Agent activity of a task. The core numbers the events per run; a run that
+ * starts again (resume after an interruption) begins at seq 0 again, so a
+ * lower or equal seq starts a fresh track instead of being discarded.
+ */
+export function reduceTaskActivity(track: ActivityTrack | null, ev: ActivityEvent, now: number): ActivityTrack {
+  if (!track || track.requestId !== ev.request_id || ev.seq <= track.lastSeq) return createTrack(ev.request_id, ev, now);
+  return reduceActivity(track, ev);
 }
 
 /** Applies one event of the task stream; returns the new feed and the task snapshot if the event carried one. */
-export function applyTaskStreamEvent(feed: TaskFeed, ev: TaskStreamEvent): { feed: TaskFeed; task: Task | null } {
+export function applyTaskStreamEvent(feed: TaskFeed, ev: TaskStreamEvent, now: number = Date.now()): { feed: TaskFeed; task: Task | null } {
   switch (ev.type) {
     case "task":
       return { feed: { ...feed, question: ev.data.pending_question ?? null }, task: ev.data };
@@ -137,6 +151,8 @@ export function applyTaskStreamEvent(feed: TaskFeed, ev: TaskStreamEvent): { fee
     case "done":
       return { feed: { ...feed, done: true, question: ev.data.pending_question ?? null }, task: ev.data };
     case "activity":
+      if (!ev.data || typeof ev.data.request_id !== "string" || typeof ev.data.seq !== "number") return { feed, task: null };
+      return { feed: { ...feed, activity: reduceTaskActivity(feed.activity, ev.data, now) }, task: null };
     default:
       return { feed, task: null };
   }

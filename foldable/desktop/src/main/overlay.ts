@@ -6,7 +6,9 @@
  * - `setContentProtection(true)`: never part of screen captures,
  * - skipTaskbar, not minimizable; Alt+F4 / close just hides it,
  * - remembers its bounds per monitor in <dataDir>/electron/overlay.json,
- * - measures hotkey -> 'show' event -> first paint (reported by the renderer).
+ * - measures hotkey -> 'show' event -> first paint (reported by the renderer),
+ * - every hide (Esc, toggle hotkey, tray, close) is reported to the overlay
+ *   renderer so it can end its live session (the conversation is kept).
  */
 import { BrowserWindow, screen, type Rectangle } from "electron";
 import fs from "node:fs";
@@ -198,6 +200,8 @@ export class OverlayManager {
     this.saveBounds();
     win.hide();
     this.shownAt = null;
+    this.pending = null;
+    win.webContents.send(IPC.overlayHiddenEvent, null);
     log("overlay hidden");
   }
 
