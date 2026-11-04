@@ -172,3 +172,71 @@ Bis dahin liegen Git-Bundles unter `C:\Users\mucbay\spaider-foldable\backup\`
 - Push-Status: unverändert blockiert (gh-Token ohne `workflow`-Scope, siehe oben); Bundle
   `backup/spaider-foldable-0.3-final-<datum>.bundle` enthält alle Branches.
 
+
+
+## Nachtrag 2026-11-04: Review-Branch und Übergabe an den Mitgründer
+
+**Ausgangslage (lokal verifiziert):** `upstream` = `https://github.com/Spaider-studio/spaider`
+(öffentlich, Default-Branch `main` bei `73762b3`, seit der Foldable-Basis unverändert);
+`origin` = `https://github.com/Useebay/spaider-foldable-private` (privat, leer – noch nie gepusht).
+Der GitHub-Token hat die Scopes `gist`, `read:org`, `repo`, aber nicht `workflow`; die Historie
+enthält `.github/workflows/*.yml` aus dem gemeinsamen Repository, deshalb lehnt GitHub jeden Push
+in das leere private Repository ab („refusing to allow an OAuth App to create or update
+workflow“).
+
+**Review-Weg (B/C laut Auftrag):** Das gemeinsame Repository ist öffentlich, also findet die erste
+Review-Runde im privaten Repository statt. Vorbereitet (lokal):
+
+| Ref | Zeigt auf | Zweck |
+|---|---|---|
+| `review/spaider-base-73762b3` | `73762b3` = `upstream/main` | Basis des Review-PRs (unverändert) |
+| `feature/spaider-foldable-review` | f281d78 + Review-Dokumente + Build-Manifest | Integrationsbranch mit dem vollständigen Foldable-Stand |
+| `foldable-review-0.3.0-<sha>` (Tag) | Review-Commit | Prerelease mit dem Review-ZIP |
+
+Herkunft: Der Integrationsbranch enthält die 66 Produktcommits `73762b3..f281d78` unverändert
+(0.1 `acc3ce1`, 0.2 `debc9be`, 0.3 `f281d78`); sie liegen bereits linear auf `73762b3`, es gab
+keine Konflikte und keine Sandbox-Commits (der private `main` trägt nur `8f20d3a` „mark private
+sandbox“, der **nicht** übernommen wird). Diff gegenüber der Basis: ausschließlich `foldable/`,
+`docs/portable/` und `.gitignore` (276 Dateien, nur Ergänzungen); keine Änderungen unter
+`.github/`, `backend/`, `frontend/`, `cli/`, `sdk/`.
+
+**Wiederaufnahme (nach der einmaligen Freigabe durch Musa):**
+
+```powershell
+gh auth refresh -h github.com -s workflow        # einmalig, interaktiv, nur von Musa
+cd C:\Users\mucbay\spaider-foldable\repo-review
+git push origin review/spaider-base-73762b3       # Basis zuerst
+git push origin feature/spaider-foldable-review   # Integrationsbranch
+git push origin foldable-review-0.3.0-<sha>       # Review-Tag (nie --all / --mirror)
+gh pr create --repo Useebay/spaider-foldable-private --draft `
+  --base review/spaider-base-73762b3 --head feature/spaider-foldable-review `
+  --title "SpAIder Foldable: portable Windows-App mit lokalem Chat, Gedächtnis und Agent/Live-Vorschau" `
+  --body-file docs/portable/PR_BODY_REVIEW.md
+gh release create foldable-review-0.3.0-<sha> --repo Useebay/spaider-foldable-private `
+  --prerelease --title "Foldable Review-Build 0.3.0 (<sha>)" --notes-file foldable/build/out/REVIEW_BUILD_MANIFEST.md `
+  foldable/build/out/SpAIder-Foldable-0.3.0-review-<sha>-win-x64.zip foldable/build/out/SHA256SUMS-0.3.0-review-<sha>.txt
+```
+
+Vorher prüfen: `gh auth status` zeigt `workflow`; `git ls-remote origin` ist leer (sonst nichts
+überschreiben); das private Repository bleibt privat, Actions dort deaktiviert. Danach die
+tatsächlichen PR-/Release-Links in `REVIEW_START_HERE_DE.md` und der PR-Beschreibung eintragen.
+
+**Später, erst nach gemeinsamer Review-Entscheidung – gemeinsames Repository (öffentlich!):**
+
+```powershell
+git remote set-url --push upstream https://github.com/Spaider-studio/spaider.git   # Push ist lokal bewusst deaktiviert
+git push upstream feature/spaider-foldable-review
+gh pr create --repo Spaider-studio/spaider --draft --base main --head feature/spaider-foldable-review `
+  --title "SpAIder Foldable: portable Windows-App mit lokalem Chat, Gedächtnis und Agent/Live-Vorschau" `
+  --body-file docs/portable/PR_BODY_REVIEW.md
+```
+
+CI-Hinweis für den späteren Push: `.github/workflows/ci.yml` läuft bei `pull_request` gegen `main`
+und filtert nach geänderten Paketbäumen (`backend/`, `frontend/`, `cli/`, `sdk/`); der Foldable-
+Diff berührt keinen davon, also sollten nur der `changes`-Job und die Pfadfilter laufen. Der
+PR-Labeler (`pr-labeler.yml`) kann ein Label setzen. Der CLA-Bot kommentiert beim ersten PR.
+Weder Merge noch Auto-Merge noch Veröffentlichung ohne gemeinsame Entscheidung.
+
+**Zugriff für den Mitgründer:** Falls er das private Repository noch nicht sieht: Repository →
+Settings → Collaborators → „Add people“ (Leserecht genügt für PR, Diff und Prerelease-Assets).
+Das Repository dafür nicht öffentlich schalten.
