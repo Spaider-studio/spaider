@@ -108,3 +108,29 @@ def test_read_only_question_detection():
     assert not _is_read_only_request("Soll ich die Datei löschen?")
     assert not _is_read_only_request("Darf ich die E-Mail senden?")
     assert not _is_read_only_request("Soll ich die Datei speichern und schließen?")
+
+
+def test_windows_element_lookup_accepts_unique_names():
+    """Planners pass the visible name instead of the id (matrix W1): a unique name resolves, an
+    ambiguous one is rejected with the candidate ids, an unknown one is stale."""
+    from types import SimpleNamespace as NS
+
+    from spaider_foldable.agent.tools.windows import WindowsTools
+    from spaider_foldable.agent.broker import ToolError
+
+    els = [NS(id="e1", name="Name", role="Edit"), NS(id="e2", name="Notizen", role="Edit"), NS(id="e3", name="Speichern", role="Button"), NS(id="e4", name="Speichern", role="MenuItem")]
+    snap = NS(tree=NS(elements=els))
+    wt = WindowsTools(None, None, None, None, None)
+    assert wt._element(snap, "e2").id == "e2"
+    assert wt._element(snap, "name").id == "e1"
+    assert wt._element(snap, " Notizen ").id == "e2"
+    try:
+        wt._element(snap, "Speichern")
+        assert False, "ambiguous name must be rejected"
+    except ToolError as exc:
+        assert exc.code == "ambiguous" and "e3" in exc.detail
+    try:
+        wt._element(snap, "Abbrechen")
+        assert False
+    except ToolError as exc:
+        assert exc.code == "stale"

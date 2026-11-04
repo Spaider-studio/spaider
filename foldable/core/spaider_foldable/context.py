@@ -372,7 +372,12 @@ class AppContext:
                     continue
                 snap = await asyncio.to_thread(self.live.taker.take, task.id, src, want_image=False, max_elements=120)
                 snaps[sid] = snap.snapshot_id
-                refs[sid] = {e.id for e in snap.tree.elements}
+                # fresh references: element ids plus names that are unique in this snapshot (the
+                # planner may use either; ambiguous names are rejected by the tool)
+                from collections import Counter
+
+                name_counts = Counter((e.name or "").strip().lower() for e in snap.tree.elements)
+                refs[sid] = {e.id for e in snap.tree.elements} | {n for n, k in name_counts.items() if n and k == 1}
                 for e in snap.tree.elements:
                     names[e.id] = e.name
                 self.agent_snapshots[(task.id, sid)] = snap

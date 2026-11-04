@@ -198,7 +198,7 @@ class Broker:
         if tool.needs_fresh_element and fresh_refs is not None:
             sid = arguments.get("source_id")
             ref = arguments.get("element_id") or arguments.get("ref")
-            if ref and sid in fresh_refs and ref not in fresh_refs[sid]:
+            if ref and sid in fresh_refs and ref not in fresh_refs[sid] and str(ref).strip().lower() not in fresh_refs[sid]:
                 return tool, "Elementreferenz stammt nicht aus der aktuellen Beobachtung (bitte erneut beobachten)."
         return tool, None
 

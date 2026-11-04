@@ -1,4 +1,4 @@
-# Synthetic Windows reference application with real UI Automation controls
+﻿# Synthetic Windows reference application with real UI Automation controls
 # (WinForms): a title label, a name field, a multi-line notes field and a
 # "Speichern" button that writes both fields to the file given as -OutFile.
 # Used by the real windows-tool tests; closes itself on -AutoCloseSeconds.

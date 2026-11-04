@@ -1,4 +1,4 @@
-# Synthetic image-based test window (no accessible text for the picture):
+﻿# Synthetic image-based test window (no accessible text for the picture):
 # -Kind image : shows the PNG given by -Image in a PictureBox (chart / error screenshot)
 # -Kind canvas: paints a green "WEITER" button without any UIA control; a click on it
 #               sets the status label (read through UIA) to "Weiter gedrückt".

@@ -66,6 +66,13 @@ class WindowsTools:
         for e in snap.tree.elements:
             if e.id == element_id:
                 return e
+        # planners often pass the visible name instead of the id: accept it when it is unique
+        want = (element_id or "").strip().lower()
+        hits = [e for e in snap.tree.elements if (e.name or "").strip().lower() == want] if want else []
+        if len(hits) == 1:
+            return hits[0]
+        if len(hits) > 1:
+            raise ToolError("ambiguous", f"Mehrere Elemente heissen „{element_id}“ ({', '.join(h.id + '/' + h.role for h in hits[:6])}); bitte die id aus der Beobachtung verwenden.")
         raise ToolError("stale", f"Element {element_id} existiert in der aktuellen Beobachtung nicht; bitte windows.inspect wiederholen.")
 
     async def _wrapper(self, src: W.WindowSource, el):
