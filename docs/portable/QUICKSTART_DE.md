@@ -93,9 +93,13 @@ Fensters und – wenn ein Bildmodell aktiv ist – ein aktuelles Bild. Beobachte
 löst keine Aktionen aus. `Esc` schließt das Fenster; die Antworten stehen auch im
 Hauptfenster im Gespräch „Live: …“. SpAIder-eigene Fenster werden nie aufgenommen.
 
-**Bildmodell.** Für Bildfragen und den Agenten empfiehlt SpAIder „Qwen3-VL 4B
-Instruct“ (Text + Bilder, mit Projektor). Mit einem reinen Textmodell (z. B.
-Qwen3 4B) funktionieren Live-Fragen nur über die Fensterstruktur; das wird im
+**Bildmodell.** Für Bildfragen und den Agenten ist „Qwen3-VL 4B Instruct
+(Q4_K_M + Bild-Projektor Q8_0)“ die geprüfte Wahl (Text + Bilder, ≈ 2,8 GB).
+Die Startseite „Für diesen Computer empfohlen“ schlägt reine Textmodelle vor;
+das Bildmodell findest du unter **„Weitere Modelle“** – laden, aktivieren,
+fertig (Gewichte und Projektor werden zusammen installiert). Mit einem reinen
+Textmodell (z. B. Qwen3 4B) funktionieren Live-Fragen nur über die
+Fensterstruktur, und `vision.*`-Werkzeuge fehlen dem Agenten; das wird im
 Live-Fenster angezeigt.
 
 **Aufgaben (Agent).** Unter „Aufgaben“ beschreibst du, was erledigt werden
