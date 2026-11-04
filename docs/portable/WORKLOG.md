@@ -374,7 +374,15 @@ blockiert (workflow-Scope).
   verify_package gruen. Laufend: Gemma-Wiederholung mit Leere-Rueckfragen-Fix (F1 2/2), danach
   Paket-Volltest mit Modell (Netstat, Chat-Regression, Live, Agent, Abbruch, CPU-Rueckfall, Beenden).
 
-Naechster konkreter Schritt: Gemma-Wiederholung und Paket-Volltest eintragen, Migration einer
-konsistenten Kopie mit dem gepackten Kern, Handoff/WORKLOG abschliessen, Bundle, Push-Versuch,
-Abschlussbericht (8 Punkte).
+### Fortschritt 02:55-03:20
+- Gemma-Wiederholung mit Endstand: 13/16 (vorher 5/16), 0 Fehlerfolge-Meldungen; Windows-Gruppe 1/4.
+- Migration einer konsistenten Kopie mit dem gepackten 0.3.0-Kern auf subst-Laufwerk S: ok
+  (Schema 1->3, quick_check ok, Zaehler unveraendert, Qwen3-4B auf Vulkan, Exit 0).
+- Paket-Volltest (package_full_check.py): drei Harness-Anlaeufe (Importpfad, MAX_PATH im
+  Scratch-Ordner, wmic fehlt auf 26200) -> Hinweis zur Pfadlaenge in QUICKSTART/KNOWN_LIMITATIONS;
+  der durchlaufende Teil zeigte Chat-TTFT 0,27 s Median (0.2: 0,45 s), Live-Struktur 0,23 s, Bild
+  4,9 s, Agentenaufgabe belegt in 21,5 s, Abbruch 10 ms, CPU-Rueckfall 1,8 s TTFT; Endlauf mit
+  Netstat/Beenden folgt.
+
+Naechster konkreter Schritt: Paket-Volltest eintragen, Bundle, Push-Versuch, Abschlussbericht.
 

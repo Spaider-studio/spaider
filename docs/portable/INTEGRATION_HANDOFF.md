@@ -161,4 +161,14 @@ Bis dahin liegen Git-Bundles unter `C:\Users\mucbay\spaider-foldable\backup\`
 - Für eine spätere Integration in den SpAIder-Hauptzweig: Die Werkzeuge sind über
   `agent/broker.py` registriert (ein `Tool` je Fähigkeit, Schema + Scope + Wirkungsklasse); ein
   MCP-Adapter könnte dieselbe Registrierung nutzen, ist aber nicht enthalten.
+- Weitere Nachträge (`0a63eec` leere Rückfragen verworfen, `1d2bbd8` eindeutige Elementnamen als
+  Referenz + Fixtures mit BOM, `371a503` Rezept-Parameter in beiden Schrägstrich-Schreibweisen).
+- **Paket 0.3.0** (`foldable/build/out/SpAIder-Foldable-0.3.0-win-x64.zip`, 395 662 613 Bytes,
+  SHA-256 `870582424be196d6a3bff97c67b35e684f4a1de6dc38952814a06dd6e54773fa`): gepackter Kern aus
+  `371a503`, Electron-Launcher aus `a85dca6`, Runtime llama.cpp b12032 (CPU + Vulkan). Keine
+  Gewichte, kein Browser, kein Datenordner im ZIP (`verify-package-0.3.0.json`,
+  `package-check-0.3.0.json`). Die 0.1.0- und 0.2.0-Pakete liegen unverändert daneben
+  (`SHA256SUMS.txt` kumulativ).
+- Push-Status: unverändert blockiert (gh-Token ohne `workflow`-Scope, siehe oben); Bundle
+  `backup/spaider-foldable-0.3-final-<datum>.bundle` enthält alle Branches.
 
