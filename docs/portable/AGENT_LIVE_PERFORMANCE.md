@@ -83,14 +83,55 @@ die Werte mit echtem Kern (Foreground-Aufruf, Snapshot, Modell) folgen unten.
 
 ## Oberfläche mit echtem Kern
 
-*(wird eingetragen)*
+Gemessen am 2026-11-04 (Desktop-Teil, Commit a85dca6) im echten Electron-Fenster
+mit echter Tastatureingabe (`keybd_event`) gegen den Dev-Kern (`python -m
+spaider_foldable`, Qwen3-VL-4B + Projektor über Vulkan, Hotkey im Test
+Ctrl+Alt+F9). Rohdaten: `scratchpad/ui-real-timings.json` (Sitzung), Screenshots
+`shots-real/01…08`. **Einschränkung:** parallel lief die Aufgabenmatrix mit
+eigenem llama-server auf derselben GPU; Modellzeiten sind daher pessimistisch
+(≈ 8–11 Token/s statt 28), Hotkey-/UI-Latenzen sind CPU-seitig und wenig betroffen.
+
+| Größe | Median | min / max | n | Anmerkung |
+|---|---|---|---|---|
+| Hotkey → Overlay `show` (inkl. `POST /api/live/foreground`) | **57,2 ms** | 42,6 / 97,1 | 24 (2 Läufe × 12) | Mock: 12,3 ms |
+| Hotkey → erster Paint | **63,4 ms** | 48,8 / 103,9 | 24 | Zielwert ≤ 200 ms erfüllt |
+| `POST /api/live/foreground` (Kern) | 34,6 ms | 23,6 / 62,8 | 24 | Zielwert ≤ 50 ms im Median erfüllt, max 62,8 |
+| OS-Gegenprobe: letzter Tastendruck (Wanduhr) → `show` | 60,0 ms | 46 / 100 | 24 | unabhängig vom Renderer gemessen |
+| Tastendruck → DOM-Update | 1,2–1,3 ms | 0,9 / 2,7 | 50 je Frage | |
+| Stopp-Hotkey (Ctrl+Alt+Backspace) → „Wird gestoppt …“ | **3–4 ms** | – | 2 | je Lauf eine Messung |
+| Stopp-Hotkey → `done` mit Status `stopped` („Abgebrochen“) | 21 / 42 ms | – | 2 | Kern: `agent/stop` + Gesprächsstopp, HTTP 200 |
+| Frage senden → erste Aktivität („Aufnahme fertig“) | 171 ms | 154 / 379 | 6 | |
+| Frage senden → erstes sichtbares Token (mit Bild, 1 280–1 420 Prompt-Tokens) | 7,2 s | 5,4 / 9,2 | 6 | GPU geteilt; ohne Last 2,77 s (Kern-Messung oben) |
+| Frage senden → „Antwort fertig“ | 12,2 s | 9,3 / 14,9 | 6 | 46 Antwort-Tokens |
+| Frame-Lücken während Streaming | max 33,6 ms | – | 891 Frames / 14,9 s | 0 Lücken > 50 ms |
+
+Phasen in der Aktivitätszeile (Lauf 2, Frage 1, ms nach Enter): 379 Aufnahme
+fertig → 380 Struktur gelesen (16 Elemente, 240 Zeichen, UIA 93–125 ms) → 381
+Gedächtnissuche → 384 Kontext vorbereitet → 385–7 608 Kontext wird verarbeitet
+(Bild 626×413, ≈ 8,5 kB; Folgefragen 424–495 Tokens aus dem Cache) → 7 610
+Antwort wird geschrieben → 13 588 Antwort fertig. Die Bildverarbeitung im Server
+dominiert bei geteilter GPU. Antwort in allen sechs Fällen inhaltlich korrekt
+(Feld „Name“ und Budget aus den „Notizen“ der Testanwendung).
+
+Aufgabe über die Oberfläche (Dateien lesen → Zusammenfassung schreiben, Ordner
+per echtem Ordnerdialog-IPC gewählt): abgeschlossen in 89,5 s, Schritt 3/20,
+3 Modellaufrufe, Ergebnis „geprüft“ (Datei 167 Bytes zurückgelesen).
+
+Esc → Overlay versteckt → `DELETE /api/live/sessions/{id}` (Sitzungsliste
+danach leer); erneuter Hotkey (56 ms) behält Quelle und Gesprächsverlauf, die
+nächste Frage erzeugt eine neue Sitzung mit demselben Gespräch.
 
 ## Leerlauf
 
 Ohne Live-Sitzung findet keine Aufnahme statt (keine Timer). In einer
 ruhenden Live-Sitzung gibt es keine Dauerschleife: Snapshots nur bei Frage,
 Vorschau-Anforderung oder Agentenschritt; Frames nur im RAM (die letzten zwei).
-Messung mit Overlay und gepacktem Backend: *(Desktop-Teil, wird eingetragen)*.
+Messung mit Overlay und echtem Kern (30 s Leerlauf mit sichtbarem Overlay und
+offener Sitzung, CDP `Network.requestWillBeSent` auf beiden Renderern, zwei
+Läufe identisch): Overlay **0 Anfragen**; Hauptfenster nur die bestehenden
+0.2-Abfragen (`GET /api/setup/status` ×2, `GET /api/conversations` ×1); im
+Kern-Log eine Zeile (serverseitige Gedächtnis-Nachverarbeitung, nicht
+UI-ausgelöst). Keine Snapshot- oder Modellaufrufe im Leerlauf.
 
 ## Tradeoffs und offene Hebel
 

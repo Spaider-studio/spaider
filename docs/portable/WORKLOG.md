@@ -334,7 +334,25 @@ blockiert (workflow-Scope).
 - Matrix Qwen3-VL-4B: Dateigruppe 13/15 (F4 zweimal ohne Dateinamen = Fehlerfolg),
   Browsergruppe laeuft.
 
-Naechster konkreter Schritt: Matrix abschliessen, Qwen3-4B- und Gemma-Teilmengen, UI-Ergebnis
-einbauen, Kern final bauen, Paket 0.3.0 assemblieren + verify_package + Offline, Berichte,
-Bundle, Abschluss.
+### Fortschritt 01:00-02:00
+- Matrix Qwen3-VL-4B (60 Laeufe) fertig: 34/60, 12 Fehlerfolge-Meldungen; Nachlauf der
+  Fixture-Fixes (W3 3/3, W4 0/3, V2 0/3, V5 0/3) deckte vier Kernfehler auf: Scope-Verlust nach
+  windows.launch, Browserseite der Voraufgabe als Beobachtung (B5/B2), Vordergrund-Sperre
+  (SetForegroundWindow aus Hintergrundprozess), "bestaetigt" ohne Lesen. Alle behoben (ad42cac):
+  Scope-Persistenz, Browser-Bindung an die oeffnende Aufgabe, bring_to_front mit
+  AttachThreadInput/Modifier (10/10 Wechsel, 10-27 ms), Rueckweisung unbelegter done-Meldungen,
+  Plausibilitaet der Koordinatenkonvention, click_at meldet Veraenderung.
+- Rezepte wurden nie ausgefuehrt -> Rezept-Modus im Loop (f01a359): deterministische Wiedergabe
+  ueber den Broker, Parameter {name}, Rueckfall auf den Planer; 70 Unit-Tests gruen.
+- Desktop-Agent gegen echten Kern (a85dca6): Hotkey->Overlay 57 ms Median (n=24), Stopp-Hotkey
+  3-4 ms, Bildfrage 6/6 korrekt (7,2 s erstes Token bei geteilter GPU), Aufgabe aus der UI 89,5 s
+  belegt, Leerlauf 0 Anfragen; Befunde: Vorschau (max_elements 0 -> 422), Prozent > 100.
+- Laufend: Kette Qwen3-4B (Text, F/B/W) -> Gemma 4 E2B Teilmenge -> finaler Nachlauf der
+  korrigierten Aufgaben (W1,W4,V2,V5,B5,B2,B1 x3) -> A/B Rezept vs. Loop (B1). Desktop-Agent:
+  30 An/Aus-Zyklen mit Handle-Zaehlung.
+
+Naechster konkreter Schritt: Ergebnisse der Kette und des Nachlaufs in Pruef-/Performancebericht
+und MODEL_COMPATIBILITY eintragen, Katalogstatus "executed" setzen, Kern final bauen (PyInstaller),
+Paket 0.3.0 assemblieren + verify_package + Offline + Migration mit gepacktem Kern, KNOWN_LIMITATIONS,
+INTEGRATION_HANDOFF, Bundle, Push-Versuch, Abschlussbericht.
 

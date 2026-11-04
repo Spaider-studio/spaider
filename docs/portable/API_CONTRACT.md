@@ -263,7 +263,12 @@ Ids sind opak (`live_…`, `task_…`, `act_…`, `snap_…`, `rcp_…`).
 - `POST /api/agent/tasks/{id}/cancel` → `{"task":Task}` (sofortige Sperre neuer Aktionen; laufende Betriebssystemaufrufe werden gemeldet, nicht als rückgängig gemacht behauptet)
 - `POST /api/agent/tasks/{id}/pause` / `/resume` → `{"task":Task}`
 - `POST /api/agent/tasks/{id}/answer` body `{"question_id","approve":bool|null,"text":string|null}` → `{"task":Task}`
-- `POST /api/agent/tasks/{id}/save-recipe` body `{"name":string,"parameters":[{"name","description_de","example"}]}` → `201 {"recipe":Recipe}`
+- `POST /api/agent/tasks/{id}/save-recipe` body `{"name":string,"parameters":[{"name","value","description_de"}]}` → `201 {"recipe":Recipe}`.
+  `value` ist der im aufgezeichneten Lauf verwendete Literalwert; er wird in allen Schritt-Argumenten durch `{name}` ersetzt.
+- Ausführung eines Ablaufs: `POST /api/agent/tasks` mit `recipe_id` und `parameters:{name:wert}`. Der Kern spielt die Schritte
+  deterministisch über den Broker ab (Schema-, Umfang- und Frischeprüfung wie bei Modellaktionen, Freigaberegeln unverändert, keine
+  Modellaufrufe). Schlägt ein Schritt fehl oder ist er nicht mehr anwendbar, übernimmt der Planer mit den Restschritten als Hinweis.
+  Der Abschluss ohne Modellaufruf wird nur akzeptiert, wenn der letzte Schritt ein geprüftes Ergebnis hat (`result.verified`).
 - `GET /api/agent/recipes` → `{"recipes":[Recipe]}`; `GET /api/agent/recipes/{id}`; `DELETE /api/agent/recipes/{id}`
   - `Recipe` = `{"id","version":int,"name","purpose_de","parameters":[…],"origin":{"task_id","created_at"},"requires":{"tools":[string],"apps":[string],"vision":bool},"preconditions":[string],"scope":Scopes,"steps":[{"tool","arguments_template":object,"check":string}],"final_checks":[string],"last_verified_at":string|null,"known_limits_de":[string]}`
 - `POST /api/agent/stop` → `{"stopped_tasks":int,"stopped_live":int}` — globaler Stopp (Hotkey); sperrt sofort, wartet nicht auf das Modell.

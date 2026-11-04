@@ -204,8 +204,35 @@ kann. Offene Fehler stehen am Ende.
   Autonomie, freie Shell, MCP-Server, DXGI-Aufnahme, native Tool-Calls (der
   Planer nutzt Grammatik-JSON; `native_tool_calls` bleibt „ungetestet“).
 - **Wiederaufnahme** nach Absturz: unterbrochene Aktionen sind `unknown_outcome`;
-  es wird nichts automatisch wiederholt. Rezepte stammen aus genau einem
-  belegten Lauf und werden bei veränderter Oberfläche neu geplant.
+  es wird nichts automatisch wiederholt.
+- **Rezepte** stammen aus genau einem belegten Lauf: Die Schritte werden mit
+  den aufgezeichneten Argumenten wiedergegeben; nur als Parameter markierte
+  Werte (`{name}`) werden ersetzt. Inhalte, die im Originallauf aus gelesenen
+  Daten entstanden (z. B. ein geschriebener Zusammenfassungstext), werden
+  **nicht** neu abgeleitet – solche Aufgaben eignen sich nicht als Rezept.
+  Element-Kennungen (UIA-`element_id`, Browser-`ref`) müssen in der frischen
+  Beobachtung wieder vorkommen, sonst übernimmt der Planer. Freigaberegeln
+  gelten unverändert; der Abschluss ohne Modellaufruf setzt einen belegten
+  letzten Schritt voraus.
+- **Browserseite je Aufgabe**: Browserwerkzeuge wirken nur auf eine Seite, die
+  dieselbe Aufgabe mit `browser.open` geöffnet hat (eine Seite aus einer
+  früheren Aufgabe wird weder beobachtet noch bedient). Folgeaufgaben müssen
+  die Adresse erneut öffnen.
+- **Erfolgsmeldung ohne Beleg**: Meldet das Modell direkt nach einem Klick,
+  Tastendruck oder `invoke` Erfolg, verlangt der Kern einmal eine Prüfung
+  (zusätzlicher Modellaufruf). Besteht das Modell darauf, endet die Aufgabe
+  als `completed` mit `verified=false` – die Oberfläche zeigt „nicht geprüft“.
+- **Vordergrund**: Um ein Zielfenster zu aktivieren, nutzt der Kern die
+  dokumentierten Wege gegen die Vordergrund-Sperre (Eingabewarteschlange
+  anbinden, kurzer Modifier-Tastendruck). Während einer Automatisierung sollte
+  der Nutzer die Hände von Tastatur und Maus lassen; manuelle Eingaben
+  pausieren die Aufgabe.
+- **Bild-Grounding**: `vision.locate` liefert bei Qwen3-VL-4B in der Regel
+  brauchbare Mittelpunkte großer Schaltflächen; kleine oder ähnliche Ziele
+  werden verfehlt. Die Koordinatenkonvention wird je Antwort auf Plausibilität
+  geprüft; ein Punkt außerhalb des Bildes wird in die andere Konvention
+  umgedeutet und als unverifiziert gekennzeichnet. `windows.click_at` meldet,
+  ob sich die Oberfläche verändert hat, beweist aber nicht den Treffer.
 - **Hotkeys**: Der Standard `Strg+Alt+Leertaste` kann von anderen Programmen
   belegt sein (auf dem Entwicklungsrechner ist er es); SpAIder meldet das und
   bleibt ohne Hotkey, bis unter Einstellungen → Live & Agent eine freie

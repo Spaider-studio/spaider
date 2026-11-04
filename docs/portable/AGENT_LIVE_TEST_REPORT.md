@@ -13,7 +13,7 @@ eigenen Browser); keine echten Konten, Mails oder privaten Inhalte.
 
 | Suite | Befehl | Ergebnis |
 |---|---|---|
-| Kern, Unit | `cd foldable/core && pytest` | **57 bestanden**, 6 übersprungen (Echtläufe ohne Umgebung); neu: Agentenkern (Dateiaufgabe mit skriptiertem Modell, Scope-Ausbrüche/ungültige Argumente abgelehnt, Freigabe für folgenreiche Ziele, Abbruch während einer Aktion, Erfolgsmeldung ohne Aktion abgelehnt), Broker-Schemaprüfung |
+| Kern, Unit | `cd foldable/core && pytest` | **70 bestanden**, 6 übersprungen (Echtläufe ohne Umgebung); neu: Agentenkern (Dateiaufgabe mit skriptiertem Modell, Scope-Ausbrüche/ungültige Argumente abgelehnt, Freigabe für folgenreiche Ziele, Abbruch während einer Aktion, Erfolgsmeldung ohne Aktion abgelehnt, Scope-Erweiterung durch `windows.launch` bleibt erhalten, unbelegter Erfolg wird einmal zurückgewiesen, Rezept-Wiedergabe ohne Modellaufruf, Rezept-Rückfall auf den Planer), Broker-Schemaprüfung |
 | Kern, Live (echt, Bildmodell) | `pytest tests/test_real_live.py` (Qwen3-VL-4B + Projektor, Vulkan) | **bestanden**, 26 s: Testfenster gelistet, eigene Fenster ausgeschlossen, Vorschau-Snapshot 108 ms (16 Elemente, 242 Zeichen), Bildfrage „Name/Budget“ korrekt beantwortet (erstes Token 2,77 s, gesamt 4,0 s; Aufnahme 94 ms, Bild 626×413), Strukturfrage „Schaltflächen“ korrekt (2,5 s), Gespräch wird mit dem Hauptchat geteilt, Sitzung beendet → 404 |
 | Adapter-Smoke (echt, ohne Modell) | `scratchpad/tools_smoke.py` → `foldable/build/measurements/tools-smoke.json` | **grün**: WinForms-Testapp per UIA gelesen (28 Elemente), `set_value` zurückgelesen (406 ms), `invoke` „Speichern“ (531 ms) → Datei mit beiden Texten geschrieben; Fenster außerhalb des Umfangs abgelehnt. Browser: lokale Seite geöffnet (1,1–2,5 s inkl. Start), drei Felder gefüllt und zurückgelesen, Auswahl, Klick, Bestätigungstext erschienen; private/Loopback-Adresse gesperrt; veraltete Referenz nach Navigation abgelehnt |
 | Agent, Dateiaufgabe (echt, Qwen3-4B Text) | `scratchpad/agent_file_task.py` → `agent-file-task-qwen3-4b.json` | **bestanden**: Lesen von 3 Dateien → Kurzbericht geschrieben und zurückgelesen; 6 Schritte, 6 Modellaufrufe, 46 s, 0 Rückfragen; Ausgabe enthält Datum, Budget, Leitung, Teamgröße, Risiken. Vorherige Läufe deckten Modellverhalten auf (siehe „Befunde“) |
@@ -56,6 +56,35 @@ eigenen Browser); keine echten Konten, Mails oder privaten Inhalte.
    eine Aktion ausgeführt wurde; `verified` nur, wenn die letzte erfolgreiche
    Aktion selbst belegt ist (Rücklesen/Feldwert/Text). Bestätigungstexte nach
    Browseraktionen stehen seitdem im Ergebnis und im Journal (`evidence`).
+6. **Scope-Verlust nach `windows.launch` (Matrix W4, Nachlauf 0/3).** Das
+   Werkzeug trug das gestartete Fenster in den Umfang ein, der Loop las die
+   Aufgabe aber je Schritt neu aus der Datenbank – jede Folgeaktion scheiterte
+   mit „nicht Teil des freigegebenen Umfangs“. Der Loop persistiert
+   Umfangsänderungen durch Werkzeuge jetzt (Unit-Test).
+7. **Seite der Voraufgabe als Beobachtung (Matrix B5 0/3, B2 2×).** Der
+   Browser behielt die Seite der vorherigen Aufgabe; das Modell las sie
+   („Seite enthält nur Standortauswahl“) oder schrieb erfundene Tabellenwerte,
+   ohne `browser.open` aufzurufen. Browserwerkzeuge und -beobachtung sind
+   jetzt an die Aufgabe gebunden, die die Seite geöffnet hat; davor meldet
+   die Beobachtung „für diese Aufgabe noch keine Seite geöffnet“.
+8. **Vordergrund-Sperre (Matrix V2, W1 mit Qwen3-4B).** `SetForegroundWindow`
+   aus einem Hintergrundprozess scheitert („Fenster konnte nicht in den
+   Vordergrund geholt werden“). `bring_to_front` nutzt jetzt die
+   dokumentierten Wege (AttachThreadInput, Modifier-Tastendruck) und wartet
+   auf das tatsächliche Vordergrundfenster: 10/10 Wechsel, 10–27 ms
+   (`bring-to-front-check.json`, zwei eigene Testfenster).
+9. **„Bestätigt“ ohne Lesen (Matrix V5 0/3, V2).** Nach `vision.locate` +
+   `windows.click_at` meldete das Modell „Status bestätigt“, ohne je gelesen zu
+   haben. Ein `done(ok)` direkt nach einer unbelegten Aktion wird jetzt einmal
+   zurückgewiesen („erst prüfen, dann done“); `windows.click_at` meldet, ob
+   sich die Oberfläche verändert hat; `vision.locate` prüft die
+   Koordinatenkonvention je Antwort auf Plausibilität (Punkt außerhalb des
+   Bildes → andere Konvention, als unverifiziert gekennzeichnet).
+10. **Rezepte wurden nie ausgeführt.** `recipe_id` wurde angenommen, aber der
+    Loop plante immer per Modell. Jetzt: deterministische Wiedergabe der
+    Schritte über den Broker (gleiche Schema-/Umfang-/Frischeprüfung, gleiche
+    Freigaberegeln), Parameter per `{name}`, Rückfall auf den Planer bei
+    Fehlschlag; Abschluss ohne Modellaufruf nur mit belegtem letzten Schritt.
 
 ## Live und Oberfläche
 
@@ -74,7 +103,23 @@ Endpunkte) und dem gepackten Launcher:
 | Gepackte EXE gegen Mock | Tray erzeugt, Attach ≈ 40 ms, Hotkeys registriert, Screenshot, Shutdown, Exit 0 |
 | An/Aus-Zyklen (30×), Handles/Listener | **NICHT VERIFIZIERT** im Mock-Lauf (nur 12 Zyklen je Messlauf, keine Handle-Zählung) |
 
-Mit dem **echten Kern** (Bildmodell, UIA, Agent): *(wird eingetragen)*
+Mit dem **echten Kern** (Dev-Kern, Qwen3-VL-4B + Projektor über Vulkan, UIA,
+Agent; Desktop-Commit a85dca6; zwei vollständige Läufe am 2026-11-04,
+Screenshots `shots-real/01…08` in der Sitzungsablage; parallel lief die
+Aufgabenmatrix auf derselben GPU):
+
+| Prüfung | Ergebnis |
+|---|---|
+| Hotkey bei fokussiertem Fremdfenster (echte Tastatureingabe, 24×) | Overlay erscheint, `POST /api/live/foreground` liefert jedes Mal das Testfenster (`win:…:… "SpAIder Testanwendung UI" powershell.exe`); erster Aufruf zeigt den Picker mit Vorauswahl, spätere Aufrufe keinen Picker; Median 57 ms bis `show` (Details in `AGENT_LIVE_PERFORMANCE.md`) |
+| Frage über echten Bildschirminhalt + Gedächtnis (6×) | Beobachtungszeile „mit Bild · 16 Elemente · 240 Zeichen“; Antwort in allen sechs Fällen korrekt („Projekt Nordlicht“, „Kickoff am 12.11.2026, Budget 48500 Euro“ aus den Feldern der Testanwendung); Gedächtnissuche lief („Keine passenden gespeicherten Informationen“), Phasen und Token/s in der Aktivitätszeile, Gespräch gespeichert |
+| Stopp-Hotkey während der Antwort (2×) | „Wird gestoppt …“ nach 3–4 ms, `done` mit Status `stopped` nach 21/42 ms; Launcher: `agent/stop` + Gesprächsstopp, beide HTTP 200 |
+| Leerlauf (30 s, Overlay sichtbar, Sitzung offen, 2×) | Overlay 0 Netzanfragen; Hauptfenster nur die 0.2-Abfragen (`setup/status` ×2, `conversations` ×1); keine Snapshots, keine Modellaufrufe |
+| Esc / Fenster schließen | Overlay versteckt, Live-Sitzung per `DELETE` beendet (Liste leer); erneuter Hotkey (56 ms) behält Quelle und 4 Gesprächsrunden; nächste Frage → neue Sitzung mit demselben Gespräch (5 Runden, Antwort korrekt) |
+| Vorschaubild | **Befund**: das Overlay sendete `max_elements: 0`, der Kern antwortete 422 → nie eine Vorschau (Mock akzeptierte 0). Overlay sendet jetzt 1; Kern erlaubt 0 (nur Bild) und der Vertrag nennt den Bereich |
+| Aufgabe über die Oberfläche (Dateien → Zusammenfassung) | angelegt mit echtem Ordnerdialog-IPC, „Gedächtnis“ aus; abgeschlossen in 89,5 s, Schritt 3/20, 3 Modellaufrufe, `files.read` + `files.write` (167 Bytes zurückgelesen), Ergebnis „geprüft“; neue Aktivitätszeile im Aufgabendetail (Phasen Planung/Ausführung/Prüfung) gegen den echten `event: activity`-Strom |
+| Prozentanzeige | **Befund**: „Kontext wird verarbeitet (111 %)“ bei Cache-Treffern – der Kern addierte Cache-Tokens doppelt; behoben (≤ 100 %) |
+| Nur Struktur (`use_image: never`) | **NICHT VERIFIZIERT** über die Oberfläche: das Overlay bietet die Wahl nicht an (immer `auto`); über die API im Kern-Test geprüft (2,5 s) |
+| Mock-only (nicht erneut mit echtem Kern) | Qualitätszustände minimiert/schwarz/verloren, „Als Aufgabe ausführen“-Vorbelegung, Rückfrage-Dialog, Pause/Fortsetzen, Rezepte-Panel, Hotkey-Änderung, Browserpaket-Download, Tray-Modus |
 
 ## Grenzen und Fehler (ausgeführt)
 
