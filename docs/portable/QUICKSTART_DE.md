@@ -9,6 +9,11 @@ Es entsteht ein Ordner `SpAIder` mit `SpAIder.exe`. Der Ordnername darf
 Leerzeichen und Umlaute enthalten. Ein Datenträger mit NTFS oder exFAT wird
 empfohlen; auf FAT32 sind Modelldateien über 4 GB nicht möglich (die App warnt).
 
+**Pfadlänge.** Entpacke in einen kurzen Pfad (z. B. `D:\SpAIder` oder
+`C:\Users\<Name>\SpAIder`). Das Paket enthält tief verschachtelte Dateien; in
+sehr langen Zielpfaden (über ≈ 100 Zeichen) bricht das Entpacken unter
+Windows ohne Long-Path-Unterstützung mit „Datei nicht gefunden“ ab.
+
 ## 2. Starten
 
 `SpAIder.exe` doppelklicken. Beim ersten Start wird `data/` angelegt. Windows

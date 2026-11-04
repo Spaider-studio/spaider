@@ -245,6 +245,11 @@ kann. Offene Fehler stehen am Ende.
   bleibt ohne Hotkey, bis unter Einstellungen → Live & Agent eine freie
   Kombination geprüft und gespeichert wird. Hotkeys gelten nur, solange SpAIder
   läuft (Tray-Modus empfohlen); kein Autostart.
+- **Pfadlänge beim Entpacken**: Die tiefste Datei im Paket liegt ≈ 150 Zeichen
+  unter dem Paketordner (Bibliotheksdaten des gebündelten Kerns). Ohne
+  aktivierte Long-Path-Unterstützung scheitert das Entpacken in Zielpfade
+  über ≈ 100 Zeichen (in dieser Sitzung beim Prüf-Entpacken in einen tiefen
+  Temp-Ordner beobachtet); kurze Zielpfade verwenden.
 - **Host-Spuren**: comtypes (UI Automation) legt beim ersten Start einen
   kleinen Wrapper-Cache unter `%TEMP%\comtypes_cache\spaider-foldable-core-312`
   an; der Agentenbrowser schreibt sein Profil nur in `data/browser/profile`.
