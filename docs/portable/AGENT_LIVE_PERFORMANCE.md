@@ -121,6 +121,32 @@ Esc → Overlay versteckt → `DELETE /api/live/sessions/{id}` (Sitzungsliste
 danach leer); erneuter Hotkey (56 ms) behält Quelle und Gesprächsverlauf, die
 nächste Frage erzeugt eine neue Sitzung mit demselben Gespräch.
 
+**30 An/Aus-Zyklen mit echtem Kern** (`ui-cycles-real.json`; Modell geladen,
+aber keine Fragen; je Zyklus Hotkey → Overlay → Sitzung für das Testfenster →
+Esc → Sitzung beendet; n = 30, daher mit p95):
+
+| Größe | Median | min / max | p95 |
+|---|---|---|---|
+| Hotkey → Overlay `show` (inkl. Vordergrund-Aufruf) | **47,8 ms** | 40,0 / 80,6 | 70,3 |
+| Hotkey → erster Paint | **53,6 ms** | 44,8 / 89,3 | 88,5 |
+| `POST /api/live/foreground` | 27,8 ms | 22,2 / 51,1 | 37,9 |
+| `POST /api/live/sessions` (anlegen) | 35,2 ms | 23,4 / 62,6 | 57,6 |
+| `DELETE /api/live/sessions/{id}` | 1,4 ms | 1,0 / 3,3 | 3,2 |
+| Esc → Overlay versteckt | 62 ms | 60 / 109 | 109 |
+
+Ressourcen (vor Zyklus 1 → nach 10 → 20 → 30 → nach 10 s Leerlauf): Electron-
+Hauptprozess Handles 1056 → 1047, GDI 42 → 33, USER 64 → 62, Arbeitsspeicher
+107 → 112 MB; Overlay-Renderer Handles 278 → 295 (zwischen Zyklus 20 und 30
+flach), Hauptfenster-Renderer 291 → 298; Kern-Python 590 → 574 Handles,
+254 MB konstant; llama-server 227 Handles konstant. Im Hauptprozess konstant:
+2 BrowserWindows (1 Overlay), `ipcMain`-Listener 3 + 18 Handler, Overlay-
+Fenster-/WebContents-Listener 10/11; V8-Heap 6,6–7,5 MB (GC-Rauschen). Nach
+den 30 Zyklen: Hotkeys weiterhin registriert, der 31. Hotkey zeigt das
+Overlay in derselben Latenzklasse (60 ms), Sitzungsliste leer. Kein
+monotoner Anstieg bei Handles, GDI/USER-Objekten, Speicher, Fenstern oder
+Listenern. Nicht lesbar: JS-Heap der Renderer (Electron liefert einen
+quantisierten Konstantwert), GPU-Speicher des GPU-Prozesses.
+
 ## Leerlauf
 
 Ohne Live-Sitzung findet keine Aufnahme statt (keine Timer). In einer

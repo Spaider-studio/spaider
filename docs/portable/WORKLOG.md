@@ -351,8 +351,18 @@ blockiert (workflow-Scope).
   korrigierten Aufgaben (W1,W4,V2,V5,B5,B2,B1 x3) -> A/B Rezept vs. Loop (B1). Desktop-Agent:
   30 An/Aus-Zyklen mit Handle-Zaehlung.
 
-Naechster konkreter Schritt: Ergebnisse der Kette und des Nachlaufs in Pruef-/Performancebericht
-und MODEL_COMPATIBILITY eintragen, Katalogstatus "executed" setzen, Kern final bauen (PyInstaller),
-Paket 0.3.0 assemblieren + verify_package + Offline + Migration mit gepacktem Kern, KNOWN_LIMITATIONS,
-INTEGRATION_HANDOFF, Bundle, Push-Versuch, Abschlussbericht.
+### Fortschritt 02:00-02:20
+- Qwen3-4B-Teilmenge 22/30 (Dateien 10/10, Browser 8/10, Windows 4/10; W1 an Vordergrund-Sperre).
+  Gemma 4 E2B Teilmenge 5/16 mit 51 (meist leeren) Rueckfragen -> leere ask_user werden verworfen
+  (0a63eec); Katalog Qwen3-VL und Gemma auf "executed" mit ehrlichem Umfang.
+- Kern mit f01a359 gebaut (PyInstaller 5,1 min), Paket 0.3.0 assembliert (377 MB, SHA 20462c91...),
+  verify_package gruen (Pfad mit Umlaut/Leerzeichen, Kern 8,8 s, Token, Exit 0, Launcher-Screenshot).
+  Hinweis: das Paket wird nach dem finalen Nachlauf mit dem Endstand neu gebaut (SHA im Abschluss).
+- Laufend: finaler Nachlauf (W1,W4,V2,V5,B5,B2,B1 x3, Qwen3-VL), danach A/B Rezept vs. Loop,
+  Paket-Volltest mit Modell (Netstat, Chat-Regression, Live, Agent, Abbruch, CPU-Rueckfall,
+  Beenden), Gemma-Wiederholung mit Fix; Desktop-Agent: 30 An/Aus-Zyklen mit Handle-Zaehlung.
+
+Naechster konkreter Schritt: Nachlauf/A-B/Zyklen eintragen, Kern mit Endstand neu bauen und Paket
+neu assemblieren (Flag fuer den Paket-Volltest setzen), Berichte abschliessen, Bundle, Push-Versuch,
+Abschlussbericht (8 Punkte).
 

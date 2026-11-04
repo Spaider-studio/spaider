@@ -245,7 +245,7 @@ Endpunkte) und dem gepackten Launcher:
 | Qualitätszustände | `minimized`, `lost`, `black` als kurze Texte mit „Quelle neu wählen“ (Screenshots 03/04) |
 | Aufgabenpanel | Anlegen mit Scopes (Ordner-Dialog, Browser, Fenster), Zeitstrahl der Aktionen, Rückfrage-Dialog (Freigabe/Ablehnung), Rezepte, Browserpaket-Download als Job mit Fortschritt (Screenshots 05–12) |
 | Gepackte EXE gegen Mock | Tray erzeugt, Attach ≈ 40 ms, Hotkeys registriert, Screenshot, Shutdown, Exit 0 |
-| An/Aus-Zyklen (30×), Handles/Listener | **NICHT VERIFIZIERT** im Mock-Lauf (nur 12 Zyklen je Messlauf, keine Handle-Zählung) |
+| An/Aus-Zyklen (30×), Handles/Listener | Mock-Lauf: nur 12 Zyklen; **mit echtem Kern verifiziert** (siehe nächste Tabelle, Zeile „30 An/Aus-Zyklen“) |
 
 Mit dem **echten Kern** (Dev-Kern, Qwen3-VL-4B + Projektor über Vulkan, UIA,
 Agent; Desktop-Commit a85dca6; zwei vollständige Läufe am 2026-11-04,
@@ -262,6 +262,7 @@ Aufgabenmatrix auf derselben GPU):
 | Vorschaubild | **Befund**: das Overlay sendete `max_elements: 0`, der Kern antwortete 422 → nie eine Vorschau (Mock akzeptierte 0). Overlay sendet jetzt 1; Kern erlaubt 0 (nur Bild) und der Vertrag nennt den Bereich |
 | Aufgabe über die Oberfläche (Dateien → Zusammenfassung) | angelegt mit echtem Ordnerdialog-IPC, „Gedächtnis“ aus; abgeschlossen in 89,5 s, Schritt 3/20, 3 Modellaufrufe, `files.read` + `files.write` (167 Bytes zurückgelesen), Ergebnis „geprüft“; neue Aktivitätszeile im Aufgabendetail (Phasen Planung/Ausführung/Prüfung) gegen den echten `event: activity`-Strom |
 | Prozentanzeige | **Befund**: „Kontext wird verarbeitet (111 %)“ bei Cache-Treffern – der Kern addierte Cache-Tokens doppelt; behoben (≤ 100 %) |
+| 30 An/Aus-Zyklen (Hotkey → Overlay → Sitzung → Esc → Sitzung beendet), n = 30 + 31. Zyklus | Hotkey → `show` Median 47,8 ms (p95 70,3), erster Paint 53,6 ms (p95 88,5); Esc versteckt 30/30; Sitzungsliste nach jedem Zyklus leer; Handles/GDI/USER/Speicher/Fenster/Listener ohne monotonen Anstieg; Hotkeys danach registriert; 31. Hotkey 60 ms. Abweichung: Die Sitzung je Zyklus legte die Messharness per API an (das Overlay erzeugt Sitzungen erst mit der ersten Frage, und Fragen hätten Modellarbeit bedeutet); das Beenden der Sitzung beim Verstecken wurde im Fragelauf oben geprüft. Beobachtung ohne Beleg: ein erstes Testfenster der Harness schloss sich kurz nach dem Start mit Exit 0 – am wahrscheinlichsten die 300-s-Selbstschließung des Fixtures (Harness-Neustarts davor); Agentenwerkzeuge wirken nur auf freigegebene hwnd, die Matrix-Harness findet Fenster über exakte Titel und beendet nur eigene Prozesse |
 | Nur Struktur (`use_image: never`) | **NICHT VERIFIZIERT** über die Oberfläche: das Overlay bietet die Wahl nicht an (immer `auto`); über die API im Kern-Test geprüft (2,5 s) |
 | Mock-only (nicht erneut mit echtem Kern) | Qualitätszustände minimiert/schwarz/verloren, „Als Aufgabe ausführen“-Vorbelegung, Rückfrage-Dialog, Pause/Fortsetzen, Rezepte-Panel, Hotkey-Änderung, Browserpaket-Download, Tray-Modus |
 
