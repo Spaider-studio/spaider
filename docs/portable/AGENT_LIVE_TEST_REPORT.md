@@ -41,7 +41,18 @@ eigenen Browser); keine echten Konten, Mails oder privaten Inhalte.
    Entwicklungsbetrieb alle Geschwisterprozesse des Shells aus (Testfenster
    unsichtbar). Jetzt nur die SpAIder-Prozessfamilie (Launcher, Kern,
    llama-server); vom Agenten gestartete Programme bleiben sichtbar.
-4. **Erfolg ohne Beleg.** Ein `done` mit `ok=true` wird nur angenommen, wenn
+4. **Matrix-Befunde (erster Lauf, Qwen3-VL-4B).** W3/V2/V5 konnten den
+   Status „Geleert“ nie lesen: die Testanwendung setzte `AccessibleName` auf
+   dem Statuslabel, womit WinForms den festen Namen statt des Labeltexts
+   meldet (Fixture-Fehler, behoben). W4 (Notepad starten) scheiterte, weil
+   ein Fensterumfang ohne bereits offenes Fenster (nur `allowed_processes`)
+   die Windows-Werkzeuge ausblendete (Scope-Regel behoben) und weil Notepads
+   Dokument keinen Wert über das ValuePattern liefert (jetzt TextPattern und
+   Legacy-Wert als Rückfall). B2 (Tabelle lesen) scheiterte zweimal, weil das
+   Modell die Datei schrieb, ohne den Browser zu öffnen (erfundener Inhalt) –
+   ein Modellfehler, der als Fehlerfolg gezählt wird. Die betroffenen Aufgaben
+   werden nach den Fixes erneut gefahren (separat ausgewiesen).
+5. **Erfolg ohne Beleg.** Ein `done` mit `ok=true` wird nur angenommen, wenn
    eine Aktion ausgeführt wurde; `verified` nur, wenn die letzte erfolgreiche
    Aktion selbst belegt ist (Rücklesen/Feldwert/Text). Bestätigungstexte nach
    Browseraktionen stehen seitdem im Ergebnis und im Journal (`evidence`).
