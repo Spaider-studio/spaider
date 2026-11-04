@@ -362,7 +362,19 @@ blockiert (workflow-Scope).
   Paket-Volltest mit Modell (Netstat, Chat-Regression, Live, Agent, Abbruch, CPU-Rueckfall,
   Beenden), Gemma-Wiederholung mit Fix; Desktop-Agent: 30 An/Aus-Zyklen mit Handle-Zaehlung.
 
-Naechster konkreter Schritt: Nachlauf/A-B/Zyklen eintragen, Kern mit Endstand neu bauen und Paket
-neu assemblieren (Flag fuer den Paket-Volltest setzen), Berichte abschliessen, Bundle, Push-Versuch,
+### Fortschritt 02:20-02:55
+- Finaler Nachlauf (Kernfixes): B1 3/3, B5 3/3 (Injection-Seite), B2 2/3, W4 2/3, V2 3/3; V5 "0/3"
+  entpuppte sich als Fixture-Encoding (PowerShell 5.1 liest .ps1 ohne BOM als ANSI -> Label
+  "gedrÃ¼ckt"), W1 0/3 weil der Planer Feldnamen statt Element-IDs nutzt -> eindeutige Namen als
+  Referenz akzeptiert (1d2bbd8), Fixtures mit BOM. Wiederholung W1/V5: 6/6.
+- 30 Overlay-Zyklen gegen echten Kern: 47,8 ms Median, kein Leck (a85dca6-Stand, ui-cycles-real.json).
+- A/B Rezept vs. Loop: Lauf 1 deckte Pfad-Schreibweise beim Templating auf (371a503), Lauf 2:
+  Loop 3/3 in 71 s mit 9-10 Modellaufrufen vs. Rezept 3/3 in 0,4 s mit 0 Modellaufrufen.
+- Kern mit 371a503 neu gebaut, Paket 0.3.0 neu assembliert (395 662 613 B, SHA 87058242...73fa),
+  verify_package gruen. Laufend: Gemma-Wiederholung mit Leere-Rueckfragen-Fix (F1 2/2), danach
+  Paket-Volltest mit Modell (Netstat, Chat-Regression, Live, Agent, Abbruch, CPU-Rueckfall, Beenden).
+
+Naechster konkreter Schritt: Gemma-Wiederholung und Paket-Volltest eintragen, Migration einer
+konsistenten Kopie mit dem gepackten Kern, Handoff/WORKLOG abschliessen, Bundle, Push-Versuch,
 Abschlussbericht (8 Punkte).
 
