@@ -337,3 +337,17 @@ async def test_recipe_step_outside_scope_hands_over_to_planner(db, tmp_path):
     # then the planner took over
     assert [(a.tool, a.state) for a in store.actions(task.id)] == [("files.read", "failed"), ("files.read", "done")]
     assert "verlassen" in client.prompts[0][1]["content"]
+
+
+@pytest.mark.asyncio
+async def test_empty_questions_are_discarded_then_fail(db, tmp_path):
+    """ask_user without text never reaches the user; after three blank questions the task fails."""
+    decisions = [{"thought": "", "decision": "ask_user", "ask_user": {"text": "", "kind": "input"}} for _ in range(3)]
+    client = _ScriptedClient(decisions)
+    mgr, store, _ = _manager(db, client, tmp_path)
+    task = store.create(goal="Lies etwas", scopes=Scopes(files=FilesScope(roots=[str(tmp_path)], write_dir=None)), max_steps=10, max_seconds=60, conversation_id=None, live_session_id=None, recipe_id=None, parameters=None)
+    mgr.start(task)
+    t = await _wait_terminal(store, task.id)
+    assert t.state == "failed" and "leere" in t.summary_de
+    assert t.pending_question is None
+    assert "keinen Text" in client.prompts[1][1]["content"]

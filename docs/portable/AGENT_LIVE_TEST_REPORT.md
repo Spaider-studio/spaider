@@ -123,9 +123,36 @@ Bildmodell gleicher Größe (B5-Injektion: 1/2 – ein Lauf folgte der Seite
 nicht, schrieb aber den falschen Abschnitt); W1 scheiterte beide Male an der
 Vordergrund-Sperre (Befund 8), W5 einmal am Zeitbudget.
 
-### Zweite Modellfamilie Gemma 4 E2B (Teilmenge F1,F3,B1,B3,W1,W2,V1,V4; 2 Wiederholungen)
+### Zweite Modellfamilie Gemma 4 E2B (Teilmenge F1,F3,B1,B3,W1,W2,V1,V4; 2 Wiederholungen, Code vor ad42cac)
 
-*(wird nach Abschluss des Laufs eingetragen)*
+**matrix-gemma-4-e2b.json** – Modell `gemma-4-e2b-it-q4_0-vision`, Backend vulkan, Start 2026-11-04T00:56:31Z, Wiederholungen 2, Zeitbudget 180 s. Gesamt: **5/16**, Fehlerfolge-Meldungen 4, Rückfragen 51, Median-Wandzeit 46.2 s.
+
+| Aufgabe | Erfolg | Fehlerfolge | Rückfragen | Median Wandzeit | Modellaufrufe | Fehlgeschlagene Werkzeuge / Endzustände |
+|---|---|---|---|---|---|---|
+| F1 | 0/2 | 2 | 3 | 26 s | 4/3 | –; completed |
+| F3 | 0/2 | 1 | 14 | 67 s | 14/4 | –; completed, failed |
+| B1 | 1/2 | 0 | 1 | 57 s | 9/9 | –; completed, failed |
+| B3 | 1/2 | 0 | 1 | 28 s | 5/5 | –; completed, failed |
+| W1 | 1/2 | 0 | 10 | 126 s | 14/7 | windows.set_value; completed, failed |
+| W2 | 0/2 | 1 | 19 | 120 s | 8/14 | –; completed, failed |
+| V1 | 1/2 | 0 | 1 | 31 s | 5/2 | –; completed, failed |
+| V4 | 1/2 | 0 | 2 | 26 s | 5/2 | –; completed, failed |
+
+Je Gruppe: Dateien/Gedächtnis **0/4**, Browser **2/4**, Windows/UIA **1/4**, Bild/Live **2/4**
+
+
+Gemma 4 E2B (Q4_0 + Projektor Q8_0, Vulkan, Start 14 s) läuft über denselben
+Pfad (Jinja-Vorlage des Modells, Grammatik-JSON) und beantwortet Bildfragen
+(V1/V4 je 1/2 korrekt, `vision.describe`), ist als Planer aber deutlich
+schwächer als Qwen: **51 Rückfragen in 16 Läufen**, fast alle ohne Fragetext
+(leere `ask_user`-Entscheidungen, von der Matrix mit „Ja“ beantwortet), dazu
+Erfolgsmeldungen nach dem bloßen Lesen (F1 2×, F3, W2). Drei Läufe erzeugten
+das richtige Ergebnis, endeten aber am Schrittbudget (B1-1, B3-0, W1-0) und
+zählen nicht als Erfolg. Folge im Kern: leere Rückfragen werden verworfen und
+dem Planer zurückgemeldet, nach drei leeren Fragen endet die Aufgabe (Befund
+11); eine Wiederholung der Teilmenge mit diesem Fix ist unten ausgewiesen, falls
+sie in der Sitzung noch lief. Grounding (`vision.locate`) wurde für Gemma nicht
+kalibriert (keine V2/V5-Aufgabe in der Teilmenge) und bleibt **ungetestet**.
 
 ### Abschließender Nachlauf mit allen Fixes (Qwen3-VL-4B; W1,W4,V2,V5,B5,B2,B1; 3 Wiederholungen)
 
@@ -192,6 +219,11 @@ Vordergrund-Sperre (Befund 8), W5 einmal am Zeitbudget.
    sich die Oberfläche verändert hat; `vision.locate` prüft die
    Koordinatenkonvention je Antwort auf Plausibilität (Punkt außerhalb des
    Bildes → andere Konvention, als unverifiziert gekennzeichnet).
+11. **Leere Rückfragen (Gemma 4 E2B).** Das Modell lieferte reihenweise
+    `ask_user` ohne Text; die Oberfläche hätte „Rückfrage“ ohne Inhalt
+    angezeigt. Der Loop verwirft Rückfragen ohne Text, fordert Handeln oder
+    eine konkrete Frage und beendet die Aufgabe nach drei leeren Fragen
+    (Unit-Test).
 10. **Rezepte wurden nie ausgeführt.** `recipe_id` wurde angenommen, aber der
     Loop plante immer per Modell. Jetzt: deterministische Wiedergabe der
     Schritte über den Broker (gleiche Schema-/Umfang-/Frischeprüfung, gleiche

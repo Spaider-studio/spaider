@@ -284,6 +284,15 @@ class AgentManager:
                     return
                 if kind == "ask_user":
                     q = decision.get("ask_user") or {}
+                    if not str(q.get("text") or "").strip():
+                        # an empty question is never shown to the user (seen with Gemma 4 E2B: dozens of
+                        # blank "ask_user" decisions); the planner is told to act or ask properly
+                        n = self._counter(task_id, "empty_questions")
+                        if n >= 3:
+                            self._finish(task_id, ok=False, summary="Das Modell stellte wiederholt leere Rückfragen statt zu handeln.", verified=False)
+                            return
+                        self._note(task_id, "Deine Rückfrage hatte keinen Text und wurde verworfen. Handle direkt (decision=\"action\") oder stelle eine konkrete Frage mit Text.")
+                        continue
                     qtext = str(q.get("text") or "Rückfrage")[:400]
                     if (q.get("kind") or "input") == "approval" and _is_read_only_request(qtext):
                         # reading/listing inside the granted scope needs no approval: answer deterministically

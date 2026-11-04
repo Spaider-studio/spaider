@@ -1159,9 +1159,9 @@
         "Gemma"
       ],
       "verification": {
-        "status": "metadata",
-        "date": "2026-11-03",
-        "scope": "Katalogeintrag (Prüfsumme, Lizenz, Dateiliste); Ausführung siehe TEST_REPORT 0.3"
+        "status": "executed",
+        "date": "2026-11-04",
+        "scope": "echte Ausführung auf b12032 (Vulkan + Projektor): Text-Chat und Bildfragen (vision.describe) in der Aufgabenmatrix-Teilmenge, 5/16 Aufgaben erfolgreich, viele leere Rückfragen; Grounding ungetestet (AGENT_LIVE_TEST_REPORT.md)"
       },
       "evidence": [
         {
