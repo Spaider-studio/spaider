@@ -42,9 +42,12 @@ Kompressor-Cache injizierbar machen, `_attach_fact_node` in ein Service-Modul ve
 
 ## Testpaket
 
-- Review-Build: **wird nach dem Build eingetragen** (Dateiname `SpAIder-Foldable-0.3.0-review-<sha>-win-x64.zip`,
-  Größe, SHA-256, Quell-Commit; Prerelease `foldable-review-0.3.0-<sha>` im privaten Repository,
-  Zugriff nur für berechtigte Nutzer; die von GitHub erzeugte „Source code (zip)“ ist nicht die App).
+- Review-Build: `SpAIder-Foldable-0.3.0-review-cd50a04-win-x64.zip`, 395 922 585 Bytes,
+  SHA-256 `20b4096516796956b76b4b2503b29a258bbaf71de46ade6c2a04e1f28cd6b5ff`, gebaut aus
+  `cd50a042046acee034e74383087851b58acd04f0` (Kern-Code `371a503`, Launcher `a85dca6`, llama.cpp
+  b12032). Fundort: Prerelease `foldable-review-0.3.0-cd50a04` im privaten Repository
+  (Zugriff nur für berechtigte Nutzer; die von GitHub erzeugte „Source code (zip)“ ist nicht die
+  App). Manifest: `foldable/build/measurements/review-build-cd50a04.md`.
 - Benötigt: Windows 11 x64, kurzer Entpackpfad, beim ersten Start Internet für den Modell-Download.
 
 ## Pre-PR checklist
@@ -65,13 +68,14 @@ Kompressor-Cache injizierbar machen, `_attach_fact_node` in ein Service-Modul ve
 
 - [x] Kern: `pytest` – 73 bestanden, 6 übersprungen (Echtlauf-Tests ohne Umgebungsvariable)
 - [x] Desktop: `npm run typecheck`, `npm run lint`, `npm test` – 88 Tests bestanden
-- [ ] Paketbau aus dem Review-Commit und `verify_package.py` – *(wird eingetragen)*
-- [ ] Frisch entpackter Review-Build mit synthetischen Daten (Start ohne Entwicklungs-PATH, Chat, Gedächtniskorrektur + Neustart, Live-Hotkey, Datei-Aufgabe, Stopp/Beenden) – *(wird eingetragen)*
-- [ ] Aufgabenmatrix 20 × 3 zusammenhängend gegen den Review-Code (Qwen3-VL-4B, Vulkan) – *(läuft, Ergebnis wird eingetragen)*
+- [x] Paketbau aus `cd50a04` (PyInstaller-Kern, Electron-Launcher, ZIP) und `verify_package.py`: Layout ok, Kern 10,5 s bereit in einem Pfad mit Umlaut/Leerzeichen, Token-Pflicht, Exit 0, Launcher-Screenshot
+- [x] Frisch entpackter Review-Build mit synthetischen Daten über die Kern-API (`review-package-check-cd50a04.json`): keine Modelle/Daten im ZIP; Start mit PATH nur aus Windows-Ordnern; Modell aus lokalem Bestand auf Vulkan; Chat erstes Token 0.64 s (GPU geteilt mit der Matrix); „Merke dir … Max Weber“ → „Korrektur … Priya Nair“ → neues Gespräch antwortet „Priya Nair“ → Kern-Neustart → erneut „Priya Nair“; Live-Bildschirmsitzung mit Snapshot, Strukturfrage (0.56 s) und Bildfrage (9.55 s); Datei-Aufgabe `completed`/belegt (3 Modellaufrufe, 45.2 s); Abbruch → `cancelled`, keine Aktion/Datei; Beenden Exit 0 ohne Restprozesse; 65 Netstat-Stichproben ohne externe Verbindung
+- [ ] Live-Hotkey/Quellenauswahl/Stopp über die echte Oberfläche des Review-Builds – *(wird eingetragen)*
+- [x] Aufgabenmatrix 20 × 3 zusammenhängend gegen den Review-Code (Qwen3-VL-4B Q4_K_M + Projektor, Vulkan, Intel Arc 140V): **55/60** (Dateien 12/15, Browser 15/15, Windows/UIA 14/15, Bild 14/15), 4 Fehlerfolge-Meldungen (F4 ×3 Dateiname fehlt, V3 ×1), 0 Rückfragen, Median 30 s je Aufgabe; Rohdaten `foldable/build/measurements/matrix-qwen3-vl-4b-review-full.json`
 
 **Früher berichtet (0.3-Entwicklung, `AGENT_LIVE_TEST_REPORT.md`, nicht erneut gelaufen):**
 Overlay-Latenzen gegen den Dev-Kern (Hotkey → sichtbar 47,8 ms Median, 30 Zyklen ohne Leck),
-Matrix-Teilläufe verschiedener Code-Stände (zusammengesetzt 53/60), Qwen3-4B 22/30, Gemma 4 E2B
+Matrix-Teilläufe verschiedener Code-Stände (zusammengesetzt 53/60; jetzt durch den zusammenhängenden 55/60-Lauf oben ersetzt), Qwen3-4B 22/30, Gemma 4 E2B
 13/16, Rezept-A/B (0 Modellaufrufe, 0,4 s vs. 71 s), Paket-Volltest des 0.3.0-Pakets (Chat-TTFT
 0,25 s, CPU-Rückfall, 22 Netstat-Stichproben ohne externe Verbindung), Migration einer
 0.1-Datenkopie mit dem gepackten Kern.

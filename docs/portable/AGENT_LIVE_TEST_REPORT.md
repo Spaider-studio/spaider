@@ -285,6 +285,44 @@ Aufgabe ohne Modellaufruf ab. Der Unterschied Loop vs. Rezept liegt damit bei
 Rezepte siehe `KNOWN_LIMITATIONS.md` (nur parametrisierte Literale, keine
 inhaltliche Ableitung).
 
+### Zusammenhängender Lauf aller 60 Fälle mit dem Review-Code (2026-11-04, Code cd50a04 = f281d78)
+
+Ein einzelner Durchlauf (20 Aufgaben × 3) aus dem Review-Worktree mit Qwen3-VL-4B auf Vulkan,
+Start 11:36 UTC; parallel liefen Kern-/Launcher-Build und der Paket-Volltest (CPU/GPU geteilt).
+
+**matrix-qwen3-vl-4b-review-full.json** – Modell `qwen3-vl-4b-instruct-q4_k_m`, Backend vulkan, Start 2026-11-04T11:36:50Z, Wiederholungen 3, Zeitbudget 180 s. Gesamt: **55/60**, Fehlerfolge-Meldungen 4, Rückfragen 0, Median-Wandzeit 30.3 s.
+
+| Aufgabe | Erfolg | Fehlerfolge | Rückfragen | Median Wandzeit | Modellaufrufe | Fehlgeschlagene Werkzeuge / Endzustände |
+|---|---|---|---|---|---|---|
+| F1 | 3/3 | 0 | 0 | 28 s | 4/4/4 | –; completed |
+| F2 | 3/3 | 0 | 0 | 23 s | 4/3/3 | –; completed |
+| F3 | 3/3 | 0 | 0 | 35 s | 5/4/5 | –; completed |
+| F4 | 0/3 | 3 | 0 | 37 s | 5/5/5 | –; completed |
+| F5 | 3/3 | 0 | 0 | 25 s | 4/4/4 | –; completed |
+| B1 | 3/3 | 0 | 0 | 66 s | 9/9/9 | –; completed |
+| B2 | 3/3 | 0 | 0 | 23 s | 3/3/3 | –; completed |
+| B3 | 3/3 | 0 | 0 | 24 s | 4/4/4 | –; completed |
+| B4 | 3/3 | 0 | 0 | 38 s | 6/6/6 | –; completed |
+| B5 | 3/3 | 0 | 0 | 25 s | 4/3/3 | files.write; completed |
+| W1 | 3/3 | 0 | 0 | 87 s | 5/7/5 | –; completed |
+| W2 | 3/3 | 0 | 0 | 24 s | 3/3/3 | –; completed |
+| W3 | 3/3 | 0 | 0 | 27 s | 3/3/3 | –; completed |
+| W4 | 2/3 | 0 | 0 | 46 s | 5/4/4 | –; completed, failed |
+| W5 | 3/3 | 0 | 0 | 68 s | 6/6/6 | –; completed |
+| V1 | 3/3 | 0 | 0 | 30 s | 3/3/3 | –; completed |
+| V2 | 3/3 | 0 | 0 | 50 s | 5/5/5 | –; completed |
+| V3 | 2/3 | 1 | 0 | 30 s | 3/3/3 | –; completed |
+| V4 | 3/3 | 0 | 0 | 28 s | 3/3/3 | –; completed |
+| V5 | 3/3 | 0 | 0 | 44 s | 5/5/5 | –; completed |
+
+Je Gruppe: Dateien/Gedächtnis **12/15**, Browser **15/15**, Windows/UIA **14/15**, Bild/Live **14/15**
+
+
+Fehlschläge im Einzelnen: F4-0 (completed, Fehlerfolge): Budget: 62750 EUR in budget.txt geschrieben.; F4-1 (completed, Fehlerfolge): Budget-Betrag '51200 EUR' in budget.txt geschrieben.; F4-2 (completed, Fehlerfolge): Budget: 62750 EUR in budget.txt geschrieben.; W4-0 (failed, Fehlschlag): Dieselbe ungültige Aktion wurde dreimal vorgeschlagen (windows.read).; V3-0 (completed, Fehlerfolge): Wert des höchsten Balkens (310) in Datei balken.txt geschrieben und bestätigt..
+F4 verlangt Betrag **und** Dateiname; das Modell schrieb dreimal nur den Betrag (Modellverhalten,
+als Fehlerfolge gezählt). V3-0 las einen falschen Balkenwert, W4-0 endete ohne belegtes Lesen.
+Damit ersetzt **55/60 in einem Lauf** die früher zusammengesetzten 53/60.
+
 ## Befunde aus den Echtläufen (und was daraus wurde)
 
 1. **Rückfragen nach bereits erteilten Freigaben.** Qwen3-4B fragte dreimal

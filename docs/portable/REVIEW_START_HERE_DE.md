@@ -25,7 +25,7 @@ Internetverbindung nötig.
 | Modellverwaltung: Katalog mit gepinnten Revisionen und SHA-256, Import lokaler GGUF, Empfehlung nach Hardware | vorhanden | `MODEL_COMPATIBILITY.md`, `MODEL_RECOMMENDATIONS.md` |
 | Ausführung über gebündeltes llama.cpp (b12032) auf CPU oder Vulkan mit automatischem Rückfall | vorhanden | `PERFORMANCE_REPORT.md`, `package-check-0.3.0.json` |
 | Live-Fenster per globalem Hotkey: Vordergrundfenster vorgeschlagen, Quelle bestätigen, Frage mit UI-Struktur und Fensterbild (bei Bildmodell) | vorhanden | `AGENT_LIVE_TEST_REPORT.md` („Live und Oberfläche“) |
-| Agent für freigegebene Aufgaben: Dateien (lesen/suchen/schreiben in freigegebenen Ordnern), eigener Browser (Chromium for Testing, separat geladen), Windows-Fenster über UI Automation, Bildwerkzeuge (beschreiben, Ziel finden) | vorhanden, mit Grenzen | `AGENT_LIVE_TEST_REPORT.md` (Aufgabenmatrix), `KNOWN_LIMITATIONS.md` |
+| Agent für freigegebene Aufgaben: Dateien (lesen/suchen/schreiben in freigegebenen Ordnern), eigener Browser (Chromium for Testing, separat geladen), Windows-Fenster über UI Automation, Bildwerkzeuge (beschreiben, Ziel finden) | vorhanden, mit Grenzen; zusammenhängender Lauf der 20 Testaufgaben × 3 mit dem Review-Code: 55/60 | `AGENT_LIVE_TEST_REPORT.md` (Aufgabenmatrix), `KNOWN_LIMITATIONS.md` |
 | Gespeicherte Abläufe (Rezepte) aus belegten Läufen, Wiedergabe ohne Modellaufruf | vorhanden | A/B im Prüfbericht |
 | Portabler Datenordner `data/` neben `SpAIder.exe`, Migration älterer Stände (Schema 1 → 3) | vorhanden; Zwei-PC-Test offen | `PORTABLE_AGENT_STATE.md`, `packaged-update-check-0.3.json` |
 
@@ -172,9 +172,37 @@ Keine privaten Inhalte in Screenshots oder Logs für den PR; die Logs liegen unt
 
 ## 9. Build-Zuordnung des Review-Pakets
 
-*(wird nach dem Build aus dem Integrationscommit ergänzt: Dateiname, Größe,
-SHA-256, Quell-Commit, Code-Stände von Kern und Launcher, Buildzeit,
-Runtime-/Browser-Versionen, Fundort)*
+| Feld | Wert |
+|---|---|
+| Datei | `SpAIder-Foldable-0.3.0-review-cd50a04-win-x64.zip` |
+| Größe / SHA-256 | 395 922 585 Bytes / `20b4096516796956b76b4b2503b29a258bbaf71de46ade6c2a04e1f28cd6b5ff` |
+| Quell-Commit | `cd50a042046acee034e74383087851b58acd04f0` auf `feature/spaider-foldable-review` (Code identisch mit `f281d78`; Kern-Code zuletzt geändert in `371a503`, Katalogtext `34948d5`, Launcher `a85dca6`) |
+| Gebaut am | 2026-11-04, Kern 12:48 (PyInstaller, Python 3.12), Launcher 12:41 (Electron 45.2.1), ZIP 12:52 |
+| Runtime | llama.cpp b12032, CPU x64 + Vulkan x64 (SHA-256 gepinnt in `foldable/build/fetch_runtime.py`) |
+| Browserpaket | nicht im ZIP; Chrome for Testing 156.0.8078.4 (207 073 013 Bytes) wird bei Bedarf in `data/browser/` geladen |
+| Fundort | Release `foldable-review-0.3.0-cd50a04` im privaten Repository (Prerelease) – **erst nach dem Push**; bis dahin lokal unter `C:/Users/mucbay/spaider-foldable/repo-review/foldable/build/out/` |
+| Manifest / Prüfsummen | `foldable/build/measurements/review-build-cd50a04.md`, `review-build-cd50a04-SHA256SUMS.txt` |
+
+Kennzeichnung: **Review-Build**, Vorschau, nicht für den Produktivbetrieb. Das
+frühere Paket `SpAIder-Foldable-0.3.0-win-x64.zip` (SHA-256 `87058242…73fa`,
+Code `371a503`/`a85dca6`) ist nicht dieser Build.
+
+Prüfung des frisch entpackten Review-Builds am 2026-11-04 (synthetische Daten,
+PATH nur Windows, Modell aus lokalem Bestand, `review-package-check-cd50a04.json`;
+parallel lief die Aufgabenmatrix auf derselben GPU, Zeiten daher pessimistisch):
+
+| Prüfung | Ergebnis |
+|---|---|
+| ZIP-Inhalt | keine Modelle, kein Datenordner, Lizenzen vorhanden, `BUILD_INFO.txt` = `cd50a04` |
+| Kern-Start / Modell (Vulkan) | 19.8 s bis bereit, Modell `ready` auf Vulkan |
+| Chat (3 kurze Fragen) | erstes Token Median 0.64 s |
+| Gedächtnis: „Merke dir … Max Weber“, „Korrektur … Priya Nair“, neues Gespräch | Antwort „Priya Nair“ (Fakten 3, Nachverarbeitung je ≈ 35 s) |
+| Neustart des Kerns, neues Gespräch, Nachfrage | Antwort „Priya Nair“ (13.1 s bis bereit, Exit 0 vor dem Neustart) |
+| Live (Bildschirmquelle): Snapshot, Strukturfrage, Bildfrage | Snapshot ok mit Vorschau; Strukturfrage erstes Token 0.56 s; Bildfrage 9.55 s; Sitzung beendet |
+| Agent: Datei lesen → kickoff.md schreiben | `completed`, belegt, 3 Modellaufrufe, 45.2 s, Inhalt korrekt |
+| Abbruch direkt nach Start | `cancelled` nach 3.01 s (Planungsaufruf lief), keine Aktion, keine Datei, keine laufende Aufgabe |
+| Beenden | Exit 0, keine verbliebenen Kindprozesse, Lock entfernt |
+| Netz | 65 Netstat-Stichproben, 0 Verbindungen zu Nicht-Loopback-Zielen (keine echte Netztrennung) |
 
 ## 10. Weiterführend
 

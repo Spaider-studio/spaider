@@ -394,3 +394,20 @@ blockiert (workflow-Scope).
 Stand bei Uebergabe: Branch feature/spaider-foldable-agent-live, Paket 0.3.0 (SHA 87058242...73fa).
 Offen fuer Musa: gh auth refresh -s workflow, dann push; erster Nutzertest laut QUICKSTART_DE.md.
 
+
+## Review-Vorbereitung fuer den Mitgruender (2026-11-04, 12:15-)
+
+- Bestandsaufnahme: Arbeitsbaum sauber bei f281d78; upstream/main unveraendert bei 73762b3;
+  privates Repo leer; Token ohne workflow-Scope (gist, read:org, repo); gemeinsames Repo oeffentlich.
+  -> Review-Weg B/C: lokaler Integrationsbranch feature/spaider-foldable-review (Worktree
+  C:/Users/mucbay/spaider-foldable/repo-review) auf review/spaider-base-73762b3; Push/PR/Release
+  erst nach `gh auth refresh -s workflow` (Befehle in INTEGRATION_HANDOFF.md).
+- Diff seit Basis: nur foldable/, docs/portable/, .gitignore; keine .github-Aenderungen; der
+  Sandbox-Commit 8f20d3a des privaten main ist nicht Teil des Branches.
+- Review-Dokumente: REVIEW_START_HERE_DE.md, PR_BODY_REVIEW.md, Handoff-Nachtrag (cd50a04).
+- Build aus cd50a04: Kern (PyInstaller, 12:48), Launcher (Electron 45.2.1, 12:41), Paket
+  SpAIder-Foldable-0.3.0-review-cd50a04-win-x64.zip (395 922 585 B, SHA 20b40965...b5ff),
+  verify_package gruen (Kern 10,5 s, Token, Exit 0, Launcher-Screenshot). Manifest:
+  foldable/build/measurements/review-build-cd50a04.md.
+- Pruefungen in dieser Runde: Kern pytest 73/6 uebersprungen, Desktop typecheck/lint/88 Tests gruen;
+  60er-Matrix gegen den Review-Code und Paket-Volltest des Review-ZIP laufen (Ergebnis unten).
