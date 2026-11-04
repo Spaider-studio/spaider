@@ -323,6 +323,19 @@ F4 verlangt Betrag **und** Dateiname; das Modell schrieb dreimal nur den Betrag 
 als Fehlerfolge gezählt). V3-0 las einen falschen Balkenwert, W4-0 endete ohne belegtes Lesen.
 Damit ersetzt **55/60 in einem Lauf** die früher zusammengesetzten 53/60.
 
+**Review-Build in der echten Oberfläche** (gepackter Launcher + gepackter Kern aus
+`SpAIder-Foldable-0.3.0-review-cd50a04-win-x64.zip`, eigener App-Ordner, PATH nur Windows,
+`ui-review-cd50a04.json`): Frischstart mit Einrichtungsseite und sauberem Beenden; Modell
+auf Vulkan; Chat korrekt (erstes Token 2,3 s); Hotkey → Overlay 79 ms Median (n = 10, GPU
+und Rechner parallel in Benutzung); Picker mit Vorauswahl, Frage zum Testfenster korrekt
+(4,7 s bis erstes Token, mit Bild); Esc beendet die Sitzung; Datei-Aufgabe belegt in 23,4 s;
+Stopp-Hotkey während der Planung → `cancelled` unter 100 ms ohne Aktion/Datei; „Sicher
+beenden“ Exit 0 in 2,3 s, keine Restprozesse. Abweichung: Aufgaben per API mit den
+Formular-Scopes angelegt (nativer Ordnerdialog nicht automatisierbar); nach zwei
+Harness-Abbrüchen zeigte die Aufgabenliste korrekt „Unterbrochen“ für die abgebrochene Aufgabe.
+Die Overlay-Latenz **mit gepacktem Kern** ist damit belegt; das frühere „NICHT VERIFIZIERT“
+dazu entfällt.
+
 ## Befunde aus den Echtläufen (und was daraus wurde)
 
 1. **Rückfragen nach bereits erteilten Freigaben.** Qwen3-4B fragte dreimal
@@ -463,9 +476,8 @@ Aufgabenmatrix auf derselben GPU):
 - Native Tool-Calls der Modelle (der Planer nutzt Grammatik-JSON).
 - Grounding (`vision.locate`) für Gemma 4 E2B; Gemma als Agent nur in der
   8er-Teilmenge, Qwen3-4B ohne Bildgruppe.
-- Overlay-/Hotkey-Latenzen **mit gepacktem Kern**: Die UI-Messungen liefen
-  gegen den Dev-Kern (gleicher Code, Python-Interpreter); der gepackte Kern
-  wurde ohne Oberfläche geprüft (verify_package, Paket-Volltest).
+- Overlay-/Hotkey-Latenzen mit gepacktem Kern: in der Review-Runde nachgeholt
+  (79 ms Median, n = 10); die 30-Zyklen-Messung ohne Leck stammt weiterhin vom Dev-Kern.
 - Strukturfrage ohne Bild (`use_image: never`) über das Overlay (bietet die
   Wahl nicht an; per API geprüft).
 - Vollständiger 60er-Durchlauf mit dem Endstand (nur Teilgruppen wiederholt).

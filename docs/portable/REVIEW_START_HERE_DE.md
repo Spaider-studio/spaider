@@ -203,6 +203,7 @@ parallel lief die Aufgabenmatrix auf derselben GPU, Zeiten daher pessimistisch):
 | Abbruch direkt nach Start | `cancelled` nach 3.01 s (Planungsaufruf lief), keine Aktion, keine Datei, keine laufende Aufgabe |
 | Beenden | Exit 0, keine verbliebenen Kindprozesse, Lock entfernt |
 | Netz | 65 Netstat-Stichproben, 0 Verbindungen zu Nicht-Loopback-Zielen (keine echte Netztrennung) |
+| Echte Oberfläche (gepackter Launcher, eigener App-Ordner, `ui-review-cd50a04.json`) | Frischstart → Einrichtungsseite; Modell auf Vulkan; Chat korrekt; Live-Overlay per Hotkey (Median 79 ms), Quelle bestätigt, Frage zum Testfenster korrekt (4,7 s bis erstes Token); Datei-Aufgabe belegt (23,4 s); Stopp-Hotkey während der Planung → `cancelled`, keine Datei; „Sicher beenden“ Exit 0. Aufgaben per API mit Formular-Scopes angelegt (Ordnerdialog nicht automatisierbar) |
 
 ## 10. Weiterführend
 

@@ -417,3 +417,6 @@ Offen fuer Musa: gh auth refresh -s workflow, dann push; erster Nutzertest laut 
   Abbruch, Beenden, 65 Netstat-Stichproben ohne externe Verbindung (review-package-check-cd50a04.json).
 - Hinweis: Musas eigene SpAIder-Instanz lief waehrend der Pruefungen aus dem 0.3.0-Paketordner
   (seit 12:17) und wurde nicht beruehrt.
+- UI-Test des Review-Builds (gepackt, eigener App-Ordner): alle Pruefungen bestanden; Aufgaben
+  per API mit Formular-Scopes angelegt (Ordnerdialog nicht automatisierbar). Tag
+  foldable-review-0.3.0-cd50a04 auf dem Build-Commit; Push/PR/Release warten auf den workflow-Scope.
