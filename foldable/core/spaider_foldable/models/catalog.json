@@ -1087,9 +1087,9 @@
         "Qwen3-VL"
       ],
       "verification": {
-        "status": "metadata",
-        "date": "2026-11-03",
-        "scope": "Katalogeintrag (Prüfsumme, Lizenz, Dateiliste); Ausführung siehe TEST_REPORT 0.3"
+        "status": "executed",
+        "date": "2026-11-04",
+        "scope": "echte Ausführung auf b12032 (Vulkan + Projektor-Offload, CPU): Text-Chat, Bildfrage auf echter Fensteraufnahme, Grounding-Kalibrierung (0–1000 normiert), Werkzeugplanung in der 20er-Aufgabenmatrix (AGENT_LIVE_TEST_REPORT.md)"
       },
       "evidence": [
         {
