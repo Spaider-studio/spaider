@@ -403,12 +403,43 @@ def window_is_elevated_or_protected(src: WindowSource) -> bool:
         return True
 
 
-def bring_to_front(src: WindowSource) -> bool:
+def bring_to_front(src: WindowSource, *, wait_s: float = 0.6) -> bool:
+    """Activate the window and report whether it really became the foreground window.
+
+    A background process may not call SetForegroundWindow directly (foreground lock); the
+    documented workarounds are used in order: attach to the foreground thread's input queue,
+    simulate a harmless modifier key press, then SetForegroundWindow + BringWindowToTop.
+    """
     if not IS_WIN:
         return False
     try:
         if user32.IsIconic(src.hwnd):
             user32.ShowWindow(src.hwnd, 9)  # SW_RESTORE
-        return bool(user32.SetForegroundWindow(src.hwnd))
+        if user32.GetForegroundWindow() == src.hwnd:
+            return True
+        fg = user32.GetForegroundWindow()
+        this_tid = kernel32.GetCurrentThreadId()
+        fg_tid = user32.GetWindowThreadProcessId(fg, None) if fg else 0
+        attached = False
+        if fg_tid and fg_tid != this_tid:
+            attached = bool(user32.AttachThreadInput(this_tid, fg_tid, True))
+        try:
+            user32.SetForegroundWindow(src.hwnd)
+            user32.BringWindowToTop(src.hwnd)
+            if user32.GetForegroundWindow() != src.hwnd:
+                # second documented workaround: a modifier key press "unlocks" SetForegroundWindow
+                user32.keybd_event(0x12, 0, 0, 0)  # VK_MENU down
+                user32.keybd_event(0x12, 0, 2, 0)  # KEYEVENTF_KEYUP
+                user32.SetForegroundWindow(src.hwnd)
+                user32.BringWindowToTop(src.hwnd)
+        finally:
+            if attached:
+                user32.AttachThreadInput(this_tid, fg_tid, False)
+        deadline = time.monotonic() + wait_s
+        while time.monotonic() < deadline:
+            if user32.GetForegroundWindow() == src.hwnd:
+                return True
+            time.sleep(0.03)
+        return user32.GetForegroundWindow() == src.hwnd
     except Exception:  # noqa: BLE001
         return False

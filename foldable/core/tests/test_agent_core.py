@@ -211,3 +211,72 @@ def test_tool_context_and_broker_schema_checks():
     tool, err = broker.validate("files.read", {"path": "x"}, Scopes())
     assert err and "Umfang" in err
     assert broker.validate("nope", {}, sc)[1].startswith("Unbekannt")
+
+
+@pytest.mark.asyncio
+async def test_tool_scope_widening_is_persisted_for_next_step(db, tmp_path):
+    """windows.launch adds the started window to the task scope; the loop re-reads the task from
+    the store each step, so the widened scope must be persisted (regression: W4 scope errors)."""
+    from spaider_foldable.agent.broker import Tool, ToolOutcome
+    from spaider_foldable.agent.models import WindowsScope
+
+    seen = []
+
+    async def widen(args, ctx):
+        ctx.scopes.windows.source_ids.append("win:1:1")
+        return ToolOutcome(ok=True, summary_de="gestartet", data={"source_id": "win:1:1"}, verified=True)
+
+    async def needs_source(args, ctx):
+        seen.append(list(ctx.scopes.windows.source_ids))
+        return ToolOutcome(ok=True, summary_de="ok", data={}, verified=True)
+
+    decisions = [
+        {"thought": "", "decision": "action", "action": {"tool": "fake.launch", "arguments": {}}, "expected_effect": "Fenster"},
+        {"thought": "", "decision": "action", "action": {"tool": "fake.use", "arguments": {}}, "expected_effect": "nutzt Fenster"},
+        {"thought": "", "decision": "done", "done": {"ok": True, "summary": "fertig", "verified_by": "fake.use"}},
+    ]
+    client = _ScriptedClient(decisions)
+    mgr, store, broker = _manager(db, client, tmp_path)
+    schema = {"type": "object", "properties": {}, "additionalProperties": False}
+    broker.register(Tool("fake.launch", "startet", "windows", "local", schema, widen, 5))
+    broker.register(Tool("fake.use", "nutzt", "windows", "none", schema, needs_source, 5))
+    task = store.create(goal="Starte und nutze", scopes=Scopes(windows=WindowsScope(source_ids=[], allowed_processes=["notepad.exe"])), max_steps=10, max_seconds=60, conversation_id=None, live_session_id=None, recipe_id=None, parameters=None)
+    mgr.start(task)
+    t = await _wait_terminal(store, task.id)
+    assert t.state == "completed", (t.state, t.summary_de)
+    assert seen == [["win:1:1"]]
+    assert store.get(task.id).scopes.windows.source_ids == ["win:1:1"]
+
+
+@pytest.mark.asyncio
+async def test_unverified_success_claim_is_pushed_back_once(db, tmp_path):
+    """A done(ok) right after an unverified action (click) is not accepted at once: the planner is
+    told to verify first; after a verified read the completion counts as verified."""
+    from spaider_foldable.agent.broker import Tool, ToolOutcome
+
+    async def click(args, ctx):
+        return ToolOutcome(ok=True, summary_de="Klick", data={}, verified=False)
+
+    async def read(args, ctx):
+        return ToolOutcome(ok=True, summary_de="gelesen: Weiter gedrueckt", data={"text": "Weiter gedrueckt"}, verified=True)
+
+    decisions = [
+        {"thought": "", "decision": "action", "action": {"tool": "fake.click", "arguments": {}}, "expected_effect": "Klick"},
+        {"thought": "", "decision": "done", "done": {"ok": True, "summary": "geklickt", "verified_by": "Klick"}},
+        {"thought": "", "decision": "action", "action": {"tool": "fake.read", "arguments": {}}, "expected_effect": "Status"},
+        {"thought": "", "decision": "done", "done": {"ok": True, "summary": "geklickt und geprueft", "verified_by": "fake.read"}},
+    ]
+    client = _ScriptedClient(decisions)
+    mgr, store, broker = _manager(db, client, tmp_path)
+    schema = {"type": "object", "properties": {}, "additionalProperties": False}
+    broker.register(Tool("fake.click", "klickt", "files", "local", schema, click, 5))
+    broker.register(Tool("fake.read", "liest", "files", "none", schema, read, 5))
+    task = store.create(goal="Klicke und pruefe", scopes=Scopes(files=FilesScope(roots=[str(tmp_path)], write_dir=None)), max_steps=10, max_seconds=60, conversation_id=None, live_session_id=None, recipe_id=None, parameters=None)
+    mgr.start(task)
+    t = await _wait_terminal(store, task.id)
+    assert t.state == "completed", (t.state, t.summary_de)
+    assert t.llm_calls == 4
+    assert t.result.ok and t.result.verified is True
+    assert [a.tool for a in store.actions(task.id)] == ["fake.click", "fake.read"]
+    # the push-back note reached the planner
+    assert "Abschluss noch nicht belegt" in client.prompts[2][1]["content"]

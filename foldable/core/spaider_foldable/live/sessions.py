@@ -188,7 +188,8 @@ class LiveManager:
     # ---- snapshots ---------------------------------------------------------------
     async def snapshot(self, session_id: str, *, want_image: bool, max_elements: int = 250) -> Snapshot:
         s = self.get(session_id)
-        snap = await asyncio.to_thread(self.taker.take, s.id, s.source, want_image=want_image, max_elements=max_elements, max_side=self.max_side())
+        # max_elements == 0 means "preview/image only, no UI-structure read"
+        snap = await asyncio.to_thread(self.taker.take, s.id, s.source, want_image=want_image, want_structure=max_elements > 0, max_elements=max(1, max_elements), max_side=self.max_side())
         s.snapshots.append(snap)
         del s.snapshots[:-2]
         if snap.quality == "lost":

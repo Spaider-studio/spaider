@@ -317,8 +317,11 @@ class ChatService:
                     if chunk.progress:
                         p = chunk.progress
                         total = int(p.get("total") or 0)
-                        processed = int(p.get("processed") or 0) + int(p.get("cache") or 0)
-                        pct = int(100 * processed / total) if total else None
+                        # llama-server's "processed" already counts the tokens taken from the cache
+                        processed = int(p.get("processed") or 0)
+                        if total:
+                            processed = min(processed, total)
+                        pct = min(100, int(100 * processed / total)) if total else None
                         ev = tracker.progress(
                             "prompt_processing",
                             f"Kontext wird verarbeitet ({pct} %)" if pct is not None else "Kontext wird verarbeitet",

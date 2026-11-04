@@ -29,7 +29,7 @@ class SourceBody(BaseModel):
 class SnapshotBody(BaseModel):
     include_image: bool = False
     preview: bool = False
-    max_elements: int = Field(default=200, ge=1, le=1000)
+    max_elements: int = Field(default=200, ge=0, le=1000)  # 0 = no structure read (preview only)
 
 
 class AskBody(BaseModel):

@@ -237,7 +237,7 @@ Ids sind opak (`live_…`, `task_…`, `act_…`, `snap_…`, `rcp_…`).
 - `GET /api/live/sessions` → `{"sessions":[LiveSession]}`; `GET /api/live/sessions/{id}` → `{"session":LiveSession}`
 - `PATCH /api/live/sessions/{id}` body `{"source_id":string}` → Quelle bewusst wechseln (kein stiller Wechsel).
 - `DELETE /api/live/sessions/{id}` → `{"ok":true}`; beendet Aufnahme, gibt Hooks/Abonnements frei.
-- `POST /api/live/sessions/{id}/snapshot` body `{"include_image":bool,"preview":bool,"max_elements":int}` → `{"snapshot":Snapshot}`
+- `POST /api/live/sessions/{id}/snapshot` body `{"include_image":bool,"preview":bool,"max_elements":int (0..1000; 0 = nur Bild/Vorschau, keine UI-Struktur)}` → `{"snapshot":Snapshot}`
   - `Snapshot` = `{"snapshot_id","session_id","captured_at","age_ms","source_kind":"window"|"screen","target":{"hwnd","pid","process","title","rect","monitor_id","scale"},"quality":"ok"|"black"|"minimized"|"occluded"|"lost"|"error","error":string|null,"text_excerpt":string,"text_chars":int,"elements":[Element],"elements_total":int,"truncated":bool,"image":{"width","height","bytes","png_base64":string|null,"preview_png_base64":string|null}|null,"transform":{"origin_x","origin_y","scale"}}`
   - `Element` = `{"id":string,"role":string,"name":string,"value":string|null,"rect":{"x","y","w","h"},"enabled":bool,"focused":bool,"path":string}` (Koordinaten in physischen Bildschirmpixeln).
   - `preview:true` liefert nur ein kleines Vorschaubild (max. 480 px breit) für das Overlay; das Vollbild bleibt im Kern.

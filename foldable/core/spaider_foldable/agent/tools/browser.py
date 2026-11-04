@@ -88,6 +88,7 @@ class BrowserAdapter:
         self._pw = None
         self._ctx = None
         self._page = None
+        self.owner_task_id: Optional[str] = None  # the task that opened the current page
         self._lock = asyncio.Lock()
         self._last_refs: set[str] = set()
         self._last_url: Optional[str] = None
@@ -181,9 +182,13 @@ class BrowserAdapter:
         data["text"] = text
         return data
 
+    def owned_by(self, task_id: str) -> bool:
+        return self._page is not None and not self._page.is_closed() and self.owner_task_id == task_id
+
     async def observe_text(self, task_id: str) -> str:
-        if self._page is None or self._page.is_closed():
-            return "Browser: noch keine Seite geöffnet (browser.open verwenden)."
+        if not self.owned_by(task_id):
+            # never show another task's page as this task's observation
+            return "Browser: für diese Aufgabe ist noch keine Seite geöffnet (zuerst browser.open mit der Zieladresse verwenden)."
         d = await self.snapshot(limit=60)
         lines = [f"Browser: {d['title'][:80]!r} {d['url'][:120]}" + (" (Elemente gekürzt)" if d["truncated"] else "")]
         for e in d["elements"][:60]:
@@ -198,8 +203,9 @@ class BrowserAdapter:
         return self._page.locator(f'[data-spaider-ref="{ref}"]')
 
     # ---- actions -------------------------------------------------------------------------
-    async def open(self, url: str, allowed_origins: Optional[list[str]]) -> dict:
+    async def open(self, url: str, allowed_origins: Optional[list[str]], task_id: Optional[str] = None) -> dict:
         self.allowed_origins = allowed_origins
+        self.owner_task_id = task_id
         u = urlparse(url)
         if u.scheme not in ("http", "https", "file"):
             raise ToolError("invalid", "Nur http(s)- oder file-Adressen.")
@@ -295,43 +301,56 @@ def register(broker: Broker, adapter: BrowserAdapter) -> None:
     def _origins(ctx: ToolContext):
         return (ctx.scopes.browser.allowed_origins if ctx.scopes.browser else None)
 
+    def _own(ctx: ToolContext) -> None:
+        if not adapter.owned_by(ctx.task_id):
+            raise ToolError("no_page", "Für diese Aufgabe ist noch keine Seite geöffnet; zuerst browser.open mit der Zieladresse aufrufen.")
+
     async def t_open(args, ctx):
-        d = await adapter.open(args["url"], _origins(ctx))
+        d = await adapter.open(args["url"], _origins(ctx), task_id=ctx.task_id)
         return ToolOutcome(ok=True, summary_de=f"Seite geöffnet: {d['title'][:60]} ({d['status']})", data=d, evidence={"url": d["url"], "status": d["status"]}, verified=d["status"] is None or d["status"] < 400)
 
     async def t_snapshot(args, ctx):
+        _own(ctx)
         d = await adapter.snapshot(limit=int(args.get("max_elements") or 120))
         elements = [{"ref": e["ref"], "role": e["role"], "name": e["name"][:80], **({"value": e["value"][:60]} if e.get("value") else {}), **({"focused": True} if e["focused"] else {})} for e in d["elements"]]
         return ToolOutcome(ok=True, summary_de=f"{len(d['elements'])} Elemente auf „{d['title'][:50]}“", data={"url": d["url"], "title": d["title"], "elements": elements, "hint": "Für click/fill/select/press genau den Wert aus 'ref' verwenden (z. B. b3).", "truncated": d["truncated"], "text": d["text"][:2500]}, evidence={"url": d["url"], "title": d["title"], "text_excerpt": d["text"][:600]}, verified=True)
 
     async def t_click(args, ctx):
+        _own(ctx)
         d = await adapter.click(args["ref"])
         return ToolOutcome(ok=True, summary_de=f"Geklickt: {d['clicked'][:40]!r} → {d['title'][:50]}", data=d, evidence={"url": d["url"], "title": d["title"], "text_excerpt": d.get("text_after", "")[:600]}, verified=False)
 
     async def t_fill(args, ctx):
+        _own(ctx)
         d = await adapter.fill(args["ref"], args["text"])
         return ToolOutcome(ok=d["verified"], summary_de=("Feld gefüllt und zurückgelesen" if d["verified"] else "Feldwert weicht ab"), data=d, evidence=d, verified=d["verified"])
 
     async def t_select(args, ctx):
+        _own(ctx)
         d = await adapter.select(args["ref"], args["value"])
         return ToolOutcome(ok=d["verified"], summary_de="Option gewählt" if d["verified"] else "Option nicht gefunden", data=d, verified=d["verified"])
 
     async def t_press(args, ctx):
+        _own(ctx)
         d = await adapter.press(args.get("ref"), args["key"])
         return ToolOutcome(ok=True, summary_de=f"Taste {args['key']} gesendet", data=d, evidence={"url": d["url"], "text_excerpt": d.get("text_after", "")[:600]}, verified=False)
 
     async def t_scroll(args, ctx):
+        _own(ctx)
         return ToolOutcome(ok=True, summary_de="gescrollt", data=await adapter.scroll(args["direction"]), verified=True)
 
     async def t_wait(args, ctx):
+        _own(ctx)
         d = await adapter.wait_for_text(args["text"], int(args.get("timeout_ms") or 10000))
         return ToolOutcome(ok=d["found"], summary_de=("Text erschienen" if d["found"] else "Text nicht erschienen"), data=d, evidence={"text": args["text"], "found": d["found"]}, verified=d["found"])
 
     async def t_read(args, ctx):
+        _own(ctx)
         d = await adapter.read(int(args.get("max_chars") or 4000))
         return ToolOutcome(ok=True, summary_de=f"{len(d['text'])} Zeichen gelesen", data=d, evidence={"url": d["url"], "title": d["title"], "text_excerpt": d["text"][:600]}, verified=True)
 
     async def t_back(args, ctx):
+        _own(ctx)
         return ToolOutcome(ok=True, summary_de="zurück", data=await adapter.back(), verified=False)
 
     av = adapter.availability

@@ -258,6 +258,12 @@ class AgentManager:
                         self._note(task_id, "Abschluss abgelehnt: Es wurde noch keine Aktion ausgeführt. Erst Werkzeuge verwenden (z. B. files.list/files.read), dann done.")
                         continue
                     verified = self._verified_claim(task_id, d.get("verified_by") or "")
+                    if d.get("ok") and not verified and self._counter(task_id, "unverified_done") < 2:
+                        # a success claim right after an unverified action (click, key press, invoke) is
+                        # pushed back once: verify first with a read-type tool, then report done
+                        last = executed[-1].tool if executed else "-"
+                        self._note(task_id, f"Abschluss noch nicht belegt: Die letzte Aktion ({last}) hat kein geprüftes Ergebnis. Erst das Ergebnis prüfen (z. B. windows.read, browser.wait_for_text, browser.read, files.read), dann done melden.")
+                        continue
                     self._finish(task_id, ok=bool(d.get("ok")), summary=str(d.get("summary") or "")[:600], verified=verified, verified_by=d.get("verified_by"))
                     return
                 if kind == "ask_user":
@@ -347,6 +353,10 @@ class AgentManager:
                 self._remember_data(task_id, action.action_id, outcome)
                 if outcome.artifacts:
                     self._add_artifacts(task_id, outcome.artifacts)
+                # tools may widen the task scope in a controlled way (windows.launch adds the window it
+                # started); the loop re-reads the task from the store each step, so persist that change
+                if ctx.scopes != self.store.get(task_id).scopes:
+                    self.store.update(task_id, scopes_json=ctx.scopes.model_dump_json())
                 if self.store.cancel_generation(task_id) != gen or self._is_cancelled(task_id):
                     raise asyncio.CancelledError()
                 # ---- verifying

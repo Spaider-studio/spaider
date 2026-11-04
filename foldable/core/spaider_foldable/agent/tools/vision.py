@@ -140,19 +140,28 @@ class VisionTools:
             return ToolOutcome(ok=False, summary_de="Ziel nicht eindeutig gefunden", data={"raw": text[:200]}, snapshot_id=snap.snapshot_id, error="not_found")
         x, y = pt
         conv = cal.get("convention")
-        if conv == "normalized_1000":
-            mx, my = x / 1000 * prep.width, y / 1000 * prep.height
-        elif conv == "normalized_1":
-            mx, my = x * prep.width, y * prep.height
-        else:
-            mx, my = x, y
+        cands = {
+            "absolute": (x, y),
+            "normalized_1000": (x / 1000 * prep.width, y / 1000 * prep.height),
+            "normalized_1": (x * prep.width, y * prep.height),
+        }
+        mx, my = cands.get(conv, (x, y))
+        convention_swapped = False
+        if not (0 <= mx <= prep.width and 0 <= my <= prep.height):
+            # the calibrated convention puts the point outside the image: the model answered in
+            # another convention this time; use the one that lands inside and report it as unverified
+            for alt in ("absolute", "normalized_1000"):
+                ax, ay = cands[alt]
+                if alt != conv and 0 <= ax <= prep.width and 0 <= ay <= prep.height:
+                    mx, my, conv, convention_swapped = ax, ay, alt, True
+                    break
         sx, sy = model_to_screen(prep, mx, my)
         inside = snap.frame.rect.contains(sx, sy) if snap.frame else False
-        verified = cal.get("status") == "verified" and inside
+        verified = cal.get("status") == "verified" and inside and not convention_swapped
         return ToolOutcome(
             ok=inside,
             summary_de=(f"Ziel bei Bildschirmposition ({sx},{sy})" + ("" if verified else " – Koordinatenkonvention nicht verifiziert, nicht blind klicken")),
-            data={"x": sx, "y": sy, "convention": conv, "calibration_error_pct": cal.get("error_pct"), "inside_window": inside, "raw": text[:120]},
+            data={"x": sx, "y": sy, "convention": conv, "convention_swapped": convention_swapped, "calibration_error_pct": cal.get("error_pct"), "inside_window": inside, "image": f"{prep.width}x{prep.height}", "raw": text[:120]},
             evidence={"model_point": [x, y], "screen_point": [sx, sy], "transform": snap.transform, "calibration": cal},
             snapshot_id=snap.snapshot_id,
             verified=verified,

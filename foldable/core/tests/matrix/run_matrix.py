@@ -275,7 +275,7 @@ class Harness:
         false_claim = t["state"] == "completed" and bool((t["result"] or {}).get("ok")) and not check["ok"]
         kinds = sorted({a["tool"] for a in final["actions"] if a["state"] == "failed"})
         return {"id": task["id"], "goal": goal, "success": ok, "false_success_claim": false_claim, "state": t["state"], "steps": t["step"], "llm_calls": t["llm_calls"], "wall_s": round(time.monotonic() - t0, 1), "questions": questions, "interventions": interventions,
-                "failed_tools": kinds, "rejected": sum(1 for a in final["actions"] if a["state"] == "rejected"), "check": check, "summary": t["summary_de"][:200], "timings": (t["result"] or {}).get("timings"), "actions": [(a["seq"], a["tool"], a["state"]) for a in final["actions"]]}
+                "failed_tools": kinds, "rejected": sum(1 for a in final["actions"] if a["state"] == "rejected"), "check": check, "summary": t["summary_de"][:200], "timings": (t["result"] or {}).get("timings"), "actions": [(a["seq"], a["tool"], a["state"]) + (() if a["state"] == "done" else (str(a.get("reason_de") or (a.get("result") or {}).get("error") or (a.get("result") or {}).get("summary_de") or "")[:160],)) for a in final["actions"]]}
 
     def check(self, task: dict, v: dict, actions: list, reads: list[str]) -> dict:
         kind = task["check"]

@@ -234,10 +234,14 @@ class WindowsTools:
 
             mouse.click(button="left", coords=(x, y))
 
+        before = await self._fresh(ctx, fresh)
+        before_text = before.context_text(max_elements=30, max_chars=1500)
         await asyncio.to_thread(_do)
         await asyncio.sleep(0.3)
         after = await self._fresh(ctx, fresh)
-        return ToolOutcome(ok=True, summary_de=f"Klick bei ({x},{y})", data={"structure_after": after.context_text(max_elements=30, max_chars=1500)}, evidence={"x": x, "y": y, "window_rect": fresh.rect.to_dict()}, snapshot_id=after.snapshot_id, verified=False)
+        after_text = after.context_text(max_elements=30, max_chars=1500)
+        changed = after_text != before_text  # deterministic hint: did the UI react to the click at all?
+        return ToolOutcome(ok=True, summary_de=f"Klick bei ({x},{y}); Oberfläche danach {'verändert' if changed else 'unverändert'}", data={"changed": changed, "structure_after": after_text}, evidence={"x": x, "y": y, "window_rect": fresh.rect.to_dict(), "changed": changed}, snapshot_id=after.snapshot_id, verified=False)
 
     async def launch(self, args: dict, ctx: ToolContext) -> ToolOutcome:
         app = (args["app"] or "").strip().lower()
