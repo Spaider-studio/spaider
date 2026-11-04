@@ -127,6 +127,25 @@ sperrt neue Aktionen sofort (ohne auf das Modell zu warten), bricht Runner und
 Modellaufruf ab; eine gerade laufende Betriebssystemaktion wird als
 `unknown_outcome` journaliert, nicht als rückgängig gemacht behauptet.
 
+**Browserseite je Aufgabe.** Der Adapter merkt sich, welche Aufgabe die
+aktuelle Seite geöffnet hat. Beobachtung und Seitenwerkzeuge gelten nur für
+diese Aufgabe; eine andere Aufgabe sieht „noch keine Seite geöffnet“ und muss
+`browser.open` aufrufen (verhindert, dass Inhalte einer Voraufgabe als
+Beobachtung erscheinen und ohne Öffnen „gelesen“ werden).
+
+**Vordergrund.** `windows.focus`/`click_at` aktivieren das Ziel über
+`bring_to_front` (Wiederherstellen, Anbinden an die Eingabewarteschlange des
+aktuellen Vordergrundthreads, bei Bedarf kurzer Modifier-Tastendruck,
+SetForegroundWindow + BringWindowToTop) und warten bis zu 0,6 s auf das
+tatsächliche Vordergrundfenster; ein Klick ohne Vordergrund wird abgebrochen.
+
+**Deterministische Prüfhinweise.** `windows.click_at` liest die Struktur vor
+und nach dem Klick und meldet `changed`; `vision.locate` prüft die
+Koordinatenkonvention je Antwort auf Plausibilität. Ein `done(ok)` direkt
+nach einer unbelegten Aktion (Klick, Taste, Invoke) weist der Loop einmal
+zurück und verlangt eine Lese-/Warteaktion; danach wird die Meldung
+angenommen, aber als `verified=false` gekennzeichnet.
+
 ## 6. Persistenz und Portabilität
 
 `agent_tasks`, `agent_actions` (Absicht vor dem Seiteneffekt, Ergebnis
@@ -135,6 +154,18 @@ nach einem Neustart werden laufende Tasks `interrupted`, laufende Aktionen
 `unknown_outcome`. Rezepte entstehen nur aus erfolgreich belegten Läufen und
 tragen Voraussetzungen, Schritte mit Prüfungen und bekannte Grenzen; sie
 ändern keinen Code und erweitern keine Rechte. Details: `PORTABLE_AGENT_STATE.md`.
+
+**Rezeptausführung.** Eine Aufgabe mit `recipe_id` läuft durch denselben Loop:
+Beobachten → statt des Modellaufrufs liefert der Rezept-Cursor den nächsten
+Schritt (Argumente mit `{name}`-Parametern gefüllt) → Broker-Validierung
+(Schema, Umfang, Frische der Elementreferenzen) → Freigaberegeln → Ausführen →
+Prüfen. Schlägt ein Schritt fehl oder ist er nicht mehr anwendbar, wird das
+Rezept verlassen und der Planer übernimmt mit den Restschritten als Hinweis.
+Sind alle Schritte ausgeführt und ist der letzte belegt (`verified`), endet
+die Aufgabe ohne Modellaufruf; sonst entscheidet ein Planungsaufruf über den
+Abschluss. Rezepte können den Umfang nicht erweitern (die Scopes kommen aus
+der Aufgabenanlage) und replizieren nur aufgezeichnete Argumente; Inhalte, die
+im Originallauf aus gelesenen Daten entstanden, werden nicht neu abgeleitet.
 
 ## 7. Modelle
 
