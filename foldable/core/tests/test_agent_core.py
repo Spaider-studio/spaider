@@ -351,3 +351,12 @@ async def test_empty_questions_are_discarded_then_fail(db, tmp_path):
     assert t.state == "failed" and "leere" in t.summary_de
     assert t.pending_question is None
     assert "keinen Text" in client.prompts[1][1]["content"]
+
+
+def test_recipe_templatize_handles_slash_variants():
+    from spaider_foldable.api.routes_agent import _templatize
+
+    params = [{"name": "src", "value": "C:\Daten\Projekt A\quelle.txt"}, {"name": "projname", "value": "Seeadler"}]
+    args = {"path": "C:/Daten/Projekt A/quelle.txt", "text": "Seeadler", "nested": {"x": "C:\Daten\Projekt A\quelle.txt"}}
+    out = _templatize(args, params)
+    assert out == {"path": "{src}", "text": "{projname}", "nested": {"x": "{src}"}}

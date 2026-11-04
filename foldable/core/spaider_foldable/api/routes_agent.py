@@ -143,7 +143,14 @@ async def answer(task_id: str, body: AnswerBody, ctx: AppContext = Depends(get_c
 def _templatize(value, parameters: list[dict]):
     """Replace the literal parameter values of the recorded run by {name} placeholders so the recipe
     can be replayed with other values (parameters: [{"name": "...", "value": "<literal>", ...}])."""
-    subs = [(str(p.get("value")), "{" + str(p.get("name")) + "}") for p in (parameters or []) if p.get("name") and p.get("value") not in (None, "")]
+    subs = []
+    for p in parameters or []:
+        if not p.get("name") or p.get("value") in (None, ""):
+            continue
+        val, ph = str(p.get("value")), "{" + str(p.get("name")) + "}"
+        # paths recorded by the planner may use the other slash style than the parameter value
+        for variant in {val, val.replace("\\", "/"), val.replace("/", "\\")}:
+            subs.append((variant, ph))
     if isinstance(value, str):
         out = value
         for lit, ph in sorted(subs, key=lambda kv: -len(kv[0])):
