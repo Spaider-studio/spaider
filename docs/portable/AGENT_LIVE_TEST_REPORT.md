@@ -192,9 +192,42 @@ Lesart je Aufgabe:
   Beobachtung eindeutige Namen als Referenz akzeptiert, mehrdeutige mit den
   Kandidaten-IDs abgelehnt (Unit-Test); Wiederholung unten.
 
-### Wiederholung W1/V5 nach Namensreferenz- und Fixture-Fix (Qwen3-VL-4B, 3 Wiederholungen)
+### Wiederholung W1/V5 nach Namensreferenz- und Fixture-Fix (Qwen3-VL-4B, Code 1d2bbd8, 3 Wiederholungen)
 
-*(wird nach Abschluss des Laufs eingetragen)*
+**matrix-qwen3-vl-4b-final2.json** – Modell `qwen3-vl-4b-instruct-q4_k_m`, Backend vulkan, Start 2026-11-04T01:39:24Z, Wiederholungen 3, Zeitbudget 180 s. Gesamt: **6/6**, Fehlerfolge-Meldungen 0, Rückfragen 0, Median-Wandzeit 55.9 s.
+
+| Aufgabe | Erfolg | Fehlerfolge | Rückfragen | Median Wandzeit | Modellaufrufe | Fehlgeschlagene Werkzeuge / Endzustände |
+|---|---|---|---|---|---|---|
+| W1 | 3/3 | 0 | 0 | 58 s | 6/6/6 | –; completed |
+| V5 | 3/3 | 0 | 0 | 44 s | 5/5/5 | –; completed |
+
+Je Gruppe: Windows/UIA **3/3**, Bild/Live **3/3**
+
+
+W1: Fokus → `set_value` „Name“ → `set_value` „Notizen“ → `invoke` „Speichern“ →
+`read` Status → done, 6 Schritte; V5: locate → click → read „Weiter gedrückt“ →
+done, 5 Schritte (ein Planungsaufruf mehr als nötig: die Prüfpflicht fordert
+nach dem Klick das Lesen ein).
+
+### Stand je Aufgabe mit dem jeweils letzten Lauf (Qwen3-VL-4B)
+
+Zusammengesetzt aus den obigen Läufen (unterschiedliche Code-Stände, daher
+**kein** einzelner Durchlauf; die Quelle steht je Aufgabe dabei):
+
+| Gruppe | Aufgaben (Erfolg/3, Quelle) | Summe |
+|---|---|---|
+| Dateien/Gedächtnis | F1 3 (Erstlauf), F2 3 (Erstlauf), F3 3 (Erstlauf), F4 1 (Erstlauf), F5 3 (Erstlauf) | **13/15** |
+| Browser | B1 3 (Nachlauf), B2 2 (Nachlauf), B3 2 (Erstlauf), B4 3 (Erstlauf), B5 3 (Nachlauf) | **13/15** |
+| Windows/UIA | W1 3 (Wiederholung), W2 3 (Erstlauf), W3 3 (Fixture-Nachlauf), W4 2 (Nachlauf), W5 3 (Erstlauf) | **14/15** |
+| Bild/Live | V1 2 (Erstlauf), V2 3 (Nachlauf), V3 2 (Erstlauf), V4 3 (Erstlauf), V5 3 (Wiederholung) | **13/15** |
+| gesamt | | **53/60** |
+
+Verbleibende Fehlschläge sind Modellverhalten (F4 Dateiname vergessen, B3
+einmal Zeitbudget, B2 Konfliktprüfung ohne `if_sha256`, W4 falsches Element
+gelesen, V1/V3 ungenaue Bildantwort) – keine bekannten Kernfehler mehr. Ein
+vollständiger Wiederholungslauf aller 60 Fälle mit dem Endstand fand in
+dieser Sitzung **nicht** statt (Zeit); die Einzelgruppen oben sind die
+belastbaren Zahlen.
 
 ### A/B: normaler Loop vs. gespeichertes Rezept (B1 Formular, Qwen3-VL-4B)
 

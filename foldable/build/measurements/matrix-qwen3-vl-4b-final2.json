@@ -1,0 +1,338 @@
+{
+  "model": "qwen3-vl-4b-instruct-q4_k_m",
+  "catalog_id": "qwen3-vl-4b-instruct-q4_k_m",
+  "started_at": "2026-11-04T01:39:24Z",
+  "repeat": 3,
+  "task_timeout_s": 180,
+  "runs": [
+    {
+      "id": "W1",
+      "goal": "Im Fenster „SpAIder Testanwendung W1-0-467“ (source_id win:1316038:36068): Trage in „Name“ den Text „Samir Probe“ und in „Notizen“ den Text „Kickoff 06.09.2026“ ein, klicke „Speichern“ und prüfe die Datei C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-j9tb_kha\\W1-0\\ausgabe.txt.",
+      "success": true,
+      "false_success_claim": false,
+      "state": "completed",
+      "steps": 6,
+      "llm_calls": 6,
+      "wall_s": 61.3,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-j9tb_kha\\W1-0\\ausgabe.txt",
+        "exists": true,
+        "missing": []
+      },
+      "summary": "Texte in Formular eingetragen, gespeichert und Ausgabedatei geprüft. Inhalt korrekt: Name: Samir Probe, Notizen: Kickoff 06.09.2026.",
+      "timings": {
+        "observe_ms": 842,
+        "wait_ms": 0,
+        "planning_ms": 58777,
+        "executing_ms": 1593
+      },
+      "actions": [
+        [
+          1,
+          "windows.focus",
+          "done"
+        ],
+        [
+          2,
+          "windows.set_value",
+          "done"
+        ],
+        [
+          3,
+          "windows.set_value",
+          "done"
+        ],
+        [
+          4,
+          "windows.invoke",
+          "done"
+        ],
+        [
+          5,
+          "files.read",
+          "done"
+        ]
+      ],
+      "group": "windows",
+      "repeat": 0
+    },
+    {
+      "id": "W1",
+      "goal": "Im Fenster „SpAIder Testanwendung W1-1-193“ (source_id win:1447452:35056): Trage in „Name“ den Text „Mara Muster“ und in „Notizen“ den Text „Kickoff 13.08.2026“ ein, klicke „Speichern“ und prüfe die Datei C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-j9tb_kha\\W1-1\\ausgabe.txt.",
+      "success": true,
+      "false_success_claim": false,
+      "state": "completed",
+      "steps": 6,
+      "llm_calls": 6,
+      "wall_s": 57.7,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-j9tb_kha\\W1-1\\ausgabe.txt",
+        "exists": true,
+        "missing": []
+      },
+      "summary": "Name und Notizen wurden korrekt eingegeben, gespeichert und die Ausgabedatei wurde geprüft.",
+      "timings": {
+        "observe_ms": 813,
+        "wait_ms": 0,
+        "planning_ms": 55043,
+        "executing_ms": 1748
+      },
+      "actions": [
+        [
+          1,
+          "windows.focus",
+          "done"
+        ],
+        [
+          2,
+          "windows.set_value",
+          "done"
+        ],
+        [
+          3,
+          "windows.set_value",
+          "done"
+        ],
+        [
+          4,
+          "windows.invoke",
+          "done"
+        ],
+        [
+          5,
+          "files.read",
+          "done"
+        ]
+      ],
+      "group": "windows",
+      "repeat": 1
+    },
+    {
+      "id": "W1",
+      "goal": "Im Fenster „SpAIder Testanwendung W1-2-855“ (source_id win:7933752:22588): Trage in „Name“ den Text „Jonas Beispiel“ und in „Notizen“ den Text „Kickoff 11.01.2026“ ein, klicke „Speichern“ und prüfe die Datei C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-j9tb_kha\\W1-2\\ausgabe.txt.",
+      "success": true,
+      "false_success_claim": false,
+      "state": "completed",
+      "steps": 6,
+      "llm_calls": 6,
+      "wall_s": 55.9,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-j9tb_kha\\W1-2\\ausgabe.txt",
+        "exists": true,
+        "missing": []
+      },
+      "summary": "Texte in Formular eingetragen, Datei gespeichert und Inhalte geprüft. Ergebnis: ausgabe.txt enthält korrekte Inhalte.",
+      "timings": {
+        "observe_ms": 700,
+        "wait_ms": 0,
+        "planning_ms": 53511,
+        "executing_ms": 1610
+      },
+      "actions": [
+        [
+          1,
+          "windows.focus",
+          "done"
+        ],
+        [
+          2,
+          "windows.set_value",
+          "done"
+        ],
+        [
+          3,
+          "windows.set_value",
+          "done"
+        ],
+        [
+          4,
+          "windows.invoke",
+          "done"
+        ],
+        [
+          5,
+          "files.read",
+          "done"
+        ]
+      ],
+      "group": "windows",
+      "repeat": 2
+    },
+    {
+      "id": "V5",
+      "goal": "Finde mit vision.locate im Fenster „SpAIder Bildfenster V5-0-339“ (source_id win:3675576:37944) die grüne Schaltfläche „WEITER“ und klicke sie mit windows.click_at. Prüfe mit windows.read, dass der Text „Weiter gedrückt“ erscheint.",
+      "success": true,
+      "false_success_claim": false,
+      "state": "completed",
+      "steps": 5,
+      "llm_calls": 5,
+      "wall_s": 45.8,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "reads": 2
+      },
+      "summary": "Grüne Schaltfläche 'WEITER' geklickt und Text 'Weiter gedrückt' bestätigt.",
+      "timings": {
+        "observe_ms": 405,
+        "wait_ms": 0,
+        "planning_ms": 36716,
+        "executing_ms": 8592
+      },
+      "actions": [
+        [
+          1,
+          "vision.locate",
+          "done"
+        ],
+        [
+          2,
+          "windows.click_at",
+          "done"
+        ],
+        [
+          3,
+          "windows.read",
+          "done"
+        ]
+      ],
+      "group": "visual",
+      "repeat": 0
+    },
+    {
+      "id": "V5",
+      "goal": "Finde mit vision.locate im Fenster „SpAIder Bildfenster V5-1-107“ (source_id win:1185320:11200) die grüne Schaltfläche „WEITER“ und klicke sie mit windows.click_at. Prüfe mit windows.read, dass der Text „Weiter gedrückt“ erscheint.",
+      "success": true,
+      "false_success_claim": false,
+      "state": "completed",
+      "steps": 5,
+      "llm_calls": 5,
+      "wall_s": 42.3,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "reads": 2
+      },
+      "summary": "Grüne Schaltfläche 'WEITER' geklickt und Text 'Weiter gedrückt' bestätigt.",
+      "timings": {
+        "observe_ms": 437,
+        "wait_ms": 0,
+        "planning_ms": 36449,
+        "executing_ms": 5343
+      },
+      "actions": [
+        [
+          1,
+          "vision.locate",
+          "done"
+        ],
+        [
+          2,
+          "windows.click_at",
+          "done"
+        ],
+        [
+          3,
+          "windows.read",
+          "done"
+        ]
+      ],
+      "group": "visual",
+      "repeat": 1
+    },
+    {
+      "id": "V5",
+      "goal": "Finde mit vision.locate im Fenster „SpAIder Bildfenster V5-2-462“ (source_id win:3020338:5228) die grüne Schaltfläche „WEITER“ und klicke sie mit windows.click_at. Prüfe mit windows.read, dass der Text „Weiter gedrückt“ erscheint.",
+      "success": true,
+      "false_success_claim": false,
+      "state": "completed",
+      "steps": 5,
+      "llm_calls": 5,
+      "wall_s": 43.8,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "reads": 2
+      },
+      "summary": "Nach dem Klicken der grünen Schaltfläche 'WEITER' erscheint der Text 'Weiter gedrückt' im Fenster.",
+      "timings": {
+        "observe_ms": 373,
+        "wait_ms": 0,
+        "planning_ms": 38153,
+        "executing_ms": 5280
+      },
+      "actions": [
+        [
+          1,
+          "vision.locate",
+          "done"
+        ],
+        [
+          2,
+          "windows.click_at",
+          "done"
+        ],
+        [
+          3,
+          "windows.read",
+          "done"
+        ]
+      ],
+      "group": "visual",
+      "repeat": 2
+    }
+  ],
+  "host": {
+    "desktop_interactive": true
+  },
+  "runtime": {
+    "backend": "vulkan",
+    "device": "Vulkan0",
+    "gpu_layers": 999,
+    "threads": 8,
+    "threads_batch": 8,
+    "prio": 0,
+    "reason_de": "Alle Schichten auf Intel(R) Arc(TM) 140V GPU (16GB) (geschätzt 5.6 GB von 17.2 GB frei).",
+    "mmproj_offload": true,
+    "image_max_tokens": null,
+    "mmproj": "C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-j9tb_kha\\SpAIder\\data\\models\\qwen3-vl-4b-instruct-q4_k_m\\mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf"
+  },
+  "capabilities": {
+    "id": "qwen3-vl-4b-instruct-q4_k_m",
+    "vision_input": true,
+    "image_grounding": "untested",
+    "tool_call_format": "json_schema",
+    "structured_output": true
+  },
+  "summary": {
+    "success": 6,
+    "total": 6,
+    "false_success_claims": 0,
+    "questions": 0,
+    "median_wall_s": 55.9
+  }
+}

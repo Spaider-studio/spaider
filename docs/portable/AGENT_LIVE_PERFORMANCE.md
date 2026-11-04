@@ -61,8 +61,25 @@ stabil und wird vom Prompt-Cache getragen; Beobachtungen und Aktionsverlauf
 
 ## Aufgabenmatrix
 
-*(wird eingetragen: Erfolg/Nenner, Median-Wandzeit, Modellaufrufe, Rückfragen je
-Gruppe und Modell; Qwen3-VL-4B vollständig, Qwen3-4B und Gemma 4 E2B Teilmenge)*
+Vollständige Tabellen je Lauf in `AGENT_LIVE_TEST_REPORT.md` (Abschnitt E).
+Kennzahlen (geteilte GPU, daher pessimistisch; Zeitbudget 180 s):
+
+| Modell / Lauf | Erfolg | Median Wandzeit | Modellaufrufe je Aufgabe (typisch) | Rückfragen |
+|---|---|---|---|---|
+| Qwen3-VL-4B, Erstlauf 20 × 3 | 34/60 | 35 s | 3–5 (Dateien/Bild), 4–7 (Browser), bis 14 bei Fehlschlägen | 6 |
+| Qwen3-VL-4B, Nachlauf 7 Aufgaben × 3 (Kernfixes) | 13/21 | 44 s | 3–5, Browserformular 9–10 | 0 |
+| Qwen3-VL-4B, W1/V5 × 3 (Namensreferenz, Fixture) | 6/6 | 56 s | 5–6 | 0 |
+| Qwen3-4B Text, 15 Aufgaben × 2 | 22/30 | 28 s | 3–5, Browserformular 8–13 | 0 |
+| Gemma 4 E2B, 8 Aufgaben × 2 | 5/16 | 46 s | 2–14 | 51 (meist leer) |
+
+Je Planungsaufruf ≈ 6–10 s bei 1,2–2 k Prompt-Tokens (Qwen3-VL-4B, Vulkan,
+geteilte GPU); Werkzeuge liegen bei 10–500 ms je Aufruf (UIA-Lesen 60–130 ms
+warm, `set_value` mit Rücklesen ≈ 400 ms, Browser-Klick mit Textauszug
+≈ 300 ms). Die Wandzeit einer Aufgabe ist damit fast ausschließlich
+Modellzeit: 3 Schritte ≈ 20–30 s, 5–6 Schritte ≈ 45–60 s, 9 Schritte ≈ 70 s.
+Hebel: weniger Schritte durch deterministische Prüfungen (Klick meldet
+Veränderung, Rücklesen nach `set_value`) und Rezepte (siehe A/B im
+Prüfbericht).
 
 ## Oberfläche (echtes Electron-Fenster, echte Tastatureingabe, Backend = Mock)
 
