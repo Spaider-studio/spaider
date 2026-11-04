@@ -20,7 +20,7 @@ from typing import Any, Callable, Optional
 from ..activity import ActivityBus, ActivityTracker
 from ..scheduler import LLMScheduler
 from .broker import Broker, ToolContext, ToolOutcome
-from .models import Action, ActionResult, Artifact, PendingQuestion, Scopes, Task, TaskResult
+from .models import Recipe, Action, ActionResult, Artifact, PendingQuestion, Scopes, Task, TaskResult
 from .prompts import AGENT_SYSTEM_PROMPT, build_action_schema, step_user_message, tools_block
 from .store import TaskStore
 
@@ -54,6 +54,20 @@ class TaskEvents:
                 q.put_nowait((kind, payload))
             except asyncio.QueueFull:
                 pass
+
+
+def _fill_template(value, params: dict):
+    """Replace {name} placeholders in string arguments (recursively); unknown names stay as they are."""
+    if isinstance(value, str):
+        out = value
+        for k, v in (params or {}).items():
+            out = out.replace("{" + str(k) + "}", str(v))
+        return out
+    if isinstance(value, dict):
+        return {k: _fill_template(v, params) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_fill_template(v, params) for v in value]
+    return value
 
 
 class AgentManager:
@@ -237,8 +251,10 @@ class AgentManager:
                 # ---- planning
                 self._set_state(task_id, "planning", summary_de=f"Schritt {step}: nächster Schritt wird geplant.")
                 tracker.start("planning", f"Schritt {step}: Planung")
-                decision = await self._plan(task, observations, tracker)
-                tracker.done("planning", "Entscheidung erhalten", {"llm_calls": self.store.get(task_id).llm_calls})
+                decision = self._recipe_decision(task, refs)
+                if decision is None:
+                    decision = await self._plan(task, observations, tracker)
+                tracker.done("planning", "Entscheidung erhalten", {"llm_calls": self.store.get(task_id).llm_calls, "recipe": decision is not None and bool(decision.get("_recipe"))})
                 if decision is None:
                     self._finish(task_id, ok=False, summary="Das Modell lieferte keine gültige Entscheidung (zwei Reparaturversuche).", verified=False)
                     return
@@ -363,6 +379,7 @@ class AgentManager:
                 self._set_state(task_id, "verifying", summary_de=f"Schritt {step}: {outcome.summary_de[:120]}")
                 key = f"{tool_name}:{json.dumps(arguments, sort_keys=True)}"
                 if not outcome.ok:
+                    self._recipe_fallback(task_id, f"Schritt {tool_name} schlug fehl: {outcome.summary_de[:120]}")
                     repeated_failure[key] = repeated_failure.get(key, 0) + 1
                     if repeated_failure[key] >= 3:
                         self._finish(task_id, ok=False, summary=f"{tool_name} ist dreimal mit denselben Argumenten gescheitert: {outcome.summary_de[:200]}", verified=False)
@@ -393,6 +410,63 @@ class AgentManager:
         prev = task.result.model_dump() if task.result else {}
         result = TaskResult(ok=ok, summary_de=summary, artifacts=[Artifact(**a) for a in (prev.get("artifacts") or [])], verified=verified, verified_by=verified_by, timings=self.timings(task_id))
         self._set_state(task_id, "completed" if ok else "failed", summary_de=summary, finished=True, result_json=result.model_dump_json())
+
+    # ---- recipes (stored procedures): deterministic replay with planner fallback -------------
+    def _recipe_state(self, task: Task) -> Optional[dict]:
+        if not hasattr(self, "_recipes"):
+            self._recipes = {}
+        st = self._recipes.get(task.id)
+        if st is None:
+            if not task.recipe_id:
+                return None
+            try:
+                recipe = self.store.get_recipe(task.recipe_id)
+            except Exception:  # noqa: BLE001
+                self._note(task.id, f"Ablauf {task.recipe_id} nicht gefunden; es wird normal geplant.")
+                self._recipes[task.id] = {"active": False}
+                return self._recipes[task.id]
+            st = {"recipe": recipe, "cursor": 0, "active": True, "params": dict(task.parameters or {}), "executed": 0}
+            available = {t.name for t in self.broker.available_tools(task.scopes)}
+            missing = [t for t in (recipe.requires.get("tools") or []) if t not in available]
+            if missing:
+                st["active"] = False
+                self._note(task.id, f"Ablauf „{recipe.name}“ nicht anwendbar (Werkzeuge fehlen oder nicht im Umfang: {', '.join(missing)}); es wird normal geplant.")
+            self._recipes[task.id] = st
+        return st
+
+    def _recipe_decision(self, task: Task, refs: dict) -> Optional[dict]:
+        """Next action from the task's recipe (no model call) or None when the planner must decide."""
+        st = self._recipe_state(task)
+        if not st or not st.get("active"):
+            return None
+        recipe: Recipe = st["recipe"]
+        if st["cursor"] >= len(recipe.steps):
+            st["active"] = False
+            acts = [a for a in self.store.actions(task.id) if a.state == "done" and a.result]
+            if acts and acts[-1].result.verified:
+                return {"_recipe": True, "thought": f"Ablauf „{recipe.name}“ vollständig ausgeführt.", "decision": "done",
+                        "done": {"ok": True, "summary": f"Ablauf „{recipe.name}“ ausgeführt ({st['executed']} Schritte ohne Modellaufruf).", "verified_by": acts[-1].tool}}
+            self._note(task.id, f"Ablauf „{recipe.name}“ ist abgearbeitet; prüfe das Ergebnis und melde done.")
+            return None
+        step = recipe.steps[st["cursor"]]
+        args = _fill_template(step.arguments_template, st["params"])
+        _, err = self.broker.validate(step.tool, args, task.scopes, fresh_refs=refs)
+        if err:
+            self._recipe_fallback(task.id, f"Schritt {st['cursor'] + 1} ({step.tool}) nicht anwendbar: {err}")
+            return None
+        st["cursor"] += 1
+        st["executed"] += 1
+        return {"_recipe": True, "thought": f"Ablauf „{recipe.name}“, Schritt {st['cursor']}/{len(recipe.steps)}: {step.tool}", "decision": "action",
+                "action": {"tool": step.tool, "arguments": args}, "expected_effect": (step.check or "")[:200]}
+
+    def _recipe_fallback(self, task_id: str, reason: str) -> None:
+        st = getattr(self, "_recipes", {}).get(task_id)
+        if not st or not st.get("active"):
+            return
+        st["active"] = False
+        recipe: Recipe = st["recipe"]
+        rest = "; ".join(f"{i + 1}. {x.tool}" for i, x in enumerate(recipe.steps) if i >= max(0, st["cursor"] - 1))
+        self._note(task_id, f"Ablauf „{recipe.name}“ ab Schritt {max(1, st['cursor'])} verlassen: {reason}. Verbleibende Rezeptschritte als Hinweis: {rest[:400]}. Plane selbst weiter und prüfe das Ergebnis.")
 
     def _counter(self, task_id: str, key: str) -> int:
         if not hasattr(self, "_counters"):

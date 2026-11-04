@@ -140,6 +140,22 @@ async def answer(task_id: str, body: AnswerBody, ctx: AppContext = Depends(get_c
         raise ApiError(409, "no_question", str(exc))
 
 
+def _templatize(value, parameters: list[dict]):
+    """Replace the literal parameter values of the recorded run by {name} placeholders so the recipe
+    can be replayed with other values (parameters: [{"name": "...", "value": "<literal>", ...}])."""
+    subs = [(str(p.get("value")), "{" + str(p.get("name")) + "}") for p in (parameters or []) if p.get("name") and p.get("value") not in (None, "")]
+    if isinstance(value, str):
+        out = value
+        for lit, ph in sorted(subs, key=lambda kv: -len(kv[0])):
+            out = out.replace(lit, ph)
+        return out
+    if isinstance(value, dict):
+        return {k: _templatize(v, parameters) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_templatize(v, parameters) for v in value]
+    return value
+
+
 @router.post("/tasks/{task_id}/save-recipe", status_code=201)
 async def save_recipe(task_id: str, body: SaveRecipeBody, ctx: AppContext = Depends(get_ctx)):
     task = _task_or_404(ctx, task_id)
@@ -157,7 +173,7 @@ async def save_recipe(task_id: str, body: SaveRecipeBody, ctx: AppContext = Depe
         requires={"tools": tools_used, "apps": sorted({a.arguments.get("process") for a in actions if a.arguments.get("process")}), "vision": any(t.startswith("vision.") for t in tools_used)},
         preconditions=[f"Werkzeug verfügbar: {t}" for t in tools_used] + ([f"Ordner freigegeben: {r}" for r in (task.scopes.files.roots if task.scopes.files else [])]),
         scope=task.scopes,
-        steps=[RecipeStep(tool=a.tool, arguments_template=a.arguments, check=(a.result.summary_de if a.result else "")) for a in actions],
+        steps=[RecipeStep(tool=a.tool, arguments_template=_templatize(a.arguments, body.parameters), check=(a.result.summary_de if a.result else "")) for a in actions],
         final_checks=[task.result.verified_by or "Ergebnis der letzten Aktion"],
         last_verified_at=task.finished_at,
         known_limits_de=["Aus genau einem belegten Lauf abgeleitet; bei geänderter Anwendung/Quelle wird neu geplant."],

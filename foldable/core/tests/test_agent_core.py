@@ -280,3 +280,60 @@ async def test_unverified_success_claim_is_pushed_back_once(db, tmp_path):
     assert [a.tool for a in store.actions(task.id)] == ["fake.click", "fake.read"]
     # the push-back note reached the planner
     assert "Abschluss noch nicht belegt" in client.prompts[2][1]["content"]
+
+
+@pytest.mark.asyncio
+async def test_recipe_replays_steps_without_model_calls(db, tmp_path):
+    """A stored recipe is executed step by step through the broker (parameters filled in); the
+    model is not called at all when every step succeeds and the last one is verified."""
+    from spaider_foldable.agent.models import Recipe, RecipeStep
+
+    root = tmp_path / "quelle"
+    root.mkdir()
+    (root / "a.txt").write_text("Budget Atlas: 42000 Euro", encoding="utf-8")
+    out = tmp_path / "out"
+    out.mkdir()
+    recipe = Recipe(id="rcp_test", name="Budget kopieren", requires={"tools": ["files.read", "files.write"]},
+                    steps=[RecipeStep(tool="files.read", arguments_template={"path": str(root / "{datei}")}, check="gelesen"),
+                           RecipeStep(tool="files.write", arguments_template={"path": "kopie.txt", "content": "Kopie von {datei}"}, check="geschrieben")])
+    client = _ScriptedClient([])  # any model call would end the task with ok=False
+    mgr, store, _ = _manager(db, client, tmp_path)
+    store.save_recipe(recipe)
+    task = store.create(goal="Budget kopieren", scopes=Scopes(files=FilesScope(roots=[str(root)], write_dir=str(out))), max_steps=10, max_seconds=60, conversation_id=None, live_session_id=None, recipe_id="rcp_test", parameters={"datei": "a.txt"})
+    mgr.start(task)
+    t = await _wait_terminal(store, task.id)
+    assert t.state == "completed", (t.state, t.summary_de)
+    assert t.result.ok and t.result.verified is True
+    assert t.llm_calls == 0 and client.prompts == []
+    assert [a.tool for a in store.actions(task.id)] == ["files.read", "files.write"]
+    assert (out / "kopie.txt").read_text(encoding="utf-8") == "Kopie von a.txt"
+    assert "ohne Modellaufruf" in t.result.summary_de
+
+
+@pytest.mark.asyncio
+async def test_recipe_step_outside_scope_hands_over_to_planner(db, tmp_path):
+    """A recipe step that fails (path outside the granted roots is refused by the file tool) hands over
+    to the planner, which gets the remaining steps as a hint."""
+    from spaider_foldable.agent.models import Recipe, RecipeStep
+
+    root = tmp_path / "quelle"
+    root.mkdir()
+    (root / "a.txt").write_text("x", encoding="utf-8")
+    recipe = Recipe(id="rcp_bad", name="Fremder Pfad", requires={"tools": ["files.read"]},
+                    steps=[RecipeStep(tool="files.read", arguments_template={"path": str(tmp_path / "anderswo" / "geheim.txt")})])
+    decisions = [
+        {"thought": "", "decision": "action", "action": {"tool": "files.read", "arguments": {"path": str(root / "a.txt")}}, "expected_effect": "Inhalt"},
+        {"thought": "", "decision": "done", "done": {"ok": True, "summary": "gelesen", "verified_by": "files.read"}},
+    ]
+    client = _ScriptedClient(decisions)
+    mgr, store, _ = _manager(db, client, tmp_path)
+    store.save_recipe(recipe)
+    task = store.create(goal="Lies a.txt", scopes=Scopes(files=FilesScope(roots=[str(root)], write_dir=None)), max_steps=10, max_seconds=60, conversation_id=None, live_session_id=None, recipe_id="rcp_bad", parameters=None)
+    mgr.start(task)
+    t = await _wait_terminal(store, task.id)
+    assert t.state == "completed", (t.state, t.summary_de)
+    assert t.llm_calls == 2
+    # the recipe step was attempted through the broker, refused by the file tool (outside roots),
+    # then the planner took over
+    assert [(a.tool, a.state) for a in store.actions(task.id)] == [("files.read", "failed"), ("files.read", "done")]
+    assert "verlassen" in client.prompts[0][1]["content"]
