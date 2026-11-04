@@ -190,8 +190,8 @@ Review-Runde im privaten Repository statt. Vorbereitet (lokal):
 | Ref | Zeigt auf | Zweck |
 |---|---|---|
 | `review/spaider-base-73762b3` | `73762b3` = `upstream/main` | Basis des Review-PRs (unverändert) |
-| `feature/spaider-foldable-review` | f281d78 + Review-Dokumente + Build-Manifest | Integrationsbranch mit dem vollständigen Foldable-Stand |
-| `foldable-review-0.3.0-<sha>` (Tag) | Review-Commit | Prerelease mit dem Review-ZIP |
+| `feature/spaider-foldable-review` | f281d78 + Review-Dokumente (`cd50a04`) + Ergebnisse/Manifest | Integrationsbranch mit dem vollständigen Foldable-Stand |
+| `foldable-review-0.3.0-cd50a04` (Tag) | Review-Commit | Prerelease mit dem Review-ZIP |
 
 Herkunft: Der Integrationsbranch enthält die 66 Produktcommits `73762b3..f281d78` unverändert
 (0.1 `acc3ce1`, 0.2 `debc9be`, 0.3 `f281d78`); sie liegen bereits linear auf `73762b3`, es gab
@@ -207,14 +207,14 @@ gh auth refresh -h github.com -s workflow        # einmalig, interaktiv, nur von
 cd C:\Users\mucbay\spaider-foldable\repo-review
 git push origin review/spaider-base-73762b3       # Basis zuerst
 git push origin feature/spaider-foldable-review   # Integrationsbranch
-git push origin foldable-review-0.3.0-<sha>       # Review-Tag (nie --all / --mirror)
+git push origin foldable-review-0.3.0-cd50a04       # Review-Tag (nie --all / --mirror)
 gh pr create --repo Useebay/spaider-foldable-private --draft `
   --base review/spaider-base-73762b3 --head feature/spaider-foldable-review `
   --title "SpAIder Foldable: portable Windows-App mit lokalem Chat, Gedächtnis und Agent/Live-Vorschau" `
   --body-file docs/portable/PR_BODY_REVIEW.md
-gh release create foldable-review-0.3.0-<sha> --repo Useebay/spaider-foldable-private `
-  --prerelease --title "Foldable Review-Build 0.3.0 (<sha>)" --notes-file foldable/build/out/REVIEW_BUILD_MANIFEST.md `
-  foldable/build/out/SpAIder-Foldable-0.3.0-review-<sha>-win-x64.zip foldable/build/out/SHA256SUMS-0.3.0-review-<sha>.txt
+gh release create foldable-review-0.3.0-cd50a04 --repo Useebay/spaider-foldable-private `
+  --prerelease --title "Foldable Review-Build 0.3.0 (cd50a04)" --notes-file foldable/build/out/REVIEW_BUILD_MANIFEST.md `
+  foldable/build/out/SpAIder-Foldable-0.3.0-review-cd50a04-win-x64.zip foldable/build/out/SHA256SUMS-0.3.0-review-cd50a04.txt
 ```
 
 Vorher prüfen: `gh auth status` zeigt `workflow`; `git ls-remote origin` ist leer (sonst nichts

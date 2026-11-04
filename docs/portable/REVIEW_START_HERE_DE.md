@@ -126,7 +126,7 @@ ersten Start Internet für den Modell-Download.
 
 1. **Review-ZIP laden**: Link und SHA-256 stehen in der PR-Beschreibung und im
    Abschnitt „Build-Zuordnung“ unten. Prüfsumme optional in PowerShell:
-   `Get-FileHash .\SpAIder-Foldable-0.3.0-review-<sha>-win-x64.zip -Algorithm SHA256`.
+   `Get-FileHash .\SpAIder-Foldable-0.3.0-review-cd50a04-win-x64.zip -Algorithm SHA256`.
 2. **Entpacken** in einen neuen, kurzen Pfad, z. B. `C:\SpAIderReview`
    (lange Pfade scheitern ohne Long-Path-Unterstützung). Vorhandene Foldable-
    Installationen oder `data/`-Ordner nicht überschreiben.

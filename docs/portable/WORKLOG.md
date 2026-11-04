@@ -411,3 +411,9 @@ Offen fuer Musa: gh auth refresh -s workflow, dann push; erster Nutzertest laut 
   foldable/build/measurements/review-build-cd50a04.md.
 - Pruefungen in dieser Runde: Kern pytest 73/6 uebersprungen, Desktop typecheck/lint/88 Tests gruen;
   60er-Matrix gegen den Review-Code und Paket-Volltest des Review-ZIP laufen (Ergebnis unten).
+- 60er-Matrix zusammenhaengend gegen den Review-Code: 55/60 (F 12/15, B 15/15, W 14/15, V 14/15),
+  4 Fehlerfolge-Meldungen, 0 Rueckfragen (matrix-qwen3-vl-4b-review-full.json).
+- Paket-Volltest des Review-ZIP gruen: Gedaechtniskorrektur vor/nach Neustart, Live, Datei-Aufgabe,
+  Abbruch, Beenden, 65 Netstat-Stichproben ohne externe Verbindung (review-package-check-cd50a04.json).
+- Hinweis: Musas eigene SpAIder-Instanz lief waehrend der Pruefungen aus dem 0.3.0-Paketordner
+  (seit 12:17) und wurde nicht beruehrt.
