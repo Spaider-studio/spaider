@@ -236,9 +236,10 @@ kann. Offene Fehler stehen am Ende.
 - **Overlay ohne Bildwahl**: Das Live-Fenster fragt immer mit `use_image: auto`
   (Bild, wenn ein Bildmodell aktiv ist). Eine reine Strukturfrage ist über die
   API möglich, in der Oberfläche noch nicht wählbar.
-- **Modellqualität je Familie**: Gemma 4 E2B plant deutlich schlechter als
-  Qwen3-VL-4B (5/16 in der Teilmenge, viele leere Rückfragen); es bleibt als
-  zweite Familie verfügbar, ist aber für Aufgaben nicht empfohlen.
+- **Modellqualität je Familie**: Gemma 4 E2B erreicht in der Teilmenge 13/16
+  (nach dem Verwerfen leerer Rückfragen), bleibt bei Windows-Aufgaben aber
+  schwach (1/4) und ohne Grounding-Kalibrierung; Qwen3-VL-4B ist die geprüfte
+  Standardwahl.
 - **Hotkeys**: Der Standard `Strg+Alt+Leertaste` kann von anderen Programmen
   belegt sein (auf dem Entwicklungsrechner ist er es); SpAIder meldet das und
   bleibt ohne Hotkey, bis unter Einstellungen → Live & Agent eine freie

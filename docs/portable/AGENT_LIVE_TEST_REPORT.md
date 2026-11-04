@@ -150,9 +150,33 @@ Erfolgsmeldungen nach dem bloßen Lesen (F1 2×, F3, W2). Drei Läufe erzeugten
 das richtige Ergebnis, endeten aber am Schrittbudget (B1-1, B3-0, W1-0) und
 zählen nicht als Erfolg. Folge im Kern: leere Rückfragen werden verworfen und
 dem Planer zurückgemeldet, nach drei leeren Fragen endet die Aufgabe (Befund
-11); eine Wiederholung der Teilmenge mit diesem Fix ist unten ausgewiesen, falls
-sie in der Sitzung noch lief. Grounding (`vision.locate`) wurde für Gemma nicht
-kalibriert (keine V2/V5-Aufgabe in der Teilmenge) und bleibt **ungetestet**.
+11). Grounding (`vision.locate`) wurde für Gemma nicht kalibriert (keine
+V2/V5-Aufgabe in der Teilmenge) und bleibt **ungetestet**.
+
+**Wiederholung der Gemma-Teilmenge mit dem Endstand (Code 371a503):**
+
+**matrix-gemma-4-e2b-rerun.json** – Modell `gemma-4-e2b-it-q4_0-vision`, Backend vulkan, Start 2026-11-04T01:49:33Z, Wiederholungen 2, Zeitbudget 180 s. Gesamt: **13/16**, Fehlerfolge-Meldungen 0, Rückfragen 2, Median-Wandzeit 39.5 s.
+
+| Aufgabe | Erfolg | Fehlerfolge | Rückfragen | Median Wandzeit | Modellaufrufe | Fehlgeschlagene Werkzeuge / Endzustände |
+|---|---|---|---|---|---|---|
+| F1 | 2/2 | 0 | 0 | 36 s | 6/4 | –; completed |
+| F3 | 2/2 | 0 | 0 | 40 s | 7/5 | –; completed |
+| B1 | 2/2 | 0 | 0 | 53 s | 9/9 | –; completed |
+| B3 | 2/2 | 0 | 0 | 28 s | 6/4 | –; completed |
+| W1 | 0/2 | 0 | 0 | 44 s | 4/6 | windows.set_value; failed |
+| W2 | 1/2 | 0 | 2 | 70 s | 10/6 | files.write; completed, failed |
+| V1 | 2/2 | 0 | 0 | 27 s | 4/3 | –; completed |
+| V4 | 2/2 | 0 | 0 | 36 s | 4/5 | –; completed |
+
+Je Gruppe: Dateien/Gedächtnis **4/4**, Browser **4/4**, Windows/UIA **1/4**, Bild/Live **4/4**
+
+
+Mit verworfenen Leer-Rückfragen, Browser-Bindung und Prüfpflicht steigt Gemma
+4 E2B von 5/16 auf **13/16** (0 Fehlerfolge-Meldungen, 2 Rückfragen). Offen
+bleibt die Windows-Gruppe: W1 scheiterte einmal am Rücklesen nach `set_value`
+(ValuePattern ohne Rücklesewert) und einmal an drei leeren Rückfragen nach
+dem Speichern (Datei war korrekt, zählt nicht); W2-0 versuchte fünfmal, eine
+vorhandene Datei ohne `mode=overwrite` zu schreiben (Konfliktschutz griff).
 
 ### Nachlauf mit den Kernfixes aus ad42cac/f01a359 (Qwen3-VL-4B; W1,W4,V2,V5,B5,B2,B1; 3 Wiederholungen)
 
