@@ -43,7 +43,7 @@ async def get_connector_status(
     Returns 404 if the connector_id is not registered in the global registry
     (i.e. it is an unknown connector, not just one that has never been run).
 
-    **Auth:** requires a valid API key when ``REQUIRE_API_KEY_AUTH=true`` so
+    **Auth:** requires a valid API key so
     operational run state is not exposed anonymously.
     """
     registry = get_global_registry()

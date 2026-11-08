@@ -409,10 +409,8 @@ async def create_connection(
     - full: all node/edge types
     - filtered: restricted to allowed_node_types / allowed_relation_types
 
-    **Auth:** X-Api-Key required when REQUIRE_API_KEY_AUTH=true. The
-    authenticated agent must be the source of the connection — only
-    the data-owner can grant access to its own graph. IDOR guard
-    enforces ``auth.agent_id == request.source_agent_id``.
+    **Auth:** requires the manage permission on the source KB, since only a
+    KB's stewards can grant access to its graph.
     """
     await authorize(auth, request.source_agent_id, Action.MANAGE)
     if request.source_agent_id == request.target_agent_id:
@@ -738,7 +736,7 @@ async def swarm_health(auth: Principal = Depends(get_principal)):
     """
     Aggregate all live swarm worker heartbeats into a single health snapshot.
 
-    **Auth:** admin-only when ``REQUIRE_API_KEY_AUTH=true`` — fleet-wide worker
+    **Auth:** org admin only — fleet-wide worker
     presence is operational information, not per-agent data.
 
     Discovery mechanism
@@ -828,7 +826,7 @@ async def swarm_events_stream(
     """
     Stream live swarm worker activity as Server-Sent Events (SSE).
 
-    **Auth:** admin-only when ``REQUIRE_API_KEY_AUTH=true`` (fleet-wide activity
+    **Auth:** org admin only (fleet-wide activity
     feed). Because EventSource cannot send headers, pass the admin key as
     ``?token=sk-...``.
 

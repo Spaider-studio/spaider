@@ -1,6 +1,7 @@
 """
 Request body models for SpAIder API endpoints.
 """
+from datetime import datetime
 from typing import List, Optional
 
 from pydantic import BaseModel, Field
@@ -47,6 +48,7 @@ class CypherQueryRequest(BaseModel):
 class TraverseRequest(BaseModel):
     start_node_id: str
     agent_id: Optional[str] = None
+    as_of: Optional[datetime] = None
     depth: int = Field(default=2, ge=1, le=5)
     relation_filter: Optional[list[str]] = None
 

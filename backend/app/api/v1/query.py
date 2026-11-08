@@ -136,10 +136,7 @@ async def query_nl(
     Translates the question to Cypher using an LLM, executes it, and synthesises
     a human-readable answer with supporting subgraph context.
 
-    **Auth:** Requires a valid API key via ``X-Api-Key`` header (or
-    ``Authorization: Bearer``) when ``REQUIRE_API_KEY_AUTH=true``. The
-    authenticated agent_id must match ``request.agent_id`` (IDOR guard).
-    When the flag is off, both checks are bypassed for backwards compat.
+    **Auth:** requires read access to ``request.agent_id``.
 
     **Episodic Memory:** When the agent has ``interaction_memory=True``, the
     query/response pair is recorded asynchronously as an ``InteractionNode``
@@ -255,17 +252,15 @@ async def query_cypher(
     Execute a raw Cypher query against the graph.
 
     Raw Cypher cannot be safely constrained to a single agent's namespace
-    without a full Cypher parser, so this endpoint is **admin-only** when
-    authentication is enforced: a non-admin key cannot read or traverse
+    without a full Cypher parser, so this endpoint is **org-admin only**: other
+    keys cannot read or traverse
     another agent's subgraph by embedding its UUID in the query. The query
     also runs inside a Neo4j **read transaction**, so any write is rejected
     at the database level even if it slips past the keyword filter (e.g. an
     APOC procedure). Write keywords are still rejected up front as defense
     in depth.
 
-    **Auth:** requires an API key with the ``admin`` permission when
-    ``REQUIRE_API_KEY_AUTH=true``. When the flag is off (single-tenant /
-    local dev), behavior is unchanged.
+    **Auth:** org admin.
     """
     await require_org(auth, OrgAction.ADMIN)
     await authorize(auth, request.agent_id, Action.READ)
@@ -323,6 +318,7 @@ async def traverse(
             depth=request.depth,
             relation_filter=request.relation_filter,
             agent_id=scope_agent_id,
+            as_of=request.as_of,
         )
         return subgraph
     except ValueError as exc:

@@ -28,6 +28,7 @@ import asyncio
 import json
 import logging
 import re
+from datetime import datetime, timezone
 
 from app.config import settings
 from app.lib.litellm_retry import acompletion_with_retry
@@ -56,11 +57,12 @@ LIMIT $max
 _MARK_CYPHER = """
 UNWIND $items AS item
 MATCH ()-[r:RELATION {id: item.edge_id}]->()
-SET r.superseded = true, r.superseded_by = $new_id
+SET r.superseded = true, r.superseded_by = $new_id,
+    r.valid_to = coalesce(r.valid_to, $now), r.expired_at = $now
 WITH collect(item.text) AS texts
 MATCH (f:SpaiderNode {agent_id: $aid, type: 'FACT'})
 WHERE any(t IN texts WHERE t <> '' AND f.description CONTAINS t)
-SET f.superseded = true, f.superseded_by = $new_id
+SET f.superseded = true, f.superseded_by = $new_id, f.superseded_at = $now
 RETURN count(f) AS facts_marked
 """
 
@@ -277,7 +279,10 @@ async def resolve_supersession(driver, agent_id: str, resolved_payload) -> int:
             if not items:
                 return 0
             async with driver.session() as session:
-                await session.run(_MARK_CYPHER, items=items, new_id=edge.id, aid=agent_id)
+                await session.run(
+                    _MARK_CYPHER, items=items, new_id=edge.id, aid=agent_id,
+                    now=datetime.now(timezone.utc).isoformat(),
+                )
                 await session.run(_NEUTRALIZE_CYPHER, items=items, aid=agent_id)
             logger.info(
                 "supersession: new edge %s superseded %d prior fact(s)", edge.id, len(items),

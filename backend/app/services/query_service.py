@@ -33,6 +33,7 @@ import math
 import os
 import re
 import time
+from datetime import datetime
 from typing import AsyncIterator, Optional
 
 import numpy as np
@@ -40,6 +41,7 @@ from fastapi import HTTPException, status
 
 from app.config import settings
 from app.core.kv import get_kv
+from app.core.temporal import edge_visible, to_utc_iso
 from app.lib.litellm_retry import acompletion_with_retry, track_tokens
 from app.models.schemas import Edge, GraphPayload, Node, VerifierResult
 from app.services.cognitive_engine import CognitiveGraphService
@@ -1699,60 +1701,47 @@ class QueryService:
         depth: int,
         relation_filter: Optional[list[str]] = None,
         agent_id: Optional[str] = None,
+        as_of: Optional[datetime] = None,
     ) -> GraphPayload:
-        """Traverse from a node up to depth hops, optionally filtered by relation type.
+        """Walk RELATION edges up to ``depth`` hops from a node.
 
-        When ``agent_id`` is supplied the start node is constrained to that
-        agent's namespace, so a caller cannot walk a subgraph rooted on another
-        agent's node. When it is ``None`` (auth disabled, or an admin caller)
-        the traversal is unscoped.
+        With ``agent_id`` the walk stays inside that KB: the start node, every
+        edge and every end node must belong to it. ``as_of`` shows the graph as
+        it stood then.
         """
-        depth = max(1, min(depth, 10))
-
-        # Namespace scoping: pin the start node to the caller's agent_id when
-        # provided. A foreign start_node_id then matches nothing → empty graph.
-        start_match = "(start:SpaiderNode {id: $start_id})"
-        if agent_id is not None:
-            start_match = "(start:SpaiderNode {id: $start_id, agent_id: $agent_id})"
-
-        if relation_filter:
-            cypher = f"""
-                MATCH path = {start_match}-[r:RELATION*1..$depth]-(end:SpaiderNode)
-                WHERE r.relation IN $rel_filter
-                UNWIND nodes(path) AS n
-                WITH COLLECT(DISTINCT n) AS all_nodes, path
-                UNWIND relationships(path) AS rel
-                WITH all_nodes, COLLECT(DISTINCT rel) AS all_rels
-                RETURN all_nodes, all_rels
-            """
-            params: dict = {"start_id": start_node_id, "depth": depth, "rel_filter": relation_filter}
-        else:
-            cypher = f"""
-                MATCH path = {start_match}-[*1..$depth]-(end:SpaiderNode)
-                UNWIND nodes(path) AS n
-                WITH COLLECT(DISTINCT n) AS all_nodes, path
-                UNWIND relationships(path) AS rel
-                WITH all_nodes, COLLECT(DISTINCT rel) AS all_rels
-                RETURN all_nodes, all_rels
-            """
-            params = {"start_id": start_node_id, "depth": depth}
-
-        if agent_id is not None:
-            params["agent_id"] = agent_id
-
+        # Neo4j does not allow parameters in variable-length bounds.
+        hops = max(1, min(int(depth), 10))
+        cypher = f"""
+            MATCH path = (start:SpaiderNode {{id: $start_id}})-[rels:RELATION*1..{hops}]-(end:SpaiderNode)
+            WHERE ($agent_id IS NULL OR (start.agent_id = $agent_id AND end.agent_id = $agent_id))
+              AND all(r IN rels WHERE {edge_visible("r")}
+                      AND ($rel_filter IS NULL OR r.relation IN $rel_filter)
+                      AND ($agent_id IS NULL OR r.agent_id = $agent_id))
+            WITH collect(path) AS paths
+            WHERE size(paths) > 0
+            UNWIND paths AS p UNWIND nodes(p) AS n
+            WITH paths, collect(DISTINCT n) AS all_nodes
+            UNWIND paths AS p UNWIND relationships(p) AS rel
+            RETURN all_nodes, collect(DISTINCT rel) AS all_rels
+        """
         async with self._graph._driver.session() as session:
-            result = await session.run(cypher, **params)
+            result = await session.run(
+                cypher,
+                start_id=start_node_id,
+                rel_filter=relation_filter,
+                agent_id=agent_id,
+                as_of=to_utc_iso(as_of),
+            )
             record = await result.single()
 
         if not record:
             return GraphPayload()
 
         nodes = [GraphService._record_to_node(n) for n in record["all_nodes"]]
-        edges = []
-        for r in record["all_rels"]:
-            src = r.start_node["id"] if hasattr(r, "start_node") else r.nodes[0]["id"]
-            tgt = r.end_node["id"] if hasattr(r, "end_node") else r.nodes[1]["id"]
-            edges.append(GraphService._record_to_edge(r, src, tgt))
+        edges = [
+            GraphService._record_to_edge(r, r.start_node["id"], r.end_node["id"])
+            for r in record["all_rels"]
+        ]
         return GraphPayload(nodes=nodes, edges=edges)
 
     # ------------------------------------------------------------------

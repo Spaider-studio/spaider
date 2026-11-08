@@ -33,7 +33,7 @@ async def websocket_endpoint(
     """
     WebSocket endpoint for live ingest streaming.
     Connect from the frontend at: ws://localhost:8000/ws/{agent_id}
-    When REQUIRE_API_KEY_AUTH is on, pass the API key as ?token=sk-...; the key
+    Pass the API key as ?token=...; the key
     must belong to {agent_id} (or be an admin key).
 
     Events pushed to the client:

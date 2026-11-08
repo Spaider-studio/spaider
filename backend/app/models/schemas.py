@@ -97,6 +97,12 @@ class Edge(BaseModel):
     properties: dict = Field(default_factory=dict)
     agent_id: Optional[str] = None
     created_at: Optional[datetime] = None
+    valid_from: Optional[datetime] = Field(
+        default=None, description="When the fact became true. Defaults to the write time."
+    )
+    valid_to: Optional[datetime] = Field(
+        default=None, description="When the fact stopped being true, if known."
+    )
     utility_weight: float = Field(
         default=1.0,
         description="Synapse strength (V2 Cognitive Graph). Controls edge width in 3D view.",

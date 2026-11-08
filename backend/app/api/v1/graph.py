@@ -4,10 +4,13 @@ Graph API endpoints: retrieve graph data and statistics.
 from __future__ import annotations
 
 import logging
+from datetime import datetime
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.authz import Action, OrgAction, Principal, authorize, get_principal, require_org
+from app.core.temporal import to_utc_iso
 from app.models.responses import GraphResponse
 from app.models.schemas import ClusterGraphPayload, GraphStats
 
@@ -49,6 +52,9 @@ async def get_graph(
         ),
     ),
     offset: int = Query(default=0, ge=0, description="Node offset for pagination"),
+    as_of: Optional[datetime] = Query(
+        default=None, description="Show the graph as it stood at this time."
+    ),
     auth: Principal = Depends(get_principal),
 ):
     """
@@ -73,7 +79,9 @@ async def get_graph(
     await authorize(auth, agent_id, Action.READ)
     graph = _get_graph_service()
     try:
-        payload = await graph.get_full_graph(agent_id=agent_id, limit=limit, offset=offset)
+        payload = await graph.get_full_graph(
+            agent_id=agent_id, limit=limit, offset=offset, as_of=to_utc_iso(as_of)
+        )
         nodes = payload.nodes
         edges = payload.edges
 

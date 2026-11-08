@@ -15,6 +15,7 @@ from neo4j import AsyncDriver, AsyncGraphDatabase
 
 from app.config import settings
 from app.core.schema import FOUNDATION_SCHEMA
+from app.core.temporal import edge_visible, node_visible, to_utc_iso
 from app.models.schemas import (
     ClusterGraphPayload,
     Edge,
@@ -496,6 +497,8 @@ class GraphService:
                     "target_id": edge.target_id,
                     "edge_id": edge.id,
                     "relation": edge.relation,
+                    "valid_from": to_utc_iso(edge.valid_from),
+                    "valid_to": to_utc_iso(edge.valid_to),
                     "agent_id": agent_id,
                     "properties": json.dumps(_flatten_properties(edge.properties or {})),
                 })
@@ -531,6 +534,9 @@ class GraphService:
                         r.relation   = row.relation,
                         r.agent_id   = row.agent_id,
                         r.created_at = $now,
+                        r.recorded_at = $now,
+                        r.valid_from = coalesce(row.valid_from, $now),
+                        r.valid_to = row.valid_to,
                         r.updated_at = $now,
                         r.properties = row.properties
                     ON MATCH SET
@@ -599,6 +605,8 @@ class GraphService:
                 "target_id": edge.target_id,
                 "edge_id": edge.id,
                 "relation": edge.relation,
+                "valid_from": to_utc_iso(edge.valid_from),
+                "valid_to": to_utc_iso(edge.valid_to),
                 "agent_id": agent_id,
                 "properties": json.dumps(_flatten_properties(edge.properties or {})),
             }
@@ -636,6 +644,9 @@ class GraphService:
                         r.relation   = row.relation,
                         r.agent_id   = row.agent_id,
                         r.created_at = $now,
+                        r.recorded_at = $now,
+                        r.valid_from = coalesce(row.valid_from, $now),
+                        r.valid_to = row.valid_to,
                         r.updated_at = $now,
                         r.properties = row.properties
                     ON MATCH SET
@@ -681,6 +692,7 @@ class GraphService:
         agent_id: str,
         limit: int = 500,
         offset: int = 0,
+        as_of: Optional[str] = None,
     ) -> GraphPayload:
         """
         Return a coherent page of the agent's graph.
@@ -712,12 +724,14 @@ class GraphService:
         """
         async with self._driver.session() as session:
             result = await session.run(
-                """
-                MATCH (n:SpaiderNode {agent_id: $agent_id})
+                f"""
+                MATCH (n:SpaiderNode {{agent_id: $agent_id}})
+                WHERE $as_of IS NULL OR {node_visible("n")}
                 WITH n ORDER BY n.id SKIP $offset LIMIT $limit
                 WITH collect(n) AS paged_nodes
                 UNWIND paged_nodes AS n
-                OPTIONAL MATCH (n)-[r:RELATION]->(m) WHERE m IN paged_nodes
+                OPTIONAL MATCH (n)-[r:RELATION]->(m)
+                WHERE m IN paged_nodes AND ($as_of IS NULL OR {edge_visible("r")})
                 RETURN
                     n.id           AS id,
                     n.label        AS label,
@@ -736,6 +750,7 @@ class GraphService:
                 agent_id=agent_id,
                 offset=offset,
                 limit=limit,
+                as_of=as_of,
             )
             records = await result.data()
 
