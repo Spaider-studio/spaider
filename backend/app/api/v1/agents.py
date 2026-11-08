@@ -551,6 +551,33 @@ async def consolidate_now(agent_id: str, auth: Principal = Depends(get_principal
     return APIResponse(success=True, message="consolidation complete", data=report)
 
 
+@router.get("/{agent_id}/snapshot")
+async def get_snapshot(
+    agent_id: str,
+    limit: int = Query(default=5000, ge=1, le=50000),
+    auth: Principal = Depends(get_principal),
+):
+    """A compact copy of this KB's knowledge for offline use on a device."""
+    await authorize(auth, agent_id, Action.READ)
+    async with _get_graph_service()._driver.session() as session:
+        result = await session.run(
+            """
+            MATCH (n:SpaiderNode {agent_id: $kb})
+            WHERE coalesce(n.clearance_level, 1) <= $max_clearance
+              AND NOT n:SystemAgent
+              AND NOT coalesce(n.superseded, false)
+              AND coalesce(n.status, 'active') = 'active'
+            RETURN n.id AS id, n.label AS label, n.type AS type, n.description AS description
+            ORDER BY coalesce(n.energy_level, 1.0) DESC, n.id LIMIT $limit
+            """,
+            kb=agent_id,
+            max_clearance=auth.clearance_level,
+            limit=limit,
+        )
+        nodes = [dict(record) async for record in result]
+    return {"agent_id": agent_id, "nodes": nodes}
+
+
 @router.post("/{agent_id}/sleep")
 async def run_sleep(agent_id: str, auth: Principal = Depends(get_principal)):
     """Run the full sleep cycle for this KB now and return its report (counts only)."""

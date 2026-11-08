@@ -297,3 +297,14 @@ async def test_traverse_as_of_sees_a_superseded_edge(graph, query):
     await _supersede(graph, "2999-01-01T00:00:00+00:00")
     moment = datetime.now(timezone.utc)
     assert (await query.traverse("a", 2, agent_id="kb", as_of=moment)).nodes
+
+
+def test_hash_embeddings_match_the_edge_sdk_golden_file():
+    import json
+    from pathlib import Path
+
+    from app.core.hashing import hash_embed
+
+    golden = Path(__file__).resolve().parents[3] / "sdk" / "edge" / "tests" / "golden_hash.json"
+    for case in json.loads(golden.read_text(encoding="utf-8")):
+        assert hash_embed(case["text"]) == case["vector"]

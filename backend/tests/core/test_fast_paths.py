@@ -305,3 +305,24 @@ def test_fast_model_falls_back_to_the_main_model(monkeypatch):
 
 def test_jobs_module_exposes_the_queue():
     assert isinstance(jobs.get_job_queue(), jobs.JobQueue) and MagicMock
+
+
+# ── Device snapshot ───────────────────────────────────────────────────────
+
+
+async def test_snapshot_applies_clearance_and_skips_retired_nodes(auth_world):
+    kb = await auth_world.create_kb()
+    await _seed(auth_world, kb["id"], "open", "Open")
+    await _seed(auth_world, kb["id"], "secret", "Secret", clearance_level=4)
+    await _seed(auth_world, kb["id"], "gone", "Gone", superseded=True)
+    await _seed(auth_world, kb["id"], "old", "Old", status="archived")
+    reader = await auth_world.member(kb["id"], "reader", clearance_level=1)
+    response = await auth_world.client.get(f"/api/v1/agents/{kb['id']}/snapshot", headers=auth_world.headers(reader["api_key"]))
+    assert response.status_code == 200, response.text
+    assert [node["id"] for node in response.json()["nodes"]] == ["open"]
+
+
+async def test_snapshot_needs_access_to_the_kb(auth_world):
+    first, second = await auth_world.create_kb(), await auth_world.create_kb()
+    response = await auth_world.client.get(f"/api/v1/agents/{first['id']}/snapshot", headers=auth_world.headers(second["api_key"]))
+    assert response.status_code == 403
