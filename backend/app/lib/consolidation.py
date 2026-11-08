@@ -233,6 +233,9 @@ async def _fuse_agent_duplicates(driver, agent_id: str, np) -> int:
             """
             MATCH (n:SpaiderNode {agent_id: $agent_id})
             WHERE n.embedding IS NOT NULL AND NOT n:SystemAgent
+              AND NOT coalesce(n.type, '') IN ['FACT', 'IMAGE', 'LESSON', 'SKILL']
+              AND coalesce(n.status, 'active') = 'active'
+              AND NOT coalesce(n.superseded, false)
             RETURN n.id AS id,
                    n.embedding AS embedding,
                    COUNT { (n)--() } AS degree
@@ -291,10 +294,10 @@ async def _merge_node_pair(driver, keep_id: str, drop_id: str, agent_id: str) ->
         # Outgoing edges from drop → re-attach to keep
         await session.run(
             """
-            MATCH (drop:SpaiderNode {id: $drop_id, agent_id: $agent_id})-[r]->(target)
+            MATCH (drop:SpaiderNode {id: $drop_id, agent_id: $agent_id})-[r:RELATION]->(target)
             WHERE target.id <> $keep_id
             MATCH (keep:SpaiderNode {id: $keep_id, agent_id: $agent_id})
-            MERGE (keep)-[nr:RELATED_TO]->(target)
+            MERGE (keep)-[nr:RELATION {id: r.id}]->(target)
             ON CREATE SET nr = properties(r)
             """,
             drop_id=drop_id, keep_id=keep_id, agent_id=agent_id,
@@ -302,11 +305,22 @@ async def _merge_node_pair(driver, keep_id: str, drop_id: str, agent_id: str) ->
         # Incoming edges to drop → re-attach to keep
         await session.run(
             """
-            MATCH (source)-[r]->(drop:SpaiderNode {id: $drop_id, agent_id: $agent_id})
+            MATCH (source)-[r:RELATION]->(drop:SpaiderNode {id: $drop_id, agent_id: $agent_id})
             WHERE source.id <> $keep_id
             MATCH (keep:SpaiderNode {id: $keep_id, agent_id: $agent_id})
-            MERGE (source)-[nr:RELATED_TO]->(keep)
+            MERGE (source)-[nr:RELATION {id: r.id}]->(keep)
             ON CREATE SET nr = properties(r)
+            """,
+            drop_id=drop_id, keep_id=keep_id, agent_id=agent_id,
+        )
+        # The survivor inherits what its duplicate was connected to, so it is
+        # at least as sensitive.
+        await session.run(
+            """
+            MATCH (drop:SpaiderNode {id: $drop_id, agent_id: $agent_id})
+            MATCH (keep:SpaiderNode {id: $keep_id, agent_id: $agent_id})
+            WHERE coalesce(drop.clearance_level, 1) > coalesce(keep.clearance_level, 1)
+            SET keep.clearance_level = drop.clearance_level
             """,
             drop_id=drop_id, keep_id=keep_id, agent_id=agent_id,
         )

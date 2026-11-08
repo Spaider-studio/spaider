@@ -19,6 +19,7 @@ from unittest.mock import AsyncMock, MagicMock, patch  # noqa: E402
 import pytest  # noqa: E402
 
 from app.models.schemas import Agent, Edge, GraphPayload, Node  # noqa: E402
+from tests.stubs.fixtures import openai_stub  # noqa: E402, F401
 
 
 def _integration_unavailable(service: str, exc: Exception) -> None:

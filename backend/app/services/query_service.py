@@ -33,6 +33,7 @@ import math
 import os
 import re
 import time
+import uuid
 from datetime import datetime
 from typing import AsyncIterator, Optional
 
@@ -45,9 +46,11 @@ from app.core.kv import generation_key, get_kv
 from app.core.temporal import edge_visible, to_utc_iso
 from app.lib.litellm_retry import acompletion_with_retry, track_tokens
 from app.models.schemas import Edge, GraphPayload, Node, VerifierResult
+from app.services import recall_ranker
 from app.services.cognitive_engine import CognitiveGraphService
 from app.services.embedding_service import EmbeddingService
 from app.services.graph_service import GraphService
+from app.services.learning import parse_citations, record_exchange, strengthen_co_activation
 
 logger = logging.getLogger(__name__)
 
@@ -372,7 +375,11 @@ class QueryResult:
         verifier_feedback: Optional[list[str]] = None,
         direct_answer: Optional[str] = None,
         token_usage: Optional[dict[str, int]] = None,
+        query_id: Optional[str] = None,
+        citations: Optional[list[dict]] = None,
     ) -> None:
+        self.query_id = query_id
+        self.citations = citations or []
         self.question = question
         self.answer = answer
         self.subgraph = subgraph
@@ -412,6 +419,26 @@ class QueryService:
     # ------------------------------------------------------------------
     # Diplomat Protocol — resolve agent clearance level
     # ------------------------------------------------------------------
+
+    def _learn_from_answer(self, agent_id: str, memory_mode: str, result, context_nodes: list) -> None:
+        """Keep the exchange for feedback and sleep. Off means nothing is remembered."""
+        if memory_mode == "off":
+            return
+
+        async def _record() -> None:
+            driver = self._graph._driver
+            await record_exchange(
+                driver,
+                agent_id,
+                query_id=result.query_id,
+                question=result.question,
+                answer=result.answer,
+                retrieved=context_nodes,
+                cited=result.citations,
+            )
+            await strengthen_co_activation(driver, agent_id, result.citations)
+
+        spawn(_record(), name=f"learn:{result.query_id}")
 
     async def _effective_clearance(self, agent_id: str, caller: Optional[int]) -> int:
         """What this query may read: the KB's level, capped by the caller's own."""
@@ -548,6 +575,8 @@ class QueryService:
                     subgraph=GraphPayload(**d["subgraph"]),
                     cypher=d.get("cypher"),
                     from_cache=True,
+                    query_id=d.get("query_id"),
+                    citations=d.get("citations"),
                 )
         except Exception:
             pass
@@ -562,6 +591,8 @@ class QueryService:
                 "question": result.question,
                 "answer": result.answer,
                 "cypher": result.cypher,
+                "query_id": result.query_id,
+                "citations": result.citations,
                 "subgraph": {
                     "nodes": [n.model_dump(exclude={"embedding"}) for n in result.subgraph.nodes],
                     "edges": [e.model_dump() for e in result.subgraph.edges],
@@ -853,6 +884,8 @@ class QueryService:
                     WHERE n.agent_id IN $allowed_agent_ids
                       AND NOT n:SystemAgent
                       AND NOT coalesce(n.superseded, false)
+                      AND coalesce(n.status, 'active') = 'active'
+                      AND coalesce(n.type, '') <> 'SKILL'
                       AND coalesce(n.clearance_level, $clearance_default) <= $agent_clearance
                     RETURN n.id         AS node_id,
                            n.label      AS label,
@@ -906,7 +939,6 @@ class QueryService:
 
         # Fire-and-forget: boost energy on every node returned to the LLM
         node_ids = [r["node_id"] for r in records if r.get("node_id")]
-        spawn(self._cognitive.boost_nodes(node_ids, allowed_agent_ids))
 
         # Append the 1-hop relationships so the model can traverse an edge to
         # answer (e.g. the decision owner of X), not just read disconnected facts.
@@ -1001,6 +1033,8 @@ class QueryService:
                     WHERE n.agent_id IN $allowed_agent_ids
                       AND NOT n:SystemAgent
                       AND NOT coalesce(n.superseded, false)
+                      AND coalesce(n.status, 'active') = 'active'
+                      AND coalesce(n.type, '') <> 'SKILL'
                       AND coalesce(n.clearance_level, $clearance_default) <= $agent_clearance
                     OPTIONAL MATCH (n)-[r:RELATION]->()
                     WITH n, avg(coalesce(r.utility_weight, 1.0)) AS avg_u
@@ -1134,7 +1168,6 @@ class QueryService:
 
         # Fire-and-forget: boost energy on every node returned to the LLM
         node_ids = [r["node_id"] for r in records if r.get("node_id")]
-        spawn(self._cognitive.boost_nodes(node_ids, allowed_agent_ids))
 
         # Append the 1-hop relationships so the model can traverse an edge to
         # answer (e.g. the decision owner of X), not just read disconnected facts.
@@ -1353,6 +1386,8 @@ class QueryService:
         # Fuse all ranked lists (vector + fulltext across sub-questions) and
         # keep roughly double the per-list budget so both modalities survive.
         seed_nodes = _rrf_fuse(list(per_sq_results))[: seed_k * 2]
+        if memory_mode != "off":
+            seed_nodes = await recall_ranker.rerank(self._graph._driver, agent_id, seed_nodes)
 
         # Swarm context retrieved once from the original question (not re-queried
         # per iteration — swarm text enriches synthesis but is not node-accumulative).
@@ -1505,7 +1540,8 @@ class QueryService:
         )
 
         # ── 5. Merge swarm text context with accumulated node context ─────────
-        vector_context = self._build_context(subgraph)
+        context_nodes: list = []
+        vector_context = self._build_context(subgraph, context_nodes)
         if vector_context and vector_context != "No relevant entities found in the knowledge graph.":
             vector_lines = [
                 f"[Source: Agent {agent_id}] - {line.lstrip('• ')}"
@@ -1529,7 +1565,10 @@ class QueryService:
 
         # Fire-and-forget: boost energy on all accumulated nodes and light
         # them up on the Live Pheromone Stream.
-        _boosted = list(cumulative_nodes.keys())
+        citations = parse_citations(answer, context_nodes)
+        query_id = str(uuid.uuid4())
+        _used_ids = [item["node_id"] for item in citations]
+        _boosted = _used_ids or list(cumulative_nodes.keys())
         _labels = {nid: getattr(n, "label", "") for nid, n in cumulative_nodes.items()}
         _source_kbs = sorted({n.agent_id for n in cumulative_nodes.values() if n.agent_id} | {agent_id})
         spawn(self._cognitive.boost_nodes(_boosted, _source_kbs))
@@ -1554,7 +1593,9 @@ class QueryService:
             ]
             # Fall back to the full set only when nothing surfaced (rare) so a
             # grounded answer never reinforces zero edges.
-            _reinforce_targets = _answer_path if len(_answer_path) >= 2 else _boosted
+            _reinforce_targets = _used_ids if len(_used_ids) >= 2 else (
+                _answer_path if len(_answer_path) >= 2 else _boosted
+            )
             spawn(
                 self._cognitive.reinforce_edges(_reinforce_targets, settings.hebbian_step_implicit, _source_kbs)
             )
@@ -1568,8 +1609,11 @@ class QueryService:
             re_query_happened=(iteration_count > 1),
             confidence_score=verifier_result.confidence if verifier_result else 1.0,
             verifier_feedback=all_feedback if all_feedback else None,
+            query_id=query_id,
+            citations=citations,
         )
 
+        self._learn_from_answer(agent_id, memory_mode, result, context_nodes)
         await self._cache_set(result, agent_id, agent_clearance)
 
         logger.info(
@@ -1585,7 +1629,7 @@ class QueryService:
         agent_id: str,
         top_k: Optional[int] = None,
         max_clearance: Optional[int] = None,
-    ) -> AsyncIterator[str]:
+    ) -> AsyncIterator[str | dict]:
         """
         Streaming swarm-RAG — classic or synaptic routing based on the agent's memory_mode.
         Yields tokens as they arrive; V2 enriches context before streaming.
@@ -1596,6 +1640,7 @@ class QueryService:
         cached = await self._cache_get(question, agent_id, agent_clearance)
         if cached:
             yield cached.answer
+            yield {"type": "meta", "query_id": cached.query_id, "citations": cached.citations}
             return
 
         q_embedding = await self._embedding.embed(question)
@@ -1678,13 +1723,10 @@ class QueryService:
         # ACT-R activation, mirroring the non-streaming query_nl path. The studio
         # queries via /query/stream, so without this the pheromone feed never
         # updates even though the same nodes are retrieved. Fire-and-forget.
-        _boosted = list(valid_node_ids)
         _labels = {nid: getattr(n, "label", "") for nid, n in subgraph_nodes.items()}
-        _source_kbs = sorted({n.agent_id for n in subgraph_nodes.values() if n.agent_id} | {agent_id})
-        spawn(self._cognitive.boost_nodes(_boosted, _source_kbs))
-        spawn(self._publish_pheromone(_boosted, agent_id, _labels))
 
-        vector_context = self._build_context(subgraph)
+        context_nodes: list = []
+        vector_context = self._build_context(subgraph, context_nodes)
         if vector_context and vector_context != "No relevant entities found in the knowledge graph.":
             vector_lines = [
                 f"[Source: Agent {agent_id}] - {line.lstrip('• ')}"
@@ -1705,10 +1747,19 @@ class QueryService:
             full_answer += token
             yield token
 
+        citations = parse_citations(full_answer, context_nodes)
+        query_id = str(uuid.uuid4())
+        _boosted = [item["node_id"] for item in citations] or list(valid_node_ids)
+        _source_kbs = sorted({n.agent_id for n in subgraph_nodes.values() if n.agent_id} | {agent_id})
+        spawn(self._cognitive.boost_nodes(_boosted, _source_kbs))
+        spawn(self._publish_pheromone(_boosted, agent_id, _labels))
+
         result = QueryResult(
-            question=question, answer=full_answer, subgraph=subgraph
+            question=question, answer=full_answer, subgraph=subgraph, query_id=query_id, citations=citations
         )
+        self._learn_from_answer(agent_id, memory_mode, result, context_nodes)
         await self._cache_set(result, agent_id, agent_clearance)
+        yield {"type": "meta", "query_id": query_id, "citations": citations}
 
     async def query_cypher(self, cypher: str, agent_id: str) -> list[dict]:
         """Execute a raw read-only Cypher query.
@@ -1787,7 +1838,7 @@ class QueryService:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _build_context(subgraph: GraphPayload) -> str:
+    def _build_context(subgraph: GraphPayload, cited_order: Optional[list] = None) -> str:
         """Convert a subgraph into a compact text context for the LLM.
 
         B3 + B4 — Hebbian-aware context assembly. Pre-patch, the [:30]
@@ -1863,7 +1914,11 @@ class QueryService:
             elif len(source_text) > MAX_SOURCE_TEXT_CHARS:
                 source_text = source_text[:MAX_SOURCE_TEXT_CHARS] + "..."
             rels = "; ".join(edge_map.get(node.id, [])[:5])
-            line = f"• {node.label} ({node.type})"
+            tag = ""
+            if cited_order is not None:
+                cited_order.append(node)
+                tag = f"[n{len(cited_order)}] "
+            line = f"• {tag}{node.label} ({node.type})"
             if desc:
                 line += f": {desc}"
             if source_text:
@@ -1883,15 +1938,17 @@ class QueryService:
             "Unmarked facts are valid but have less validation history."
         ) if v2_mode else ""
 
+        citation_rule = (
+            " Evidence lines start with a tag such as [n3]. Put the tag of the line you used "
+            "right after each claim. Cite only tags that appear in the context."
+        )
         if is_swarm:
             return (
-                "Du bist eine fortgeschrittene Schwarm-KI. "
-                "Du hast Zugriff auf das Wissen deines primären Agenten und verbundener Agenten. "
-                "Der dir übergebene Kontext enthält zwingend die Quellenangabe in eckigen Klammern "
-                "[Source: Agent <id>]. "
-                "Wenn du eine Information aus dem Kontext nutzt, MUSST du den Agenten in deiner "
-                "Antwort zitieren (z.B. 'Laut dem HR-Agenten…' oder 'Wie das Tech-Gehirn weiß…'). "
-                "Antworte präzise und faktentreu. Wenn der Kontext keine Antwort enthält, sage das."
+                "You answer from the knowledge of a primary agent and the agents connected to it. "
+                "Each context line names its origin as [Source: ...]. When you use a line, say "
+                "which source it came from. Be precise and factual. If the context does not "
+                "contain the answer, say so."
+                + citation_rule
                 + v2_addendum
             )
         return (
@@ -1913,6 +1970,7 @@ class QueryService:
             "attribute (a company's current CEO, a headquarters), name only the "
             "one the facts support, not every candidate entity. "
             "Be factual. If the data doesn't contain the answer, say so."
+            + citation_rule
             + v2_addendum
         )
 

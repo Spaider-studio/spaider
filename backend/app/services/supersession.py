@@ -25,10 +25,12 @@ state-assertion fact costs one LLM call per candidate it has.
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import json
 import logging
 import re
 from datetime import datetime, timezone
+from typing import Optional
 
 from app.config import settings
 from app.lib.litellm_retry import acompletion_with_retry
@@ -118,6 +120,11 @@ def _parse_superseded_ids(content: str, valid: set[str]) -> set[str]:
         return set()
 
 
+_LLM_FAILURES: contextvars.ContextVar[Optional[list]] = contextvars.ContextVar(
+    "supersession_llm_failures", default=None
+)
+
+
 async def _llm_json(prompt: str) -> str:
     """One temperature-0 completion via the configured judge model. '' on failure."""
     kwargs: dict = {
@@ -134,6 +141,9 @@ async def _llm_json(prompt: str) -> str:
         return resp.choices[0].message.content or ""
     except Exception as exc:  # noqa: BLE001
         logger.warning("supersession llm call failed: %s", exc)
+        failures = _LLM_FAILURES.get()
+        if failures is not None:
+            failures.append(type(exc).__name__)
         return ""
 
 
@@ -241,6 +251,28 @@ async def resolve_supersession(driver, agent_id: str, resolved_payload) -> int:
     if not candidates_edges:
         return 0
 
+    # A failed LLM call looks like "not a state update", so remember it: those
+    # edges must stay unchecked for the sleep cycle to retry.
+    failures: list = []
+    _LLM_FAILURES.set(failures)
+
+    async def _mark_checked() -> None:
+        if failures:
+            return
+        try:
+            async with driver.session() as session:
+                await session.run(
+                    """
+                    UNWIND $ids AS edge_id
+                    MATCH ()-[r:RELATION {id: edge_id, agent_id: $aid}]->()
+                    SET r.contradiction_checked = true
+                    """,
+                    ids=[edge.id for edge, _ in candidates_edges],
+                    aid=agent_id,
+                )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("supersession could not mark edges checked: %s", type(exc).__name__)
+
     # Phase 1 — classify each distinct fact as a state assertion, CONCURRENTLY.
     # Previously this was one serial LLM call per edge; the calls are
     # independent, so we fan them out and dedup by text (one call per fact).
@@ -260,6 +292,7 @@ async def resolve_supersession(driver, agent_id: str, resolved_payload) -> int:
     }
     state_edges = [(e, t) for (e, t) in candidates_edges if state_map.get(t)]
     if not state_edges:
+        await _mark_checked()
         return 0
 
     # Phase 2 — for each state edge, search candidates + judge + mark,
@@ -306,4 +339,5 @@ async def resolve_supersession(driver, agent_id: str, resolved_payload) -> int:
             return 0
 
     counts = await asyncio.gather(*[_process_edge(e, t) for e, t in state_edges])
+    await _mark_checked()
     return sum(counts)

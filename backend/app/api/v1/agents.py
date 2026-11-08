@@ -39,6 +39,7 @@ from app.models.responses import (
 from app.models.schemas import Agent, Edge, GraphPayload, Node
 from app.services.identity_service import get_identity_service
 from app.services.purge_service import purge_kb
+from app.services.sleep_service import SleepBusy, SleepOrchestrator, latest_report
 
 logger = logging.getLogger(__name__)
 
@@ -551,6 +552,27 @@ async def consolidate_now(agent_id: str, auth: Principal = Depends(get_principal
         raise HTTPException(status_code=500, detail=f"Consolidation failed: {exc}")
 
     return APIResponse(success=True, message="consolidation complete", data=report)
+
+
+@router.post("/{agent_id}/sleep")
+async def run_sleep(agent_id: str, auth: Principal = Depends(get_principal)):
+    """Run the full sleep cycle for this KB now and return its report (counts only)."""
+    await authorize(auth, agent_id, Action.MANAGE)
+    try:
+        report = await SleepOrchestrator(_get_graph_service()).run(agent_id)
+    except SleepBusy:
+        raise HTTPException(status_code=409, detail="This knowledge base is already sleeping.")
+    return report
+
+
+@router.get("/{agent_id}/sleep/report")
+async def get_sleep_report(agent_id: str, auth: Principal = Depends(get_principal)):
+    """The most recent sleep report for this KB."""
+    await authorize(auth, agent_id, Action.READ)
+    report = await latest_report(_get_graph_service()._driver, agent_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="This knowledge base has not slept yet.")
+    return report
 
 
 # ---------------------------------------------------------------------------

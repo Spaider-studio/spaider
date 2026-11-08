@@ -302,6 +302,18 @@ class Settings(BaseSettings):
         default=10,
         description="Max prior facts considered as supersession candidates per new edge.",
     )
+    llm_fast_model: str = Field(default="", description="Cheaper model for background work; empty = llm_model.")
+    sleep_lease_ttl_seconds: int = Field(default=120, ge=1)
+    sleep_extract_batch: int = Field(default=50, ge=1)
+    sleep_extract_min_age_seconds: int = Field(default=300, ge=0)
+    sleep_contradictions_batch: int = Field(default=200, ge=1)
+    sleep_archive_energy: float = Field(default=0.05, ge=0.0, le=1.0)
+    sleep_lessons_batch: int = Field(default=20, ge=1)
+    sleep_skill_similarity: float = Field(default=0.5, ge=0.0, le=1.0)
+    sleep_skill_min_support: int = Field(default=3, ge=2)
+    sleep_compact_after_days: int = Field(default=7, ge=0)
+    sleep_compact_min_group: int = Field(default=5, ge=2)
+    ranker_min_examples: int = Field(default=20, ge=2)
     supersession_max_concurrency: int = Field(
         default=8,
         description="Max simultaneous supersession LLM calls for one ingest.",

@@ -923,11 +923,11 @@ class SemanticCompressor:
                 logger.error(
                     "LLM call failed on attempt %d/%d: %s", attempt, _MAX_RETRIES, exc
                 )
+                last_error = str(exc)
+                last_raw = ""
                 if attempt == _MAX_RETRIES:
                     break
                 await asyncio.sleep(2 ** (attempt - 1))
-                last_error = str(exc)
-                last_raw = ""
                 continue
 
             if response.usage:

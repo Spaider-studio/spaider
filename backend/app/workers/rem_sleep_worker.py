@@ -34,14 +34,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+
+import numpy as np
 
 from app.config import settings
-from app.lib.consolidation import (
-    _ORPHAN_MIN_AGE_DAYS,
-    _fuse_agent_duplicates,
-    _propose_relations,
-)
+from app.lib.consolidation import _propose_relations
+from app.services.sleep_service import SleepBusy, SleepOrchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -51,74 +49,6 @@ logger = logging.getLogger(__name__)
 # agent_id are reused directly, and the two below add the scoping the global
 # passes lack).
 # ---------------------------------------------------------------------------
-
-
-async def _prune_agent_orphans(driver, agent_id: str) -> int:
-    """Delete isolated SpaiderNodes for one agent older than the threshold.
-
-    Returns the number of nodes deleted. Fully agent-scoped, so it is safe to
-    run concurrently with other agents.
-    """
-    cutoff_ms = int(
-        (datetime.now(timezone.utc) - timedelta(days=_ORPHAN_MIN_AGE_DAYS))
-        .timestamp() * 1000
-    )
-    async with driver.session() as session:
-        count_result = await session.run(
-            """
-            MATCH (n:SpaiderNode {agent_id: $agent_id})
-            WHERE NOT (n)--()
-              AND n.created_at IS NOT NULL
-              AND n.created_at < $cutoff_ms
-              AND NOT n:SystemAgent
-            RETURN count(n) AS total
-            """,
-            agent_id=agent_id,
-            cutoff_ms=cutoff_ms,
-        )
-        record = await count_result.single()
-        total = int(record["total"]) if record else 0
-
-        if total > 0:
-            await session.run(
-                """
-                MATCH (n:SpaiderNode {agent_id: $agent_id})
-                WHERE NOT (n)--()
-                  AND n.created_at IS NOT NULL
-                  AND n.created_at < $cutoff_ms
-                  AND NOT n:SystemAgent
-                DETACH DELETE n
-                """,
-                agent_id=agent_id,
-                cutoff_ms=cutoff_ms,
-            )
-    return total
-
-
-async def _decay_agent_edges(driver, agent_id: str) -> int:
-    """Multiplicatively decay this agent's RELATION utility_weights (floored 0.1).
-
-    The disuse counterweight to implicit reinforcement, scoped to one agent so
-    it runs inside a per-agent sleep pass. No-op when the rate is >= 1.0.
-    """
-    rate = settings.edge_decay_rate
-    if rate >= 1.0:
-        return 0
-    async with driver.session() as session:
-        result = await session.run(
-            """
-            MATCH (:SpaiderNode {agent_id: $agent_id})-[r:RELATION]->(:SpaiderNode {agent_id: $agent_id})
-            WITH r, coalesce(r.utility_weight, 1.0) AS w
-            WITH r, w, CASE WHEN w * $rate < 0.1 THEN 0.1 ELSE w * $rate END AS new_w
-            WHERE new_w <> w
-            SET r.utility_weight = new_w
-            RETURN count(r) AS decayed
-            """,
-            agent_id=agent_id,
-            rate=rate,
-        )
-        record = await result.single()
-        return int(record["decayed"]) if record else 0
 
 
 # ---------------------------------------------------------------------------
@@ -222,56 +152,31 @@ class REMSleepWorker:
             return [r["agent_id"] async for r in result]
 
     async def _consolidate_agent(self, agent_id: str) -> dict:
-        """Run prune → fuse → decay → (optional) propose for one agent, then
-        stamp ``last_consolidated_at``.
+        """Run the full sleep cycle for one KB. Another worker holding it is not an error."""
+        from app.services.graph_service import get_graph_service
 
-        A failure in any sub-pass is logged and swallowed so the remaining
-        passes still run. Returns a small report dict (used by the manual
-        trigger endpoint).
-        """
         logger.info("REMSleepWorker: consolidating agent=%s", agent_id)
-        pruned = fused = decayed = proposed = 0
-
         try:
-            pruned = await _prune_agent_orphans(self._driver, agent_id)
-        except Exception as exc:  # noqa: BLE001
-            logger.exception("REMSleepWorker: orphan prune failed | agent=%s err=%s", agent_id, exc)
+            report = await SleepOrchestrator(get_graph_service()).run(agent_id)
+        except SleepBusy:
+            logger.info("REMSleepWorker: agent=%s is already sleeping elsewhere", agent_id)
+            return {"status": "busy"}
 
-        try:
-            import numpy as np
-            fused = await _fuse_agent_duplicates(self._driver, agent_id, np)
-        except ImportError:
-            logger.warning("REMSleepWorker: numpy unavailable — skipping fuse | agent=%s", agent_id)
-        except Exception as exc:  # noqa: BLE001
-            logger.exception("REMSleepWorker: duplicate fuse failed | agent=%s err=%s", agent_id, exc)
-
-        try:
-            decayed = await _decay_agent_edges(self._driver, agent_id)
-        except Exception as exc:  # noqa: BLE001
-            logger.exception("REMSleepWorker: edge decay failed | agent=%s err=%s", agent_id, exc)
-
-        try:
-            if settings.consolidation_propose_edges:
-                import numpy as np
+        proposed = 0
+        if settings.consolidation_propose_edges:
+            try:
                 proposed = await _propose_relations(self._driver, agent_id, np)
-        except ImportError:
-            pass
-        except Exception as exc:  # noqa: BLE001
-            logger.exception("REMSleepWorker: alchemist failed | agent=%s err=%s", agent_id, exc)
+            except Exception as exc:  # noqa: BLE001
+                logger.exception("REMSleepWorker: alchemist failed | agent=%s err=%s", agent_id, exc)
 
-        # Stamp completion so the cadence clock restarts from now.
-        try:
-            async with self._driver.session() as session:
-                await session.run(
-                    "MATCH (a:SystemAgent {agent_id: $aid}) SET a.last_consolidated_at = datetime()",
-                    aid=agent_id,
-                )
-        except Exception as exc:  # noqa: BLE001
-            logger.exception("REMSleepWorker: could not stamp last_consolidated_at | agent=%s err=%s", agent_id, exc)
-
-        report = {"pruned": pruned, "fused": fused, "decayed": decayed, "proposed": proposed}
-        logger.info("REMSleepWorker: agent=%s done | %s", agent_id, report)
-        return report
+        passes = report["passes"]
+        return {
+            "pruned": passes.get("prune", {}).get("pruned", 0),
+            "fused": passes.get("fusion", {}).get("merged", 0),
+            "decayed": passes.get("decay", {}).get("edges", 0),
+            "proposed": proposed,
+            "report": report,
+        }
 
     async def consolidate_agent_now(self, agent_id: str) -> dict:
         """Run a consolidation pass for one agent immediately (manual trigger)."""

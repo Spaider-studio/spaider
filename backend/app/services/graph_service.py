@@ -949,12 +949,13 @@ class GraphService:
         async with self._driver.session() as session:
             node_result = await session.run(
                 f"""
-                MATCH path = (start:SpaiderNode {{id: $node_id}})-[*0..{d}]-(end:SpaiderNode)
+                MATCH path = (start:SpaiderNode {{id: $node_id}})-[:RELATION*0..{d}]-(end:SpaiderNode)
                 WHERE ($agent_id IS NULL OR start.agent_id = $agent_id)
                   AND all(x IN nodes(path) WHERE coalesce(x.clearance_level, 1) <= $max_clearance)
                 UNWIND nodes(path) AS n
                 WITH DISTINCT n
                 WHERE NOT coalesce(n.superseded, false)
+                  AND coalesce(n.status, 'active') = 'active'
                 RETURN n.id AS id, n.label AS label, n.type AS type,
                        n.description AS description,
                        n.properties AS properties, n.embedding AS embedding,
@@ -968,7 +969,7 @@ class GraphService:
 
             edge_result = await session.run(
                 f"""
-                MATCH path = (start:SpaiderNode {{id: $node_id}})-[*0..{d}]-(end:SpaiderNode)
+                MATCH path = (start:SpaiderNode {{id: $node_id}})-[:RELATION*0..{d}]-(end:SpaiderNode)
                 WHERE ($agent_id IS NULL OR start.agent_id = $agent_id)
                   AND all(x IN nodes(path) WHERE coalesce(x.clearance_level, 1) <= $max_clearance)
                 UNWIND relationships(path) AS r
@@ -1136,6 +1137,7 @@ class GraphService:
                 YIELD node, score
                 WHERE node.agent_id = $agent_id
                   AND NOT coalesce(node.superseded, false)
+                  AND coalesce(node.status, 'active') = 'active'
                 RETURN node.id AS id, node.label AS label, node.type AS type,
                        node.description AS description,
                        node.properties AS properties, node.embedding AS embedding,

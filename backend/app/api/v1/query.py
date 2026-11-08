@@ -4,8 +4,10 @@ Query API endpoints: natural-language queries, direct Cypher, and graph traversa
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import uuid
+from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -27,6 +29,10 @@ router = APIRouter()
 
 _query_service = None
 _graph_service = None
+
+
+def _str_or_none(value) -> Optional[str]:
+    return value if isinstance(value, str) else None
 
 
 def _get_graph_service():
@@ -207,6 +213,8 @@ async def query_nl(
         return QueryResult(
             question=svc_result.question,
             answer=svc_result.answer,
+            query_id=_str_or_none(getattr(svc_result, "query_id", None)),
+            citations=svc_result.citations if isinstance(getattr(svc_result, "citations", None), list) else [],
             subgraph=svc_result.subgraph,
             cypher_used=svc_result.cypher,
             iterations_used=getattr(svc_result, "iterations_used", 1),
@@ -331,7 +339,10 @@ async def stream_query(
                 top_k=request.top_k,
                 max_clearance=auth.clearance_level,
             ):
-                yield f"data: {token}\n\n"
+                if isinstance(token, dict):
+                    yield f"event: meta\ndata: {json.dumps(token)}\n\n"
+                else:
+                    yield f"data: {token}\n\n"
         except Exception as exc:
             logger.exception("Streaming query error: %s", exc)
             yield f"data: [ERROR] {exc}\n\n"

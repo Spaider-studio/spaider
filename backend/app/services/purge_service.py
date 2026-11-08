@@ -32,6 +32,9 @@ _DELETE_BATCHES = (
     "MATCH (n:Episode {agent_id: $kb}) DETACH DELETE n RETURN count(n) AS c",
     "MATCH (n:InteractionNode {agent_id: $kb}) DETACH DELETE n RETURN count(n) AS c",
     "MATCH (n:AuditEvent {agent_id: $kb}) DETACH DELETE n RETURN count(n) AS c",
+    "MATCH (n:Feedback {agent_id: $kb}) DETACH DELETE n RETURN count(n) AS c",
+    "MATCH (n:SleepReport {agent_id: $kb}) DETACH DELETE n RETURN count(n) AS c",
+    "MATCH (n:SleepLease {agent_id: $kb}) DETACH DELETE n RETURN count(n) AS c",
 )
 
 

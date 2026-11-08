@@ -120,7 +120,7 @@ class EpisodeStore:
             result = await session.run(
                 f"""
                 MATCH (e:Episode {{agent_id: $agent_id}})
-                WHERE e.clearance_level <= $max_clearance
+                WHERE e.clearance_level <= $max_clearance AND e.status <> 'compacted'
                 RETURN {_FIELDS}
                 ORDER BY e.occurred_at DESC LIMIT $limit
                 """,
@@ -138,7 +138,7 @@ class EpisodeStore:
                 f"""
                 CALL db.index.vector.queryNodes('episode_hash_embedding', $k, $embedding)
                 YIELD node AS e, score
-                WHERE e.agent_id = $agent_id AND e.clearance_level <= $max_clearance
+                WHERE e.agent_id = $agent_id AND e.clearance_level <= $max_clearance AND e.status <> 'compacted'
                 RETURN {_FIELDS}, score
                 ORDER BY score DESC LIMIT $limit
                 """,
@@ -162,7 +162,7 @@ class EpisodeStore:
                 f"""
                 MATCH (e:Episode {{agent_id: $agent_id}})
                 WHERE point.distance(e.location, point($center)) <= $radius
-                  AND e.clearance_level <= $max_clearance
+                  AND e.clearance_level <= $max_clearance AND e.status <> 'compacted'
                 WITH e, point.distance(e.location, point($center)) AS distance
                 RETURN {_FIELDS}, distance
                 ORDER BY distance ASC LIMIT $limit

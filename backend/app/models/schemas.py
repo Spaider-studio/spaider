@@ -335,6 +335,8 @@ class TokenUsage(BaseModel):
 class QueryResult(BaseModel):
     question: str
     answer: str
+    query_id: Optional[str] = Field(default=None, description="Pass to POST /feedback to rate this answer.")
+    citations: list[dict] = Field(default_factory=list, description="Nodes the answer cites as [nK].")
     subgraph: GraphPayload
     cypher_used: Optional[str] = None
     token_usage: Optional[TokenUsage] = Field(

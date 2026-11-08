@@ -41,6 +41,7 @@ class Prepared:
     agent_id: str
     payload: GraphPayload
     episode_id: Optional[str] = None
+    clearance: int = 1
 
 
 @dataclass
@@ -168,15 +169,21 @@ class IngestPipeline:
         context: Optional[dict] = None,
         caller_context: str = "api",
         on_progress: Optional[Progress] = None,
+        episode_id: Optional[str] = None,
+        clearance: int = 1,
     ) -> Prepared:
-        episode_id = await self._record_episode(agent_id, text, source)
+        """``episode_id`` is set when sleep extracts an episode that already exists."""
+        if episode_id is None:
+            episode_id = await self._record_episode(agent_id, text, source)
         payload = await self._compressor.extract(
             text=text, context=context if context is not None else ({"source": source} if source else None)
         )
         if on_progress:
             await on_progress(f"Extracted {len(payload.nodes)} entities — resolving duplicates…")
         attach_fact_node(payload, text, source)
-        return await self.prepare_payload(agent_id, payload, caller_context=caller_context, episode_id=episode_id)
+        prepared = await self.prepare_payload(agent_id, payload, caller_context=caller_context, episode_id=episode_id)
+        prepared.clearance = clearance
+        return prepared
 
     async def prepare_payload(
         self,
@@ -227,7 +234,25 @@ class IngestPipeline:
             # A superseded fact must also stop being served from the cache.
             await _bump(prepared.agent_id)
 
+    async def _raise_clearance(self, prepared: Prepared) -> None:
+        """Knowledge drawn from a sensitive episode is at least as sensitive."""
+        if prepared.clearance <= 1:
+            return
+        async with self._graph._driver.session() as session:
+            await session.run(
+                """
+                UNWIND $ids AS node_id
+                MATCH (n:SpaiderNode {id: node_id, agent_id: $kb})
+                WHERE coalesce(n.clearance_level, 1) < $clearance
+                SET n.clearance_level = $clearance
+                """,
+                ids=[node.id for node in prepared.payload.nodes],
+                kb=prepared.agent_id,
+                clearance=prepared.clearance,
+            )
+
     async def _finish(self, prepared: Prepared, result, workflow_id: Optional[str]) -> None:
+        await self._raise_clearance(prepared)
         await self._mark_episode(prepared.episode_id)
         await _bump(prepared.agent_id)
         # Supersession is consolidation, not perception: ingest latency excludes it.
