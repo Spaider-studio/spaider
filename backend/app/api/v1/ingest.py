@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import json
 import logging
 import time
 import uuid
@@ -23,6 +22,7 @@ from app.connectors.sql_connector import SQLConnector
 from app.connectors.trafilatura_url_connector import URLConnector
 from app.connectors.upload_connector import UploadConnector
 from app.core.authz import Action, Principal, authorize, get_principal
+from app.core.jobs import QueueFull
 from app.core.kv import get_kv
 from app.core.net_guard import BlockedTarget, PolicyRefused, check_image_url
 from app.models.requests import IngestRequest
@@ -30,6 +30,7 @@ from app.models.responses import IngestQueuedResponse, IngestSyncResponse, SlimE
 from app.models.schemas import Edge, GraphPayload, Node
 from app.services.compressor import ExtractionError
 from app.services.graph_service import get_graph_service
+from app.services.ingest_pipeline import IngestPipeline, attach_fact_node, enqueue_text, fire_replay_event
 
 logger = logging.getLogger(__name__)
 
@@ -73,38 +74,7 @@ _sql_connector = SQLConnector()
 _FACT_LABEL_PREVIEW_CHARS = 200
 
 
-def _attach_fact_node(payload: GraphPayload, text: str, source: Optional[str]) -> None:
-    """Append a FACT node carrying the original ingested ``text`` and a
-    ``MENTIONS`` edge from it to every entity node already in ``payload``.
-
-    Mutates ``payload`` in place. Without this, the original
-    natural-language text is lost during
-    extraction and synthesis-style queries (``spaider.query`` over
-    multi-sentence facts) silently fail to find the original content.
-    """
-    if not text or not text.strip():
-        return
-    label_preview = text.strip().replace("\n", " ")[:_FACT_LABEL_PREVIEW_CHARS]
-    if len(text) > _FACT_LABEL_PREVIEW_CHARS:
-        label_preview += "…"
-    fact_source = source or "ingest_text_sync"
-    fact_node = Node(
-        label=f"fact: {label_preview}",
-        type="FACT",
-        description=text,
-        properties={"source": fact_source},
-    )
-    fact_edges = [
-        Edge(
-            source_id=fact_node.id,
-            target_id=entity.id,
-            relation="MENTIONS",
-            properties={"source": fact_source},
-        )
-        for entity in payload.nodes
-    ]
-    payload.nodes.append(fact_node)
-    payload.edges.extend(fact_edges)
+_attach_fact_node = attach_fact_node
 
 
 def _attach_image_node(
@@ -247,6 +217,10 @@ async def _save_run_state(connector_id: str, agent_id: str, state: RunState) -> 
         )
 
 
+def _pipeline() -> IngestPipeline:
+    return IngestPipeline(_get_graph_service(), _get_compressor(), _get_resolver())
+
+
 def _get_graph_service():
     return _graph_service or get_graph_service()
 
@@ -267,71 +241,7 @@ def _get_resolver():
     return _resolver
 
 
-def _fire_replay_event(
-    workflow_id: str,
-    agent_id: str,
-    event_type: str,
-    payload: dict,
-    graph_state_hash: str | None = None,
-) -> None:
-    """Schedule a replay event as a fire-and-forget background task.
-
-    Uses the same lazy singleton as the Replay HTTP endpoints.  Silently
-    drops the event when Kafka is unavailable — replay is non-critical.
-    """
-    def _default_trace_summary(event: str, data: dict) -> str:
-        et = event.lower()
-        if et == "ingest_queued":
-            return (
-                "Ingest request was accepted and placed on the async queue "
-                "for background extraction and graph write."
-            )
-        if et == "ingest_received":
-            return (
-                "Ingest pipeline started: text is being normalized, then entities and "
-                "relationships will be extracted before persistence."
-            )
-        if et == "graph_mutation":
-            return (
-                "Extracted entities were merged into the knowledge graph using agent-scoped "
-                "upserts; counts in metadata describe created/merged nodes and edges."
-            )
-        if et == "ingest_completed":
-            nodes_total = data.get("nodes_total")
-            edges_total = data.get("edges_total")
-            return (
-                "Ingest pipeline finished successfully "
-                f"(nodes={nodes_total}, edges={edges_total})."
-            )
-        if et == "ingest_failed":
-            return "Ingest pipeline failed; see metadata/error fields for root cause."
-        return "Replay audit event captured for deterministic workflow reconstruction."
-
-    async def _emit() -> None:
-        try:
-            from app.api.v1.replay import get_replay_service
-            svc = await get_replay_service()
-            if svc is None:
-                return
-            event_payload = dict(payload or {})
-            if not str(event_payload.get("trace_summary", "")).strip():
-                event_payload["trace_summary"] = _default_trace_summary(event_type, event_payload)
-            await svc.record_event(
-                workflow_id=workflow_id,
-                agent_id=agent_id,
-                event_type=event_type,
-                payload=event_payload,
-                graph_state_hash=graph_state_hash,
-            )
-        except asyncio.CancelledError:
-            return
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("Replay event skipped (%s): %s", event_type, exc)
-
-    try:
-        asyncio.get_running_loop().create_task(_emit())
-    except RuntimeError:
-        pass  # No running loop — not in an async context, skip silently
+_fire_replay_event = fire_replay_event
 
 
 async def _get_kafka_producer():
@@ -363,10 +273,17 @@ async def ingest_text_async(request: IngestRequest, auth: Principal = Depends(ge
     await authorize(auth, request.agent_id, Action.WRITE)
     producer = await _get_kafka_producer()
     if producer is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Kafka producer unavailable. Use /ingest/sync for synchronous ingestion.",
+        try:
+            job_id = await enqueue_text(request.agent_id, request.text, request.source)
+        except QueueFull:
+            raise HTTPException(status_code=503, detail="Ingest queue is full. Retry shortly.")
+        _fire_replay_event(
+            job_id,
+            request.agent_id,
+            "ingest_queued",
+            {"text_length": len(request.text), "source": request.source},
         )
+        return IngestQueuedResponse(status="queued", message_id=job_id, agent_id=request.agent_id)
 
     try:
         message_id = await producer.produce_ingest_event(
@@ -413,94 +330,14 @@ async def ingest_text_sync(request: IngestRequest, auth: Principal = Depends(get
     )
 
     try:
-        compressor = _get_compressor()
-        resolver = _get_resolver()
-        graph = _get_graph_service()
-
-        # 1. Extract graph payload from raw text
-        logger.debug("Extracting entities for agent_id=%s", request.agent_id)
-        payload = await compressor.extract(request.text, context={"source": request.source} if request.source else None)
-
-        # 1a. Append a FACT node carrying the verbatim ingested text.
-        # Without this, the extraction pipeline would drop the
-        # original sentence and only keep the entity nodes — which is fine
-        # for entity-graph queries but loses everything synthesis questions
-        # need. The FACT node is linked to every extracted entity via a
-        # MENTIONS edge so graph traversal can find the original text from
-        # any of its entities.
-        #
-        # ALWAYS attach it, even when extraction found no entities: terse
-        # facts ("...recovered in 18s.") often yield an empty payload, and
-        # gating the FACT node on `payload.nodes` silently dropped the whole
-        # fact — an unrecoverable ingestion loss. A standalone FACT node is
-        # still fully retrievable (fulltext + embedding both cover it), so
-        # the fact is never lost; the small graph-size cost is worth it.
-        if request.text and request.text.strip():
-            _attach_fact_node(payload, request.text, request.source)
-
-        # 2. Attach agent_id to nodes/edges
-        for node in payload.nodes:
-            node.agent_id = request.agent_id
-        for edge in payload.edges:
-            edge.agent_id = request.agent_id
-
-        # 3. Resolve / deduplicate entities against existing graph
-        resolved_payload = await resolver.resolve(payload, request.agent_id, graph, caller_context="api")
-
-        # 4. Write to Neo4j
-        result = await graph.write_graph(resolved_payload, request.agent_id)
+        outcome = await _pipeline().ingest_text(
+            request.agent_id, request.text, source=request.source, workflow_id=workflow_id
+        )
+        resolved_payload, result = outcome.payload, outcome.result
         nodes_written = result.nodes_created + result.nodes_merged
         edges_written = result.edges_created + result.edges_merged
         nodes_merged = result.nodes_merged
         nodes_created = result.nodes_created
-
-        # 4b. Supersession: mark prior functional facts (new CEO, moved HQ) that
-        # this update replaces. This is a CONSOLIDATION function, not perception —
-        # it used to run inline and added ~14s (serial per-edge LLM calls) to the
-        # response. It now runs fire-and-forget AFTER the write, so ingest latency
-        # excludes it; the internal loop is parallelized (see resolve_supersession)
-        # so it converges in ~1-2s. Retrieval reflects the superseding fact within
-        # that window rather than synchronously. No-op unless the agent enables it.
-        try:
-            from app.services.supersession import resolve_supersession
-            asyncio.get_running_loop().create_task(
-                resolve_supersession(graph._driver, request.agent_id, resolved_payload)
-            )
-        except RuntimeError:
-            # No running loop (e.g. a sync test harness) — fall back to inline.
-            try:
-                from app.services.supersession import resolve_supersession
-                await resolve_supersession(graph._driver, request.agent_id, resolved_payload)
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("supersession skipped for agent=%s: %s", request.agent_id, exc)
-
-        # Replay: graph state mutated — capture node IDs now (while resolved_payload
-        # is in scope) but defer sort + SHA-256 into the background task so the
-        # CPU work doesn't add to request latency.
-        _replay_node_ids = [n.id for n in resolved_payload.nodes]
-        _replay_mutation_payload = {
-            "nodes_created": result.nodes_created,
-            "nodes_merged": result.nodes_merged,
-            "edges_created": result.edges_created,
-            "edges_merged": result.edges_merged,
-        }
-
-        async def _emit_graph_mutation() -> None:
-            try:
-                _graph_hash = hashlib.sha256(
-                    json.dumps(sorted(_replay_node_ids)).encode()
-                ).hexdigest()[:16]
-                _fire_replay_event(
-                    workflow_id, request.agent_id, "graph_mutation",
-                    _replay_mutation_payload,
-                    graph_state_hash=_graph_hash,
-                )
-            except asyncio.CancelledError:
-                return
-            except Exception:
-                logger.debug("graph_mutation replay skipped for workflow %s", workflow_id)
-
-        asyncio.get_running_loop().create_task(_emit_graph_mutation())
 
         latency_ms = (time.perf_counter() - t0) * 1000
         logger.info(
@@ -550,7 +387,7 @@ async def ingest_text_sync(request: IngestRequest, auth: Principal = Depends(get
             import app.main as _main
             svc = getattr(_main, "_analytics_service", None)
             if svc and svc._ready:
-                chunk_count = getattr(compressor, "_last_chunk_count", 1)
+                chunk_count = getattr(_get_compressor(), "_last_chunk_count", 1)
                 svc.record_ingest(
                     agent_id=request.agent_id,
                     text_length=len(request.text),
@@ -644,8 +481,6 @@ async def ingest_image_sync(request: ImageIngestRequest, auth: Principal = Depen
     t0 = time.perf_counter()
     try:
         compressor = _get_compressor()
-        resolver = _get_resolver()
-        graph = _get_graph_service()
 
         # 1. Vision extraction: image -> text knowledge graph.
         payload = await compressor.extract_from_image(
@@ -672,17 +507,9 @@ async def ingest_image_sync(request: ImageIngestRequest, auth: Principal = Depen
         )
         _attach_image_node(payload, image_ref, caption, request.source)
 
-        # 2. Attach agent_id.
-        for node in payload.nodes:
-            node.agent_id = request.agent_id
-        for edge in payload.edges:
-            edge.agent_id = request.agent_id
-
-        # 3. Resolve / dedup, then 4. write — both modality-agnostic.
-        resolved_payload = await resolver.resolve(
-            payload, request.agent_id, graph, caller_context="api"
-        )
-        result = await graph.write_graph(resolved_payload, request.agent_id)
+        # Everything after extraction is the same as for text.
+        outcome = await _pipeline().ingest_payload(request.agent_id, payload)
+        resolved_payload, result = outcome.payload, outcome.result
         nodes_written = result.nodes_created + result.nodes_merged
         edges_written = result.edges_created + result.edges_merged
 
@@ -746,59 +573,17 @@ async def _run_stream_ingest(request: IngestRequest, job_id: str) -> None:
     try:
         await broadcast("status", {"message": "Extracting entities from text…"})
 
-        compressor = _get_compressor()
-        resolver = _get_resolver()
-        graph = _get_graph_service()
+        async def progress(message: str) -> None:
+            await broadcast("status", {"message": message})
 
-        payload = await compressor.extract(
+        outcome = await _pipeline().ingest_text(
+            request.agent_id,
             request.text,
-            context={"source": request.source} if request.source else None,
+            source=request.source,
+            workflow_id=job_id,
+            on_progress=progress,
         )
-
-        await broadcast(
-            "status",
-            {"message": f"Extracted {len(payload.nodes)} entities — resolving duplicates…"},
-        )
-
-        for node in payload.nodes:
-            node.agent_id = request.agent_id
-        for edge in payload.edges:
-            edge.agent_id = request.agent_id
-
-        resolved = await resolver.resolve(payload, request.agent_id, graph, caller_context="api")
-
-        await broadcast(
-            "status",
-            {"message": f"Writing {len(resolved.nodes)} nodes to graph…"},
-        )
-
-        result = await graph.write_graph(resolved, request.agent_id)
-
-        # Replay: graph mutation committed — defer fingerprinting into task.
-        _stream_node_ids = [n.id for n in resolved.nodes]
-        _stream_mutation_payload = {
-            "nodes_created": result.nodes_created,
-            "nodes_merged": result.nodes_merged,
-            "edges_created": result.edges_created,
-            "edges_merged": result.edges_merged,
-        }
-
-        async def _emit_stream_graph_mutation() -> None:
-            try:
-                _stream_hash = hashlib.sha256(
-                    json.dumps(sorted(_stream_node_ids)).encode()
-                ).hexdigest()[:16]
-                _fire_replay_event(
-                    job_id, request.agent_id, "graph_mutation",
-                    _stream_mutation_payload,
-                    graph_state_hash=_stream_hash,
-                )
-            except asyncio.CancelledError:
-                return
-            except Exception:
-                logger.debug("graph_mutation replay skipped for job %s", job_id)
-
-        asyncio.get_running_loop().create_task(_emit_stream_graph_mutation())
+        resolved, result = outcome.payload, outcome.result
 
         # Stream nodes one-by-one — creates the "popping" visual effect
         for node in resolved.nodes:
@@ -1489,9 +1274,6 @@ async def ingest_graph(
     t0 = time.perf_counter()
 
     try:
-        resolver = _get_resolver()
-        graph = _get_graph_service()
-
         # Stamp agent_id onto every node and edge supplied by the client.
         for node in request.nodes:
             node.agent_id = request.agent_id
@@ -1501,11 +1283,8 @@ async def ingest_graph(
         payload = GraphPayload(nodes=request.nodes, edges=request.edges)
 
         # Resolve / deduplicate; raises HTTP 422 on embedding dimension mismatch.
-        resolved = await resolver.resolve(
-            payload, request.agent_id, graph, caller_context="api"
-        )
-
-        result = await graph.write_graph(resolved, request.agent_id)
+        outcome = await _pipeline().ingest_payload(request.agent_id, payload)
+        resolved, result = outcome.payload, outcome.result
 
         latency_ms = (time.perf_counter() - t0) * 1000
         logger.info(
@@ -1607,9 +1386,6 @@ async def ingest_graph_batch(
         raise HTTPException(status_code=422, detail="payloads must not be empty.")
 
     try:
-        resolver = _get_resolver()
-        graph = _get_graph_service()
-
         # Stamp agent_id onto all nodes/edges in every payload.
         for payload in body.payloads:
             for node in payload.nodes:
@@ -1617,17 +1393,11 @@ async def ingest_graph_batch(
             for edge in payload.edges:
                 edge.agent_id = body.agent_id
 
-        # Resolve all payloads concurrently — N I/O-bound coroutines in parallel.
-        resolved_payloads: list[GraphPayload] = await asyncio.gather(
-            *[
-                resolver.resolve(p, body.agent_id, graph, caller_context="api")
-                for p in body.payloads
-            ]
-        )
-
-        # Write all resolved payloads in a single Neo4j transaction.
-        items = [(p, body.agent_id) for p in resolved_payloads]
-        result = await graph.write_graph_batch(items)
+        # Resolve concurrently, then write everything in one Neo4j transaction.
+        pipeline = _pipeline()
+        prepared = await asyncio.gather(*[pipeline.prepare_payload(body.agent_id, p) for p in body.payloads])
+        resolved_payloads: list[GraphPayload] = [item.payload for item in prepared]
+        result = await pipeline.commit_many(list(prepared))
 
         latency_ms = (time.perf_counter() - t0) * 1000
         logger.info(

@@ -36,15 +36,22 @@ from app.lib.litellm_retry import acompletion_with_retry
 logger = logging.getLogger(__name__)
 
 
+# Only strictly older edges are candidates. Edges written together share a
+# timestamp, so two facts from one document can never supersede each other, and
+# a slow judge for an older edge cannot retire a newer one.
+#
 # Candidates share an entity endpoint with the new edge (either end), regardless
 # of the relation TYPE. This is deliberately broad: SpAIder's predicates are
 # inconsistent ("headquartered in" vs "relocated to"), so requiring the same
 # relation misses real updates. The LLM judge does the discrimination; this query
 # only narrows to "facts about a shared entity" and caps the count.
 _CANDIDATE_CYPHER = """
+MATCH ()-[new:RELATION {id: $new_id, agent_id: $aid}]->()
+WITH coalesce(new.recorded_at, new.created_at, '') AS new_at
 MATCH (a:SpaiderNode {agent_id: $aid})-[r:RELATION]->(b:SpaiderNode {agent_id: $aid})
 WHERE NOT coalesce(r.superseded, false)
   AND r.id <> $new_id
+  AND coalesce(r.recorded_at, r.created_at, '') < new_at
   AND coalesce(r.relation, '') <> 'MENTIONS'
   AND (a.id IN [$src, $tgt] OR b.id IN [$src, $tgt])
 RETURN r.id AS edge_id, a.label AS subj, coalesce(r.relation, 'RELATED') AS rel,
@@ -56,7 +63,7 @@ LIMIT $max
 # superseded edge's source sentence (so the stale text stops being retrievable).
 _MARK_CYPHER = """
 UNWIND $items AS item
-MATCH ()-[r:RELATION {id: item.edge_id}]->()
+MATCH ()-[r:RELATION {id: item.edge_id, agent_id: $aid}]->()
 SET r.superseded = true, r.superseded_by = $new_id,
     r.valid_to = coalesce(r.valid_to, $now), r.expired_at = $now
 WITH collect(item.text) AS texts
@@ -74,7 +81,7 @@ RETURN count(f) AS facts_marked
 # FACT still mentions that entity (guard against wiping a still-supported one).
 _NEUTRALIZE_CYPHER = """
 UNWIND $items AS item
-MATCH (a:SpaiderNode)-[r:RELATION {id: item.edge_id}]->(b:SpaiderNode)
+MATCH (a:SpaiderNode)-[r:RELATION {id: item.edge_id, agent_id: $aid}]->(b:SpaiderNode)
 WITH [a, b] AS ents, item.text AS ftext
 UNWIND ents AS ent
 WITH DISTINCT ent, ftext
@@ -237,9 +244,15 @@ async def resolve_supersession(driver, agent_id: str, resolved_payload) -> int:
     # Phase 1 — classify each distinct fact as a state assertion, CONCURRENTLY.
     # Previously this was one serial LLM call per edge; the calls are
     # independent, so we fan them out and dedup by text (one call per fact).
+    llm_slots = asyncio.Semaphore(settings.supersession_max_concurrency)
+
+    async def _limited(call):
+        async with llm_slots:
+            return await call
+
     unique_texts = list({t for _, t in candidates_edges})
     state_flags = await asyncio.gather(
-        *[_is_state_update(t) for t in unique_texts], return_exceptions=True
+        *[_limited(_is_state_update(t)) for t in unique_texts], return_exceptions=True
     )
     state_map = {
         t: (flag is True)  # a failed classification (Exception) → not a state
@@ -269,7 +282,7 @@ async def resolve_supersession(driver, agent_id: str, resolved_payload) -> int:
                 ]
             if not candidates:
                 return 0
-            superseded_ids = await _judge(new_text, candidates)
+            superseded_ids = await _limited(_judge(new_text, candidates))
             if not superseded_ids:
                 return 0
             items = [

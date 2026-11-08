@@ -302,6 +302,10 @@ class Settings(BaseSettings):
         default=10,
         description="Max prior facts considered as supersession candidates per new edge.",
     )
+    supersession_max_concurrency: int = Field(
+        default=8,
+        description="Max simultaneous supersession LLM calls for one ingest.",
+    )
     supersession_judge_model: str = Field(
         default="",
         description="Model for the supersession judge; empty = use litellm_model. A "
