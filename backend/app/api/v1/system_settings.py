@@ -45,10 +45,9 @@ class ReflectionToggle(BaseModel):
 
 
 def _get_driver():
-    """Return the Neo4j async driver from the shared GraphService singleton."""
-    from app.services.graph_service import GraphService
-    svc = GraphService()
-    return svc._driver
+    from app.services.graph_service import get_graph_service
+
+    return get_graph_service()._driver
 
 
 # ---------------------------------------------------------------------------

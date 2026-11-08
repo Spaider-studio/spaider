@@ -15,6 +15,7 @@ from starlette.types import ASGIApp
 
 from app.config import settings
 from app.core.kv import get_kv
+from app.core.security import hash_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,8 @@ async def check_rate_limit(
     try:
         now = time.time()
         window_start = now - window_seconds
-        key = f"{_REDIS_PREFIX}{api_key}"
+        # Hashed so raw API keys never become Redis key names.
+        key = f"{_REDIS_PREFIX}{hash_api_key(api_key)}"
 
         pipe = redis.pipeline()
         # Remove requests outside the current window
@@ -123,6 +125,8 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
         return self._redis
 
     async def dispatch(self, request: Request, call_next) -> Response:
+        if not request.url.path.startswith("/api/"):
+            return await call_next(request)
         # Identify client by API key or IP
         api_key = (
             request.headers.get("X-API-Key")
@@ -131,12 +135,16 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
         )
 
         redis = await self._get_redis()
-        allowed, info = await check_rate_limit(
-            api_key=api_key,
-            limit=self._limit,
-            window_seconds=self._window_seconds,
-            redis=redis,
-        )
+        try:
+            allowed, info = await check_rate_limit(
+                api_key=api_key,
+                limit=self._limit,
+                window_seconds=self._window_seconds,
+                redis=redis,
+            )
+        except Exception as exc:  # noqa: BLE001 — a limiter outage must not take the API down
+            logger.warning("Rate limiter unavailable: %s", type(exc).__name__)
+            return await call_next(request)
 
         if not allowed:
             retry_after = int(info["reset_at"] - time.time()) + 1

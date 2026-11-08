@@ -77,8 +77,9 @@ class FeedbackResponse(BaseModel):
 
 
 def _get_driver():
-    from app.services.graph_service import GraphService
-    return GraphService()._driver
+    from app.services.graph_service import get_graph_service
+
+    return get_graph_service()._driver
 
 
 # ---------------------------------------------------------------------------

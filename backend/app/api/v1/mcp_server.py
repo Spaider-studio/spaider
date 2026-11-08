@@ -70,7 +70,7 @@ from mcp.server.lowlevel import Server
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 
 from app.core.authz import Action, Principal, authorize, resolve_token
-from app.services.graph_service import GraphService
+from app.services.graph_service import GraphService, get_graph_service
 from app.services.query_service import QueryService
 
 logger = logging.getLogger(__name__)
@@ -100,32 +100,14 @@ _graph_service: Optional[GraphService] = None
 
 
 def _get_graph_service() -> GraphService:
-    """Return the lifespan-initialised GraphService singleton.
-
-    Importantly we reuse the instance that ``main.lifespan`` constructed
-    and ran ``initialize()`` on — that's the one that has detected the
-    Neo4j vector index. Constructing a fresh ``GraphService()`` here
-    leaves ``vector_index_available=False`` permanently and breaks
-    ``spaider.query`` even when the index is ONLINE. Fall back to a
-    bare instance only if main has not yet initialised one (e.g. when
-    the standalone MCP app from ``app.mcp_standalone`` is starting up
-    before its own lifespan has run)."""
-    global _graph_service
-    if _graph_service is None:
-        from app import main as _app_main
-        if _app_main._graph_service is not None:
-            _graph_service = _app_main._graph_service
-        else:
-            _graph_service = GraphService()
-    return _graph_service
+    return _graph_service or get_graph_service()
 
 
 def _get_query_service() -> QueryService:
     global _query_service
-    if _query_service is None:
-        # QueryService requires a GraphService dependency for Cypher access
-        # — same construction pattern used by app/api/v1/query.py.
-        _query_service = QueryService(graph_service=_get_graph_service())
+    graph = _get_graph_service()
+    if _query_service is None or _query_service._graph is not graph:
+        _query_service = QueryService(graph_service=graph)
     return _query_service
 
 

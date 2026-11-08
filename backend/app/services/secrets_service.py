@@ -126,7 +126,7 @@ class SecretsService:
     # Encryption
     # ------------------------------------------------------------------
 
-    def encrypt(self, payload: dict) -> tuple[bytes, bytes]:
+    def encrypt(self, payload: dict, *, context: str) -> tuple[bytes, bytes]:
         """
         Serialise *payload* to JSON and encrypt with AES-256-GCM.
 
@@ -137,6 +137,10 @@ class SecretsService:
         payload:
             Arbitrary dict of connector credentials (e.g.
             ``{"api_key": "...", "refresh_token": "..."}``)
+        context:
+            Binds the ciphertext to its owner, typically
+            ``"<connector_id>:<key_name>"``. Decryption needs the same value,
+            so a stored secret cannot be copied onto another connector's row.
 
         Returns
         -------
@@ -154,7 +158,7 @@ class SecretsService:
         plaintext: bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8")
         nonce: bytes = os.urandom(_NONCE_BYTES)
         aesgcm = AESGCM(self._master_key)
-        ciphertext: bytes = aesgcm.encrypt(nonce, plaintext, associated_data=None)
+        ciphertext: bytes = aesgcm.encrypt(nonce, plaintext, associated_data=context.encode("utf-8"))
         logger.debug("SecretsService.encrypt: encrypted %d-byte payload.", len(plaintext))
         # Explicitly overwrite local reference (belt-and-suspenders; CPython
         # may not GC immediately but this signals intent clearly)
@@ -165,7 +169,7 @@ class SecretsService:
     # Decryption
     # ------------------------------------------------------------------
 
-    def decrypt(self, ciphertext: bytes, nonce: bytes) -> dict:
+    def decrypt(self, ciphertext: bytes, nonce: bytes, *, context: str) -> dict:
         """
         Decrypt *ciphertext* and return the original credentials dict.
 
@@ -176,6 +180,8 @@ class SecretsService:
             Includes the appended 128-bit GCM authentication tag.
         nonce:
             12-byte nonce as stored in ``ConnectorSecret.nonce``.
+        context:
+            The value given to ``encrypt``.
 
         Returns
         -------
@@ -196,7 +202,7 @@ class SecretsService:
         aesgcm = AESGCM(self._master_key)
 
         try:
-            plaintext: bytes = aesgcm.decrypt(nonce, ciphertext, associated_data=None)
+            plaintext: bytes = aesgcm.decrypt(nonce, ciphertext, associated_data=context.encode("utf-8"))
         except InvalidTag:
             # Do NOT include ciphertext, nonce, or key material in this log line
             logger.error(

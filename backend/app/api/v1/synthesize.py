@@ -29,6 +29,7 @@ from app.core.authz import Action, OrgAction, Principal, authorize, can, get_pri
 from app.lib.litellm_retry import acompletion_with_retry
 from app.models.requests import SynthesizeRequest
 from app.models.schemas import SynthesizeResult
+from app.services.graph_service import get_graph_service
 
 # Service-module SynthesizeConfig — distinct from app.models.schemas.SynthesizeConfig
 # (which is the older API-layer DTO). Aliased on import so the dual-class
@@ -151,11 +152,7 @@ _graph_service = None
 
 
 def _get_graph_service():
-    global _graph_service
-    if _graph_service is None:
-        from app.services.graph_service import GraphService
-        _graph_service = GraphService()
-    return _graph_service
+    return _graph_service or get_graph_service()
 
 
 def _get_synthesizer():

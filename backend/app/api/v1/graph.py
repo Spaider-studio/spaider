@@ -13,6 +13,7 @@ from app.core.authz import Action, OrgAction, Principal, authorize, get_principa
 from app.core.temporal import to_utc_iso
 from app.models.responses import GraphResponse
 from app.models.schemas import ClusterGraphPayload, GraphStats
+from app.services.graph_service import get_graph_service
 
 logger = logging.getLogger(__name__)
 
@@ -26,11 +27,7 @@ _graph_service = None
 
 
 def _get_graph_service():
-    global _graph_service
-    if _graph_service is None:
-        from app.services.graph_service import GraphService
-        _graph_service = GraphService()
-    return _graph_service
+    return _graph_service or get_graph_service()
 
 
 # ---------------------------------------------------------------------------

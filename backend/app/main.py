@@ -17,11 +17,15 @@ from app.api.router import api_router
 from app.config import settings
 from app.logging_config import configure_logging
 from app.middleware.logging_middleware import RequestLoggingMiddleware
+from app.middleware.rate_limiter import RateLimiterMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.services.graph_service import VectorIndexUnavailableError
 
 configure_logging()
 
 logger = logging.getLogger(__name__)
+
+_DEFAULT_NEO4J_PASSWORD = "spaider-dev-2024"
 
 
 # ---------------------------------------------------------------------------
@@ -184,6 +188,8 @@ async def lifespan(app: FastAPI):
         if settings.environment == "production":
             raise RuntimeError("SPAIDER_INSECURE_DEV cannot be used with ENVIRONMENT=production.")
         logger.warning("SECURITY: SPAIDER_INSECURE_DEV is set; every request is an unauthenticated owner.")
+    if settings.environment != "development" and settings.neo4j_password == _DEFAULT_NEO4J_PASSWORD:
+        raise RuntimeError("Refusing to start: NEO4J_PASSWORD is still the default.")
 
     # 1. Neo4j
     try:
@@ -413,6 +419,9 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Request-ID"],
 )
+
+app.add_middleware(RateLimiterMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Outermost middleware — wraps CORS so every request (including OPTIONS
 # preflights and auth failures) gets a request_id header + structured log.

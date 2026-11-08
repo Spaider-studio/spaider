@@ -10,7 +10,8 @@ import json
 import logging
 import time
 import uuid
-from typing import Annotated, Any, List, Optional
+from contextlib import contextmanager
+from typing import Annotated, Any, Iterator, List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel as _BaseModel
@@ -23,14 +24,27 @@ from app.connectors.trafilatura_url_connector import URLConnector
 from app.connectors.upload_connector import UploadConnector
 from app.core.authz import Action, Principal, authorize, get_principal
 from app.core.kv import get_kv
+from app.core.net_guard import BlockedTarget, PolicyRefused, check_image_url
 from app.models.requests import IngestRequest
 from app.models.responses import IngestQueuedResponse, IngestSyncResponse, SlimEdge, SlimNode
 from app.models.schemas import Edge, GraphPayload, Node
 from app.services.compressor import ExtractionError
+from app.services.graph_service import get_graph_service
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+@contextmanager
+def _connector_guard() -> Iterator[None]:
+    """Turn net_guard refusals into the right HTTP status."""
+    try:
+        yield
+    except BlockedTarget as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except PolicyRefused as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
 
 # ---------------------------------------------------------------------------
 # Lazy-initialised singletons (avoids import-time connection attempts)
@@ -234,25 +248,7 @@ async def _save_run_state(connector_id: str, agent_id: str, state: RunState) -> 
 
 
 def _get_graph_service():
-    global _graph_service
-    if _graph_service is None:
-        # Reuse main.py's already-initialized singleton. Creating a fresh
-        # GraphService() here would skip initialize(), leaving
-        # vector_index_available=False on this instance, so the resolver's
-        # semantic-dedup vector probe raises VectorIndexUnavailableError and
-        # entity merging silently degrades to label/fuzzy only (duplicates
-        # accumulate). Mirror query.py and bind the initialized singleton.
-        try:
-            import app.main as _main
-            svc = getattr(_main, "_graph_service", None)
-            if svc is not None:
-                _graph_service = svc
-                return _graph_service
-        except Exception:
-            pass
-        from app.services.graph_service import GraphService
-        _graph_service = GraphService()
-    return _graph_service
+    return _graph_service or get_graph_service()
 
 
 def _get_compressor():
@@ -643,6 +639,8 @@ async def ingest_image_sync(request: ImageIngestRequest, auth: Principal = Depen
     ``image_url`` is a remote URL or a base64 ``data:`` URI.
     """
     await authorize(auth, request.agent_id, Action.WRITE)
+    with _connector_guard():
+        await check_image_url(request.image_url)
     t0 = time.perf_counter()
     try:
         compressor = _get_compressor()
@@ -1128,12 +1126,13 @@ async def ingest_url(request: _IngestURLRequest, auth: Principal = Depends(get_p
     run_state = await _get_run_state(_url_connector.connector_id, request.agent_id)
 
     records = []
-    async for record in _url_connector.run(
-        request.agent_id,
-        run_state,
-        urls=request.urls,
-    ):
-        records.append(record)
+    with _connector_guard():
+        async for record in _url_connector.run(
+            request.agent_id,
+            run_state,
+            urls=request.urls,
+        ):
+            records.append(record)
 
     # Persist updated ETags / Last-Modified entries for the next call.
     await _save_run_state(
@@ -1256,17 +1255,18 @@ async def ingest_mcp(request: _IngestMCPRequest, auth: Principal = Depends(get_p
     run_state = await _get_run_state(_mcp_connector.connector_id, request.agent_id)
 
     records = []
-    async for record in _mcp_connector.run(
-        request.agent_id,
-        run_state,
-        command=request.command,
-        args=request.args,
-        env=request.env,
-        server_url=request.server_url,
-        headers=request.headers,
-        source_label=request.source_label,
-    ):
-        records.append(record)
+    with _connector_guard():
+        async for record in _mcp_connector.run(
+            request.agent_id,
+            run_state,
+            command=request.command,
+            args=request.args,
+            env=request.env,
+            server_url=request.server_url,
+            headers=request.headers,
+            source_label=request.source_label,
+        ):
+            records.append(record)
 
     # Persist per-resource hashes / lastModified for the next call.
     await _save_run_state(
@@ -1382,20 +1382,21 @@ async def ingest_sql(request: _IngestSQLRequest, auth: Principal = Depends(get_p
     run_state = await _get_run_state(_sql_connector.connector_id, request.agent_id)
 
     records = []
-    async for record in _sql_connector.run(
-        request.agent_id,
-        run_state,
-        dsn=request.dsn,
-        query=request.query,
-        cursor_column=request.cursor_column,
-        content_columns=request.content_columns,
-        title_column=request.title_column,
-        id_column=request.id_column,
-        batch_size=request.batch_size,
-        initial_cursor=request.initial_cursor,
-        source_label=request.source_label,
-    ):
-        records.append(record)
+    with _connector_guard():
+        async for record in _sql_connector.run(
+            request.agent_id,
+            run_state,
+            dsn=request.dsn,
+            query=request.query,
+            cursor_column=request.cursor_column,
+            content_columns=request.content_columns,
+            title_column=request.title_column,
+            id_column=request.id_column,
+            batch_size=request.batch_size,
+            initial_cursor=request.initial_cursor,
+            source_label=request.source_label,
+        ):
+            records.append(record)
 
     # Persist updated cursor for incremental sync on the next call.
     await _save_run_state(

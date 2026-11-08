@@ -41,6 +41,7 @@ from app.lib.litellm_retry import acompletion_with_retry
 from app.models.requests import SwarmConnectionRequest, SwarmQueryRequest
 from app.models.responses import APIResponse, SwarmConnectionResponse, SwarmQueryResponse
 from app.models.schemas import SwarmConnection
+from app.services.graph_service import get_graph_service
 from app.services.redis_service import subscribe_to_swarm_logs
 
 _CLEARANCE_DEFAULT_VALUE: int = (
@@ -101,23 +102,7 @@ async def _get_redis():
 
 
 def _get_graph():
-    global _graph_service
-    if _graph_service is None:
-        # Reuse main.py's already-initialized singleton so the vector index is
-        # ready (vector_index_available=True). Without this, query_nl's
-        # vector_search guard trips — the old node-only path masked it by calling
-        # db.index.vector.queryNodes directly. Mirrors query.py's accessor.
-        try:
-            import app.main as _main
-            svc = getattr(_main, "_graph_service", None)
-            if svc is not None:
-                _graph_service = svc
-                return _graph_service
-        except Exception:
-            pass
-        from app.services.graph_service import GraphService
-        _graph_service = GraphService()
-    return _graph_service
+    return _graph_service or get_graph_service()
 
 
 def _get_embedding():

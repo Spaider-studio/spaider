@@ -54,6 +54,7 @@ import logging
 from typing import Any, AsyncGenerator, Optional
 
 from app.connectors import BaseConnector, ConnectorRecord, RunState, send_to_dlq
+from app.core.net_guard import BlockedTarget, UnresolvableHost, check_stdio_command, check_url
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +109,14 @@ class MCPConnector(BaseConnector):
                 "MCPConnector requires exactly one of `command` (stdio) "
                 "or `server_url` (sse)."
             )
+
+        if command:
+            check_stdio_command(command)
+        else:
+            try:
+                await check_url(server_url)  # type: ignore[arg-type]
+            except UnresolvableHost as exc:
+                raise BlockedTarget("MCP server host cannot be resolved.") from exc
 
         logger.info(
             "mcp_connector: start  agent_id=%s  transport=%s",

@@ -8,7 +8,7 @@ The real QueryService:
   - query_cypher(cypher, agent_id) -> list[dict]
   - traverse(start_node_id, depth, relation_filter) -> GraphPayload
 
-The read-only write-pattern guard lives in app.api.v1.query as _WRITE_PATTERN.
+The route-level raw Cypher guard is tested in tests/core/test_guards.py.
 """
 from __future__ import annotations
 
@@ -197,25 +197,23 @@ async def test_query_nl_retries_on_bad_cypher(mock_graph_service):
     "MATCH (n) REMOVE n.foo",
 ])
 def test_cypher_blocks_write_operations(write_keyword: str):
-    """The write-operation guard regex must reject all Cypher write keywords."""
-    from app.api.v1.query import _WRITE_PATTERN
-    assert _WRITE_PATTERN.search(write_keyword) is not None, (
-        f"Expected write pattern to match: {write_keyword!r}"
-    )
+    """The service's read-only check must reject all Cypher write keywords."""
+    from app.services.query_service import QueryService
+    with pytest.raises(ValueError):
+        QueryService.__new__(QueryService)._validate_read_only(write_keyword)
 
 
 def test_cypher_allows_read_operations():
-    """The write-operation guard must NOT flag legitimate read-only Cypher."""
-    from app.api.v1.query import _WRITE_PATTERN
+    """The service's read-only check must NOT flag legitimate read-only Cypher."""
+    from app.services.query_service import QueryService
+    service = QueryService.__new__(QueryService)
     read_queries = [
         "MATCH (n:Entity) WHERE n.agent_id = $agent_id RETURN n LIMIT 50",
         "MATCH (a)-[r]->(b) RETURN a.label, type(r), b.label",
         "MATCH (n) WHERE n.type = 'PERSON' RETURN count(n)",
     ]
     for q in read_queries:
-        assert _WRITE_PATTERN.search(q) is None, (
-            f"Read query incorrectly flagged as write: {q!r}"
-        )
+        service._validate_read_only(q)
 
 
 # ---------------------------------------------------------------------------

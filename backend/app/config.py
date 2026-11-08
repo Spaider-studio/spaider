@@ -66,6 +66,10 @@ class Settings(BaseSettings):
     spaider_insecure_dev: bool = False
     # Enables POST /auth/bootstrap until the first organization exists.
     spaider_bootstrap_token: str = ""
+    # Lets connectors reach private addresses and local databases.
+    spaider_allow_private_net: bool = False
+    # Comma-separated exact commands the MCP connector may spawn. Empty disables stdio.
+    mcp_stdio_allowed_commands: str = ""
 
     # ClickHouse
     # Empty disables ClickHouse; audit events then go to Neo4j.

@@ -5,34 +5,21 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
+from app.config import settings
 from app.core.authz import Action, OrgAction, Principal, authorize, get_principal, require_org, resolve_kb
+from app.core.cypher_guard import CypherRejected, check_cypher
 from app.models.requests import CypherQueryRequest, QueryRequest, TraverseRequest
 from app.models.schemas import GraphPayload, QueryResult
+from app.services.graph_service import get_graph_service
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-# ---------------------------------------------------------------------------
-# Blocked Cypher write keywords (READ-ONLY enforcement)
-# ---------------------------------------------------------------------------
-
-# Reject writes AND every procedure call. Keyword blocklists are inherently
-# leaky for Cypher (APOC exposes writes via procedures whose names contain no
-# write keyword, e.g. apoc.create.*, apoc.cypher.doIt), so we block CALL
-# outright rather than trying to enumerate dangerous procedures. The read
-# transaction in QueryService.query_cypher is the real backstop; this pattern
-# gives a clear 403 instead of a database error for the common cases.
-_WRITE_PATTERN = re.compile(
-    r"\b(CREATE|MERGE|DELETE|DETACH\s+DELETE|SET|REMOVE|DROP|FOREACH|CALL|LOAD\s+CSV)\b",
-    re.IGNORECASE,
-)
 
 # ---------------------------------------------------------------------------
 # Lazy singletons
@@ -43,28 +30,18 @@ _graph_service = None
 
 
 def _get_graph_service():
-    global _graph_service
-    if _graph_service is None:
-        # Reuse main.py's already-initialized singleton (vector index ready).
-        try:
-            import app.main as _main
-            svc = getattr(_main, "_graph_service", None)
-            if svc is not None:
-                _graph_service = svc
-                return _graph_service
-        except Exception:
-            pass
-        from app.services.graph_service import GraphService
-        _graph_service = GraphService()
-    return _graph_service
+    return _graph_service or get_graph_service()
 
 
 def _get_query_service():
     global _query_service
-    if _query_service is None:
+    from app.services.query_service import QueryService
+
+    graph = _get_graph_service()
+    # Rebuilt if the graph service was replaced; injected test doubles are kept.
+    if _query_service is None or (isinstance(_query_service, QueryService) and _query_service._graph is not graph):
         try:
-            from app.services.query_service import QueryService
-            _query_service = QueryService(graph_service=_get_graph_service())
+            _query_service = QueryService(graph_service=graph)
         except Exception as exc:
             logger.warning("QueryService init failed: %s", exc)
             _query_service = None
@@ -251,29 +228,24 @@ async def query_cypher(
     """
     Execute a raw Cypher query against the graph.
 
-    Raw Cypher cannot be safely constrained to a single agent's namespace
-    without a full Cypher parser, so this endpoint is **org-admin only**: other
-    keys cannot read or traverse
-    another agent's subgraph by embedding its UUID in the query. The query
-    also runs inside a Neo4j **read transaction**, so any write is rejected
-    at the database level even if it slips past the keyword filter (e.g. an
-    APOC procedure). Write keywords are still rejected up front as defense
-    in depth.
+    Org admins only, and only while the instance has one organization. The
+    query runs in a read transaction, and may only name knowledge labels
+    (see ``core/cypher_guard.py``).
 
     **Auth:** org admin.
     """
     await require_org(auth, OrgAction.ADMIN)
     await authorize(auth, request.agent_id, Action.READ)
-    # Reject writes up front (defense in depth; the read transaction below is
-    # the actual enforcement and cannot be bypassed by procedure obfuscation).
-    if _WRITE_PATTERN.search(request.cypher):
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                "Write operations (CREATE, MERGE, DELETE, SET, REMOVE, CALL, "
-                "LOAD CSV) are not permitted via this endpoint."
-            ),
-        )
+    async with _get_graph_service()._driver.session() as session:
+        result = await session.run("MATCH (o:Org) RETURN count(o) AS orgs")
+        org_count = (await result.single())["orgs"]
+    # Raw Cypher can name any KB, so it is only safe while there is one tenant.
+    if org_count > 1 and settings.environment != "development":
+        raise HTTPException(status_code=403, detail="Raw Cypher is unavailable with more than one organization.")
+    try:
+        check_cypher(request.cypher)
+    except CypherRejected as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
 
     query_service = _get_query_service()
     if query_service is None:
