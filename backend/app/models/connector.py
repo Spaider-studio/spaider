@@ -24,6 +24,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from sqlalchemy import (
+    JSON,
     DateTime,
     ForeignKey,
     LargeBinary,
@@ -70,7 +71,7 @@ class ConnectorConfig(Base):
         comment="Owning SpAIder agent_id — matches the Neo4j namespace.",
     )
     config_json: Mapped[dict[str, Any]] = mapped_column(
-        JSONB,
+        JSON().with_variant(JSONB, "postgresql"),
         nullable=False,
         default=dict,
         comment="Non-secret connector parameters (URLs, IDs, options).",

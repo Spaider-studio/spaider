@@ -62,6 +62,7 @@ if TYPE_CHECKING:
     from app.services.graph_service import GraphService
 
 from app.config import settings
+from app.core.kv import get_kv, kv_is_external
 from app.lib.litellm_retry import acompletion_with_retry
 from app.models.schemas import Edge, GraphPayload, Node, NodeType, RelationType
 from app.services.embedding_service import EmbeddingService
@@ -99,6 +100,7 @@ _RECONNECT_DELAY: float  = 5.0
 # Giving the blocking read its own socket timeout, comfortably LONGER than the
 # block, lets the server's BLOCK response always arrive first — idle reads
 # return a clean empty result instead of a spurious timeout.
+_LOCAL_POLL_S: float = 0.25  # idle poll interval for the in-process store
 _STREAM_SOCKET_TIMEOUT_S: float = _BLOCK_MS / 1000 + 5.0  # 10 s for a 5 s block
 
 # Lease duration granted per node.  Set longer than the slowest specialist
@@ -211,7 +213,6 @@ async def swarm_listener(
     is created immediately and cancelled on exit so the presence key expires
     gracefully after _HEARTBEAT_TTL_S seconds.
     """
-    import redis.asyncio as aioredis
     from redis.exceptions import TimeoutError as RedisTimeoutError
 
     pheromone = PheromoneService(
@@ -225,11 +226,7 @@ async def swarm_listener(
     # the shared request pool so a stream read can never stall or churn the
     # connections that serve HTTP queries and the SSE pheromone feed.  All
     # short ops (publishes, acks, leases) still use the passed-in client.
-    stream_redis = aioredis.from_url(
-        settings.redis_url,
-        decode_responses=True,
-        socket_timeout=_STREAM_SOCKET_TIMEOUT_S,
-    )
+    stream_redis = get_kv(socket_timeout=_STREAM_SOCKET_TIMEOUT_S)
 
     # ── Swarm Pulse — assign identity and start heartbeat ─────────────────
     agent_id = _make_agent_id()
@@ -265,7 +262,9 @@ async def swarm_listener(
                         consumername=_CONSUMER_NAME,
                         streams={PHEROMONE_STREAM: ">"},
                         count=_READ_COUNT,
-                        block=_BLOCK_MS,
+                        # The in-process store answers a blocking read without
+                        # ever yielding, which would starve the event loop.
+                        block=_BLOCK_MS if kv_is_external() else None,
                     )
                 except RedisTimeoutError:
                     # An idle block window with no new messages — benign.  Loop
@@ -274,6 +273,8 @@ async def swarm_listener(
                     continue
 
                 if not results:
+                    if not kv_is_external():
+                        await asyncio.sleep(_LOCAL_POLL_S)
                     continue
 
                 for _stream_name, entries in results:

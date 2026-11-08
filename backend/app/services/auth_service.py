@@ -19,6 +19,7 @@ from fastapi import Header, HTTPException, status
 from jose import JWTError, jwt
 
 from app.config import settings
+from app.core.kv import get_kv
 from app.core.security import hash_api_key
 
 logger = logging.getLogger(__name__)
@@ -75,11 +76,7 @@ class AuthService:
 
     async def _get_redis(self) -> aioredis.Redis:
         if self._redis is None:
-            self._redis = aioredis.from_url(
-                settings.redis_url,
-                encoding="utf-8",
-                decode_responses=True,
-            )
+            self._redis = get_kv()
         return self._redis
 
     async def close(self) -> None:

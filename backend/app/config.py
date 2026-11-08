@@ -13,7 +13,8 @@ class Settings(BaseSettings):
     neo4j_password: str = "spaider-dev-2024"
 
     # Kafka
-    kafka_bootstrap_servers: str = "localhost:9092"
+    # Empty disables Kafka; async ingest then uses the in-process job queue.
+    kafka_bootstrap_servers: str = ""
     kafka_topic_ingest: str = "spaider.ingest.raw"
     kafka_topic_dlq: str = "spaider.ingest.dlq"
     kafka_consumer_group: str = "spaider-compressor-workers"
@@ -22,7 +23,8 @@ class Settings(BaseSettings):
     kafka_replay_consumer_group: str = "spaider-replay-readers"
 
     # Redis
-    redis_url: str = "redis://localhost:6379/0"
+    # Empty selects the in-process store (see app/core/kv.py).
+    redis_url: str = ""
 
     # LLM (via LiteLLM)
     llm_provider: str = "openai"
@@ -65,7 +67,8 @@ class Settings(BaseSettings):
     jwt_expiration_hours: int = 24
 
     # ClickHouse
-    clickhouse_host: str = "localhost"
+    # Empty disables ClickHouse; audit events then go to Neo4j.
+    clickhouse_host: str = ""
     clickhouse_port: int = 8123
     clickhouse_database: str = "spaider"
     clickhouse_user: str = "default"
@@ -74,7 +77,10 @@ class Settings(BaseSettings):
     # PostgreSQL (connector state & secrets store)
     # Scheme MUST be postgresql+asyncpg:// — the sync psycopg2 scheme will
     # deadlock inside an asyncio event loop.
-    postgres_url: str = "postgresql+asyncpg://spaider:spaider@localhost:5432/spaider"
+    # Empty stores connector state in SQLite under data_dir.
+    postgres_url: str = ""
+    # Local persistent files (SQLite state, generated artifacts).
+    data_dir: str = "data"
 
     # Connector secret encryption key — 32-byte value base64-encoded.
     # Used as the Key Encryption Key (KEK) for envelope-encrypting connector

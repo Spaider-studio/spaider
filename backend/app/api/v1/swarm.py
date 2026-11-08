@@ -26,6 +26,7 @@ from fastapi.responses import StreamingResponse
 
 import app.services.auth_service as _auth
 from app.config import settings
+from app.core.kv import get_kv
 from app.lib.litellm_retry import acompletion_with_retry
 from app.models.requests import SwarmConnectionRequest, SwarmQueryRequest
 from app.models.responses import APIResponse, SwarmConnectionResponse, SwarmQueryResponse
@@ -93,8 +94,7 @@ _embedding_service = None
 async def _get_redis():
     global _redis_client
     if _redis_client is None:
-        import redis.asyncio as aioredis
-        _redis_client = aioredis.from_url(settings.redis_url, decode_responses=True)
+        _redis_client = get_kv()
     return _redis_client
 
 

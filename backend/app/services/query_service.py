@@ -39,6 +39,7 @@ import numpy as np
 from fastapi import HTTPException, status
 
 from app.config import settings
+from app.core.kv import get_kv
 from app.lib.litellm_retry import acompletion_with_retry, track_tokens
 from app.models.schemas import Edge, GraphPayload, Node, VerifierResult
 from app.services.cognitive_engine import CognitiveGraphService
@@ -521,10 +522,7 @@ class QueryService:
     async def _get_redis(self):
         if self._redis is None:
             try:
-                import redis.asyncio as aioredis
-                self._redis = aioredis.from_url(
-                    settings.redis_url, decode_responses=True
-                )
+                self._redis = get_kv()
                 await self._redis.ping()
             except Exception as exc:
                 logger.warning("Redis unavailable for query cache: %s", exc)

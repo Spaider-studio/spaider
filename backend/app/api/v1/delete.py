@@ -10,6 +10,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 
+from app.core.kv import get_kv
 from app.models.responses import DeleteNodeResponse
 from app.services.auth_service import _require_admin, verify_api_key
 
@@ -36,13 +37,7 @@ def _get_graph_service():
 async def _get_redis():
     global _redis_client
     if _redis_client is None:
-        try:
-            import redis.asyncio as aioredis
-
-            from app.config import settings
-            _redis_client = aioredis.from_url(settings.redis_url, decode_responses=True)
-        except Exception as exc:
-            logger.warning("Redis unavailable for audit log: %s", exc)
+        _redis_client = get_kv()
     return _redis_client
 
 

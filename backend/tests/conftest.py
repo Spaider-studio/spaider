@@ -29,6 +29,19 @@ def _integration_unavailable(service: str, exc: Exception) -> None:
     pytest.skip(message)
 
 
+@pytest.fixture(autouse=True)
+def _fresh_kv():
+    """Cached clients must not leak mocks or event loops between tests."""
+    from app.core.jobs import reset_job_queue
+    from app.core.kv import reset_kv
+
+    reset_kv()
+    reset_job_queue()
+    yield
+    reset_kv()
+    reset_job_queue()
+
+
 @pytest.fixture
 async def neo4j_test_driver():
     """A driver for the throwaway Neo4j, wiped before each test."""

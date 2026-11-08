@@ -17,6 +17,7 @@ from typing import Optional
 import redis.asyncio as aioredis
 
 from app.config import settings
+from app.core.kv import get_kv
 from app.lib.litellm_retry import acompletion_with_retry
 from app.models.schemas import Edge, GraphPayload, Node, RelationType
 
@@ -434,13 +435,7 @@ class SemanticCompressor:
 
     def _get_redis(self) -> aioredis.Redis:
         if self._redis is None:
-            self._redis = aioredis.from_url(
-                settings.redis_url,
-                encoding="utf-8",
-                decode_responses=True,
-                socket_timeout=2,
-                socket_connect_timeout=2,
-            )
+            self._redis = get_kv(socket_timeout=2, socket_connect_timeout=2)
         return self._redis
 
     def _cache_key(self, text: str) -> str:

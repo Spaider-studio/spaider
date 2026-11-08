@@ -195,8 +195,8 @@ async def lifespan(app: FastAPI):
 
     # 1. Neo4j
     try:
-        from app.services.graph_service import GraphService
-        _graph_service = GraphService()
+        from app.services.graph_service import get_graph_service
+        _graph_service = get_graph_service()
         await _graph_service.initialize()
         logger.info("Neo4j connected and initialised")
     except Exception as exc:
@@ -221,10 +221,10 @@ async def lifespan(app: FastAPI):
 
     # 2. Redis
     try:
-        import redis.asyncio as aioredis
-        _redis_client = aioredis.from_url(settings.redis_url, decode_responses=True)
+        from app.core.kv import get_kv, kv_is_external
+        _redis_client = get_kv()
         await _redis_client.ping()
-        logger.info("Redis connected at %s", settings.redis_url)
+        logger.info("Key-value store ready (%s)", "redis" if kv_is_external() else "in-process")
     except Exception as exc:
         logger.warning("Redis connection failed: %s", exc)
         _redis_client = None
@@ -238,26 +238,28 @@ async def lifespan(app: FastAPI):
             logger.warning("Redis Stream init failed (non-fatal): %s", exc)
 
     # 3. Kafka producer
-    try:
-        from app.services.kafka_producer import KafkaProducerService
-        _kafka_producer = KafkaProducerService()
-        await _kafka_producer.start()
-        logger.info("Kafka producer started")
-    except Exception as exc:
-        logger.warning("Kafka producer start failed (async ingest unavailable): %s", exc)
-        _kafka_producer = None
+    if settings.kafka_bootstrap_servers:
+        try:
+            from app.services.kafka_producer import KafkaProducerService
+            _kafka_producer = KafkaProducerService()
+            await _kafka_producer.start()
+            logger.info("Kafka producer started")
+        except Exception as exc:
+            logger.warning("Kafka producer start failed (async ingest unavailable): %s", exc)
+            _kafka_producer = None
 
     # 4. ClickHouse analytics
-    try:
-        from app.services.analytics_service import AnalyticsService
-        _analytics_service = AnalyticsService()
-        await _analytics_service.initialize()
-        # expose globally so routes can import it
-        import app.main as _self
-        _self._analytics_service = _analytics_service
-    except Exception as exc:
-        logger.warning("ClickHouse analytics init failed (non-fatal): %s", exc)
-        _analytics_service = None
+    if settings.clickhouse_host:
+        try:
+            from app.services.analytics_service import AnalyticsService
+            _analytics_service = AnalyticsService()
+            await _analytics_service.initialize()
+            # expose globally so routes can import it
+            import app.main as _self
+            _self._analytics_service = _analytics_service
+        except Exception as exc:
+            logger.warning("ClickHouse analytics init failed (non-fatal): %s", exc)
+            _analytics_service = None
 
     logger.info("%s started in %s mode", settings.app_name, settings.environment)
 
@@ -265,9 +267,9 @@ async def lifespan(app: FastAPI):
     try:
         from app.db.postgres import init_db
         await init_db()
-        logger.info("PostgreSQL connector tables ready")
+        logger.info("Connector tables ready")
     except Exception as exc:
-        logger.warning("PostgreSQL init failed (non-fatal): %s", exc)
+        logger.warning("Connector table init failed (non-fatal): %s", exc)
 
     # 5. Connector scheduler — polls connector configs every 5 min for
     #    SQL/URL ingest dispatch (non-blocking). NOT memory consolidation —
@@ -366,12 +368,12 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning("Replay service stop error: %s", exc)
 
-    if _redis_client is not None:
-        try:
-            await _redis_client.aclose()
-            logger.info("Redis connection closed")
-        except Exception as exc:
-            logger.warning("Redis close error: %s", exc)
+    from app.core.jobs import drain_background, get_job_queue
+    from app.core.kv import close_kv
+
+    await get_job_queue().stop()
+    await drain_background()
+    await close_kv()
 
     if _graph_service is not None:
         try:

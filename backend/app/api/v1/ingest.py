@@ -21,6 +21,7 @@ from app.connectors.mcp_connector import MCPConnector
 from app.connectors.sql_connector import SQLConnector
 from app.connectors.trafilatura_url_connector import URLConnector
 from app.connectors.upload_connector import UploadConnector
+from app.core.kv import get_kv
 from app.models.requests import IngestRequest
 from app.models.responses import IngestQueuedResponse, IngestSyncResponse, SlimEdge, SlimNode
 from app.models.schemas import Edge, GraphPayload, Node
@@ -156,12 +157,7 @@ async def _get_run_state_redis():
     global _run_state_redis
     if _run_state_redis is None:
         try:
-            import redis.asyncio as aioredis  # type: ignore[import]
-
-            from app.config import settings
-            _run_state_redis = aioredis.from_url(
-                settings.redis_url, decode_responses=True
-            )
+            _run_state_redis = get_kv()
             # Eager ping so we surface auth/network errors here, not at every
             # call site. Failure → swallow, mark as None, fall back to dict.
             await _run_state_redis.ping()

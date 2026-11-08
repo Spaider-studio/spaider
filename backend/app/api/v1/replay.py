@@ -79,8 +79,13 @@ async def _get_replay_service():
             # Still within cooldown — skip silently to avoid connection spam
             return None
         try:
-            from app.services.replay_service import ReplayService
-            svc = ReplayService()
+            if settings.kafka_bootstrap_servers:
+                from app.services.replay_service import ReplayService
+                svc = ReplayService()
+            else:
+                from app.services.audit_store import AuditStore
+                from app.services.graph_service import get_graph_service
+                svc = AuditStore(get_graph_service()._driver)
             await svc.start()
             _replay_service = svc
             _replay_unavailable_until = 0.0

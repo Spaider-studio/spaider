@@ -20,6 +20,8 @@ dependencies = [
     # C-extension deps below pinned to versions that ship cp313 wheels.
     "aiokafka>=0.12.0",
     "redis[hiredis]>=5.2.0",
+    "fakeredis>=2.26.0",
+    "aiosqlite>=0.20.0",
     "neo4j==6.3.1",
     "python-jose[cryptography]==3.5.0",
     "passlib[bcrypt]==1.7.4",

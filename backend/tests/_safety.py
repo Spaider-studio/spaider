@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import os
 import socket
+import tempfile
 from collections.abc import Callable
 from urllib.parse import urlsplit
 
@@ -80,11 +81,11 @@ def install_test_environment() -> None:
     os.environ["NEO4J_USER"] = "neo4j"
     os.environ["NEO4J_PASSWORD"] = neo4j_password_for_tests()
     os.environ["REDIS_URL"] = redis_url_for_tests()
-    # Nothing listens on port 1; these services are mocked or absent in tests.
-    os.environ["KAFKA_BOOTSTRAP_SERVERS"] = "localhost:1"
-    os.environ["CLICKHOUSE_HOST"] = "localhost"
-    os.environ["CLICKHOUSE_PORT"] = "1"
-    os.environ["POSTGRES_URL"] = "postgresql+asyncpg://test:test@localhost:1/test"
+    # Absent by default in tests; the code falls back to its Lite-mode stores.
+    os.environ["KAFKA_BOOTSTRAP_SERVERS"] = ""
+    os.environ["CLICKHOUSE_HOST"] = ""
+    os.environ["POSTGRES_URL"] = ""
+    os.environ["DATA_DIR"] = tempfile.mkdtemp(prefix="spaider-test-data-")
     # An unmocked LLM call must fail rather than spend money.
     for key in ("LLM_API_KEY", "EMBEDDING_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"):
         os.environ[key] = ""

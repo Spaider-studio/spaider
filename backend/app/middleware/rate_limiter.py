@@ -14,6 +14,7 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp
 
 from app.config import settings
+from app.core.kv import get_kv
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +45,7 @@ async def check_rate_limit(
     """
     own_redis = False
     if redis is None:
-        redis = aioredis.from_url(settings.redis_url, encoding="utf-8", decode_responses=True)
-        own_redis = True
+        redis = get_kv()
 
     try:
         now = time.time()
@@ -119,9 +119,7 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
 
     async def _get_redis(self) -> aioredis.Redis:
         if self._redis is None:
-            self._redis = aioredis.from_url(
-                settings.redis_url, encoding="utf-8", decode_responses=True
-            )
+            self._redis = get_kv()
         return self._redis
 
     async def dispatch(self, request: Request, call_next) -> Response:

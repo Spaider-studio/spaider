@@ -14,6 +14,7 @@ from typing import Optional
 from neo4j import AsyncDriver, AsyncGraphDatabase
 
 from app.config import settings
+from app.core.schema import FOUNDATION_SCHEMA
 from app.models.schemas import (
     ClusterGraphPayload,
     Edge,
@@ -138,6 +139,26 @@ def _node_write_cypher() -> str:
     if _MEMORY_VERSIONING_ENABLED:
         return head + _VERSIONING_PRELUDE + _NODE_WRITE_TAIL
     return head + _NODE_WRITE_TAIL
+
+
+_shared_graph_service: Optional["GraphService"] = None
+
+
+def get_graph_service() -> "GraphService":
+    """The process-wide GraphService, created on first use.
+
+    The app lifespan calls ``initialize()`` on this same instance; a separately
+    constructed GraphService never learns that the vector index exists.
+    """
+    global _shared_graph_service
+    if _shared_graph_service is None:
+        _shared_graph_service = GraphService()
+    return _shared_graph_service
+
+
+def reset_graph_service() -> None:
+    global _shared_graph_service
+    _shared_graph_service = None
 
 
 class VectorIndexUnavailableError(RuntimeError):
@@ -299,6 +320,9 @@ class GraphService:
                 "CREATE CONSTRAINT system_agent_id IF NOT EXISTS "
                 "FOR (a:SystemAgent) REQUIRE a.agent_id IS UNIQUE"
             )
+
+            for statement in FOUNDATION_SCHEMA:
+                await session.run(statement)
 
             # ── B-Tree indexes ────────────────────────────────────────────
             # Composite (agent_id, label): exact/alias lookup within a tenant
