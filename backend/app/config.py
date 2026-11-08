@@ -303,6 +303,10 @@ class Settings(BaseSettings):
         description="Max prior facts considered as supersession candidates per new edge.",
     )
     llm_fast_model: str = Field(default="", description="Cheaper model for routing and background work.")
+    finetune_openai_api_key: str = ""
+    finetune_together_api_key: str = ""
+    finetune_tinker_api_key: str = ""
+    finetune_tinker_base_url: str = "https://api.thinkingmachines.ai/v1"
     query_deadline_seconds: float = Field(default=90.0, gt=0, description="A query that runs longer returns 504.")
     sleep_lease_ttl_seconds: int = Field(default=120, ge=1)
     sleep_extract_batch: int = Field(default=50, ge=1)

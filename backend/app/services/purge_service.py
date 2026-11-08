@@ -33,6 +33,7 @@ _DELETE_BATCHES = (
     "MATCH (n:InteractionNode {agent_id: $kb}) DETACH DELETE n RETURN count(n) AS c",
     "MATCH (n:AuditEvent {agent_id: $kb}) DETACH DELETE n RETURN count(n) AS c",
     "MATCH (n:Feedback {agent_id: $kb}) DETACH DELETE n RETURN count(n) AS c",
+    "MATCH (n:ModelVersion {agent_id: $kb}) DETACH DELETE n RETURN count(n) AS c",
     "MATCH (n:FederationGrant) WHERE n.source_kb = $kb OR n.target_kb = $kb DETACH DELETE n RETURN count(n) AS c",
     "MATCH (n:KnowledgePR) WHERE n.source_kb = $kb OR n.target_kb = $kb DETACH DELETE n RETURN count(n) AS c",
     "MATCH (n:KPRChange {target_kb: $kb}) DETACH DELETE n RETURN count(n) AS c",
@@ -80,6 +81,7 @@ def _purge_files(agent_id: str) -> None:
     if Path(agent_id).name != agent_id or agent_id in {"", ".", ".."}:
         raise ValueError("Invalid KB id.")
     shutil.rmtree(dataset_root() / agent_id, ignore_errors=True)
+    shutil.rmtree(Path(settings.data_dir) / "finetune" / agent_id, ignore_errors=True)
 
 
 async def purge_kb(graph, agent_id: str, *, actor_id: Optional[str] = None) -> dict:

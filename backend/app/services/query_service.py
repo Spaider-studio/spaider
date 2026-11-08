@@ -52,6 +52,7 @@ from app.services import recall_ranker
 from app.services.cognitive_engine import CognitiveGraphService
 from app.services.embedding_service import EmbeddingService
 from app.services.federation import FederationService, sources_param
+from app.services.finetune.service import serving_override
 from app.services.graph_service import GraphService
 from app.services.learning import parse_citations, record_exchange, strengthen_co_activation
 
@@ -1350,6 +1351,8 @@ class QueryService:
         top_k: Optional[int] = None,
         decompose: Optional[bool] = None,
         max_clearance: Optional[int] = None,
+        answer_model: Optional[dict] = None,
+        use_cache: bool = True,
     ) -> QueryResult:
         """Token-tracking entry point for the NL query pipeline.
 
@@ -1361,7 +1364,9 @@ class QueryService:
         with track_tokens() as bucket:
             try:
                 result = await asyncio.wait_for(
-                    self._query_nl_impl(question, agent_id, top_k, decompose, max_clearance),
+                    self._query_nl_impl(
+                        question, agent_id, top_k, decompose, max_clearance, answer_model, use_cache
+                    ),
                     timeout=settings.query_deadline_seconds,
                 )
             except asyncio.TimeoutError as exc:
@@ -1377,6 +1382,8 @@ class QueryService:
         top_k: Optional[int] = None,
         decompose: Optional[bool] = None,
         max_clearance: Optional[int] = None,
+        answer_model: Optional[dict] = None,
+        use_cache: bool = True,
     ) -> QueryResult:
         """
         Iterative Self-RAG query loop — Agentic QA architecture.
@@ -1403,7 +1410,7 @@ class QueryService:
 
         # ── 1. Cache hit ────────────────────────────────────────────────────
         agent_clearance = await self._effective_clearance(agent_id, max_clearance)
-        cached = await self._cache_get(question, agent_id, agent_clearance)
+        cached = await self._cache_get(question, agent_id, agent_clearance) if use_cache else None
         if cached:
             logger.info("query_nl cache HIT for agent=%s", agent_id)
             return cached
@@ -1623,10 +1630,12 @@ class QueryService:
 
         # ── 6. Final synthesis LLM call ───────────────────────────────────────
         is_swarm = len(involved_agents) > 1
+        served_by = answer_model or await serving_override(self._graph._driver, agent_id, agent_clearance)
         answer = await self._answer_with_context(
             question, merged_context,
             is_swarm=is_swarm,
             v2_mode=use_v2,
+            **({"model_override": served_by} if served_by else {}),
         )
 
         # ── 6b. Concise answer span (factoid questions) ───────────────────────
@@ -1684,7 +1693,8 @@ class QueryService:
         )
 
         self._learn_from_answer(agent_id, memory_mode, result, context_nodes)
-        await self._cache_set(result, agent_id, agent_clearance)
+        if use_cache and answer_model is None:
+            await self._cache_set(result, agent_id, agent_clearance)
 
         logger.info(
             "query_nl | agent=%s mode=%s swarm=%s iter=%d re_query=%s confidence=%.2f",
@@ -1814,10 +1824,12 @@ class QueryService:
 
         is_swarm = len(involved_agents) > 1
         full_answer = ""
+        served_by = await serving_override(self._graph._driver, agent_id, agent_clearance)
         async for token in self._stream_answer(
             question, merged_context,
             is_swarm=is_swarm,
             v2_mode=use_v2,
+            **({"model_override": served_by} if served_by else {}),
         ):
             full_answer += token
             yield token
@@ -2227,6 +2239,7 @@ class QueryService:
         *,
         is_swarm: bool = False,
         v2_mode: bool = False,
+        model_override: Optional[dict] = None,
     ) -> str:
         """Single or Best-of-N ensemble synthesis (V1/V2-aware).
 
@@ -2265,6 +2278,9 @@ class QueryService:
             base_kwargs["api_base"] = settings.llm_base_url
         if settings.llm_api_key:
             base_kwargs["api_key"] = settings.llm_api_key
+        if model_override:
+            base_kwargs.pop("api_base", None)
+            base_kwargs.update(model_override)
 
         # ── Fast path: N=1 (default — zero ensemble overhead) ────────────────
         if settings.synthesis_ensemble_n <= 1:
@@ -2351,6 +2367,7 @@ class QueryService:
         *,
         is_swarm: bool = False,
         v2_mode: bool = False,
+        model_override: Optional[dict] = None,
     ) -> AsyncIterator[str]:
         """Streaming LLM call — yields tokens as they arrive (V1/V2-aware)."""
         call_kwargs: dict = dict(
@@ -2374,6 +2391,9 @@ class QueryService:
             call_kwargs["api_base"] = settings.llm_base_url
         if settings.llm_api_key:
             call_kwargs["api_key"] = settings.llm_api_key
+        if model_override:
+            call_kwargs.pop("api_base", None)
+            call_kwargs.update(model_override)
 
         response = await acompletion_with_retry(**call_kwargs)
         async for chunk in response:

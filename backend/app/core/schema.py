@@ -24,6 +24,8 @@ FOUNDATION_SCHEMA: tuple[str, ...] = (
     "CREATE CONSTRAINT kpr_lock_kb IF NOT EXISTS FOR (l:KPRLock) REQUIRE l.kb IS UNIQUE",
     "CREATE INDEX kpr_change_kpr IF NOT EXISTS FOR (c:KPRChange) ON (c.kpr_id)",
     "CREATE INDEX kpr_change_key IF NOT EXISTS FOR (c:KPRChange) ON (c.target_kb, c.key)",
+    "CREATE CONSTRAINT model_version_id IF NOT EXISTS FOR (m:ModelVersion) REQUIRE m.id IS UNIQUE",
+    "CREATE INDEX model_version_kb IF NOT EXISTS FOR (m:ModelVersion) ON (m.agent_id, m.status)",
     "CREATE INDEX episode_agent_time IF NOT EXISTS FOR (e:Episode) ON (e.agent_id, e.occurred_at)",
     "CREATE POINT INDEX episode_location IF NOT EXISTS FOR (e:Episode) ON (e.location)",
     "CREATE VECTOR INDEX episode_hash_embedding IF NOT EXISTS FOR (e:Episode) ON (e.hash_embedding) "
