@@ -19,7 +19,6 @@ import logging
 import os as _os
 import time
 import uuid
-from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -32,7 +31,6 @@ from app.core.authz import (
     Principal,
     accessible_kbs,
     authorize,
-    can,
     get_principal,
     require_org,
     resolve_kb,
@@ -40,9 +38,8 @@ from app.core.authz import (
 from app.core.kv import get_kv
 from app.core.tickets import redeem_ticket
 from app.lib.litellm_retry import acompletion_with_retry
-from app.models.requests import SwarmConnectionRequest, SwarmQueryRequest
-from app.models.responses import APIResponse, SwarmConnectionResponse, SwarmQueryResponse
-from app.models.schemas import SwarmConnection
+from app.models.requests import SwarmQueryRequest
+from app.models.responses import SwarmQueryResponse
 from app.services.graph_service import get_graph_service
 from app.services.redis_service import subscribe_to_swarm_logs
 
@@ -118,46 +115,6 @@ def _get_embedding():
 # ---------------------------------------------------------------------------
 # Connection helpers (Redis-backed)
 # ---------------------------------------------------------------------------
-
-
-async def _save_connection(conn: SwarmConnection) -> None:
-    redis = await _get_redis()
-    key = CONNECTION_KEY.format(id=conn.id)
-    await redis.set(key, conn.model_dump_json())
-    await redis.sadd(CONNECTION_INDEX_KEY, conn.id)
-    await redis.sadd(AGENT_CONNECTIONS_KEY.format(agent_id=conn.source_agent_id), conn.id)
-    await redis.sadd(AGENT_CONNECTIONS_KEY.format(agent_id=conn.target_agent_id), conn.id)
-
-
-async def _load_connection(conn_id: str) -> Optional[SwarmConnection]:
-    redis = await _get_redis()
-    raw = await redis.get(CONNECTION_KEY.format(id=conn_id))
-    if raw is None:
-        return None
-    return SwarmConnection(**json.loads(raw))
-
-
-async def _delete_connection(conn_id: str) -> bool:
-    conn = await _load_connection(conn_id)
-    if conn is None:
-        return False
-    redis = await _get_redis()
-    await redis.delete(CONNECTION_KEY.format(id=conn_id))
-    await redis.srem(CONNECTION_INDEX_KEY, conn_id)
-    await redis.srem(AGENT_CONNECTIONS_KEY.format(agent_id=conn.source_agent_id), conn_id)
-    await redis.srem(AGENT_CONNECTIONS_KEY.format(agent_id=conn.target_agent_id), conn_id)
-    return True
-
-
-async def _get_connections_for_agent(agent_id: str) -> list[SwarmConnection]:
-    redis = await _get_redis()
-    conn_ids = await redis.smembers(AGENT_CONNECTIONS_KEY.format(agent_id=agent_id))
-    connections: list[SwarmConnection] = []
-    for cid in conn_ids:
-        conn = await _load_connection(cid)
-        if conn:
-            connections.append(conn)
-    return connections
 
 
 # ---------------------------------------------------------------------------
@@ -380,118 +337,9 @@ async def _synthesize_with_llm(query: str, context: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-@router.post("/connections", response_model=SwarmConnectionResponse, status_code=201)
-async def create_connection(
-    request: SwarmConnectionRequest,
-    auth: Principal = Depends(get_principal),
-):
-    """
-    Establish a swarm connection granting one agent access to another agent's graph.
-
-    Permissions:
-    - read_only: target can query source's graph but not modify it
-    - read_write: target can read and write to source's graph
-
-    Scope:
-    - full: all node/edge types
-    - filtered: restricted to allowed_node_types / allowed_relation_types
-
-    **Auth:** requires the manage permission on the source KB, since only a
-    KB's stewards can grant access to its graph.
-    """
-    await authorize(auth, request.source_agent_id, Action.MANAGE)
-    if request.source_agent_id == request.target_agent_id:
-        raise HTTPException(status_code=400, detail="An agent cannot connect to itself.")
-
-    conn = SwarmConnection(
-        id=str(uuid.uuid4()),
-        source_agent_id=request.source_agent_id,
-        target_agent_id=request.target_agent_id,
-        permission=request.permission,
-        scope=request.scope,
-        allowed_node_types=request.allowed_node_types,
-        allowed_relation_types=request.allowed_relation_types,
-        created_at=datetime.now(timezone.utc),
-    )
-
-    try:
-        await _save_connection(conn)
-    except Exception as exc:
-        logger.exception("Failed to create swarm connection: %s", exc)
-        raise HTTPException(status_code=500, detail=str(exc))
-
-    logger.info(
-        "Swarm connection %s created: %s -> %s (%s)",
-        conn.id,
-        conn.source_agent_id,
-        conn.target_agent_id,
-        conn.permission,
-    )
-    return SwarmConnectionResponse(success=True, connection=conn)
-
-
-@router.get("/connections")
-async def list_connections(
-    agent_id: str = Query(..., description="Agent ID to list connections for"),
-    auth: Principal = Depends(get_principal),
-):
-    """List all swarm connections for a given agent (as source or target).
-
-    **Auth:** Caller must be the agent whose connections are being listed
-    (IDOR guard). When the auth flag is off, behavior is unchanged.
-    """
-    await authorize(auth, agent_id, Action.READ)
-    try:
-        connections = await _get_connections_for_agent(agent_id)
-        return {
-            "connections": [c.model_dump(mode="json") for c in connections],
-            "total": len(connections),
-        }
-    except Exception as exc:
-        logger.exception("Error listing connections for agent %s: %s", agent_id, exc)
-        raise HTTPException(status_code=500, detail=str(exc))
-
-
-@router.delete("/connections/{connection_id}", response_model=APIResponse)
-async def revoke_connection(
-    connection_id: str,
-    auth: Principal = Depends(get_principal),
-):
-    """Revoke (delete) a swarm connection by ID.
-
-    **Auth:** requires a valid key. A non-admin caller may only revoke a
-    connection it participates in (as source or target); an admin may revoke
-    any. This closes the previous IDOR where any authenticated caller could
-    revoke any connection by id.
-    """
-    conn = await _load_connection(connection_id)
-    if conn is None:
-        raise HTTPException(status_code=404, detail=f"Connection '{connection_id}' not found")
-
-    participants = (conn.source_agent_id, conn.target_agent_id)
-    if not any([await can(auth, kb, Action.MANAGE) for kb in participants]):
-        raise HTTPException(status_code=403, detail="Not permitted on this knowledge base.")
-
-    try:
-        deleted = await _delete_connection(connection_id)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
-
-    if not deleted:
-        raise HTTPException(status_code=404, detail=f"Connection '{connection_id}' not found")
-
-    logger.info("Swarm connection %s revoked", connection_id)
-    return APIResponse(success=True, message=f"Connection '{connection_id}' revoked.")
-
-
-# ---------------------------------------------------------------------------
-# Route — Swarm Intelligence Query
-# ---------------------------------------------------------------------------
-
-
 _NO_FACTS_MSG = (
-    "Im Multiversum wurden keine relevanten Fakten für diese Frage gefunden. "
-    "Bitte stelle sicher, dass Agenten Wissen ingested haben."
+    "No relevant facts were found for this question. "
+    "Make sure the knowledge bases have ingested data."
 )
 
 
@@ -633,7 +481,7 @@ async def _federated_deep_query(
 
     # Each per-agent answer is already grounded in that agent's full graph;
     # synthesise a single attributed answer over them.
-    context = "\n".join(f"[Agent: {aid}] Antwort: {res.answer}" for aid, res in grounded)
+    context = "\n".join(f"[Agent: {aid}] Answer: {res.answer}" for aid, res in grounded)
     try:
         answer = await _synthesize_with_llm(query, context)
     except Exception as exc:

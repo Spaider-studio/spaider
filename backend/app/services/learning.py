@@ -35,6 +35,7 @@ def node_clearance(node) -> int:
 def parse_citations(answer: str, context_nodes: list) -> list[dict]:
     """Citations that point at real context lines, in order of first use."""
     seen: set[int] = set()
+    cited_ids: set[str] = set()
     citations = []
     for match in _CITATION.finditer(answer or ""):
         number = int(match.group(1))
@@ -42,6 +43,10 @@ def parse_citations(answer: str, context_nodes: list) -> list[dict]:
             continue
         seen.add(number)
         node = context_nodes[number - 1]
+        # The same node can appear twice in the context under different tags.
+        if node.id in cited_ids:
+            continue
+        cited_ids.add(node.id)
         citations.append({"ref": f"n{number}", "node_id": node.id, "label": node.label, "agent_id": node.agent_id})
     return citations
 
@@ -84,7 +89,9 @@ async def strengthen_co_activation(driver, agent_id: str, cited: Iterable[dict])
     """Link nodes cited together, within each KB only."""
     by_kb: dict[str, list[str]] = {}
     for item in cited:
-        by_kb.setdefault(item["agent_id"] or agent_id, []).append(item["node_id"])
+        # Reading through a grant never changes the source KB's memory.
+        if item["agent_id"] == agent_id:
+            by_kb.setdefault(agent_id, []).append(item["node_id"])
     pairs = [
         {"kb": kb, "a": a, "b": b}
         for kb, ids in by_kb.items()

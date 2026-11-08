@@ -18,6 +18,12 @@ FOUNDATION_SCHEMA: tuple[str, ...] = (
     "CREATE CONSTRAINT feedback_query IF NOT EXISTS FOR (f:Feedback) REQUIRE (f.agent_id, f.query_id) IS UNIQUE",
     "CREATE CONSTRAINT sleep_lease_kb IF NOT EXISTS FOR (l:SleepLease) REQUIRE l.agent_id IS UNIQUE",
     "CREATE INDEX episode_status IF NOT EXISTS FOR (e:Episode) ON (e.agent_id, e.status)",
+    "CREATE CONSTRAINT federation_grant_id IF NOT EXISTS FOR (g:FederationGrant) REQUIRE g.id IS UNIQUE",
+    "CREATE INDEX federation_grant_target IF NOT EXISTS FOR (g:FederationGrant) ON (g.target_kb, g.status)",
+    "CREATE CONSTRAINT kpr_id IF NOT EXISTS FOR (k:KnowledgePR) REQUIRE k.id IS UNIQUE",
+    "CREATE CONSTRAINT kpr_lock_kb IF NOT EXISTS FOR (l:KPRLock) REQUIRE l.kb IS UNIQUE",
+    "CREATE INDEX kpr_change_kpr IF NOT EXISTS FOR (c:KPRChange) ON (c.kpr_id)",
+    "CREATE INDEX kpr_change_key IF NOT EXISTS FOR (c:KPRChange) ON (c.target_kb, c.key)",
     "CREATE INDEX episode_agent_time IF NOT EXISTS FOR (e:Episode) ON (e.agent_id, e.occurred_at)",
     "CREATE POINT INDEX episode_location IF NOT EXISTS FOR (e:Episode) ON (e.location)",
     "CREATE VECTOR INDEX episode_hash_embedding IF NOT EXISTS FOR (e:Episode) ON (e.hash_embedding) "

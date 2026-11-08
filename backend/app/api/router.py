@@ -8,6 +8,7 @@ from app.api.v1 import (
     analytics,
     connectors,
     delete,
+    federation,
     feedback,
     graph,
     identity,
@@ -33,6 +34,7 @@ api_router.include_router(graph.router, prefix="/graph", tags=["graph"], depende
 api_router.include_router(delete.router, prefix="/node", tags=["node"], dependencies=_authenticated)
 api_router.include_router(synthesize.router, prefix="/synthesize", tags=["synthesize"], dependencies=_authenticated)
 api_router.include_router(agents.router, prefix="/agents", tags=["agents"], dependencies=_authenticated)
+api_router.include_router(federation.router, prefix="/federation", tags=["federation"], dependencies=_authenticated)
 api_router.include_router(swarm.router, prefix="/swarm", tags=["swarm"], dependencies=_authenticated)
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"], dependencies=_authenticated)
 api_router.include_router(system_settings.router, prefix="/system", tags=["system"], dependencies=_authenticated)

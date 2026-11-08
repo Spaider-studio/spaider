@@ -33,6 +33,10 @@ _DELETE_BATCHES = (
     "MATCH (n:InteractionNode {agent_id: $kb}) DETACH DELETE n RETURN count(n) AS c",
     "MATCH (n:AuditEvent {agent_id: $kb}) DETACH DELETE n RETURN count(n) AS c",
     "MATCH (n:Feedback {agent_id: $kb}) DETACH DELETE n RETURN count(n) AS c",
+    "MATCH (n:FederationGrant) WHERE n.source_kb = $kb OR n.target_kb = $kb DETACH DELETE n RETURN count(n) AS c",
+    "MATCH (n:KnowledgePR) WHERE n.source_kb = $kb OR n.target_kb = $kb DETACH DELETE n RETURN count(n) AS c",
+    "MATCH (n:KPRChange {target_kb: $kb}) DETACH DELETE n RETURN count(n) AS c",
+    "MATCH (n:KPRLock {kb: $kb}) DETACH DELETE n RETURN count(n) AS c",
     "MATCH (n:SleepReport {agent_id: $kb}) DETACH DELETE n RETURN count(n) AS c",
     "MATCH (n:SleepLease {agent_id: $kb}) DETACH DELETE n RETURN count(n) AS c",
 )

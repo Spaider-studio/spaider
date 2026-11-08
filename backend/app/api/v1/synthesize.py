@@ -25,7 +25,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse, StreamingResponse
 
 from app.config import settings
-from app.core.authz import Action, OrgAction, Principal, authorize, can, get_principal, require_org
+from app.core.authz import Action, OrgAction, Principal, accessible_kbs, authorize, can, get_principal, require_org
 from app.lib.litellm_retry import acompletion_with_retry
 from app.models.requests import SynthesizeRequest
 from app.models.schemas import SynthesizeResult
@@ -198,55 +198,36 @@ def _node_record_to_fact(record) -> str:
     return " ".join(parts)
 
 
-async def _get_random_subgraph(session, agent_id: Optional[str]) -> list[str]:
+async def _get_random_subgraph(
+    session, agent_id: Optional[str], *, kbs: Optional[list[str]] = None, max_clearance: int = 5
+) -> list[str]:
     """
     Sample a random set of knowledge facts from Neo4j.
 
-    Strategy 1 (preferred): Sample nodes from both sides of a random
-    SHARES_KNOWLEDGE_WITH bridge — produces rich cross-domain examples.
-
-    Strategy 2 (fallback): Random nodes from the target agent (or any agent).
+    Random nodes from the target KB. Without a KB (insecure dev only), any KB.
     """
-    # ── Strategy 1: swarm bridge sampling ────────────────────────────────
-    bridge_cypher = """
-        MATCH (sa:SystemAgent)-[:SHARES_KNOWLEDGE_WITH]->(sb:SystemAgent)
-        WITH sa, sb ORDER BY rand() LIMIT 1
-        MATCH (n:SpaiderNode)
-        WHERE (n.agent_id = sa.agent_id OR n.agent_id = sb.agent_id)
-          AND NOT n:SystemAgent
-          AND n.properties IS NOT NULL
-        WITH n ORDER BY rand() LIMIT 8
-        RETURN
-            n.label      AS label,
-            n.type       AS type,
-            n.properties AS properties,
-            n.agent_id   AS agent_id
-    """
-    result = await session.run(bridge_cypher)
-    records = await result.data()
-
-    if records:
-        return [_node_record_to_fact(r) for r in records]
-
-    # ── Strategy 2: single-agent / full-multiverse fallback ───────────────
+    # Random nodes from the target KB
     if agent_id:
         fallback_cypher = """
             MATCH (n:SpaiderNode {agent_id: $agent_id})
             WHERE NOT n:SystemAgent AND n.properties IS NOT NULL
+              AND coalesce(n.clearance_level, 1) <= $max_clearance
             WITH n ORDER BY rand() LIMIT 8
             RETURN n.label AS label, n.type AS type,
                    n.properties AS properties, n.agent_id AS agent_id
         """
-        result = await session.run(fallback_cypher, agent_id=agent_id)
+        result = await session.run(fallback_cypher, agent_id=agent_id, max_clearance=max_clearance)
     else:
         fallback_cypher = """
             MATCH (n:SpaiderNode)
             WHERE NOT n:SystemAgent AND n.properties IS NOT NULL
+              AND ($kbs IS NULL OR n.agent_id IN $kbs)
+              AND coalesce(n.clearance_level, 1) <= $max_clearance
             WITH n ORDER BY rand() LIMIT 8
             RETURN n.label AS label, n.type AS type,
                    n.properties AS properties, n.agent_id AS agent_id
         """
-        result = await session.run(fallback_cypher)
+        result = await session.run(fallback_cypher, kbs=kbs, max_clearance=max_clearance)
 
     records = await result.data()
     return [_node_record_to_fact(r) for r in records]
@@ -749,10 +730,7 @@ async def generate_agentic_dataset(
     knowledge-graph facts — mirroring real SpAIder agent behaviour.
 
     Sampling strategy:
-      1. Try to find a random SHARES_KNOWLEDGE_WITH bridge and sample nodes
-         from both connected agents — produces rich cross-domain examples.
-      2. Fall back to random nodes within `agent_id` (or any agent) if no
-         bridges exist.
+      Random nodes within `agent_id`, or within every KB the caller can read.
 
     The Teacher LLM (configured via `LLM_MODEL` env) invents realistic user
     questions, tool queries, simulated results, and final answers.
@@ -764,6 +742,7 @@ async def generate_agentic_dataset(
         await authorize(auth, agent_id, Action.READ)
     else:
         await require_org(auth, OrgAction.ADMIN)
+    allowed_kbs = None if agent_id is not None else await accessible_kbs(auth)
 
     if not settings.llm_api_key and not settings.llm_base_url:
         raise HTTPException(
@@ -792,7 +771,9 @@ async def generate_agentic_dataset(
             async with sem:
                 try:
                     async with graph._driver.session() as session:
-                        facts = await _get_random_subgraph(session, agent_id)
+                        facts = await _get_random_subgraph(
+                            session, agent_id, kbs=allowed_kbs, max_clearance=auth.clearance_level
+                        )
 
                     if not facts:
                         logger.warning("generate_dataset worker %d: no facts sampled", _idx)

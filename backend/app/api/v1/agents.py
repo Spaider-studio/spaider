@@ -24,17 +24,14 @@ from app.core.authz import (
     get_principal,
     require_org,
 )
-from app.models.requests import AgentConnectRequest, AgentCreateRequest
+from app.models.requests import AgentCreateRequest
 from app.models.responses import (
-    AgentBridgeResponse,
     AgentImportResponse,
     AgentListResponse,
     AgentResponse,
     APIResponse,
     DeleteInteractionsResponse,
     RotateKeyResponse,
-    SwarmLinkDeleteResponse,
-    SwarmLinkResponse,
 )
 from app.models.schemas import Agent, Edge, GraphPayload, Node
 from app.services.identity_service import get_identity_service
@@ -647,49 +644,6 @@ async def set_supersession(
     )
 
 
-@router.post("/connect", response_model=AgentBridgeResponse)
-async def connect_agents(
-    request: AgentConnectRequest,
-    auth: Principal = Depends(get_principal),
-):
-    """
-    Create a SHARES_KNOWLEDGE_WITH synaptic bridge between two SystemAgent nodes.
-    The relationship is idempotent (safe to call multiple times).
-    Returns 400 if source == target, or if either agent node does not exist in Neo4j.
-
-    **Auth:** the caller must be the source agent (or an admin) — you can only
-    share *your own* knowledge outward, not forge a bridge from someone else.
-    """
-    await authorize(auth, request.source_agent_id, Action.MANAGE)
-    if request.source_agent_id == request.target_agent_id:
-        raise HTTPException(
-            status_code=400,
-            detail="source_agent_id and target_agent_id must be different.",
-        )
-
-    graph = _get_graph_service()
-    try:
-        link_type = await graph.connect_agents(
-            source_agent_id=request.source_agent_id,
-            target_agent_id=request.target_agent_id,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except Exception as exc:
-        logger.exception(
-            "Failed to create synaptic bridge %s -> %s: %s",
-            request.source_agent_id, request.target_agent_id, exc,
-        )
-        raise HTTPException(status_code=500, detail=f"Failed to create bridge: {exc}")
-
-    return AgentBridgeResponse(
-        success=True,
-        source_agent_id=request.source_agent_id,
-        target_agent_id=request.target_agent_id,
-        link_type=link_type,
-    )
-
-
 @router.post(
     "/import",
     response_model=AgentImportResponse,
@@ -1080,99 +1034,6 @@ async def list_agents(auth: Principal = Depends(get_principal)):
         agents = [_record_to_agent(record["p"]) async for record in result]
     agents.sort(key=lambda a: a.created_at.isoformat())
     return AgentListResponse(agents=agents, total=len(agents))
-
-
-@router.get("/links", response_model=list[SwarmLinkResponse])
-async def list_swarm_links(auth: Principal = Depends(get_principal)):
-    """
-    Return every active SHARES_KNOWLEDGE_WITH bridge in the neural graph,
-    enriched with human-readable agent names. Admin-only — fleet-wide view.
-    """
-    await require_org(auth, OrgAction.ADMIN)
-    graph = _get_graph_service()
-    try:
-        async with graph._driver.session() as session:
-            result = await session.run(
-                """
-                MATCH (a:SystemAgent)-[r:SHARES_KNOWLEDGE_WITH]->(b:SystemAgent)
-                RETURN a.agent_id AS source_id,
-                       a.name     AS source_name,
-                       b.agent_id AS target_id,
-                       b.name     AS target_name
-                ORDER BY a.name ASC
-                """
-            )
-            records = await result.data()
-    except Exception as exc:
-        logger.exception("Failed to list swarm links: %s", exc)
-        raise HTTPException(status_code=500, detail=f"Failed to fetch links: {exc}")
-
-    return [
-        SwarmLinkResponse(
-            source_id=rec["source_id"],
-            source_name=rec["source_name"] or rec["source_id"][:8],
-            target_id=rec["target_id"],
-            target_name=rec["target_name"] or rec["target_id"][:8],
-        )
-        for rec in records
-    ]
-
-
-@router.delete("/link", response_model=SwarmLinkDeleteResponse)
-async def delete_swarm_link(
-    source_agent_id: str = Query(..., description="agent_id of the source SystemAgent"),
-    target_agent_id: str = Query(..., description="agent_id of the target SystemAgent"),
-    auth: Principal = Depends(get_principal),
-):
-    """
-    Remove the SHARES_KNOWLEDGE_WITH edge between two SystemAgent nodes.
-    Returns 404 if the edge does not exist.
-
-    **Auth:** the caller must own the source agent (or be an admin).
-    """
-    await authorize(auth, source_agent_id, Action.MANAGE)
-    if source_agent_id == target_agent_id:
-        raise HTTPException(
-            status_code=400,
-            detail="source_agent_id and target_agent_id must be different.",
-        )
-
-    graph = _get_graph_service()
-    try:
-        async with graph._driver.session() as session:
-            result = await session.run(
-                """
-                MATCH (a:SystemAgent {agent_id: $source})-[r:SHARES_KNOWLEDGE_WITH]->(b:SystemAgent {agent_id: $target})
-                DELETE r
-                RETURN count(r) AS deleted_count
-                """,
-                source=source_agent_id,
-                target=target_agent_id,
-            )
-            record = await result.single()
-            deleted_count: int = record["deleted_count"] if record else 0
-    except Exception as exc:
-        logger.exception(
-            "Failed to delete swarm link %s -> %s: %s",
-            source_agent_id, target_agent_id, exc,
-        )
-        raise HTTPException(status_code=500, detail=f"Failed to delete link: {exc}")
-
-    if deleted_count == 0:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No SHARES_KNOWLEDGE_WITH edge found from '{source_agent_id}' to '{target_agent_id}'.",
-        )
-
-    logger.info(
-        "Deleted synaptic bridge %s -> %s", source_agent_id, target_agent_id
-    )
-    return SwarmLinkDeleteResponse(
-        success=True,
-        deleted_count=deleted_count,
-        source_agent_id=source_agent_id,
-        target_agent_id=target_agent_id,
-    )
 
 
 @router.delete(

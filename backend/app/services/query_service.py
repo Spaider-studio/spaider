@@ -35,6 +35,7 @@ import re
 import time
 import uuid
 from datetime import datetime
+from types import SimpleNamespace
 from typing import AsyncIterator, Optional
 
 import numpy as np
@@ -49,6 +50,7 @@ from app.models.schemas import Edge, GraphPayload, Node, VerifierResult
 from app.services import recall_ranker
 from app.services.cognitive_engine import CognitiveGraphService
 from app.services.embedding_service import EmbeddingService
+from app.services.federation import FederationService, sources_param
 from app.services.graph_service import GraphService
 from app.services.learning import parse_citations, record_exchange, strengthen_co_activation
 
@@ -769,6 +771,7 @@ class QueryService:
         agent_clearance: int,
         *,
         limit: int = 30,
+        fed_sources: Optional[list[dict]] = None,
     ) -> list[str]:
         """Render the 1-hop RELATION edges touching the seed nodes as
         ``A -[REL]-> B`` lines.
@@ -790,6 +793,14 @@ class QueryService:
                       AND coalesce(a.clearance_level, $cd) <= $clr
                       AND coalesce(b.clearance_level, $cd) <= $clr
                       AND NOT coalesce(r.superseded, false)
+                      AND any(s IN $fed_sources WHERE s.kb = r.agent_id
+                              AND (s.relation_types IS NULL OR r.relation IN s.relation_types))
+                      AND any(s IN $fed_sources WHERE s.kb = a.agent_id
+                              AND coalesce(a.clearance_level, 1) <= s.max_clearance
+                              AND (s.node_types IS NULL OR a.type IN s.node_types))
+                      AND any(s IN $fed_sources WHERE s.kb = b.agent_id
+                              AND coalesce(b.clearance_level, 1) <= s.max_clearance
+                              AND (s.node_types IS NULL OR b.type IN s.node_types))
                     RETURN DISTINCT a.label AS src,
                            coalesce(r.relation, 'RELATED_TO') AS rel,
                            b.label AS tgt
@@ -797,6 +808,10 @@ class QueryService:
                     """,
                     node_ids=node_ids,
                     allowed=allowed_agent_ids,
+                    fed_sources=fed_sources or [
+                        {"kb": kb, "max_clearance": agent_clearance, "node_types": None, "relation_types": None}
+                        for kb in allowed_agent_ids
+                    ],
                     cd=_CLEARANCE_DEFAULT_VALUE,
                     clr=agent_clearance,
                     limit=limit,
@@ -821,6 +836,8 @@ class QueryService:
         query: str,
         agent_clearance: int = _DEFAULT_CLEARANCE,
         top_k: Optional[int] = None,
+        cited_order: Optional[list] = None,
+        source_names: Optional[dict] = None,
     ) -> tuple[str, list[str]]:
         """
         High-performance cross-agent retrieval with provenance (V1 mode).
@@ -839,22 +856,16 @@ class QueryService:
         Returns:
           (formatted_context_string, list_of_involved_agent_ids)
         """
-        async with self._graph._driver.session() as session:
-            allowed_result = await session.run(
-                """
-                MATCH (primary:SystemAgent {agent_id: $target_agent_id})
-                OPTIONAL MATCH (primary)-[:SHARES_KNOWLEDGE_WITH]->(shared:SystemAgent)
-                WITH primary, collect(shared.agent_id) + [primary.agent_id] AS allowed_agent_ids
-                RETURN allowed_agent_ids
-                """,
-                target_agent_id=target_agent_id,
-            )
-            allowed_record = await allowed_result.single()
-
-        if not allowed_record:
+        # Scope is enforced by the database through fed_sources below, so nodes
+        # outside a grant never reach the LLM.
+        sources = await FederationService(self._graph._driver).sources_for(target_agent_id, agent_clearance)
+        if not sources:
             return "No relevant context found.", [target_agent_id]
-
-        allowed_agent_ids: list[str] = allowed_record["allowed_agent_ids"]
+        allowed_agent_ids = [source.kb for source in sources]
+        fed_sources = sources_param(sources)
+        names = {source.kb: source.name for source in sources}
+        if source_names is not None:
+            source_names.update(names)
 
         keywords = [
             w.lower() for w in re.split(r"\W+", query) if len(w) >= 3
@@ -887,6 +898,9 @@ class QueryService:
                       AND coalesce(n.status, 'active') = 'active'
                       AND coalesce(n.type, '') <> 'SKILL'
                       AND coalesce(n.clearance_level, $clearance_default) <= $agent_clearance
+                      AND any(s IN $fed_sources WHERE s.kb = n.agent_id
+                              AND coalesce(n.clearance_level, 1) <= s.max_clearance
+                              AND (s.node_types IS NULL OR n.type IN s.node_types))
                     RETURN n.id         AS node_id,
                            n.label      AS label,
                            n.type       AS type,
@@ -894,12 +908,14 @@ class QueryService:
                            n.source_text AS source_text,
                            n.properties AS properties,
                            n.agent_id   AS source_agent,
+                           coalesce(n.clearance_level, 1) AS clearance,
                            1.0          AS avg_weight
                     ORDER BY score DESC
                     LIMIT $ctx_limit
                     """,
                     ft_query=ft_query,
                     allowed_agent_ids=allowed_agent_ids,
+                    fed_sources=fed_sources,
                     agent_clearance=agent_clearance,
                     clearance_default=_CLEARANCE_DEFAULT_VALUE,
                     ctx_limit=_context_limit(top_k),
@@ -912,7 +928,13 @@ class QueryService:
                     UNWIND $allowed_agent_ids AS aid
                     MATCH (n:SpaiderNode {agent_id: aid})
                     WHERE NOT n:SystemAgent
+                      AND NOT coalesce(n.superseded, false)
+                      AND coalesce(n.status, 'active') = 'active'
+                      AND coalesce(n.type, '') <> 'SKILL'
                       AND coalesce(n.clearance_level, $clearance_default) <= $agent_clearance
+                      AND any(s IN $fed_sources WHERE s.kb = n.agent_id
+                              AND coalesce(n.clearance_level, 1) <= s.max_clearance
+                              AND (s.node_types IS NULL OR n.type IN s.node_types))
                     WITH n ORDER BY n.label LIMIT $ctx_limit
                     RETURN n.id         AS node_id,
                            n.label      AS label,
@@ -921,9 +943,11 @@ class QueryService:
                            n.source_text AS source_text,
                            n.properties AS properties,
                            n.agent_id   AS source_agent,
+                           coalesce(n.clearance_level, 1) AS clearance,
                            1.0          AS avg_weight
                     """,
                     allowed_agent_ids=allowed_agent_ids,
+                    fed_sources=fed_sources,
                     agent_clearance=agent_clearance,
                     clearance_default=_CLEARANCE_DEFAULT_VALUE,
                     ctx_limit=_context_limit(top_k),
@@ -934,7 +958,7 @@ class QueryService:
             return "No relevant context found.", allowed_agent_ids
 
         context, involved = self._format_context_records(
-            records, v2_mode=False
+            records, v2_mode=False, names=names, cited_order=cited_order
         )
 
         # Fire-and-forget: boost energy on every node returned to the LLM
@@ -943,7 +967,7 @@ class QueryService:
         # Append the 1-hop relationships so the model can traverse an edge to
         # answer (e.g. the decision owner of X), not just read disconnected facts.
         rel_lines = await self._fetch_relationship_lines(
-            node_ids, allowed_agent_ids, agent_clearance,
+            node_ids, allowed_agent_ids, agent_clearance, fed_sources=fed_sources,
         )
         if rel_lines:
             context = f"{context}\n\nRelationships:\n" + "\n".join(rel_lines)
@@ -964,6 +988,8 @@ class QueryService:
         query: str,
         agent_clearance: int = _DEFAULT_CLEARANCE,
         top_k: Optional[int] = None,
+        cited_order: Optional[list] = None,
+        source_names: Optional[dict] = None,
     ) -> tuple[str, list[str]]:
         """
         V2 Cognitive Graph retrieval with synaptic plasticity awareness.
@@ -987,22 +1013,16 @@ class QueryService:
         Returns:
           (formatted_context_string, list_of_involved_agent_ids)
         """
-        async with self._graph._driver.session() as session:
-            allowed_result = await session.run(
-                """
-                MATCH (primary:SystemAgent {agent_id: $target_agent_id})
-                OPTIONAL MATCH (primary)-[:SHARES_KNOWLEDGE_WITH]->(shared:SystemAgent)
-                WITH primary, collect(shared.agent_id) + [primary.agent_id] AS allowed_agent_ids
-                RETURN allowed_agent_ids
-                """,
-                target_agent_id=target_agent_id,
-            )
-            allowed_record = await allowed_result.single()
-
-        if not allowed_record:
+        # Scope is enforced by the database through fed_sources below, so nodes
+        # outside a grant never reach the LLM.
+        sources = await FederationService(self._graph._driver).sources_for(target_agent_id, agent_clearance)
+        if not sources:
             return "No relevant context found.", [target_agent_id]
-
-        allowed_agent_ids: list[str] = allowed_record["allowed_agent_ids"]
+        allowed_agent_ids = [source.kb for source in sources]
+        fed_sources = sources_param(sources)
+        names = {source.kb: source.name for source in sources}
+        if source_names is not None:
+            source_names.update(names)
 
         keywords = [
             w.lower() for w in re.split(r"\W+", query) if len(w) >= 3
@@ -1036,6 +1056,9 @@ class QueryService:
                       AND coalesce(n.status, 'active') = 'active'
                       AND coalesce(n.type, '') <> 'SKILL'
                       AND coalesce(n.clearance_level, $clearance_default) <= $agent_clearance
+                      AND any(s IN $fed_sources WHERE s.kb = n.agent_id
+                              AND coalesce(n.clearance_level, 1) <= s.max_clearance
+                              AND (s.node_types IS NULL OR n.type IN s.node_types))
                     OPTIONAL MATCH (n)-[r:RELATION]->()
                     WITH n, avg(coalesce(r.utility_weight, 1.0)) AS avg_u
                     WHERE avg_u * (
@@ -1054,6 +1077,7 @@ class QueryService:
                            n.source_text AS source_text,
                            n.properties AS properties,
                            n.agent_id   AS source_agent,
+                           coalesce(n.clearance_level, 1) AS clearance,
                            n.embedding  AS embedding,
                            avg_u * (
                              coalesce(n.energy_level, 1.0) *
@@ -1069,6 +1093,7 @@ class QueryService:
                     """,
                     ft_query=ft_query,
                     allowed_agent_ids=allowed_agent_ids,
+                    fed_sources=fed_sources,
                     forget_threshold=_V2_FORGET_THRESHOLD,
                     agent_clearance=agent_clearance,
                     clearance_default=_CLEARANCE_DEFAULT_VALUE,
@@ -1083,7 +1108,13 @@ class QueryService:
                     UNWIND $allowed_agent_ids AS aid
                     MATCH (n:SpaiderNode {agent_id: aid})
                     WHERE NOT n:SystemAgent
+                      AND NOT coalesce(n.superseded, false)
+                      AND coalesce(n.status, 'active') = 'active'
+                      AND coalesce(n.type, '') <> 'SKILL'
                       AND coalesce(n.clearance_level, $clearance_default) <= $agent_clearance
+                      AND any(s IN $fed_sources WHERE s.kb = n.agent_id
+                              AND coalesce(n.clearance_level, 1) <= s.max_clearance
+                              AND (s.node_types IS NULL OR n.type IN s.node_types))
                     OPTIONAL MATCH (n)-[r:RELATION]->()
                     WITH n, avg(coalesce(r.utility_weight, 1.0)) AS avg_u
                     WHERE avg_u * (
@@ -1102,6 +1133,7 @@ class QueryService:
                            n.source_text AS source_text,
                            n.properties AS properties,
                            n.agent_id   AS source_agent,
+                           coalesce(n.clearance_level, 1) AS clearance,
                            n.embedding  AS embedding,
                            avg_u * (
                              coalesce(n.energy_level, 1.0) *
@@ -1116,6 +1148,7 @@ class QueryService:
                     LIMIT $ctx_limit
                     """,
                     allowed_agent_ids=allowed_agent_ids,
+                    fed_sources=fed_sources,
                     forget_threshold=_V2_FORGET_THRESHOLD,
                     agent_clearance=agent_clearance,
                     clearance_default=_CLEARANCE_DEFAULT_VALUE,
@@ -1131,7 +1164,12 @@ class QueryService:
                 _V2_FORGET_THRESHOLD, target_agent_id,
             )
             return await self.retrieve_swarm_context(
-                target_agent_id, query, agent_clearance=agent_clearance, top_k=top_k
+                target_agent_id,
+                query,
+                agent_clearance=agent_clearance,
+                top_k=top_k,
+                cited_order=cited_order,
+                source_names=source_names,
             )
 
         # ── MMR post-filtering: select a diverse subset from the candidate pool ─
@@ -1163,7 +1201,7 @@ class QueryService:
                 records = records[:_MMR_SELECT_K]
 
         context, involved = self._format_context_records(
-            records, v2_mode=True
+            records, v2_mode=True, names=names, cited_order=cited_order
         )
 
         # Fire-and-forget: boost energy on every node returned to the LLM
@@ -1172,7 +1210,7 @@ class QueryService:
         # Append the 1-hop relationships so the model can traverse an edge to
         # answer (e.g. the decision owner of X), not just read disconnected facts.
         rel_lines = await self._fetch_relationship_lines(
-            node_ids, allowed_agent_ids, agent_clearance,
+            node_ids, allowed_agent_ids, agent_clearance, fed_sources=fed_sources,
         )
         if rel_lines:
             context = f"{context}\n\nRelationships:\n" + "\n".join(rel_lines)
@@ -1197,6 +1235,8 @@ class QueryService:
         records: list[dict],
         *,
         v2_mode: bool,
+        names: Optional[dict] = None,
+        cited_order: Optional[list] = None,
     ) -> tuple[str, set[str]]:
         """
         Convert Neo4j records to the LLM context string.
@@ -1211,6 +1251,18 @@ class QueryService:
 
         for rec in records:
             source_agent: str = rec.get("source_agent") or "unknown"
+            source_name = (names or {}).get(source_agent, source_agent)
+            tag = ""
+            if cited_order is not None and rec.get("node_id"):
+                cited_order.append(
+                    SimpleNamespace(
+                        id=rec["node_id"],
+                        label=rec.get("label") or "",
+                        agent_id=source_agent,
+                        clearance_level=rec.get("clearance", 1),
+                    )
+                )
+                tag = f"[n{len(cited_order)}] "
             label: str        = rec.get("label") or ""
             node_type: str    = rec.get("type") or ""
             # V2 queries return synaptic_score; V1 queries return avg_weight (= 1.0)
@@ -1272,10 +1324,10 @@ class QueryService:
             if v2_mode and avg_weight >= 1.5:
                 line = (
                     f"[Strength: {avg_weight:.1f}] "
-                    f"[Source: Agent {source_agent}] - {content}"
+                    f"{tag}[Source: {source_name}] - {content}"
                 )
             else:
-                line = f"[Source: Agent {source_agent}] - {content}"
+                line = f"{tag}[Source: {source_name}] - {content}"
 
             lines.append(line)
             involved.add(source_agent)
@@ -1389,6 +1441,9 @@ class QueryService:
         if memory_mode != "off":
             seed_nodes = await recall_ranker.rerank(self._graph._driver, agent_id, seed_nodes)
 
+        context_nodes: list = []
+        source_names: dict = {}
+
         # Swarm context retrieved once from the original question (not re-queried
         # per iteration — swarm text enriches synthesis but is not node-accumulative).
         if use_v2:
@@ -1397,6 +1452,8 @@ class QueryService:
                 query=question,
                 agent_clearance=agent_clearance,
                 top_k=top_k,
+                cited_order=context_nodes,
+                source_names=source_names,
             )
         else:
             swarm_context, involved_agents = await self.retrieve_swarm_context(
@@ -1404,6 +1461,8 @@ class QueryService:
                 query=question,
                 agent_clearance=agent_clearance,
                 top_k=top_k,
+                cited_order=context_nodes,
+                source_names=source_names,
             )
 
         # Text-search fallback when vector index is empty
@@ -1540,11 +1599,10 @@ class QueryService:
         )
 
         # ── 5. Merge swarm text context with accumulated node context ─────────
-        context_nodes: list = []
         vector_context = self._build_context(subgraph, context_nodes)
         if vector_context and vector_context != "No relevant entities found in the knowledge graph.":
             vector_lines = [
-                f"[Source: Agent {agent_id}] - {line.lstrip('• ')}"
+                f"[Source: {source_names.get(agent_id, agent_id)}] - {line.lstrip('• ')}"
                 for line in vector_context.splitlines()
                 if line.strip()
             ]
@@ -1570,7 +1628,8 @@ class QueryService:
         _used_ids = [item["node_id"] for item in citations]
         _boosted = _used_ids or list(cumulative_nodes.keys())
         _labels = {nid: getattr(n, "label", "") for nid, n in cumulative_nodes.items()}
-        _source_kbs = sorted({n.agent_id for n in cumulative_nodes.values() if n.agent_id} | {agent_id})
+        # Reading through a grant never changes the source KB's memory.
+        _source_kbs = [agent_id]
         spawn(self._cognitive.boost_nodes(_boosted, _source_kbs))
         spawn(self._publish_pheromone(_boosted, agent_id, _labels))
 
@@ -1654,12 +1713,16 @@ class QueryService:
         # off -> classic retrieval; explicit/implicit -> synaptic (v2) retrieval.
         use_v2 = memory_mode != "off"
 
+        context_nodes: list = []
+        source_names: dict = {}
         if use_v2:
             swarm_context, involved_agents = await self.retrieve_swarm_context_v2(
                 target_agent_id=agent_id,
                 query=question,
                 agent_clearance=agent_clearance,
                 top_k=top_k,
+                cited_order=context_nodes,
+                source_names=source_names,
             )
         else:
             swarm_context, involved_agents = await self.retrieve_swarm_context(
@@ -1667,6 +1730,8 @@ class QueryService:
                 query=question,
                 agent_clearance=agent_clearance,
                 top_k=top_k,
+                cited_order=context_nodes,
+                source_names=source_names,
             )
 
         if not seed_nodes:
@@ -1725,11 +1790,10 @@ class QueryService:
         # updates even though the same nodes are retrieved. Fire-and-forget.
         _labels = {nid: getattr(n, "label", "") for nid, n in subgraph_nodes.items()}
 
-        context_nodes: list = []
         vector_context = self._build_context(subgraph, context_nodes)
         if vector_context and vector_context != "No relevant entities found in the knowledge graph.":
             vector_lines = [
-                f"[Source: Agent {agent_id}] - {line.lstrip('• ')}"
+                f"[Source: {source_names.get(agent_id, agent_id)}] - {line.lstrip('• ')}"
                 for line in vector_context.splitlines()
                 if line.strip()
             ]
@@ -1750,7 +1814,7 @@ class QueryService:
         citations = parse_citations(full_answer, context_nodes)
         query_id = str(uuid.uuid4())
         _boosted = [item["node_id"] for item in citations] or list(valid_node_ids)
-        _source_kbs = sorted({n.agent_id for n in subgraph_nodes.values() if n.agent_id} | {agent_id})
+        _source_kbs = [agent_id]
         spawn(self._cognitive.boost_nodes(_boosted, _source_kbs))
         spawn(self._publish_pheromone(_boosted, agent_id, _labels))
 

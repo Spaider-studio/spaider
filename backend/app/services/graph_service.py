@@ -1154,35 +1154,6 @@ class GraphService:
             records = await result.data()
         return [self._record_to_node(rec) for rec in records]
 
-    async def connect_agents(self, source_agent_id: str, target_agent_id: str) -> str:
-        """
-        Create (or confirm) a SHARES_KNOWLEDGE_WITH relationship between two SystemAgent nodes.
-        Returns the relationship type string on success.
-        Raises ValueError if either SystemAgent node does not exist in Neo4j.
-        """
-        async with self._driver.session() as session:
-            result = await session.run(
-                """
-                MATCH (a:SystemAgent {agent_id: $source}), (b:SystemAgent {agent_id: $target})
-                MERGE (a)-[r:SHARES_KNOWLEDGE_WITH]->(b)
-                RETURN type(r) AS link_type
-                """,
-                source=source_agent_id,
-                target=target_agent_id,
-            )
-            record = await result.single()
-            if record is None:
-                raise ValueError(
-                    f"One or both SystemAgent nodes not found: "
-                    f"source='{source_agent_id}' target='{target_agent_id}'"
-                )
-            link_type: str = record["link_type"]
-            logger.info(
-                "Synaptic bridge established: %s -[%s]-> %s",
-                source_agent_id, link_type, target_agent_id,
-            )
-            return link_type
-
     async def get_all_agents_graph(
         self,
         limit: int = 2000,
