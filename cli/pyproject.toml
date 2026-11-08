@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "spaider-cli"
-version = "0.1.2"
+version = "0.2.0"
 description = "SpAIder install wizard, agent management, and Claude Code skill installer"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -50,7 +50,7 @@ spaider = "spaider_cli.main:app"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"spaider_cli" = ["skills/*.md"]
+"spaider_cli" = ["skills/*.md", "stack/docker-compose.yml", "stack/.env.example", "stack/gateway/*"]
 
 [tool.ruff]
 line-length = 120

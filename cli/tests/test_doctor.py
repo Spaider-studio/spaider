@@ -25,7 +25,7 @@ def _good_docker():
 def _prime_env(tmp_path: Path, *, llm_key: str = "sk-good") -> Path:
     (tmp_path / ".env").write_text(
         f"LLM_API_KEY={llm_key}\n"
-        "JWT_SECRET=ignore-me\n"
+        "SPAIDER_BOOTSTRAP_TOKEN=ignore-me\n"
         "CONNECTOR_SECRET_KEY=also-ignore\n"
     )
     return tmp_path

@@ -12,6 +12,7 @@ import typer
 from spaider_cli import __version__
 from spaider_cli.commands import agent as agent_cmd
 from spaider_cli.commands import doctor as doctor_cmd
+from spaider_cli.commands import governance, memory, ops
 from spaider_cli.commands import init as init_cmd
 from spaider_cli.commands import mcp as mcp_cmd
 
@@ -63,6 +64,16 @@ app.command("doctor", help="Self-check current install + offer repairs.")(
 # Nested command groups.
 # ---------------------------------------------------------------------------
 
+for name, command in {
+    "up": ops.up, "down": ops.down, "status": ops.status, "logs": ops.logs, "login": ops.login,
+    "ingest": memory.ingest, "recall": memory.recall, "query": memory.query, "sleep": memory.sleep,
+    "export": memory.export,
+}.items():
+    app.command(name)(command)
+
+app.add_typer(governance.grant, name="grant")
+app.add_typer(governance.kpr, name="kpr")
+app.add_typer(governance.finetune, name="finetune")
 app.add_typer(agent_cmd.app, name="agent", help="Create / list / rotate-key / delete agents.")
 app.add_typer(mcp_cmd.app, name="mcp", help="Install SpAIder into Claude Code / Cursor as an MCP server.")
 

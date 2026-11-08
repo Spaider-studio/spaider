@@ -42,6 +42,9 @@ dependencies = [
     "mcp>=2.0.0,<3.0.0",  # 2.x: tool handlers are constructor callbacks (see mcp_server.py)
 ]
 
+[project.scripts]
+spaider-mcp = "app.mcp_stdio:main"
+
 [project.optional-dependencies]
 # Installed in Docker images via `uv pip install --system .[dev]` so
 # `python -m pytest` works inside the running container. Adds ~12 MB.

@@ -29,6 +29,7 @@ from rich.panel import Panel
 from rich.prompt import Prompt
 
 from spaider_cli.lib import api as api_client
+from spaider_cli.lib import config as config_lib
 from spaider_cli.lib import docker as docker_lib
 from spaider_cli.lib import env as env_lib
 from spaider_cli.lib import llm as llm_lib
@@ -112,7 +113,7 @@ def run(
     # Re-run safety: NEVER regenerate a secret that already exists in .env.
     # The running Neo4j container is created with whatever NEO4J_PASSWORD was in
     # .env at first boot; rewriting it on a re-run would lock the backend out of
-    # its own database (and silently invalidate JWTs / connector ciphertext).
+    # its own database (and make connector ciphertext unreadable).
     # So generate only the secrets that are missing/empty, and preserve the rest.
     console.print("\n[bold][3/6] Generating secrets[/]")
     env_path = repo / ".env"
@@ -126,19 +127,19 @@ def run(
         current = existing.get(key, "").strip()
         return (current, True) if current else (generator(), False)
 
-    jwt, jwt_kept = _keep_or_generate("JWT_SECRET", env_lib.generate_jwt_secret)
+    bootstrap_token, bootstrap_kept = _keep_or_generate("SPAIDER_BOOTSTRAP_TOKEN", env_lib.generate_bootstrap_token)
     connector_key, ck_kept = _keep_or_generate("CONNECTOR_SECRET_KEY", env_lib.generate_connector_key)
     neo4j_pw, neo_kept = _keep_or_generate("NEO4J_PASSWORD", env_lib.generate_neo4j_password)
-    if jwt_kept or ck_kept or neo_kept:
+    if bootstrap_kept or ck_kept or neo_kept:
         console.print("  [green]✓[/] Reused existing secrets where present (re-run safe)")
     else:
-        console.print("  [green]✓[/] JWT signing secret, connector encryption key, Neo4j password")
+        console.print("  [green]✓[/] Bootstrap token, connector encryption key, Neo4j password")
 
     # 4. .env
     console.print("\n[bold][4/6] Writing .env[/]")
     overrides = {
         **provider_overrides,
-        "JWT_SECRET": jwt,
+        "SPAIDER_BOOTSTRAP_TOKEN": bootstrap_token,
         "CONNECTOR_SECRET_KEY": connector_key,
         "NEO4J_PASSWORD": neo4j_pw,
     }
@@ -175,6 +176,14 @@ def run(
             )
             raise typer.Exit(code=1)
         console.print("  [green]✓[/] backend-api healthy on :8000")
+
+    if not skip_docker and not config_lib.api_key():
+        try:
+            owner = api_client.bootstrap(bootstrap_token, "SpAIder", _default_agent_name())
+            config_lib.save(api_key=owner["api_key"])
+            console.print("  [green]✓[/] Owner key saved to your SpAIder config")
+        except api_client.SpaiderApiError as exc:
+            err_console.print(f"  [yellow]![/] Could not create the owner: {exc}. Run [bold]spaider login[/].")
 
     # 6. Agent + MCP
     resolved_agent = agent_name or _default_agent_name()

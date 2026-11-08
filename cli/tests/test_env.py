@@ -16,7 +16,7 @@ from spaider_cli.lib import env as env_lib
 
 class TestSecretGeneration:
     def test_jwt_secret_is_64_hex(self):
-        secret = env_lib.generate_jwt_secret()
+        secret = env_lib.generate_bootstrap_token()
         assert len(secret) == 64
         assert re.fullmatch(r"[0-9a-f]+", secret)
 
@@ -80,17 +80,17 @@ class TestUpdateEnvText:
 class TestWriteEnvFile:
     def test_creates_from_example_when_target_missing(self, tmp_path: Path):
         example = tmp_path / ".env.example"
-        example.write_text("LLM_API_KEY=sk-template\nJWT_SECRET=tpl-jwt\n")
+        example.write_text("LLM_API_KEY=sk-template\nSPAIDER_BOOTSTRAP_TOKEN=tpl-jwt\n")
         target = tmp_path / ".env"
         backup = env_lib.write_env_file(
             target=target,
             example=example,
-            overrides={"LLM_API_KEY": "sk-real", "JWT_SECRET": "real-jwt"},
+            overrides={"LLM_API_KEY": "sk-real", "SPAIDER_BOOTSTRAP_TOKEN": "real-jwt"},
         )
         assert backup is None  # no prior file
         body = target.read_text()
         assert "LLM_API_KEY=sk-real" in body
-        assert "JWT_SECRET=real-jwt" in body
+        assert "SPAIDER_BOOTSTRAP_TOKEN=real-jwt" in body
 
     def test_preserves_existing_user_keys_and_backs_up(self, tmp_path: Path):
         example = tmp_path / ".env.example"

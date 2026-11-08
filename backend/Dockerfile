@@ -33,6 +33,10 @@ RUN uv pip install --system --no-cache \
     --index-strategy unsafe-best-match \
     ".[dev]"
 
+RUN useradd --uid 10001 --create-home --shell /usr/sbin/nologin spaider \
+    && mkdir -p /data /app/data && chown -R 10001:10001 /data /app/data
+USER 10001
+
 EXPOSE 8000
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
