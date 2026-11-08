@@ -302,7 +302,8 @@ class Settings(BaseSettings):
         default=10,
         description="Max prior facts considered as supersession candidates per new edge.",
     )
-    llm_fast_model: str = Field(default="", description="Cheaper model for background work; empty = llm_model.")
+    llm_fast_model: str = Field(default="", description="Cheaper model for routing and background work.")
+    query_deadline_seconds: float = Field(default=90.0, gt=0, description="A query that runs longer returns 504.")
     sleep_lease_ttl_seconds: int = Field(default=120, ge=1)
     sleep_extract_batch: int = Field(default=50, ge=1)
     sleep_extract_min_age_seconds: int = Field(default=300, ge=0)
@@ -386,9 +387,16 @@ class Settings(BaseSettings):
     model_config = {"env_file": ".env", "populate_by_name": True, "extra": "ignore"}
 
     @property
+    def litellm_fast_model(self) -> str:
+        return self._with_provider(self.llm_fast_model) if self.llm_fast_model.strip() else self.litellm_model
+
+    @property
     def litellm_model(self) -> str:
+        return self._with_provider(self.llm_model)
+
+    def _with_provider(self, model_name: str) -> str:
         """Return model with provider prefix for LiteLLM when missing."""
-        model = (self.llm_model or "").strip()
+        model = (model_name or "").strip()
         if not model:
             return model
         if "/" in model:

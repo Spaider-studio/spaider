@@ -73,7 +73,7 @@ def _stable_id(prefix: str, *parts: str) -> str:
 
 async def default_complete(prompt: str) -> str:
     kwargs: dict = {
-        "model": settings.llm_fast_model or settings.litellm_model,
+        "model": settings.litellm_fast_model,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0,
     }

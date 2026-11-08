@@ -21,8 +21,8 @@ from app.connectors.mcp_connector import MCPConnector
 from app.connectors.sql_connector import SQLConnector
 from app.connectors.trafilatura_url_connector import URLConnector
 from app.connectors.upload_connector import UploadConnector
-from app.core.authz import Action, Principal, authorize, get_principal
-from app.core.jobs import QueueFull
+from app.core.authz import Action, Principal, authorize, can, get_principal
+from app.core.jobs import QueueFull, job_status, mark_job_queued
 from app.core.kv import get_kv
 from app.core.net_guard import BlockedTarget, PolicyRefused, check_image_url
 from app.models.requests import IngestRequest
@@ -292,6 +292,7 @@ async def ingest_text_async(request: IngestRequest, auth: Principal = Depends(ge
             source=request.source,
             metadata=request.metadata,
         )
+        await mark_job_queued(message_id, request.agent_id)
         logger.info("Queued ingest message %s for agent %s", message_id, request.agent_id)
         # Replay: record the enqueue so this workflow appears in the Replay UI
         # even before the worker processes it.  message_id doubles as workflow_id.
@@ -310,6 +311,15 @@ async def ingest_text_async(request: IngestRequest, auth: Principal = Depends(ge
         message_id=message_id,
         agent_id=request.agent_id,
     )
+
+
+@router.get("/jobs/{job_id}")
+async def get_ingest_job(job_id: str, auth: Principal = Depends(get_principal)):
+    """Status of a background ingest."""
+    state = await job_status(job_id)
+    if state is None or not state.get("agent_id") or not await can(auth, state["agent_id"], Action.READ):
+        raise HTTPException(status_code=404, detail="Job not found.")
+    return {key: state.get(key) for key in ("id", "status", "agent_id", "attempts", "error", "updated_at")}
 
 
 @router.post("/sync", response_model=IngestSyncResponse)

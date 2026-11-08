@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -123,6 +124,7 @@ _NODE_WRITE_TAIL: str = """
     SET n.embedding   = CASE WHEN row.embedding IS NOT NULL THEN row.embedding ELSE n.embedding END
     SET n.description = COALESCE(row.description, n.description)
     SET n.source_text = COALESCE(row.source_text, n.source_text)
+    SET n.aliases_text = COALESCE(row.aliases_text, n.aliases_text)
     RETURN sum(was_created) AS created, sum(1 - was_created) AS merged
 """
 
@@ -162,6 +164,11 @@ def reset_graph_service() -> None:
 
 
 _VISIBLE = "coalesce({v}.clearance_level, 1) <= $max_clearance"
+
+
+def _aliases_text(node) -> Optional[str]:
+    aliases = (node.properties or {}).get("aliases")
+    return " ".join(str(alias) for alias in aliases) if aliases else None
 
 
 class VectorIndexUnavailableError(RuntimeError):
@@ -372,7 +379,7 @@ class GraphService:
                 existing_fields = record["properties"] if record else None
                 if (
                     isinstance(existing_fields, (list, tuple))
-                    and "source_text" not in existing_fields
+                    and "aliases_text" not in existing_fields
                 ):
                     await session.run("DROP INDEX spaider_label_fulltext IF EXISTS")
                     logger.info(
@@ -382,7 +389,7 @@ class GraphService:
                 logger.warning("Fulltext index definition check skipped: %s", exc)
             await session.run(
                 "CREATE FULLTEXT INDEX spaider_label_fulltext IF NOT EXISTS "
-                "FOR (n:SpaiderNode) ON EACH [n.label, n.description, n.source_text]"
+                "FOR (n:SpaiderNode) ON EACH [n.label, n.description, n.source_text, n.aliases_text]"
             )
 
             # ── Vector index (requires Neo4j >= 5.11) ────────────────────
@@ -496,6 +503,7 @@ class GraphService:
                     "id": node.id,
                     "agent_id": agent_id,
                     "label": node.label,
+                    "aliases_text": _aliases_text(node),
                     "type": node.type,
                     "description": description,
                     "source_text": source_text,
@@ -603,6 +611,7 @@ class GraphService:
                 "id": node.id,
                 "agent_id": agent_id,
                 "label": node.label,
+                "aliases_text": _aliases_text(node),
                 "type": node.type,
                 "description": description,
                 "source_text": source_text,
@@ -1043,49 +1052,44 @@ class GraphService:
             records = await result.data()
         return [self._record_to_node(rec) for rec in records]
 
-    async def list_nodes_for_resolver(
-        self,
-        agent_id: str,
-    ) -> list[Node]:
-        """List all of an agent's SpaiderNodes WITHOUT embeddings.
+    async def resolver_candidates(self, agent_id: str, labels: list[str], per_label: int = 25) -> list[Node]:
+        """Existing nodes that could match any of ``labels``.
 
-        the EntityResolver previously called ``search_nodes
-        (query="", limit=2000)`` which capped at 2K, hauled embeddings
-        across the wire, and was the dominant per-fact cost as graphs
-        grew. The resolver only needs labels + aliases for strategies
-        1-3 (exact / alias / fuzzy Levenshtein); semantic-match
-        (strategy 4) is now handled per-new-node via the existing
-        ``vector_search`` Neo4j vector-index probe.
-
-        This call returns the full label-set with NO 2K cap and NO
-        embedding payload — bytes per node drop from ~12 KB (1536-dim
-        float embedding) to ~200 B (label + aliases). 10 KB → 50 KB
-        even on a 250 KB / 35K-node agent, safe to fetch in full.
+        Uses the full-text index with fuzzy terms, so cost follows the batch and
+        not the size of the graph. Facts are excluded: they never deduplicate.
         """
+        searches = [query for query in (self._fuzzy_query(label) for label in dict.fromkeys(labels)) if query]
+        if not searches:
+            return []
         async with self._driver.session() as session:
             result = await session.run(
                 """
-                MATCH (n:SpaiderNode {agent_id: $agent_id})
-                RETURN n.id AS id,
-                       n.label AS label,
-                       n.type AS type,
-                       n.description AS description,
-                       n.properties AS properties,
-                       n.agent_id AS agent_id,
-                       n.clearance_level AS clearance_level
+                UNWIND $searches AS search
+                CALL db.index.fulltext.queryNodes('spaider_label_fulltext', search, {limit: $k})
+                YIELD node AS n
+                WHERE n.agent_id = $agent_id AND coalesce(n.type, '') <> 'FACT' AND NOT n:SystemAgent
+                WITH DISTINCT n
+                RETURN n.id AS id, n.label AS label, n.type AS type, n.description AS description,
+                       n.properties AS properties, n.agent_id AS agent_id, n.clearance_level AS clearance_level
                 """,
+                searches=searches,
+                k=per_label * 8,
                 agent_id=agent_id,
             )
             records = await result.data()
-        # Skip the embedding column; resolver doesn't need it for
-        # strategies 1-3, and strategy 4 will fetch candidates via
-        # vector_search.
-        nodes: list[Node] = []
-        for rec in records:
-            node = self._record_to_node(rec)
-            node.embedding = None  # explicit — saves resolver thinking
-            nodes.append(node)
+        nodes = [self._record_to_node(record) for record in records]
+        for node in nodes:
+            node.embedding = None
         return nodes
+
+    @staticmethod
+    def _fuzzy_query(label: str) -> Optional[str]:
+        terms = [term.lower() for term in re.sub(r'[+\-&|!(){}\[\]^"~*?:\\/]', " ", label).split() if term]
+        if not terms:
+            return None
+        clauses = [f"{term}~0.8" if len(term) > 3 else term for term in terms[:8]]
+        joined = " AND ".join(clauses)
+        return f"label:({joined}) OR aliases_text:({joined})"
 
     async def vector_search(
         self,

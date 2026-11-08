@@ -103,7 +103,9 @@ class JobQueue:
         await asyncio.gather(*self._tasks, return_exceptions=True)
         self._tasks = []
 
-    async def submit(self, name: str, payload: dict, *, job_id: Optional[str] = None) -> str:
+    async def submit(
+        self, name: str, payload: dict, *, job_id: Optional[str] = None, agent_id: Optional[str] = None
+    ) -> str:
         if name not in self._handlers:
             raise KeyError(f"No handler registered for job '{name}'")
         job_id = job_id or str(uuid.uuid4())
@@ -112,7 +114,7 @@ class JobQueue:
         # nx: a duplicate submit must not reset the status of a running job.
         await self._write(
             job_id,
-            {"id": job_id, "name": name, "status": "queued", "attempts": 0, "created_at": _now()},
+            {"id": job_id, "name": name, "status": "queued", "attempts": 0, "agent_id": agent_id, "created_at": _now()},
             only_if_absent=True,
         )
         self._queue.put_nowait((job_id, name, payload))
@@ -167,6 +169,23 @@ class JobQueue:
 
 
 _queue: Optional[JobQueue] = None
+
+
+async def job_status(job_id: str) -> Optional[dict]:
+    raw = await get_kv().get(_JOB_KEY.format(id=job_id))
+    return json.loads(raw) if raw else None
+
+
+async def mark_job_queued(job_id: str, agent_id: str) -> None:
+    """Record a job handed to Kafka. A fast worker may already have written its
+    status, so this only applies if nothing is there yet."""
+    state = {"id": job_id, "status": "queued", "agent_id": agent_id, "created_at": _now(), "updated_at": _now()}
+    await get_kv().set(_JOB_KEY.format(id=job_id), json.dumps(state), ex=_JOB_TTL_SECONDS, nx=True)
+
+
+async def mark_job_finished(job_id: str, agent_id: str, status: str, error: Optional[str] = None) -> None:
+    state = {"id": job_id, "status": status, "agent_id": agent_id, "error": error, "updated_at": _now()}
+    await get_kv().set(_JOB_KEY.format(id=job_id), json.dumps(state), ex=_JOB_TTL_SECONDS)
 
 
 def get_job_queue() -> JobQueue:

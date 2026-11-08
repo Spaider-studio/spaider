@@ -26,6 +26,7 @@ Cypher path still available via query_cypher() for raw/advanced use.
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import logging
@@ -362,6 +363,10 @@ _DEFAULT_CLEARANCE = 1
 # Response type
 # ---------------------------------------------------------------------------
 
+class QueryDeadlineExceeded(RuntimeError):
+    """The query ran past ``query_deadline_seconds``."""
+
+
 class QueryResult:
     def __init__(
         self,
@@ -657,7 +662,7 @@ class QueryService:
 
         prompt = _DECOMPOSITION_PROMPT_TEMPLATE.format(question=question.strip())
         call_kwargs: dict = dict(
-            model=settings.litellm_model,
+            model=settings.litellm_fast_model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.0,
             max_tokens=256,
@@ -1354,7 +1359,13 @@ class QueryService:
         stays ``None`` rather than a misleading ``{0, 0}``.
         """
         with track_tokens() as bucket:
-            result = await self._query_nl_impl(question, agent_id, top_k, decompose, max_clearance)
+            try:
+                result = await asyncio.wait_for(
+                    self._query_nl_impl(question, agent_id, top_k, decompose, max_clearance),
+                    timeout=settings.query_deadline_seconds,
+                )
+            except asyncio.TimeoutError as exc:
+                raise QueryDeadlineExceeded(agent_id) from exc
         if result is not None and not getattr(result, "from_cache", False):
             result.token_usage = dict(bucket)
         return result
@@ -2122,7 +2133,7 @@ class QueryService:
             )
 
         call_kwargs: dict = dict(
-            model=settings.litellm_model,
+            model=settings.litellm_fast_model,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_content},
@@ -2190,7 +2201,7 @@ class QueryService:
             f"Question: {question}\n\nPassage: {a}\n\nAnswer:"
         )
         call_kwargs: dict = dict(
-            model=settings.litellm_model,
+            model=settings.litellm_fast_model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.0,
             max_tokens=40,

@@ -71,8 +71,10 @@ from mcp.server.lowlevel import Server
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 
 from app.core.authz import Action, Principal, authorize, resolve_token
+from app.services.episode_store import EpisodeInput, EpisodeStore
 from app.services.graph_service import GraphService, get_graph_service
 from app.services.query_service import QueryService
+from app.services.recall_service import RecallQuery, RecallService
 from app.services.sleep_service import SleepBusy, SleepOrchestrator, latest_report
 
 logger = logging.getLogger(__name__)
@@ -86,7 +88,7 @@ _AGENT_ID: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
 _PRINCIPAL: contextvars.ContextVar[Optional[Principal]] = contextvars.ContextVar(
     "spaider_mcp_principal", default=None,
 )
-_WRITE_TOOLS = frozenset({"spaider.ingest_fact", "spaider.feedback"})
+_WRITE_TOOLS = frozenset({"spaider.ingest_fact", "spaider.feedback", "spaider.remember"})
 _MANAGE_TOOLS = frozenset({"spaider.compact"})
 
 
@@ -245,6 +247,39 @@ async def list_tools() -> list[mcp_types.Tool]:
             },
         ),
         mcp_types.Tool(
+            name="spaider.remember",
+            description=(
+                "Store an observation immediately, with no LLM call. Use this for "
+                "frequent writes; the sleep cycle extracts knowledge later."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "content": {"type": "string", "description": "What happened."},
+                    "kind": {"type": "string"},
+                    "session_id": {"type": "string"},
+                    "idempotency_key": {"type": "string", "description": "Makes retries safe."},
+                },
+                "required": ["content"],
+            },
+        ),
+        mcp_types.Tool(
+            name="spaider.recall",
+            description=(
+                "Search memory with no LLM call and return matching episodes and "
+                "nodes. Faster and cheaper than spaider.query; gives raw memories, not an answer."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"},
+                    "limit": {"type": "integer"},
+                    "federated": {"type": "boolean", "description": "Also search KBs shared with this one."},
+                },
+                "required": ["query"],
+            },
+        ),
+        mcp_types.Tool(
             name="spaider.sleep_report",
             description=(
                 "Read the latest sleep report for this knowledge base (READ-ONLY): "
@@ -391,6 +426,39 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[mcp_types.Text
         )
 
         return [mcp_types.TextContent(type="text", text="\n\n".join(sections))]
+
+    if name == "spaider.remember":
+        content = arguments.get("content")
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("`content` is required and must be a non-empty string")
+        written = await EpisodeStore(_get_graph_service()._driver).write_batch(
+            agent_id,
+            [
+                EpisodeInput(
+                    content=content[:100_000],
+                    kind=str(arguments.get("kind") or "observation"),
+                    session_id=arguments.get("session_id"),
+                    idempotency_key=arguments.get("idempotency_key"),
+                    source="mcp",
+                )
+            ],
+        )
+        return [mcp_types.TextContent(type="text", text=json.dumps(written[0]))]
+
+    if name == "spaider.recall":
+        text = arguments.get("query")
+        if not isinstance(text, str) or not text.strip():
+            raise ValueError("`query` is required and must be a non-empty string")
+        results = await RecallService(_get_graph_service()._driver).recall(
+            RecallQuery(
+                agent_id=agent_id,
+                text=text,
+                limit=min(int(arguments.get("limit") or 10), 100),
+                clearance=principal.clearance_level,
+                federated=bool(arguments.get("federated")),
+            )
+        )
+        return [mcp_types.TextContent(type="text", text=json.dumps(results, default=str))]
 
     if name == "spaider.sleep_report":
         report = await latest_report(_get_graph_service()._driver, agent_id)

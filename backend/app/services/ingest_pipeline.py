@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from typing import Awaitable, Callable, Optional
 
 from app.core.jobs import get_job_queue, spawn
+from app.core.kb_lock import kb_write_lock
 from app.core.kv import bump_cache_generation
 from app.models.schemas import Edge, GraphPayload, Node
 from app.services.episode_store import EpisodeInput, EpisodeStore
@@ -173,6 +174,21 @@ class IngestPipeline:
         clearance: int = 1,
     ) -> Prepared:
         """``episode_id`` is set when sleep extracts an episode that already exists."""
+        payload, episode_id = await self._extract(agent_id, text, source, context, on_progress, episode_id)
+        prepared = await self.prepare_payload(agent_id, payload, caller_context=caller_context, episode_id=episode_id)
+        prepared.clearance = clearance
+        return prepared
+
+    async def _extract(
+        self,
+        agent_id: str,
+        text: str,
+        source: Optional[str],
+        context: Optional[dict],
+        on_progress: Optional[Progress],
+        episode_id: Optional[str] = None,
+    ) -> tuple[GraphPayload, Optional[str]]:
+        """Everything before the write lock: the LLM call must not block other writers."""
         if episode_id is None:
             episode_id = await self._record_episode(agent_id, text, source)
         payload = await self._compressor.extract(
@@ -181,9 +197,7 @@ class IngestPipeline:
         if on_progress:
             await on_progress(f"Extracted {len(payload.nodes)} entities — resolving duplicates…")
         attach_fact_node(payload, text, source)
-        prepared = await self.prepare_payload(agent_id, payload, caller_context=caller_context, episode_id=episode_id)
-        prepared.clearance = clearance
-        return prepared
+        return payload, episode_id
 
     async def prepare_payload(
         self,
@@ -283,10 +297,12 @@ class IngestPipeline:
         workflow_id: Optional[str] = None,
         on_progress: Optional[Progress] = None,
     ) -> IngestOutcome:
-        prepared = await self.prepare_text(agent_id, text, source=source, on_progress=on_progress)
-        if on_progress:
-            await on_progress(f"Writing {len(prepared.payload.nodes)} nodes to graph…")
-        result = await self.commit(prepared, workflow_id=workflow_id)
+        payload, episode_id = await self._extract(agent_id, text, source, None, on_progress)
+        async with kb_write_lock(agent_id):
+            prepared = await self.prepare_payload(agent_id, payload, episode_id=episode_id)
+            if on_progress:
+                await on_progress(f"Writing {len(prepared.payload.nodes)} nodes to graph…")
+            result = await self.commit(prepared, workflow_id=workflow_id)
         return IngestOutcome(payload=prepared.payload, result=result)
 
     async def ingest_payload(
@@ -296,8 +312,9 @@ class IngestPipeline:
         *,
         workflow_id: Optional[str] = None,
     ) -> IngestOutcome:
-        prepared = await self.prepare_payload(agent_id, payload)
-        result = await self.commit(prepared, workflow_id=workflow_id)
+        async with kb_write_lock(agent_id):
+            prepared = await self.prepare_payload(agent_id, payload)
+            result = await self.commit(prepared, workflow_id=workflow_id)
         return IngestOutcome(payload=prepared.payload, result=result)
 
 
@@ -317,5 +334,5 @@ async def enqueue_text(agent_id: str, text: str, source: Optional[str]) -> str:
     queue = get_job_queue()
     queue.register(INGEST_JOB, _run_ingest_job)
     queue.start()
-    job_id = await queue.submit(INGEST_JOB, {"agent_id": agent_id, "text": text, "source": source})
+    job_id = await queue.submit(INGEST_JOB, {"agent_id": agent_id, "text": text, "source": source}, agent_id=agent_id)
     return job_id

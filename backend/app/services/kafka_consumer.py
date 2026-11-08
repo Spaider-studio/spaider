@@ -16,6 +16,7 @@ from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 from aiokafka.errors import KafkaError
 
 from app.config import settings
+from app.core.jobs import mark_job_finished
 from app.logging_context import bind_request_context, reset_request_context
 from app.services.graph_service import get_graph_service
 from app.services.ingest_pipeline import IngestPipeline
@@ -237,6 +238,10 @@ class KafkaConsumerService:
                     await IngestPipeline(graph_service).commit_many([item for item, _, _ in good])
                     # Commit offsets for all successfully written messages
                     await self._consumer.commit()
+                    for item, agent_id, message in good:
+                        job_id = message.value.get("message_id") if isinstance(message.value, dict) else None
+                        if job_id:
+                            await mark_job_finished(job_id, agent_id, "done")
                     logger.info(
                         "Batch written | messages=%d total_nodes=%d total_edges=%d",
                         len(good),

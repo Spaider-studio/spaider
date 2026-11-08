@@ -128,7 +128,7 @@ _LLM_FAILURES: contextvars.ContextVar[Optional[list]] = contextvars.ContextVar(
 async def _llm_json(prompt: str) -> str:
     """One temperature-0 completion via the configured judge model. '' on failure."""
     kwargs: dict = {
-        "model": settings.supersession_judge_model or settings.litellm_model,
+        "model": settings.supersession_judge_model or settings.litellm_fast_model,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0,
     }

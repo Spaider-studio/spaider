@@ -29,6 +29,7 @@ dependencies = [
     "python-multipart==0.0.32",
     "httpx==0.28.1",
     "Levenshtein>=0.26.0",
+    "rapidfuzz>=3.10.0",
     "clickhouse-connect>=0.7.0",
     "cryptography>=43.0.0",
     "python-json-logger>=2.0.7",

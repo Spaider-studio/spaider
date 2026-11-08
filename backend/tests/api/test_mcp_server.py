@@ -74,6 +74,8 @@ async def test_list_tools_returns_read_and_write_set():
         "spaider.list_recent",
         "spaider.ingest_fact",
         "spaider.feedback",
+        "spaider.remember",
+        "spaider.recall",
         "spaider.sleep_report",
         "spaider.compact",
         "spaider.status",

@@ -18,6 +18,7 @@ from app.core.cypher_guard import CypherRejected, check_cypher
 from app.models.requests import CypherQueryRequest, QueryRequest, TraverseRequest
 from app.models.schemas import GraphPayload, QueryResult
 from app.services.graph_service import get_graph_service
+from app.services.query_service import QueryDeadlineExceeded
 
 logger = logging.getLogger(__name__)
 
@@ -223,6 +224,8 @@ async def query_nl(
             verifier_feedback=getattr(svc_result, "verifier_feedback", None),
             token_usage=token_usage,
         )
+    except QueryDeadlineExceeded:
+        raise HTTPException(status_code=504, detail="The query exceeded its time limit.")
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     except Exception as exc:
