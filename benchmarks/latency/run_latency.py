@@ -99,9 +99,6 @@ async def run(nodes: int, requests: int, output: Path | None) -> dict:
     from app.api.router import api_router
     from app.services import graph_service as graph_module
     from app.services.identity_service import get_identity_service
-    from app.config import settings
-
-    settings.spaider_insecure_dev = False
     graph = graph_module.get_graph_service()
     await _safety.assert_test_database(graph._driver)
     await _safety.wipe_test_database(graph._driver)
@@ -175,4 +172,8 @@ if __name__ == "__main__":
     parser.add_argument("--requests", type=int, default=200)
     parser.add_argument("--output", type=Path, default=None)
     args = parser.parse_args()
+
+    from app.config import settings
+
+    settings.spaider_insecure_dev = False
     asyncio.run(run(args.nodes, args.requests, args.output))

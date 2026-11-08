@@ -6,8 +6,10 @@ from pathlib import Path
 
 
 async def test_latency_suite_runs_on_a_small_graph(neo4j_test_driver, tmp_path, monkeypatch):
+    from app.config import settings
     from app.services import graph_service as graph_module
 
+    monkeypatch.setattr(settings, "spaider_insecure_dev", False)
     monkeypatch.setattr(graph_module, "_shared_graph_service", None)
     path = Path(__file__).resolve().parents[2] / "benchmarks" / "latency" / "run_latency.py"
     spec = importlib.util.spec_from_file_location("run_latency", path)
