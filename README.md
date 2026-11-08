@@ -208,7 +208,7 @@ Edit `.env` and fill in your secrets:
 ```bash
 LLM_API_KEY=sk-your-key-here
 NEO4J_PASSWORD=choose-a-strong-password
-JWT_SECRET=$(python -c "import secrets; print(secrets.token_hex(32))")
+SPAIDER_BOOTSTRAP_TOKEN=$(python -c "import secrets; print(secrets.token_hex(32))")
 CONNECTOR_SECRET_KEY=$(python -c "import secrets,base64; print(base64.b64encode(secrets.token_bytes(32)).decode())")
 ```
 

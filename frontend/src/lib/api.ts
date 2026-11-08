@@ -1,3 +1,4 @@
+import { authFetch } from "./auth";
 import type {
   ClusterGraphPayload,
   GraphPayload,
@@ -7,7 +8,6 @@ import type {
   ClearanceLevel,
   IngestResponse,
   QueryResponse,
-  SwarmConnection,
   SynthesizeResult,
   TraversalResult,
   CypherResponse,
@@ -23,7 +23,7 @@ async function request<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${BASE_URL}${path}`;
-  const res = await fetch(url, {
+  const res = await authFetch(url, {
     headers: {
       "Content-Type": "application/json",
       ...options.headers,
@@ -77,7 +77,7 @@ export async function ingestFile(
   formData.append("file", file);
   formData.append("agent_id", agentId);
 
-  const res = await fetch(`${BASE_URL}/ingest/file`, {
+  const res = await authFetch(`${BASE_URL}/ingest/file`, {
     method: "POST",
     body: formData,
   });
@@ -105,7 +105,7 @@ export async function ingestFiles(
   files.forEach((f) => formData.append("files", f));
   formData.append("agent_id", agentId);
 
-  const res = await fetch(`${BASE_URL}/ingest/files`, {
+  const res = await authFetch(`${BASE_URL}/ingest/files`, {
     method: "POST",
     body: formData,
   });
@@ -286,7 +286,7 @@ export async function deleteAgentInteractions(
 /**
  * Stream-import a .ndjson file produced by exportAgentGraph().
  *
- * Uses a direct fetch() to the backend (bypassing the Next.js proxy) because
+ * Uses a direct authFetch() to the backend (bypassing the Next.js proxy) because
  * large file uploads for 100k+ node graphs can exceed the proxy's body-size
  * and timeout limits.
  *
@@ -316,7 +316,7 @@ export async function importAgentGraph(
   const formData = new FormData();
   formData.append("file", file);
 
-  const res = await fetch(`${backendUrl}/agents/import?${params}`, {
+  const res = await authFetch(`${backendUrl}/agents/import?${params}`, {
     method: "POST",
     body: formData,
   });
@@ -359,39 +359,191 @@ export async function rotateAgentKey(
   });
 }
 
-export async function connectAgentBridge(
-  sourceAgentId: string,
-  targetAgentId: string
-): Promise<{ success: boolean; source_agent_id: string; target_agent_id: string; link_type: string }> {
-  return request("/agents/connect", {
-    method: "POST",
-    body: JSON.stringify({
-      source_agent_id: sourceAgentId,
-      target_agent_id: targetAgentId,
-    }),
-  });
-}
-
 export interface SwarmLink {
   source_id: string;
   source_name: string;
   target_id: string;
   target_name: string;
+  grant_id: string;
 }
 
+export interface Grant {
+  id: string;
+  source_kb: string;
+  target_kb: string;
+  status: string;
+  node_types?: string[] | null;
+  relation_types?: string[] | null;
+  max_clearance: number;
+  expires_at?: string | null;
+  reason?: string | null;
+}
+
+export function listGrants(): Promise<Grant[]> {
+  return request<Grant[]>("/federation/grants");
+}
+
+export function requestGrant(body: {
+  source_kb: string;
+  target_kb: string;
+  node_types?: string[];
+  relation_types?: string[];
+  max_clearance?: number;
+  expires_at?: string;
+}): Promise<Grant> {
+  return request<Grant>("/federation/grants", { method: "POST", body: JSON.stringify(body) });
+}
+
+export function approveGrant(id: string): Promise<Grant> {
+  return request<Grant>(`/federation/grants/${id}/approve`, { method: "POST", body: "{}" });
+}
+
+export function denyGrant(id: string): Promise<Grant> {
+  return request<Grant>(`/federation/grants/${id}/deny`, { method: "POST" });
+}
+
+export function revokeGrant(id: string): Promise<Grant> {
+  return request<Grant>(`/federation/grants/${id}`, { method: "DELETE" });
+}
+
+export interface KnowledgePR {
+  id: string;
+  source_kb: string;
+  target_kb: string;
+  title: string;
+  status: string;
+  created_at: string;
+  diff?: { nodes: { source_id: string; target_id: string; action: string; label: string }[]; edges: unknown[] };
+}
+
+export function listKprs(targetKb: string): Promise<KnowledgePR[]> {
+  return request<KnowledgePR[]>(`/federation/kpr?target_kb=${encodeURIComponent(targetKb)}`);
+}
+
+export function getKpr(id: string): Promise<KnowledgePR> {
+  return request<KnowledgePR>(`/federation/kpr/${id}`);
+}
+
+export function createKpr(body: {
+  source_kb: string;
+  target_kb: string;
+  node_ids: string[];
+  title: string;
+}): Promise<KnowledgePR> {
+  return request<KnowledgePR>("/federation/kpr", { method: "POST", body: JSON.stringify(body) });
+}
+
+export function decideKpr(id: string, decision: "approve" | "reject" | "revert"): Promise<KnowledgePR> {
+  return request<KnowledgePR>(`/federation/kpr/${id}/${decision}`, { method: "POST" });
+}
+
+/** Approved grants, in the shape the agent views draw as links. */
 export async function listSwarmLinks(): Promise<SwarmLink[]> {
-  return request<SwarmLink[]>("/agents/links");
+  const grants = await listGrants();
+  return grants
+    .filter((grant) => grant.status === "approved")
+    .map((grant) => ({
+      source_id: grant.target_kb,
+      source_name: grant.target_kb,
+      target_id: grant.source_kb,
+      target_name: grant.source_kb,
+      grant_id: grant.id,
+    }));
 }
 
-export async function deleteSwarmLink(
-  sourceAgentId: string,
-  targetAgentId: string
-): Promise<{ success: boolean; deleted_count: number }> {
-  const params = new URLSearchParams({
-    source_agent_id: sourceAgentId,
-    target_agent_id: targetAgentId,
-  });
-  return request(`/agents/link?${params}`, { method: "DELETE" });
+export async function deleteSwarmLink(link: SwarmLink): Promise<void> {
+  await revokeGrant(link.grant_id);
+}
+
+export interface WhoAmI {
+  id: string;
+  name?: string;
+  kind: string;
+  org_role: string;
+  clearance_level: number;
+  default_kb?: string | null;
+}
+
+export function whoAmI(): Promise<WhoAmI> {
+  return request<WhoAmI>("/auth/whoami");
+}
+
+export interface Member {
+  id: string;
+  name?: string;
+  role: string;
+  kind?: string;
+}
+
+export function listMembers(agentId: string): Promise<Member[]> {
+  return request<Member[]>(`/agents/${agentId}/members`);
+}
+
+export function setMemberRole(agentId: string, principalId: string, role: string): Promise<unknown> {
+  return request(`/agents/${agentId}/members/${principalId}`, { method: "PUT", body: JSON.stringify({ role }) });
+}
+
+export function removeMember(agentId: string, principalId: string): Promise<unknown> {
+  return request(`/agents/${agentId}/members/${principalId}`, { method: "DELETE" });
+}
+
+export interface SleepPass {
+  status: string;
+  ms: number;
+  [key: string]: unknown;
+}
+
+export interface SleepReport {
+  id: string;
+  status: string;
+  started_at: string;
+  finished_at: string;
+  passes: Record<string, SleepPass>;
+  tokens?: Record<string, number>;
+}
+
+export function getSleepReport(agentId: string): Promise<SleepReport> {
+  return request<SleepReport>(`/agents/${agentId}/sleep/report`);
+}
+
+export function runSleep(agentId: string): Promise<SleepReport> {
+  return request<SleepReport>(`/agents/${agentId}/sleep`, { method: "POST" });
+}
+
+export interface ModelVersion {
+  id: string;
+  provider: string;
+  base_model: string;
+  status: string;
+  created_at: string;
+  fine_tuned_model?: string;
+  eval_result?: string;
+  error?: string;
+}
+
+export function listModelVersions(agentId: string): Promise<ModelVersion[]> {
+  return request<ModelVersion[]>(`/finetune/jobs?agent_id=${encodeURIComponent(agentId)}`);
+}
+
+export function refreshModelVersion(id: string): Promise<ModelVersion> {
+  return request<ModelVersion>(`/finetune/jobs/${id}`);
+}
+
+export function createModelVersion(body: {
+  agent_id: string;
+  provider: string;
+  base_model: string;
+  data_clearance: number;
+}): Promise<ModelVersion> {
+  return request<ModelVersion>("/finetune/jobs", { method: "POST", body: JSON.stringify(body) });
+}
+
+export function promoteModelVersion(id: string): Promise<ModelVersion> {
+  return request<ModelVersion>(`/finetune/jobs/${id}/promote`, { method: "POST" });
+}
+
+export function rollbackModel(agentId: string): Promise<unknown> {
+  return request(`/finetune/rollback?agent_id=${encodeURIComponent(agentId)}`, { method: "POST" });
 }
 
 // ---- Synthesizer -----------------------------------------------------------
@@ -411,7 +563,7 @@ export async function synthesize(config: {
 }
 
 export async function downloadDataset(datasetId: string): Promise<Blob> {
-  const res = await fetch(`${BASE_URL}/synthesize/download/${datasetId}`);
+  const res = await authFetch(`${BASE_URL}/synthesize/download/${datasetId}`);
   if (!res.ok) {
     throw new Error(`HTTP ${res.status}: ${res.statusText}`);
   }
@@ -428,7 +580,7 @@ export async function generateAgenticDataset(opts: {
   if (opts.numSamples != null) params.set("num_samples", String(opts.numSamples));
   if (opts.concurrency != null) params.set("concurrency", String(opts.concurrency));
   const query = params.toString();
-  const res = await fetch(`${BASE_URL}/synthesize/generate_dataset${query ? `?${query}` : ""}`);
+  const res = await authFetch(`${BASE_URL}/synthesize/generate_dataset${query ? `?${query}` : ""}`);
   if (!res.ok) {
     let message = `HTTP ${res.status}: ${res.statusText}`;
     try {
@@ -446,7 +598,7 @@ export async function generateAgenticDataset(opts: {
 
 export async function exportChatML(agentId?: string): Promise<{ blob: Blob; filename: string }> {
   const params = agentId ? `?agent_id=${encodeURIComponent(agentId)}` : "";
-  const res = await fetch(`${BASE_URL}/synthesize/export${params}`);
+  const res = await authFetch(`${BASE_URL}/synthesize/export${params}`);
   if (!res.ok) {
     throw new Error(`HTTP ${res.status}: ${res.statusText}`);
   }
@@ -458,7 +610,7 @@ export async function exportChatML(agentId?: string): Promise<{ blob: Blob; file
 }
 
 export async function exportDpo(agentId: string): Promise<{ blob: Blob; filename: string }> {
-  const res = await fetch(`${BASE_URL}/synthesize/dpo?agent_id=${encodeURIComponent(agentId)}`);
+  const res = await authFetch(`${BASE_URL}/synthesize/dpo?agent_id=${encodeURIComponent(agentId)}`);
   if (!res.ok) {
     // The 422 guardrail carries an actionable explanation (e.g. "graph has no
     // usage signal yet") — surface it instead of a bare status code.
@@ -479,36 +631,6 @@ export async function exportDpo(agentId: string): Promise<{ blob: Blob; filename
 }
 
 // ---- Swarm -----------------------------------------------------------------
-
-export async function createSwarmConnection(data: {
-  source_agent_id: string;
-  target_agent_id: string;
-  permission: string;
-  scope: string;
-  allowed_node_types?: string[];
-  allowed_relation_types?: string[];
-  expires_at?: string;
-}): Promise<SwarmConnection> {
-  return request<SwarmConnection>("/swarm/connections", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-}
-
-export async function listSwarmConnections(
-  agentId?: string
-): Promise<SwarmConnection[]> {
-  const params = agentId ? `?agent_id=${encodeURIComponent(agentId)}` : "";
-  return request<SwarmConnection[]>(`/swarm/connections${params}`);
-}
-
-export async function revokeSwarmConnection(
-  connectionId: string
-): Promise<{ revoked: boolean }> {
-  return request<{ revoked: boolean }>(`/swarm/connections/${connectionId}`, {
-    method: "DELETE",
-  });
-}
 
 export async function swarmQuery(
   question: string,
@@ -658,7 +780,7 @@ export interface SwarmHealthResponse {
 export async function getServiceHealth(
   signal?: AbortSignal
 ): Promise<ServiceHealthResponse> {
-  const res = await fetch("/api/health", { signal, cache: "no-store" });
+  const res = await authFetch("/api/health", { signal, cache: "no-store" });
   if (!res.ok) {
     let message = res.statusText;
     try {
@@ -685,7 +807,7 @@ export async function getServiceHealth(
 export async function getSwarmHealth(
   signal?: AbortSignal
 ): Promise<SwarmHealthResponse> {
-  const res = await fetch(`${BASE_URL}/swarm/health`, {
+  const res = await authFetch(`${BASE_URL}/swarm/health`, {
     signal,
     cache: "no-store",
   });

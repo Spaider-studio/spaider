@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/shared/Toast";
 import { MemoryModeProvider } from "@/context/MemoryModeContext";
+import AuthGate from "@/components/shared/AuthGate";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -39,7 +40,7 @@ export default function RootLayout({
       >
         <ToastProvider>
           <MemoryModeProvider>
-            {children}
+            <AuthGate>{children}</AuthGate>
           </MemoryModeProvider>
         </ToastProvider>
       </body>

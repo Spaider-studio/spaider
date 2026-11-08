@@ -6,9 +6,8 @@ import {
   createAgent,
   deleteAgent,
   rotateAgentKey,
-  listSwarmConnections,
 } from "@/lib/api";
-import type { Agent, SwarmConnection } from "@/lib/types";
+import type { Agent } from "@/lib/types";
 import {
   Users,
   Plus,
@@ -29,13 +28,11 @@ import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import AgentDetail from "@/components/agents/AgentDetail";
 import AgentRegistrationForm from "@/components/agents/AgentRegistrationForm";
-import SwarmConnectionView from "@/components/agents/SwarmConnectionView";
 import SwarmConnectionManager from "@/components/agents/SwarmConnectionManager";
 
 export default function AgentsPage() {
   const { toast } = useToast();
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [connections, setConnections] = useState<SwarmConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Agent | null>(null);
@@ -48,12 +45,7 @@ export default function AgentsPage() {
   async function load() {
     setLoading(true);
     try {
-      const [agentsData, connsData] = await Promise.allSettled([
-        getAgents(),
-        listSwarmConnections(),
-      ]);
-      if (agentsData.status === "fulfilled") setAgents(agentsData.value);
-      if (connsData.status === "fulfilled") setConnections(connsData.value);
+      setAgents(await getAgents());
     } catch {
       toast("Failed to load agents", "error");
     } finally {
@@ -168,7 +160,7 @@ export default function AgentsPage() {
                 }`}
               >
                 <Network className="w-3.5 h-3.5" />
-                Swarm ({connections.length})
+                Swarm
               </button>
             </div>
 
@@ -215,14 +207,13 @@ export default function AgentsPage() {
 
             {activeTab === "swarm" && (
               <div className="flex flex-col gap-6">
-                <SwarmConnectionView
-                  agents={agents}
-                  connections={connections}
-                  onRefresh={() => {
-                    load();
-                    setBridgeRefreshTick((t) => t + 1);
-                  }}
-                />
+                <p className="text-sm text-zinc-400">
+                  Links are approved grants. Request and approve them under{" "}
+                  <a href="/sharing" className="underline">
+                    Sharing
+                  </a>
+                  .
+                </p>
                 <SwarmConnectionManager refreshTrigger={bridgeRefreshTick} />
               </div>
             )}

@@ -39,7 +39,7 @@ export default function SwarmConnectionManager({ refreshTrigger = 0 }: Props) {
     const key = `${link.source_id}->${link.target_id}`;
     setDeletingKey(key);
     try {
-      await deleteSwarmLink(link.source_id, link.target_id);
+      await deleteSwarmLink(link);
       setLinks((prev) =>
         prev.filter(
           (l) => !(l.source_id === link.source_id && l.target_id === link.target_id)

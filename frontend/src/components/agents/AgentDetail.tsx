@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@/lib/auth";
 import { useRef, useState } from "react";
 import {
   Download,
@@ -127,21 +128,19 @@ export default function AgentDetail({ agent, onDelete, onRotate }: Props) {
   const [importResult, setImportResult] = useState<AgentImportResponse | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ── Export: trigger a direct browser download ─────────────────────────────
-  // Uses an <a> tag rather than fetch() so the browser streams the response
-  // directly to disk — no memory allocation in JS regardless of graph size.
-  // Content-Disposition: attachment on the backend triggers the Save dialog.
-  function handleExport() {
-    const params = new URLSearchParams({
-      include_embeddings: String(includeEmbeddings),
-    });
-    const url = `${BACKEND_URL}/agents/${agent.id}/export?${params}`;
+  // ── Export: fetched so the API key can be sent as a header ───────────────
+  async function handleExport() {
+    const params = new URLSearchParams({ include_embeddings: String(includeEmbeddings) });
+    const response = await authFetch(`${BACKEND_URL}/agents/${agent.id}/export?${params}`);
+    if (!response.ok) return;
+    const url = URL.createObjectURL(await response.blob());
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = `spaider_agent_${agent.id}.ndjson`;
     document.body.appendChild(anchor);
     anchor.click();
     document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
   }
 
   // ── Import: parse file + POST with progress states ────────────────────────

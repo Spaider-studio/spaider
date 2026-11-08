@@ -1,5 +1,6 @@
 "use client";
 
+import { connectionTicket } from "@/lib/auth";
 import { useEffect, useRef, useCallback } from "react";
 
 export type WSEvent =
@@ -26,7 +27,7 @@ export function useWebSocket(agentId: string, handlers: WSHandlers) {
   const handlersRef = useRef(handlers);
   handlersRef.current = handlers;
 
-  const connect = useCallback(() => {
+  const connect = useCallback(async () => {
     if (
       wsRef.current &&
       (wsRef.current.readyState === WebSocket.OPEN ||
@@ -35,7 +36,8 @@ export function useWebSocket(agentId: string, handlers: WSHandlers) {
       return;
     }
 
-    const ws = new WebSocket(`${WS_BASE}/ws/${encodeURIComponent(agentId)}`);
+    const ticket = await connectionTicket();
+    const ws = new WebSocket(`${WS_BASE}/ws/${encodeURIComponent(agentId)}?ticket=${encodeURIComponent(ticket)}`);
     wsRef.current = ws;
 
     ws.onopen = () => {

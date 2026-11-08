@@ -1,5 +1,6 @@
 "use client";
 
+import { connectionTicket } from "@/lib/auth";
 import { useEffect, useRef, useState } from "react";
 import { Terminal, Wifi, WifiOff } from "lucide-react";
 
@@ -69,8 +70,17 @@ export default function LivePheromoneStream() {
 
   // ── EventSource lifecycle ─────────────────────────────────────────────────
   useEffect(() => {
-    const es = new EventSource(SSE_URL);
+    let es: EventSource | null = null;
+    let cancelled = false;
 
+    const open = async () => {
+      const ticket = await connectionTicket();
+      if (cancelled) return;
+      es = new EventSource(`${SSE_URL}?ticket=${encodeURIComponent(ticket)}`);
+      attach(es);
+    };
+
+    const attach = (es: EventSource) => {
     es.onopen = () => setConnected(true);
 
     es.onmessage = (ev) => {
@@ -105,9 +115,13 @@ export default function LivePheromoneStream() {
       // EventSource auto-reconnects — we just reflect the disconnected state
       // until the next successful `onopen`.
     };
+    };
+
+    open().catch(() => setConnected(false));
 
     return () => {
-      es.close();
+      cancelled = true;
+      es?.close();
       setConnected(false);
     };
   }, []);

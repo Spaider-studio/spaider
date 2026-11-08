@@ -317,3 +317,87 @@ class TestErrorHandling:
         with pytest.raises(SpaiderError) as exc_info:
             sp.ingest("text")
         assert exc_info.value.status_code == 409
+
+
+# ── 0.2.0 endpoints ───────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def recorded():
+    import httpx
+
+    from spaider import Spaider
+
+    calls = []
+
+    def handle(request):
+        calls.append(request)
+        return httpx.Response(200, json={"ok": True})
+
+    client = httpx.Client(base_url="http://t", transport=httpx.MockTransport(handle))
+    return Spaider(api_key="sk-x", agent_id="kb1", http_client=client), calls
+
+
+def _body(request):
+    import json
+
+    return json.loads(request.content)
+
+
+def test_remember_posts_an_episode(recorded):
+    sp, calls = recorded
+    sp.remember("saw a door", kind="vision")
+    assert calls[0].url.path == "/api/v1/episodes"
+    assert _body(calls[0]) == {"agent_id": "kb1", "episodes": [{"content": "saw a door", "kind": "vision"}]}
+
+
+def test_recall_defaults_to_the_clients_kb(recorded):
+    sp, calls = recorded
+    sp.recall("door", limit=3, federated=True)
+    assert _body(calls[0]) == {"agent_id": "kb1", "query": "door", "limit": 3, "federated": True}
+
+
+def test_feedback_can_rely_on_the_stored_answer(recorded):
+    sp, calls = recorded
+    sp.feedback("q1", False)
+    assert _body(calls[0])["used_node_ids"] == [] and calls[0].url.path == "/api/v1/system/feedback"
+
+
+def test_request_grant_targets_the_clients_kb(recorded):
+    sp, calls = recorded
+    sp.request_grant("other", node_types=["PERSON"])
+    assert _body(calls[0]) == {"source_kb": "other", "target_kb": "kb1", "node_types": ["PERSON"], "max_clearance": 1}
+
+
+@pytest.mark.parametrize(
+    ("call", "method", "path"),
+    [
+        (lambda s: s.approve_grant("g"), "POST", "/api/v1/federation/grants/g/approve"),
+        (lambda s: s.revoke_grant("g"), "DELETE", "/api/v1/federation/grants/g"),
+        (lambda s: s.revert_kpr("k"), "POST", "/api/v1/federation/kpr/k/revert"),
+        (lambda s: s.sleep(), "POST", "/api/v1/agents/kb1/sleep"),
+        (lambda s: s.sleep_report(), "GET", "/api/v1/agents/kb1/sleep/report"),
+        (lambda s: s.promote_finetune("v"), "POST", "/api/v1/finetune/jobs/v/promote"),
+    ],
+)
+def test_endpoints(recorded, call, method, path):
+    sp, calls = recorded
+    call(sp)
+    assert (calls[0].method, calls[0].url.path) == (method, path)
+
+
+async def test_the_async_client_shares_the_endpoints():
+    import httpx
+
+    from spaider import AsyncSpaider
+
+    calls = []
+
+    def handle(request):
+        calls.append(request)
+        return httpx.Response(200, json={"results": []})
+
+    client = httpx.AsyncClient(base_url="http://t", transport=httpx.MockTransport(handle))
+    sp = AsyncSpaider(api_key="sk-x", agent_id="kb1", http_client=client)
+    assert await sp.recall("door") == {"results": []}
+    assert calls[0].url.path == "/api/v1/recall"

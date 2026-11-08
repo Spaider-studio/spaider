@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@/lib/auth";
 import { useState, useCallback } from "react";
 import { useGraph } from "./useGraph";
 import type { GraphNode, GraphEdge } from "@/lib/types";
@@ -64,7 +65,7 @@ export function useIngest() {
       }
       _reset();
       try {
-        const res = await fetch(`${BACKEND_URL}/ingest/sync`, {
+        const res = await authFetch(`${BACKEND_URL}/ingest/sync`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ text, agent_id: useGraph.getState().agentId, source }),
@@ -122,7 +123,7 @@ export function useIngest() {
       }
       formData.append("agent_id", agentId);
       try {
-        const res = await fetch(`${BACKEND_URL}/ingest/file`, {
+        const res = await authFetch(`${BACKEND_URL}/ingest/file`, {
           method: "POST",
           body: formData,
         });
@@ -176,7 +177,7 @@ export function useIngest() {
       files.forEach((f) => formData.append("files", f));
       formData.append("agent_id", agentId);
       try {
-        const res = await fetch(`${BACKEND_URL}/ingest/files`, {
+        const res = await authFetch(`${BACKEND_URL}/ingest/files`, {
           method: "POST",
           body: formData,
         });
@@ -226,7 +227,7 @@ export function useIngest() {
       setStatusMessage("Reading image with vision model…");
       try {
         const imageUrl = await fileToDataUri(file);
-        const res = await fetch(`${BACKEND_URL}/ingest/image`, {
+        const res = await authFetch(`${BACKEND_URL}/ingest/image`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ image_url: imageUrl, agent_id: agentId }),
@@ -287,7 +288,7 @@ export function useIngest() {
       }
       _reset();
       try {
-        const res = await fetch(`${BACKEND_URL}/ingest/url`, {
+        const res = await authFetch(`${BACKEND_URL}/ingest/url`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ urls, agent_id: agentId }),

@@ -155,22 +155,12 @@ export interface IngestResponse {
 }
 
 export interface QueryResponse {
+  query_id?: string | null;
+  citations?: { ref: string; label: string }[];
   question: string;
   answer: string;
   subgraph: GraphPayload;
   cypher_used?: string;
-}
-
-export interface SwarmConnection {
-  id: string;
-  source_agent_id: string;
-  target_agent_id: string;
-  permission: string;
-  scope: string;
-  allowed_node_types?: string[];
-  allowed_relation_types?: string[];
-  expires_at?: string;
-  created_at: string;
 }
 
 export interface SynthesizeResult {
