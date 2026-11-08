@@ -3,15 +3,51 @@ Shared pytest fixtures for SpAIder backend tests.
 """
 from __future__ import annotations
 
-import json
-import uuid
-from datetime import datetime, timezone
-from typing import AsyncIterator
-from unittest.mock import AsyncMock, MagicMock, patch
+# Must run before anything below imports app.config. See tests/_safety.py.
+from tests import _safety  # isort: skip
 
-import pytest
+_safety.install_test_environment()
+_safety.block_real_services()
 
-from app.models.schemas import Agent, Edge, GraphPayload, Node
+import json  # noqa: E402
+import os  # noqa: E402
+import uuid  # noqa: E402
+from datetime import datetime, timezone  # noqa: E402
+from typing import AsyncIterator  # noqa: E402
+from unittest.mock import AsyncMock, MagicMock, patch  # noqa: E402
+
+import pytest  # noqa: E402
+
+from app.models.schemas import Agent, Edge, GraphPayload, Node  # noqa: E402
+
+
+def _integration_unavailable(service: str, exc: Exception) -> None:
+    """Skip locally; fail when the gate demands real services."""
+    message = f"{service} test service unreachable: {exc}"
+    if os.environ.get("SPAIDER_REQUIRE_INTEGRATION") == "1":
+        pytest.fail(message)
+    pytest.skip(message)
+
+
+@pytest.fixture
+async def neo4j_test_driver():
+    """A driver for the throwaway Neo4j, wiped before each test."""
+    from neo4j import AsyncGraphDatabase
+
+    driver = AsyncGraphDatabase.driver(
+        _safety.neo4j_uri_for_tests(),
+        auth=("neo4j", _safety.neo4j_password_for_tests()),
+    )
+    try:
+        await driver.verify_connectivity()
+    except Exception as exc:  # noqa: BLE001
+        await driver.close()
+        _integration_unavailable("Neo4j", exc)
+    await _safety.assert_test_database(driver)
+    await _safety.wipe_test_database(driver)
+    yield driver
+    await _safety.wipe_test_database(driver)
+    await driver.close()
 
 
 # ---------------------------------------------------------------------------
