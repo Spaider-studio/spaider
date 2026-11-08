@@ -2899,7 +2899,7 @@
   "info": {
     "description": "SpAIder \u2014 A multi-agent semantic knowledge graph platform powered by LLMs and Neo4j. Ingest unstructured text, build a persistent knowledge graph, query it in natural language, and synthesise fine-tuning datasets for downstream models.",
     "title": "SpAIder",
-    "version": "0.4.0"
+    "version": "0.5.0"
   },
   "openapi": "3.1.0",
   "paths": {

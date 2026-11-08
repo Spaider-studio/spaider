@@ -6,6 +6,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-08
+
+### Added
+- `remember`, `recall`, `feedback`, `sleep`, grants, Knowledge PRs and fine-tuning on both clients.
+- `query_id` and `citations` on `QueryResult`.
+
+### Removed
+- `create_swarm_connection`. Use `request_grant`.
+
 ## [0.1.0] - 2026-05-23
 
 Initial public release.
