@@ -202,7 +202,6 @@ class Agent(BaseModel):
     name: str
     description: Optional[str] = None
     tenant_id: str = "default"
-    permissions: list[str] = Field(default_factory=lambda: ["read", "write", "query"])
     clearance_level: int = Field(
         default=1,
         ge=1,
@@ -217,19 +216,8 @@ class Agent(BaseModel):
     api_key: Optional[str] = Field(
         default=None,
         description=(
-            "Transient response field — populated exactly once in POST /agents "
-            "and POST /agents/{id}/rotate-key so the caller can copy the raw "
-            "key. Never persisted: only its SHA-256 hash lives in Redis (at "
-            "spaider:apikey:<hash>) via AuthService.generate_and_store_api_key()."
-        ),
-    )
-    api_key_hash: Optional[str] = Field(
-        default=None,
-        description=(
-            "Internal: SHA-256 hash of the agent's current API key. Persisted "
-            "on the agent record so rotation can revoke the previous key with "
-            "a single Redis DEL instead of scanning spaider:apikey:*. Always "
-            "nulled on list/get/update responses — never exposed to callers."
+            "Transient response field, set once by POST /agents and "
+            "POST /agents/{id}/rotate-key. Never persisted."
         ),
     )
     interaction_memory: bool = Field(

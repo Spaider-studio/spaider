@@ -21,11 +21,11 @@ from app.connectors.mcp_connector import MCPConnector
 from app.connectors.sql_connector import SQLConnector
 from app.connectors.trafilatura_url_connector import URLConnector
 from app.connectors.upload_connector import UploadConnector
+from app.core.authz import Action, Principal, authorize, get_principal
 from app.core.kv import get_kv
 from app.models.requests import IngestRequest
 from app.models.responses import IngestQueuedResponse, IngestSyncResponse, SlimEdge, SlimNode
 from app.models.schemas import Edge, GraphPayload, Node
-from app.services.auth_service import _check_idor, verify_api_key
 from app.services.compressor import ExtractionError
 
 logger = logging.getLogger(__name__)
@@ -359,12 +359,12 @@ async def _get_kafka_producer():
 
 
 @router.post("", response_model=IngestQueuedResponse, status_code=202)
-async def ingest_text_async(request: IngestRequest, auth: dict = Depends(verify_api_key)):
+async def ingest_text_async(request: IngestRequest, auth: Principal = Depends(get_principal)):
     """
     Async ingest: serialise the payload and push to the Kafka topic.
     The compressor worker will consume and write to Neo4j asynchronously.
     """
-    _check_idor(auth, request.agent_id)
+    await authorize(auth, request.agent_id, Action.WRITE)
     producer = await _get_kafka_producer()
     if producer is None:
         raise HTTPException(
@@ -400,12 +400,12 @@ async def ingest_text_async(request: IngestRequest, auth: dict = Depends(verify_
 
 
 @router.post("/sync", response_model=IngestSyncResponse)
-async def ingest_text_sync(request: IngestRequest, auth: dict = Depends(verify_api_key)):
+async def ingest_text_sync(request: IngestRequest, auth: Principal = Depends(get_principal)):
     """
     Synchronous ingest: run the full extraction + write pipeline inline.
     Intended for development, testing, and low-volume use-cases.
     """
-    _check_idor(auth, request.agent_id)
+    await authorize(auth, request.agent_id, Action.WRITE)
     t0 = time.perf_counter()
     # One workflow_id ties together all replay events for this ingest operation.
     workflow_id = str(uuid.uuid4())
@@ -634,7 +634,7 @@ class ImageIngestRequest(_BaseModel):
 
 
 @router.post("/image", response_model=IngestSyncResponse)
-async def ingest_image_sync(request: ImageIngestRequest, auth: dict = Depends(verify_api_key)):
+async def ingest_image_sync(request: ImageIngestRequest, auth: Principal = Depends(get_principal)):
     """
     Synchronous IMAGE ingest. A vision-capable model reads the image into a
     text knowledge graph (entities + relations), then the SAME resolve + write
@@ -642,7 +642,7 @@ async def ingest_image_sync(request: ImageIngestRequest, auth: dict = Depends(ve
 
     ``image_url`` is a remote URL or a base64 ``data:`` URI.
     """
-    _check_idor(auth, request.agent_id)
+    await authorize(auth, request.agent_id, Action.WRITE)
     t0 = time.perf_counter()
     try:
         compressor = _get_compressor()
@@ -907,13 +907,13 @@ async def _run_stream_ingest(request: IngestRequest, job_id: str) -> None:
 async def ingest_text_stream(
     request: IngestRequest,
     background_tasks: BackgroundTasks,
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Async streaming ingest: returns 202 immediately, runs extraction in background.
     Results are pushed via WebSocket at ws://localhost:8000/ws/{agent_id}.
     """
-    _check_idor(auth, request.agent_id)
+    await authorize(auth, request.agent_id, Action.WRITE)
     job_id = str(uuid.uuid4())
     background_tasks.add_task(_run_stream_ingest, request, job_id)
     logger.info("Queued stream ingest job %s for agent %s", job_id, request.agent_id)
@@ -926,10 +926,10 @@ async def ingest_file_stream(
     file: UploadFile = File(...),
     agent_id: str = Form(default="default"),
     source: Optional[str] = Form(None),
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """Upload a .txt file for async streaming ingestion."""
-    _check_idor(auth, agent_id)
+    await authorize(auth, agent_id, Action.WRITE)
     if not file.filename.endswith(".txt"):
         raise HTTPException(status_code=400, detail="Only .txt files are supported")
     content = await file.read()
@@ -956,14 +956,14 @@ async def ingest_file_sync(
     file: UploadFile = File(...),
     agent_id: str = Form(default="default"),
     source: Optional[str] = Form(None),
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Legacy single-file upload — now delegates to the Upload Connector so all
     supported MIME types (PDF, DOCX, PPTX, HTML, Markdown, TXT) are accepted.
     Previously restricted to .txt; that guard is removed here.
     """
-    _check_idor(auth, agent_id)
+    await authorize(auth, agent_id, Action.WRITE)
     content = await file.read()
     filename = file.filename or "upload"
     mime_type = file.content_type or "text/plain"
@@ -1016,10 +1016,10 @@ async def ingest_file_sync(
 async def ingest_files_multi(
     files: List[UploadFile] = File(...),
     agent_id: str = Form(default="default"),
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """Upload multiple files and ingest all of them in one request."""
-    _check_idor(auth, agent_id)
+    await authorize(auth, agent_id, Action.WRITE)
     if len(files) > 20:
         raise HTTPException(
             status_code=422,
@@ -1118,9 +1118,9 @@ class _IngestURLRequest(_BaseModel):
         "not abort the remaining URLs in the batch."
     ),
 )
-async def ingest_url(request: _IngestURLRequest, auth: dict = Depends(verify_api_key)):
+async def ingest_url(request: _IngestURLRequest, auth: Principal = Depends(get_principal)):
     """Fetch URLs, parse with Trafilatura, ingest via the standard extraction pipeline."""
-    _check_idor(auth, request.agent_id)
+    await authorize(auth, request.agent_id, Action.WRITE)
     t0 = time.perf_counter()
 
     # Retrieve (or create) the persistent RunState for this agent so ETags
@@ -1249,9 +1249,9 @@ class _IngestMCPRequest(_BaseModel):
         "aborts the rest of the run."
     ),
 )
-async def ingest_mcp(request: _IngestMCPRequest, auth: dict = Depends(verify_api_key)):
+async def ingest_mcp(request: _IngestMCPRequest, auth: Principal = Depends(get_principal)):
     """Stream MCP resources, parse with parser_service, ingest via standard pipeline."""
-    _check_idor(auth, request.agent_id)
+    await authorize(auth, request.agent_id, Action.WRITE)
     t0 = time.perf_counter()
     run_state = await _get_run_state(_mcp_connector.connector_id, request.agent_id)
 
@@ -1375,9 +1375,9 @@ class _IngestSQLRequest(_BaseModel):
         "aborts the stream)."
     ),
 )
-async def ingest_sql(request: _IngestSQLRequest, auth: dict = Depends(verify_api_key)):
+async def ingest_sql(request: _IngestSQLRequest, auth: Principal = Depends(get_principal)):
     """Stream SQL rows, ingest via the standard extraction pipeline."""
-    _check_idor(auth, request.agent_id)
+    await authorize(auth, request.agent_id, Action.WRITE)
     t0 = time.perf_counter()
     run_state = await _get_run_state(_sql_connector.connector_id, request.agent_id)
 
@@ -1482,9 +1482,9 @@ class _IngestGraphRequest(GraphPayload):
 )
 async def ingest_graph(
     request: _IngestGraphRequest,
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ) -> IngestSyncResponse:
-    _check_idor(auth, request.agent_id)
+    await authorize(auth, request.agent_id, Action.WRITE)
     t0 = time.perf_counter()
 
     try:
@@ -1597,9 +1597,9 @@ class _BatchIngestResponse(_BaseModel):
 )
 async def ingest_graph_batch(
     body: _BatchBody,
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ) -> _BatchIngestResponse:
-    _check_idor(auth, body.agent_id)
+    await authorize(auth, body.agent_id, Action.WRITE)
     t0 = time.perf_counter()
 
     if not body.payloads:

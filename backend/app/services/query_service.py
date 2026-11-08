@@ -411,109 +411,46 @@ class QueryService:
     # ------------------------------------------------------------------
 
     async def _get_agent_clearance(self, agent_id: str) -> int:
+        """Clearance of the KB, read from its SystemAgent node.
+
+        When ``CLEARANCE_FAIL_CLOSED`` is set, a failed or empty lookup raises
+        503 instead of degrading to public-tier access.
         """
-        Return the Diplomat Protocol clearance level for *agent_id*.
-
-        Reads from the same Redis key that agents.py persists to.
-
-        Behavior depends on the ``CLEARANCE_FAIL_CLOSED`` env flag:
-
-          * Flag OFF (default, legacy): on any Redis or parse failure,
-            log a warning and return ``_DEFAULT_CLEARANCE`` (1). This is
-            the fail-OPEN path — preserves pre-patch behavior so existing
-            deployments do not 503 on transient Redis blips.
-
-          * Flag ON: on any Redis or parse failure, raise
-            ``HTTPException(503)`` so the request fails closed and does
-            not silently degrade to public-tier access. Required for
-            regulated-deployment posture (see SWARM_SECURITY_MANIFEST.md
-            §1.2 / §2.3).
-
-        Note on architectural layering: importing FastAPI's
-        ``HTTPException`` in a service-layer module is mildly impure but
-        is the explicit ask of the Fort Knox patch — the error must
-        surface to the caller as 503 without an intermediate translation
-        layer, which would require touching main.py (out of scope).
-        """
-        redis = await self._get_redis()
-        if not redis:
-            if _CLEARANCE_FAIL_CLOSED:
-                logger.error(
-                    "_get_agent_clearance: Redis unavailable | agent=%s | "
-                    "raising 503 (CLEARANCE_FAIL_CLOSED=true)",
-                    agent_id,
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail=(
-                        "Service Unavailable: Clearance resolution timeout "
-                        "(Redis access-control plane unreachable)."
-                    ),
-                )
-            return _DEFAULT_CLEARANCE
         try:
-            import json as _json
-            raw = await redis.get(f"spaider:agent:{agent_id}")
-            if raw:
-                data = _json.loads(raw)
-                return int(data.get("clearance_level", _DEFAULT_CLEARANCE))
-            # Agent record not found in Redis.
-            if _CLEARANCE_FAIL_CLOSED:
-                logger.error(
-                    "_get_agent_clearance: agent record missing in Redis | "
-                    "agent=%s | raising 503 (CLEARANCE_FAIL_CLOSED=true)",
-                    agent_id,
+            async with self._graph._driver.session() as session:
+                result = await session.run(
+                    "MATCH (a:SystemAgent {agent_id: $id}) RETURN a.clearance_level AS level",
+                    id=agent_id,
                 )
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail=(
-                        "Service Unavailable: Clearance resolution timeout "
-                        "(agent record not found in access-control plane)."
-                    ),
-                )
-        except HTTPException:
-            raise  # Don't swallow our own fail-closed exception
-        except Exception as exc:
-            if _CLEARANCE_FAIL_CLOSED:
-                logger.error(
-                    "_get_agent_clearance: Redis lookup raised | agent=%s | "
-                    "raising 503 (CLEARANCE_FAIL_CLOSED=true) | err=%s",
-                    agent_id, exc,
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail=(
-                        "Service Unavailable: Clearance resolution timeout "
-                        "(Redis lookup failed)."
-                    ),
-                ) from exc
-            logger.warning(
-                "_get_agent_clearance failed for agent=%s, defaulting to %d: %s",
-                agent_id, _DEFAULT_CLEARANCE, exc,
+                record = await result.single()
+            if record is not None:
+                level = record["level"]
+                return int(level) if level is not None else _DEFAULT_CLEARANCE
+            reason = "agent record not found"
+        except Exception as exc:  # noqa: BLE001
+            reason = f"lookup failed: {type(exc).__name__}"
+        if _CLEARANCE_FAIL_CLOSED:
+            logger.error("_get_agent_clearance: %s | agent=%s | raising 503", reason, agent_id)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Service Unavailable: clearance could not be resolved ({reason}).",
             )
+        logger.warning("_get_agent_clearance: %s | agent=%s", reason, agent_id)
         return _DEFAULT_CLEARANCE
 
     async def get_agent_interaction_memory(self, agent_id: str) -> bool:
-        """
-        Return the interaction_memory flag for *agent_id*.
-
-        Reads from the same Redis key written by agents.py.
-        Falls back to False on any error — never blocks the query pipeline.
-        """
-        redis = await self._get_redis()
-        if not redis:
-            return False
+        """The KB's interaction_memory flag. False on any error."""
         try:
-            raw = await redis.get(f"spaider:agent:{agent_id}")
-            if raw:
-                data = json.loads(raw)
-                return bool(data.get("interaction_memory", False))
-        except Exception as exc:
-            logger.warning(
-                "get_agent_interaction_memory failed for agent=%s, defaulting to False: %s",
-                agent_id, exc,
-            )
-        return False
+            async with self._graph._driver.session() as session:
+                result = await session.run(
+                    "MATCH (a:SystemAgent {agent_id: $id}) RETURN a.interaction_memory AS flag",
+                    id=agent_id,
+                )
+                record = await result.single()
+            return bool(record["flag"]) if record else False
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("get_agent_interaction_memory failed for agent=%s: %s", agent_id, exc)
+            return False
 
     # ------------------------------------------------------------------
     # Redis cache (lazy init)

@@ -12,16 +12,28 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-import app.services.auth_service as auth_mod
 from app.api.v1 import delete as delete_module
 from app.services.graph_service import DeleteResult
+
+
+def _audit_session():
+    session = AsyncMock()
+    session.__aenter__.return_value = session
+    return session
+
+
+@pytest.fixture(autouse=True)
+def _restore_graph_getter():
+    original = delete_module._get_graph_service
+    yield
+    delete_module._get_graph_service = original
 
 
 def _make_app(graph) -> FastAPI:
     app = FastAPI()
     app.include_router(delete_module.router, prefix="/api/v1/node")
-    delete_module._graph_service = graph
-    delete_module._redis_client = None  # skip the Redis audit write in tests
+    delete_module._get_graph_service = lambda: graph
+    graph._driver.session = MagicMock(side_effect=_audit_session)
     return app
 
 
@@ -29,6 +41,7 @@ def _node(label: str = "fact: something long", node_type: str = "FACT") -> Magic
     n = MagicMock()
     n.label = label
     n.type = node_type
+    n.agent_id = "kb-a"
     return n
 
 
@@ -42,7 +55,7 @@ async def test_delete_returns_int_edge_count_not_object():
     app = _make_app(graph)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as client:
         resp = await client.delete(
-            "/api/v1/node/abc-123", headers={"X-Agent-Permission": "admin"}
+            "/api/v1/node/abc-123"
         )
 
     assert resp.status_code == 200, resp.text
@@ -62,57 +75,7 @@ async def test_delete_missing_node_returns_404():
     app = _make_app(graph)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as client:
         resp = await client.delete(
-            "/api/v1/node/gone", headers={"X-Agent-Permission": "admin"}
+            "/api/v1/node/gone"
         )
     assert resp.status_code == 404
     assert "not found" in resp.json()["detail"].lower()
-
-
-@pytest.mark.asyncio
-async def test_delete_missing_key_returns_401_when_auth_enforced():
-    """With auth enforced, no API key → 401 (the spoofable header is ignored)."""
-    graph = MagicMock()
-    app = _make_app(graph)
-    with patch.object(auth_mod, "_REQUIRE_API_KEY_AUTH", True):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as client:
-            resp = await client.delete(
-                "/api/v1/node/abc-123", headers={"X-Agent-Permission": "admin"}
-            )
-    assert resp.status_code == 401
-
-
-@pytest.mark.asyncio
-async def test_delete_non_admin_key_returns_403_when_auth_enforced():
-    """A valid but non-admin key is rejected by the admin gate."""
-    graph = MagicMock()
-    app = _make_app(graph)
-    record = {"agent_id": "A", "permissions": ["read", "write"]}
-    with patch.object(auth_mod, "_REQUIRE_API_KEY_AUTH", True), \
-         patch.object(auth_mod.AuthService, "get_agent_by_api_key",
-                      new=AsyncMock(return_value=record)):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as client:
-            resp = await client.delete(
-                "/api/v1/node/abc-123", headers={"X-Api-Key": "sk-nonadmin"}
-            )
-    assert resp.status_code == 403
-
-
-@pytest.mark.asyncio
-async def test_delete_admin_key_allowed_when_auth_enforced():
-    """An admin key passes the gate and the delete proceeds."""
-    graph = MagicMock()
-    graph.get_node_by_id = AsyncMock(return_value=_node())
-    graph.delete_node_cascade = AsyncMock(
-        return_value=DeleteResult(deleted_nodes=1, deleted_edges=2)
-    )
-    app = _make_app(graph)
-    record = {"agent_id": "ops", "permissions": ["read", "write", "admin"]}
-    with patch.object(auth_mod, "_REQUIRE_API_KEY_AUTH", True), \
-         patch.object(auth_mod.AuthService, "get_agent_by_api_key",
-                      new=AsyncMock(return_value=record)):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as client:
-            resp = await client.delete(
-                "/api/v1/node/abc-123", headers={"X-Api-Key": "sk-admin"}
-            )
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["audit_entry"]["agent_id"] == "ops"

@@ -16,24 +16,19 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import uuid
 from pathlib import Path
 from typing import AsyncGenerator, Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse, StreamingResponse
 
 from app.config import settings
+from app.core.authz import Action, OrgAction, Principal, authorize, can, get_principal, require_org
 from app.lib.litellm_retry import acompletion_with_retry
 from app.models.requests import SynthesizeRequest
 from app.models.schemas import SynthesizeResult
-from app.services.auth_service import (
-    AuthService,
-    _check_idor,
-    _require_admin,
-    scoped_agent_id,
-    verify_api_key,
-)
 
 # Service-module SynthesizeConfig — distinct from app.models.schemas.SynthesizeConfig
 # (which is the older API-layer DTO). Aliased on import so the dual-class
@@ -85,44 +80,9 @@ _OUTPUT_FORMAT_MAP: dict[str, str] = {
 # this is the minimum-viable security fix for the bypass identified in
 # audit finding B4.
 # ---------------------------------------------------------------------------
-async def _resolve_caller_clearance(
-    x_api_key: Optional[str] = Header(default=None, alias="X-Api-Key"),
-    authorization: Optional[str] = Header(default=None),
-) -> int:
-    """Return the caller's clearance level in [0, 5]. Fail-closed → 0."""
-    api_key: Optional[str] = x_api_key
-    if not api_key and authorization:
-        prefix = authorization[:7].lower()
-        if prefix == "bearer ":
-            api_key = authorization[7:].strip()
-    if not api_key:
-        # No API key supplied → fail closed.
-        return 0
-    try:
-        auth = AuthService()
-        record = await auth.get_agent_by_api_key(api_key)
-    except Exception as exc:  # noqa: BLE001
-        logger.warning(
-            "B4: clearance resolution failed (auth lookup raised %s) "
-            "— failing closed to clearance=0",
-            exc,
-        )
-        return 0
-    if not record:
-        # Unknown key → fail closed.
-        return 0
-    raw_level = record.get("clearance_level")
-    if raw_level is None:
-        return 0
-    try:
-        level = int(raw_level)
-    except (TypeError, ValueError):
-        return 0
-    # Clamp to the documented [1, 5] Diplomat Protocol range; treat
-    # anything outside as fail-closed.
-    if level < 1 or level > 5:
-        return 0
-    return level
+async def _resolve_caller_clearance(auth: Principal = Depends(get_principal)) -> int:
+    """The authenticated caller's clearance level."""
+    return auth.clearance_level
 
 # ---------------------------------------------------------------------------
 # Tool definition — what the fine-tuned SLM learns to call
@@ -393,7 +353,7 @@ def _build_trajectory(traj: dict) -> dict:
 @router.post("", response_model=SynthesizeResult)
 async def synthesize_dataset(
     request: SynthesizeRequest,
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Generate a fine-tuning dataset from the knowledge graph.
@@ -414,7 +374,7 @@ async def synthesize_dataset(
     ``SynthesizeConfig`` from the request, calls with the correct
     signature, and maps the service result onto the API contract.
     """
-    _check_idor(auth, request.agent_id)
+    await authorize(auth, request.agent_id, Action.EDIT)
     synthesizer = _get_synthesizer()
     graph = _get_graph_service()
 
@@ -497,7 +457,7 @@ async def export_chatml_stream(
         description="Export only nodes belonging to this agent. Omit for the full multiverse.",
     ),
     caller_clearance: int = Depends(_resolve_caller_clearance),
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Stream the entire knowledge graph (or a single agent's subset) as a
@@ -526,9 +486,9 @@ async def export_chatml_stream(
     # full-multiverse export (agent_id omitted) is admin-only. The clearance
     # filter below still applies on top.
     if agent_id is not None:
-        _check_idor(auth, agent_id)
+        await authorize(auth, agent_id, Action.READ)
     else:
-        _require_admin(auth)
+        await require_org(auth, OrgAction.ADMIN)
 
     graph = _get_graph_service()
     filename = (
@@ -683,7 +643,7 @@ async def export_dpo_stream(
         description="Maximum graph-path depth for the reasoning chain.",
     ),
     caller_clearance: int = Depends(_resolve_caller_clearance),
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Stream the agent's graph as **DPO preference pairs** — one
@@ -705,7 +665,7 @@ async def export_dpo_stream(
     and gates every node on both paths — same fail-closed posture as
     ``/export``.
     """
-    _check_idor(auth, agent_id)
+    await authorize(auth, agent_id, Action.READ)
     # Late import: the script module configures its own logging on import,
     # which is fine, but keeping it out of module scope avoids paying that
     # cost for every other /synthesize route.
@@ -778,7 +738,7 @@ async def generate_agentic_dataset(
         le=20,
         description="Max simultaneous Teacher-LLM calls.",
     ),
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Generate synthetic agentic tool-call trajectories for fine-tuning small LMs.
@@ -802,9 +762,9 @@ async def generate_agentic_dataset(
     # A specific agent must be the caller (or admin); cross-domain/multiverse
     # sampling (agent_id omitted) is admin-only.
     if agent_id is not None:
-        _check_idor(auth, agent_id)
+        await authorize(auth, agent_id, Action.READ)
     else:
-        _require_admin(auth)
+        await require_org(auth, OrgAction.ADMIN)
 
     if not settings.llm_api_key and not settings.llm_base_url:
         raise HTTPException(
@@ -905,30 +865,24 @@ async def generate_agentic_dataset(
 @router.get("/download/{dataset_id}")
 async def download_dataset(
     dataset_id: str,
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Download a previously generated dataset as a .jsonl file.
     The dataset_id is returned by the POST /synthesize endpoint.
 
-    **Auth:** requires a valid key. A non-admin caller may only download
-    datasets in its own namespace (the synthesizer stores each agent's datasets
-    under a per-agent subdirectory); admins may download any dataset.
+    Requires read access to the KB the dataset was generated from.
     """
-    # Reject path-traversal in the id before it reaches any glob/join.
-    if "/" in dataset_id or "\\" in dataset_id or ".." in dataset_id:
+    # The id reaches a glob, so its wildcards and path separators are rejected.
+    if not re.fullmatch(r"[\w.-]+", dataset_id) or ".." in dataset_id:
         raise HTTPException(status_code=400, detail="Invalid dataset id.")
 
     # Datasets are stored under /tmp/spaider_datasets/<agent_id>/<id>.jsonl.
     dataset_dir = Path("/tmp/spaider_datasets")
-    scope = scoped_agent_id(auth)
-    if scope is not None:
-        # Non-admin: search only the caller's own subdirectory.
-        candidates = list((dataset_dir / scope).glob(f"{dataset_id}*.jsonl"))
-    else:
-        # Admin / auth-off: search across all agents (and any legacy top-level).
-        candidates = list(dataset_dir.glob(f"{dataset_id}*.jsonl"))
-        candidates += list(dataset_dir.glob(f"*/{dataset_id}*.jsonl"))
+    candidates = [
+        path for path in dataset_dir.glob(f"*/{dataset_id}*.jsonl")
+        if await can(auth, path.parent.name, Action.READ)
+    ]
 
     if not candidates:
         raise HTTPException(

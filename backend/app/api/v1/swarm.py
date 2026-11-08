@@ -24,21 +24,23 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
-import app.services.auth_service as _auth
 from app.config import settings
+from app.core.authz import (
+    Action,
+    OrgAction,
+    Principal,
+    authorize,
+    can,
+    get_principal,
+    require_org,
+    resolve_kb,
+    resolve_token,
+)
 from app.core.kv import get_kv
 from app.lib.litellm_retry import acompletion_with_retry
 from app.models.requests import SwarmConnectionRequest, SwarmQueryRequest
 from app.models.responses import APIResponse, SwarmConnectionResponse, SwarmQueryResponse
 from app.models.schemas import SwarmConnection
-from app.services.auth_service import (
-    AuthService,
-    _check_idor,
-    _is_admin,
-    _require_admin,
-    scoped_agent_id,
-    verify_api_key,
-)
 from app.services.redis_service import subscribe_to_swarm_logs
 
 _CLEARANCE_DEFAULT_VALUE: int = (
@@ -394,7 +396,7 @@ async def _synthesize_with_llm(query: str, context: str) -> str:
 @router.post("/connections", response_model=SwarmConnectionResponse, status_code=201)
 async def create_connection(
     request: SwarmConnectionRequest,
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Establish a swarm connection granting one agent access to another agent's graph.
@@ -412,7 +414,7 @@ async def create_connection(
     the data-owner can grant access to its own graph. IDOR guard
     enforces ``auth.agent_id == request.source_agent_id``.
     """
-    _check_idor(auth, request.source_agent_id)
+    await authorize(auth, request.source_agent_id, Action.MANAGE)
     if request.source_agent_id == request.target_agent_id:
         raise HTTPException(status_code=400, detail="An agent cannot connect to itself.")
 
@@ -446,14 +448,14 @@ async def create_connection(
 @router.get("/connections")
 async def list_connections(
     agent_id: str = Query(..., description="Agent ID to list connections for"),
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """List all swarm connections for a given agent (as source or target).
 
     **Auth:** Caller must be the agent whose connections are being listed
     (IDOR guard). When the auth flag is off, behavior is unchanged.
     """
-    _check_idor(auth, agent_id)
+    await authorize(auth, agent_id, Action.READ)
     try:
         connections = await _get_connections_for_agent(agent_id)
         return {
@@ -468,7 +470,7 @@ async def list_connections(
 @router.delete("/connections/{connection_id}", response_model=APIResponse)
 async def revoke_connection(
     connection_id: str,
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """Revoke (delete) a swarm connection by ID.
 
@@ -481,13 +483,9 @@ async def revoke_connection(
     if conn is None:
         raise HTTPException(status_code=404, detail=f"Connection '{connection_id}' not found")
 
-    # Ownership: caller must be a participant (source or target) unless admin.
-    scope = scoped_agent_id(auth)
-    if scope is not None and scope not in (conn.source_agent_id, conn.target_agent_id):
-        raise HTTPException(
-            status_code=403,
-            detail=f"Authenticated agent '{scope}' is not a participant in this connection.",
-        )
+    participants = (conn.source_agent_id, conn.target_agent_id)
+    if not any([await can(auth, kb, Action.MANAGE) for kb in participants]):
+        raise HTTPException(status_code=403, detail="Not permitted on this knowledge base.")
 
     try:
         deleted = await _delete_connection(connection_id)
@@ -515,7 +513,7 @@ _NO_FACTS_MSG = (
 @router.post("/query", response_model=SwarmQueryResponse)
 async def swarm_query(
     request: SwarmQueryRequest,
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Swarm Intelligence: federated multi-agent query with LLM synthesis.
@@ -530,47 +528,22 @@ async def swarm_query(
       * No ``agent_ids`` → broad **multiverse scan**: a single cross-agent
         vector search (breadth over depth, no per-agent agentic loop).
 
-    **Auth & access control (Fort Knox Patch):**
-    When ``REQUIRE_API_KEY_AUTH=true``:
-      - X-Api-Key required
-      - ``request.agent_ids=None`` (legacy "query all") is RESTRICTED to
-        the caller's own agent_id only — closes the global cross-tenant
-        search hole documented in SWARM_SECURITY_MANIFEST.md §1.4.
-      - Any explicit ``agent_ids`` must contain only the caller's own
-        agent_id. Cross-agent federation via ``:SwarmConnection`` /
-        ``SHARES_KNOWLEDGE_WITH`` is Phase 2 work (manifest §3).
-      - Clearance filter is applied to every retrieved node using the
-        caller's clearance level (resolved from the authenticated
-        agent record).
-
-    When the flag is off, behavior is unchanged for backwards compat.
+    Requires read access to every KB queried. Omitting ``agent_ids`` queries
+    the caller's default KB. Retrieved nodes are limited to the caller's
+    clearance level.
     """
-    # --- Auth-aware scope resolution ---------------------------------
-    auth_agent_id: Optional[str] = (
-        None if auth.get("auth_bypassed") else auth.get("agent_id")
-    )
-    requested_agent_ids = request.agent_ids if request.agent_ids else None
+    # Omitting agent_ids means the caller's default KB, never "everything".
+    # Insecure dev keeps the broad multiverse scan.
+    if request.agent_ids:
+        requested_agent_ids = list(request.agent_ids)
+    else:
+        default_kb = resolve_kb(auth, None)
+        requested_agent_ids = [default_kb] if default_kb else None
+    for kb in requested_agent_ids or []:
+        await authorize(auth, kb, Action.READ)
+    auth_agent_id = requested_agent_ids[0] if requested_agent_ids else None
 
-    if auth_agent_id is not None:
-        # Default empty → caller only. Closes the global-search hole.
-        if requested_agent_ids is None:
-            requested_agent_ids = [auth_agent_id]
-        else:
-            # Phase 1 strict mode: caller can only query themselves.
-            illegal = [aid for aid in requested_agent_ids if aid != auth_agent_id]
-            if illegal:
-                raise HTTPException(
-                    status_code=403,
-                    detail=(
-                        f"Authenticated agent '{auth_agent_id}' cannot query "
-                        f"agents {illegal}. Cross-agent federation is "
-                        "Phase 2 work."
-                    ),
-                )
-
-    # Resolve caller's clearance level. Falls back to 1 (legacy public)
-    # when auth is bypassed OR when the auth record lacks clearance_level.
-    agent_clearance: int = int(auth.get("clearance_level") or 1)
+    agent_clearance: int = auth.clearance_level
     agent_ids = requested_agent_ids
 
     # Dispatch on the RESOLVED scope (not raw request.agent_ids) so the
@@ -761,7 +734,7 @@ _HEARTBEAT_S = 15.0
 
 
 @router.get("/health", summary="Live worker presence — Swarm Pulse")
-async def swarm_health(auth: dict = Depends(verify_api_key)):
+async def swarm_health(auth: Principal = Depends(get_principal)):
     """
     Aggregate all live swarm worker heartbeats into a single health snapshot.
 
@@ -797,7 +770,7 @@ async def swarm_health(auth: dict = Depends(verify_api_key)):
 
     An empty ``active_agents`` list means no workers are currently running.
     """
-    _require_admin(auth)
+    await require_org(auth, OrgAction.ADMIN)
     redis = await _get_redis()
 
     active_agents: list[str] = []
@@ -839,16 +812,8 @@ async def _authorize_admin_token(token: Optional[str]) -> bool:
     as a query parameter. Returns True when auth is disabled, or the token is a
     valid admin key. Any other case is denied.
     """
-    if not _auth._REQUIRE_API_KEY_AUTH:
-        return True
-    if not token:
-        return False
-    try:
-        record = await AuthService().get_agent_by_api_key(token)
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("Swarm SSE auth lookup failed: %s", exc)
-        return False
-    return bool(record) and _is_admin(record)
+    principal = await resolve_token(token)
+    return principal is not None and (principal.insecure or principal.is_org_admin)
 
 
 @router.get(

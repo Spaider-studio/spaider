@@ -28,7 +28,7 @@ from typing import List, Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
-from app.services.auth_service import _is_admin, verify_api_key
+from app.core.authz import Action, Principal, authorize, get_principal, resolve_kb
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +50,10 @@ class FeedbackPayload(BaseModel):
     )
     success: bool = Field(
         description="True if the answer was judged correct/helpful; False otherwise.",
+    )
+    agent_id: Optional[str] = Field(
+        default=None,
+        description="Knowledge base the nodes belong to. Defaults to the key's own.",
     )
 
     @field_validator("used_node_ids")
@@ -174,7 +178,7 @@ async def _apply_hebbian_update(
 async def submit_feedback(
     body: FeedbackPayload,
     background_tasks: BackgroundTasks,
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Submit feedback for a completed query to trigger Hebbian weight updates.
@@ -198,11 +202,9 @@ async def submit_feedback(
 
     received_at = datetime.now(timezone.utc).isoformat()
 
-    # Scope the synaptic update to the caller's namespace unless auth is off or
-    # the caller is an admin (then agent_id is None → cross-namespace, as before).
-    scope_agent_id = None
-    if not auth.get("auth_bypassed") and not _is_admin(auth):
-        scope_agent_id = auth.get("agent_id")
+    scope_agent_id = resolve_kb(auth, body.agent_id)
+    if scope_agent_id is not None:
+        await authorize(auth, scope_agent_id, Action.WRITE)
 
     background_tasks.add_task(
         _apply_hebbian_update,

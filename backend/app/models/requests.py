@@ -5,6 +5,8 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
+from app.core.authz import KBRole
+
 
 class IngestRequest(BaseModel):
     text: str = Field(..., min_length=1)
@@ -44,6 +46,7 @@ class CypherQueryRequest(BaseModel):
 
 class TraverseRequest(BaseModel):
     start_node_id: str
+    agent_id: Optional[str] = None
     depth: int = Field(default=2, ge=1, le=5)
     relation_filter: Optional[list[str]] = None
 
@@ -61,12 +64,15 @@ class AgentCreateRequest(BaseModel):
     name: str
     description: Optional[str] = None
     tenant_id: str = "default"
-    permissions: list[str] = ["read", "write", "query"]
     clearance_level: int = Field(
         default=1,
         ge=1,
         le=5,
         description="Diplomat Protocol clearance level (1=Public/Guest … 5=Admin).",
+    )
+    key_role: KBRole = Field(
+        default=KBRole.EDITOR,
+        description="Role of the service account whose key the response returns.",
     )
     interaction_memory: bool = Field(
         default=False,

@@ -14,14 +14,14 @@ Architecture
   JSON-RPC to ``/api/v1/mcp`` and may open a GET stream on the same URL. Served
   by ``StreamableHTTPSessionManager`` in stateless mode.
 - Auth is HTTP-layer: every request must carry
-  ``Authorization: Bearer <api-key>``. The key resolves to an agent_id via
-  ``AuthService.verify_token`` (already supports ``sk-…`` raw API keys).
+  ``Authorization: Bearer <api-key>``. The key resolves to a principal, whose
+  default knowledge base is the namespace every tool operates in.
   The agent_id is then bound to a ``contextvars.ContextVar`` so the per-tool
   handlers can read it without leaking it through the MCP message envelope.
 - The session manager's ``run()`` context must be entered in the host app's
   lifespan (done in ``app.main`` and ``app.mcp_standalone``).
 - Same process as the main FastAPI app — reuses ``QueryService``,
-  ``GraphService`` and ``AuthService``. No new datastore.
+  ``GraphService`` and the identity service. No new datastore.
 
 Tools exposed (read-only first per the plan's cut-point — ``spaider.ingest_fact``
 ships in a follow-up)::
@@ -69,7 +69,7 @@ import mcp.types as mcp_types
 from mcp.server.lowlevel import Server
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 
-from app.services.auth_service import AuthService
+from app.core.authz import Action, Principal, authorize, resolve_token
 from app.services.graph_service import GraphService
 from app.services.query_service import QueryService
 
@@ -81,6 +81,10 @@ logger = logging.getLogger(__name__)
 _AGENT_ID: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
     "spaider_mcp_agent_id", default=None,
 )
+_PRINCIPAL: contextvars.ContextVar[Optional[Principal]] = contextvars.ContextVar(
+    "spaider_mcp_principal", default=None,
+)
+_WRITE_TOOLS = frozenset({"spaider.ingest_fact", "spaider.feedback"})
 
 
 # ---------------------------------------------------------------------------
@@ -93,7 +97,6 @@ _AGENT_ID: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
 # Lazy singletons — same pattern as the rest of app/api/v1.
 _query_service: Optional[QueryService] = None
 _graph_service: Optional[GraphService] = None
-_auth_service: Optional[AuthService] = None
 
 
 def _get_graph_service() -> GraphService:
@@ -125,12 +128,6 @@ def _get_query_service() -> QueryService:
         _query_service = QueryService(graph_service=_get_graph_service())
     return _query_service
 
-
-def _get_auth_service() -> AuthService:
-    global _auth_service
-    if _auth_service is None:
-        _auth_service = AuthService()
-    return _auth_service
 
 
 async def list_tools() -> list[mcp_types.Tool]:
@@ -277,11 +274,13 @@ async def list_tools() -> list[mcp_types.Tool]:
 
 
 async def call_tool(name: str, arguments: dict[str, Any]) -> list[mcp_types.TextContent]:
-    """Dispatch tool calls to the underlying services. Auth was checked in the
-    ASGI wrapper (`mcp_app`); here we just read the agent_id contextvar."""
+    """Dispatch tool calls. The caller was authenticated in `mcp_app`; each tool
+    is authorized here because keys can be read-only on their KB."""
     agent_id = _AGENT_ID.get()
-    if agent_id is None:
-        raise ValueError("Tool called without authenticated agent_id (auth bug?)")
+    principal = _PRINCIPAL.get()
+    if agent_id is None or principal is None:
+        raise ValueError("Tool called without an authenticated caller (auth bug?)")
+    await authorize(principal, agent_id, Action.WRITE if name in _WRITE_TOOLS else Action.READ)
 
     if name == "spaider.status":
         graph = _get_graph_service()
@@ -414,10 +413,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[mcp_types.Text
         )
         # MCP has already authenticated this session and pinned agent_id, so the
         # REST handler's IDOR check is a matching no-op — pass the identity through.
-        result = await _ingest_module.ingest_text_sync(
-            request_obj,
-            auth={"agent_id": agent_id, "auth_bypassed": False, "permissions": []},
-        )
+        result = await _ingest_module.ingest_text_sync(request_obj, auth=principal)
         body = (
             f"Ingested under agent {agent_id}.\n"
             f"Nodes: {result.nodes_created} created / {result.nodes_merged} merged\n"
@@ -628,18 +624,19 @@ async def mcp_app(scope, receive, send) -> None:
     if not token:
         await _send_json_401(send, "Missing Bearer token")
         return
-    try:
-        payload = await _get_auth_service().verify_token(token)
-    except Exception as exc:  # noqa: BLE001 — degrade to 401 on any auth error
-        await _send_json_401(send, f"Invalid token: {exc}")
+    principal = await resolve_token(token)
+    if principal is None:
+        await _send_json_401(send, "Invalid token")
         return
-    agent_id = payload.get("sub") if isinstance(payload, dict) else None
+    agent_id = principal.default_kb or ("default" if principal.insecure else None)
     if not agent_id:
-        await _send_json_401(send, "Token has no agent_id")
+        await _send_json_401(send, "This key has no default knowledge base")
         return
 
+    principal_token = _PRINCIPAL.set(principal)
     ctx_token = _AGENT_ID.set(agent_id)
     try:
         await mcp_session_manager.handle_request(scope, receive, send)
     finally:
         _AGENT_ID.reset(ctx_token)
+        _PRINCIPAL.reset(principal_token)

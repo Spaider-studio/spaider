@@ -5,6 +5,8 @@ events, so "Swarm intelligence" queries were invisible in the Audit Log.
 """
 from __future__ import annotations
 
+from dataclasses import replace
+
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -12,13 +14,14 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from app.api.v1 import swarm as swarm_module
+from app.core.authz import INSECURE_PRINCIPAL, Principal
 from app.models.responses import SwarmQueryResponse
 
 
-def _make_app(auth: dict) -> FastAPI:
+def _make_app(auth: Principal) -> FastAPI:
     app = FastAPI()
     app.include_router(swarm_module.router, prefix="/api/v1/swarm")
-    app.dependency_overrides[swarm_module.verify_api_key] = lambda: auth
+    app.dependency_overrides[swarm_module.get_principal] = lambda: auth
     return app
 
 
@@ -31,7 +34,7 @@ _RESP = SwarmQueryResponse(
 
 @pytest.mark.asyncio
 async def test_swarm_query_fires_audit_events_federated():
-    app = _make_app({"agent_id": "agent-a", "clearance_level": 1})
+    app = _make_app(replace(INSECURE_PRINCIPAL, default_kb="agent-a", clearance_level=1))
     with patch("app.api.v1.swarm._federated_deep_query", new=AsyncMock(return_value=_RESP)), \
          patch("app.api.v1.query._fire_replay_event") as fire:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
@@ -49,7 +52,7 @@ async def test_swarm_query_fires_audit_events_federated():
 @pytest.mark.asyncio
 async def test_swarm_query_fires_audit_events_broad_scan():
     # auth bypassed → no agent scoping → broad multiverse scan branch
-    app = _make_app({"auth_bypassed": True})
+    app = _make_app(INSECURE_PRINCIPAL)
     with patch("app.api.v1.swarm._broad_vector_scan", new=AsyncMock(return_value=_RESP)), \
          patch("app.api.v1.query._fire_replay_event") as fire:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
@@ -62,7 +65,7 @@ async def test_swarm_query_fires_audit_events_broad_scan():
 
 @pytest.mark.asyncio
 async def test_swarm_query_fires_failed_event_on_error():
-    app = _make_app({"auth_bypassed": True})
+    app = _make_app(INSECURE_PRINCIPAL)
     # raise_app_exceptions=False so the test sees the 500 response instead of
     # the raw exception propagating (FastAPI's ServerErrorMiddleware does this
     # in production).

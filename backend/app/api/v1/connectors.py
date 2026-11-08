@@ -13,7 +13,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.connectors import ConnectorStats, get_connector_stats, get_global_registry
-from app.services.auth_service import verify_api_key
+from app.core.authz import Principal, get_principal
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ router = APIRouter()
 )
 async def get_connector_status(
     connector_id: str,
-    auth: dict = Depends(verify_api_key),  # noqa: ARG001 — authentication only
+    auth: Principal = Depends(get_principal),  # noqa: ARG001 — authentication only
 ) -> ConnectorStats:
     """
     Return the last-run stats for *connector_id*.

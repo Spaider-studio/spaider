@@ -86,6 +86,8 @@ def install_test_environment() -> None:
     os.environ["CLICKHOUSE_HOST"] = ""
     os.environ["POSTGRES_URL"] = ""
     os.environ["DATA_DIR"] = tempfile.mkdtemp(prefix="spaider-test-data-")
+    # Most tests are not about auth. The ones that are clear this flag.
+    os.environ["SPAIDER_INSECURE_DEV"] = "true"
     # An unmocked LLM call must fail rather than spend money.
     for key in ("LLM_API_KEY", "EMBEDDING_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"):
         os.environ[key] = ""

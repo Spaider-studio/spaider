@@ -62,9 +62,10 @@ class Settings(BaseSettings):
     )
 
     # Auth
-    jwt_secret: str = "change-me-in-production"
-    jwt_algorithm: str = "HS256"
-    jwt_expiration_hours: int = 24
+    # Disables authentication entirely. Refused when ENVIRONMENT=production.
+    spaider_insecure_dev: bool = False
+    # Enables POST /auth/bootstrap until the first organization exists.
+    spaider_bootstrap_token: str = ""
 
     # ClickHouse
     # Empty disables ClickHouse; audit events then go to Neo4j.

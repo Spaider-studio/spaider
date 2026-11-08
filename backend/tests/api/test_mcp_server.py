@@ -31,6 +31,7 @@ from app.api.v1.mcp_server import (
     list_tools,
     mcp_app,
 )
+from app.core.authz import INSECURE_PRINCIPAL, Principal
 from app.models.schemas import GraphPayload, Node
 
 
@@ -39,13 +40,13 @@ def _reset_singletons():
     """Make sure no test leaks a singleton or contextvar to the next."""
     mcp_module._query_service = None
     mcp_module._graph_service = None
-    mcp_module._auth_service = None
     token = _AGENT_ID.set(None)
+    principal_token = mcp_module._PRINCIPAL.set(INSECURE_PRINCIPAL)
     yield
     _AGENT_ID.reset(token)
+    mcp_module._PRINCIPAL.reset(principal_token)
     mcp_module._query_service = None
     mcp_module._graph_service = None
-    mcp_module._auth_service = None
 
 
 # ---------------------------------------------------------------------------
@@ -140,10 +141,9 @@ async def test_mcp_app_empty_token_sends_401():
 
 @pytest.mark.asyncio
 async def test_mcp_app_invalid_token_sends_401():
-    auth_mock = AsyncMock()
-    auth_mock.verify_token = AsyncMock(side_effect=ValueError("nope"))
+    resolver = AsyncMock(return_value=None)
     send, sent = _capturing_send()
-    with patch.object(mcp_module, "_get_auth_service", return_value=auth_mock), patch.object(
+    with patch.object(mcp_module, "resolve_token", new=resolver), patch.object(
         mcp_module.mcp_session_manager, "handle_request", new=AsyncMock()
     ) as handle:
         await mcp_app(_http_scope("Bearer sk-bogus"), _noop_receive, send)
@@ -156,15 +156,18 @@ async def test_mcp_app_valid_token_binds_agent_id_then_resets():
     """The decisive isolation test: the agent_id must be visible to the
     delegated handler (proving the ContextVar reaches the tool callbacks) and
     cleared again once the request returns."""
-    auth_mock = AsyncMock()
-    auth_mock.verify_token = AsyncMock(return_value={"sub": "agent-123", "tenant_id": "default"})
+    resolver = AsyncMock(
+        return_value=Principal(
+            id="sa", kind="service_account", org_id="o", org_role="service", default_kb="agent-123"
+        )
+    )
     seen: dict[str, object] = {}
 
     async def fake_handle_request(scope, receive, send):
         seen["agent_id"] = _AGENT_ID.get()
 
     send, sent = _capturing_send()
-    with patch.object(mcp_module, "_get_auth_service", return_value=auth_mock), patch.object(
+    with patch.object(mcp_module, "resolve_token", new=resolver), patch.object(
         mcp_module.mcp_session_manager, "handle_request", new=fake_handle_request
     ):
         await mcp_app(_http_scope("Bearer sk-real"), _noop_receive, send)

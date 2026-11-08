@@ -179,19 +179,11 @@ async def lifespan(app: FastAPI):
 
     # --- Startup ---
 
-    # 0. Auth posture banner. When API-key auth is disabled every REST route is
-    # open to anyone who can reach the port — fine for local single-tenant dev,
-    # dangerous on any shared or network-exposed deployment. Make the choice
-    # impossible to miss in the logs.
-    import os as _os
-    if _os.environ.get("REQUIRE_API_KEY_AUTH", "false").lower() != "true":
-        logger.warning(
-            "SECURITY: REQUIRE_API_KEY_AUTH is OFF — all API routes are "
-            "unauthenticated. Set REQUIRE_API_KEY_AUTH=true for any multi-tenant "
-            "or network-exposed deployment."
-        )
-    else:
-        logger.info("REQUIRE_API_KEY_AUTH is ON — REST routes require an API key.")
+    # 0. Refuse to run wide open in production; shout about it anywhere else.
+    if settings.spaider_insecure_dev:
+        if settings.environment == "production":
+            raise RuntimeError("SPAIDER_INSECURE_DEV cannot be used with ENVIRONMENT=production.")
+        logger.warning("SECURITY: SPAIDER_INSECURE_DEV is set; every request is an unauthenticated owner.")
 
     # 1. Neo4j
     try:

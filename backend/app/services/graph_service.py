@@ -859,7 +859,7 @@ class GraphService:
             record = await result.single()
             if not record:
                 return None
-            return self._record_to_node(record)
+            return self._record_to_node(record["p"])
 
     async def set_node_description(self, node_id: str, description: str) -> bool:
         """Overwrite a node's description. Used by the summariser specialist.

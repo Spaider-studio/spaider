@@ -63,6 +63,65 @@ async def neo4j_test_driver():
     await driver.close()
 
 
+class AuthWorld:
+    """An org on the real test database, driven through the real API router."""
+
+    def __init__(self, client, identity, driver, owner_key, org_id) -> None:
+        self.client = client
+        self.identity = identity
+        self.driver = driver
+        self.owner_key = owner_key
+        self.org_id = org_id
+
+    @staticmethod
+    def headers(key: str) -> dict:
+        return {"X-Api-Key": key}
+
+    async def create_kb(self, name: str = "kb", key: str | None = None, **body) -> dict:
+        response = await self.client.post(
+            "/api/v1/agents",
+            json={"name": name, **body},
+            headers=self.headers(key or self.owner_key),
+        )
+        assert response.status_code == 201, response.text
+        return response.json()["agent"]
+
+    async def user(self, name: str = "u", **kwargs) -> dict:
+        return await self.identity.create_user(self.org_id, name, **kwargs)
+
+    async def member(self, kb_id: str, role: str, **kwargs) -> dict:
+        """A user holding ``role`` on one KB."""
+        user = await self.user(role, **kwargs)
+        await self.identity.grant_role(self.org_id, kb_id, user["id"], role)
+        return user
+
+
+@pytest.fixture
+async def auth_world(neo4j_test_driver, monkeypatch):
+    """Authentication on, schema created, API router mounted, one org bootstrapped."""
+    from fastapi import FastAPI
+    from httpx import ASGITransport, AsyncClient
+
+    from app.api.router import api_router
+    from app.config import settings
+    from app.services import graph_service as graph_module
+    from app.services.identity_service import get_identity_service
+
+    monkeypatch.setattr(settings, "spaider_insecure_dev", False)
+    monkeypatch.setattr(settings, "spaider_bootstrap_token", "bootstrap-secret")
+    service = graph_module.GraphService()
+    await service.initialize()
+    monkeypatch.setattr(graph_module, "_shared_graph_service", service)
+
+    app = FastAPI()
+    app.include_router(api_router, prefix="/api/v1")
+    identity = get_identity_service()
+    created = await identity.bootstrap("Acme", "Owner")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as client:
+        yield AuthWorld(client, identity, service._driver, created["api_key"], created["org_id"])
+    await service.close()
+
+
 # ---------------------------------------------------------------------------
 # Neo4j mock
 # ---------------------------------------------------------------------------

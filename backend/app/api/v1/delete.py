@@ -3,16 +3,14 @@ Delete API endpoints: GDPR-compliant node deletion with audit logging.
 """
 from __future__ import annotations
 
-import json
 import logging
 from datetime import datetime, timezone
-from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
-from app.core.kv import get_kv
+from app.core.authz import Action, Principal, authorize, get_principal
 from app.models.responses import DeleteNodeResponse
-from app.services.auth_service import _require_admin, verify_api_key
+from app.services.audit_store import AuditStore
 
 logger = logging.getLogger(__name__)
 
@@ -22,23 +20,10 @@ router = APIRouter()
 # Lazy singletons
 # ---------------------------------------------------------------------------
 
-_graph_service = None
-_redis_client = None
-
-
 def _get_graph_service():
-    global _graph_service
-    if _graph_service is None:
-        from app.services.graph_service import GraphService
-        _graph_service = GraphService()
-    return _graph_service
+    from app.services.graph_service import get_graph_service
 
-
-async def _get_redis():
-    global _redis_client
-    if _redis_client is None:
-        _redis_client = get_kv()
-    return _redis_client
+    return get_graph_service()
 
 
 # ---------------------------------------------------------------------------
@@ -47,25 +32,13 @@ async def _get_redis():
 
 
 @router.delete("/{node_id}", response_model=DeleteNodeResponse)
-async def delete_node(
-    node_id: str,
-    agent_id: str = "default",
-    auth: dict = Depends(verify_api_key),
-    # Deprecated: the client-supplied X-Agent-Permission header was trivially
-    # spoofable and is no longer honored. Kept only so existing callers that
-    # still send it are not rejected. Authorization now comes from the API key.
-    x_agent_permission: Optional[str] = Header(default=None, alias="X-Agent-Permission"),
-):
+async def delete_node(node_id: str, auth: Principal = Depends(get_principal)):
     """
     GDPR killswitch: permanently delete a node and all its relationships.
 
-    **Auth:** requires an API key with the ``admin`` permission when
-    ``REQUIRE_API_KEY_AUTH=true`` (the previous ``X-Agent-Permission: admin``
-    header was spoofable and is ignored). Creates an immutable audit log entry
-    in Redis. When the flag is off, deletion is open (single-tenant / dev).
+    Requires the editor role on the KB that owns the node. Every deletion is
+    written to the audit log.
     """
-    _require_admin(auth)
-
     graph = _get_graph_service()
 
     # Verify the node exists before attempting deletion
@@ -76,7 +49,11 @@ async def delete_node(
         raise HTTPException(status_code=500, detail=str(exc))
 
     if not node:
-        raise HTTPException(status_code=404, detail=f"Node '{node_id}' not found")
+        # Same response as a node the caller may not touch.
+        if auth.insecure or auth.is_org_admin:
+            raise HTTPException(status_code=404, detail=f"Node '{node_id}' not found")
+        raise HTTPException(status_code=403, detail="Not permitted on this knowledge base.")
+    await authorize(auth, node.agent_id, Action.EDIT)
 
     # Perform cascade delete. delete_node_cascade returns a DeleteResult
     # object; extract the edge count as an int so it serialises into the
@@ -93,38 +70,33 @@ async def delete_node(
         logger.exception("Error deleting node %s: %s", node_id, exc)
         raise HTTPException(status_code=500, detail=str(exc))
 
-    # Prefer the authenticated identity for the audit trail; fall back to the
-    # (caller-controlled) query param only when auth is bypassed.
-    actor_id = auth.get("agent_id") or agent_id
-
     # Build audit entry
     audit_entry = {
         "event": "node_deleted",
         "node_id": node_id,
         "node_label": node.label,
         "node_type": node.type,
-        "agent_id": actor_id,
+        "agent_id": node.agent_id,
+        "actor_id": auth.id,
         "deleted_edges": deleted_edges,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
-    # Persist audit log to Redis
-    redis = await _get_redis()
-    if redis is not None:
-        try:
-            audit_key = f"audit:delete:{node_id}:{int(datetime.now(timezone.utc).timestamp())}"
-            await redis.set(audit_key, json.dumps(audit_entry), ex=60 * 60 * 24 * 365)  # 1 year
-            logger.info("Audit log written: %s", audit_key)
-        except Exception as exc:
-            logger.warning("Failed to write audit log to Redis: %s", exc)
-    else:
-        logger.warning("Redis unavailable; audit entry not persisted: %s", audit_entry)
+    try:
+        await AuditStore(graph._driver).record_event(
+            workflow_id=f"delete:{node_id}",
+            agent_id=node.agent_id,
+            event_type="node_deleted",
+            payload=audit_entry,
+        )
+    except Exception as exc:  # noqa: BLE001 — the delete already happened
+        logger.error("Failed to persist delete audit for node %s: %s", node_id, exc)
 
     logger.info(
         "Node %s (%s) deleted by agent_id=%s, %d edges removed",
         node_id,
         node.label,
-        actor_id,
+        auth.id,
         deleted_edges,
     )
 

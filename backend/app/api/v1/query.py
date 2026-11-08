@@ -11,9 +11,9 @@ import uuid
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
+from app.core.authz import Action, OrgAction, Principal, authorize, get_principal, require_org, resolve_kb
 from app.models.requests import CypherQueryRequest, QueryRequest, TraverseRequest
 from app.models.schemas import GraphPayload, QueryResult
-from app.services.auth_service import _check_idor, _require_admin, verify_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +129,7 @@ def _fire_replay_event(
 async def query_nl(
     request: QueryRequest,
     background_tasks: BackgroundTasks,
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Natural-language query over the knowledge graph.
@@ -145,7 +145,7 @@ async def query_nl(
     query/response pair is recorded asynchronously as an ``InteractionNode``
     in Neo4j (fire-and-forget via BackgroundTasks — zero added latency).
     """
-    _check_idor(auth, request.agent_id)
+    await authorize(auth, request.agent_id, Action.READ)
     query_service = _get_query_service()
     if query_service is None:
         raise HTTPException(status_code=503, detail="QueryService unavailable")
@@ -249,7 +249,7 @@ async def query_nl(
 @router.post("/cypher", response_model=list[dict])
 async def query_cypher(
     request: CypherQueryRequest,
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Execute a raw Cypher query against the graph.
@@ -267,8 +267,8 @@ async def query_cypher(
     ``REQUIRE_API_KEY_AUTH=true``. When the flag is off (single-tenant /
     local dev), behavior is unchanged.
     """
-    _require_admin(auth)
-    _check_idor(auth, request.agent_id)
+    await require_org(auth, OrgAction.ADMIN)
+    await authorize(auth, request.agent_id, Action.READ)
     # Reject writes up front (defense in depth; the read transaction below is
     # the actual enforcement and cannot be bypassed by procedure obfuscation).
     if _WRITE_PATTERN.search(request.cypher):
@@ -300,29 +300,22 @@ async def query_cypher(
 @router.post("/traverse", response_model=GraphPayload)
 async def traverse(
     request: TraverseRequest,
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Traverse the graph from a start node up to the requested depth.
     Optionally filter by relationship type.
 
-    **Auth:** Requires X-Api-Key when REQUIRE_API_KEY_AUTH=true. The
-    traversal is scoped to the authenticated agent's namespace: the start
-    node must belong to the caller, otherwise an empty graph is returned.
-    A non-admin therefore cannot walk another agent's subgraph by passing a
-    foreign ``start_node_id``. When the flag is off, traversal is unscoped
-    (single-tenant behavior). Admin keys traverse without scoping.
+    The start node must belong to the given KB (the caller's default when
+    ``agent_id`` is omitted); otherwise the result is an empty graph.
     """
     query_service = _get_query_service()
     if query_service is None:
         raise HTTPException(status_code=503, detail="QueryService unavailable")
 
-    # Scope to the caller unless auth is bypassed (flag off) or the caller is
-    # an admin. ``agent_id`` is None in both those cases → unscoped traversal.
-    from app.services.auth_service import _is_admin
-    scope_agent_id = None
-    if not auth.get("auth_bypassed") and not _is_admin(auth):
-        scope_agent_id = auth.get("agent_id")
+    scope_agent_id = resolve_kb(auth, request.agent_id)
+    if scope_agent_id is not None:
+        await authorize(auth, scope_agent_id, Action.READ)
 
     try:
         subgraph: GraphPayload = await query_service.traverse(
@@ -342,7 +335,7 @@ async def traverse(
 @router.post("/stream")
 async def stream_query(
     request: QueryRequest,
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Streaming natural-language query via Server-Sent Events.
@@ -354,7 +347,7 @@ async def stream_query(
         data: <token>\\n\\n
         data: [DONE]\\n\\n
     """
-    _check_idor(auth, request.agent_id)
+    await authorize(auth, request.agent_id, Action.READ)
     query_service = _get_query_service()
     if query_service is None:
         raise HTTPException(status_code=503, detail="QueryService unavailable")
