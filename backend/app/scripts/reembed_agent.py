@@ -91,10 +91,11 @@ async def reembed_agent(agent_id: str, batch_size: int = 64, dry_run: bool = Fal
                 await session.run(
                     """
                     UNWIND $rows AS row
-                    MATCH (n:SpaiderNode {id: row.id})
+                    MATCH (n:SpaiderNode {id: row.id, agent_id: $agent_id})
                     SET n.embedding = row.embedding
                     """,
                     rows=rows,
+                    agent_id=agent_id,
                 )
             done += len(rows)
             print(f"  [{done}/{len(nodes)}]")

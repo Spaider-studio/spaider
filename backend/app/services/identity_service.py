@@ -128,6 +128,32 @@ class IdentityService:
             name=record["name"] or "",
         )
 
+    async def principal_by_id(self, principal_id: str) -> Optional[Principal]:
+        """The principal as it stands now; None if it is gone or disabled."""
+        async with self._driver.session() as session:
+            result = await session.run(
+                """
+                MATCH (p:Principal {id: $pid})-[m:IN_ORG]->(o:Org)
+                WHERE NOT coalesce(p.disabled, false)
+                RETURN p.id AS id, p:ServiceAccount AS service, o.id AS org, m.role AS role,
+                       coalesce(p.clearance_level, 1) AS clearance,
+                       p.default_kb AS default_kb, p.name AS name
+                """,
+                pid=principal_id,
+            )
+            record = await result.single()
+        if record is None:
+            return None
+        return Principal(
+            id=record["id"],
+            kind="service_account" if record["service"] else "user",
+            org_id=record["org"],
+            org_role=record["role"],
+            clearance_level=record["clearance"],
+            default_kb=record["default_kb"],
+            name=record["name"] or "",
+        )
+
     async def _issue_key(self, session, principal_id: str, prefix: str, name: Optional[str]) -> str:
         raw_key = _new_key(prefix)
         await session.run(

@@ -303,7 +303,12 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[mcp_types.Text
         # model needs enough context that the relevant FACT-type nodes
         # actually surface alongside the entity nodes.
         top_k = arguments.get("top_k", 15)
-        result = await _get_query_service().query_nl(question, agent_id, top_k=top_k)
+        result = await _get_query_service().query_nl(
+            question,
+            agent_id,
+            top_k=top_k,
+            max_clearance=_PRINCIPAL.get().clearance_level if _PRINCIPAL.get() else None,
+        )
         nodes = result.subgraph.nodes if result.subgraph else []
 
         # Split the subgraph by node type. FACT nodes carry the

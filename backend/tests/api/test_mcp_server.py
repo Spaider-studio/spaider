@@ -208,7 +208,9 @@ async def test_call_tool_query_uses_agent_id_from_context():
     with patch.object(mcp_module, "_get_query_service", return_value=qs_mock):
         contents = await call_tool("spaider.query", {"question": "what happened to Acme?"})
 
-    qs_mock.query_nl.assert_awaited_once_with("what happened to Acme?", "agent-x", top_k=15)
+    qs_mock.query_nl.assert_awaited_once_with(
+        "what happened to Acme?", "agent-x", top_k=15, max_clearance=mcp_module._PRINCIPAL.get().clearance_level
+    )
     assert len(contents) == 1
     body = contents[0].text
     assert "Acme acquired Beta in 2024" in body

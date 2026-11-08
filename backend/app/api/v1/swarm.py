@@ -17,6 +17,7 @@ import logging
 # CLEARANCE_DEFAULT_DENY=true, else 1 (public, legacy). Read once at
 # module load — the env flag is process-lifetime stable.
 import os as _os
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -29,14 +30,15 @@ from app.core.authz import (
     Action,
     OrgAction,
     Principal,
+    accessible_kbs,
     authorize,
     can,
     get_principal,
     require_org,
     resolve_kb,
-    resolve_token,
 )
 from app.core.kv import get_kv
+from app.core.tickets import redeem_ticket
 from app.lib.litellm_retry import acompletion_with_retry
 from app.models.requests import SwarmConnectionRequest, SwarmQueryRequest
 from app.models.responses import APIResponse, SwarmConnectionResponse, SwarmQueryResponse
@@ -551,7 +553,7 @@ async def swarm_query(
     )
     try:
         if agent_ids:
-            resp = await _federated_deep_query(query, agent_ids)
+            resp = await _federated_deep_query(query, agent_ids, max_clearance=agent_clearance)
         else:
             resp = await _broad_vector_scan(query, agent_clearance=agent_clearance)
     except Exception:
@@ -594,7 +596,9 @@ async def swarm_query(
     return resp
 
 
-async def _federated_deep_query(query: str, agent_ids: list[str]) -> SwarmQueryResponse:
+async def _federated_deep_query(
+    query: str, agent_ids: list[str], max_clearance: Optional[int] = None
+) -> SwarmQueryResponse:
     """Federate across explicit agents by reusing the graph-aware single-agent
     pipeline per agent, then synthesising one answer from the grounded results.
 
@@ -611,7 +615,9 @@ async def _federated_deep_query(query: str, agent_ids: list[str]) -> SwarmQueryR
             # Decompose: a federated question often spans agents, so each agent
             # must retrieve on its own sub-entities (the global default stays off
             # for single-agent queries / benchmarks).
-            return aid, await qs.query_nl(question=query, agent_id=aid, decompose=True)
+            return aid, await qs.query_nl(
+                question=query, agent_id=aid, decompose=True, max_clearance=max_clearance
+            )
         except Exception as exc:
             logger.warning("swarm federated: query_nl failed for agent %s: %s", aid, exc)
             return aid, None
@@ -788,15 +794,22 @@ async def swarm_health(auth: Principal = Depends(get_principal)):
 # ---------------------------------------------------------------------------
 
 
-async def _authorize_admin_token(token: Optional[str]) -> bool:
-    """Admin authorization for an SSE stream via a ``?token=`` query param.
+_FEED_ACCESS_REFRESH_S = 30.0
 
-    EventSource clients cannot set request headers, so the admin key is passed
-    as a query parameter. Returns True when auth is disabled, or the token is a
-    valid admin key. Any other case is denied.
+
+def _event_visible(raw_json: str, principal: Principal, allowed: Optional[set[str]]) -> bool:
+    """Whether a live-log event may be shown to this caller.
+
+    Events name the KB they concern. Worker-level events with no KB describe the
+    whole deployment and go to org admins only.
     """
-    principal = await resolve_token(token)
-    return principal is not None and (principal.insecure or principal.is_org_admin)
+    if allowed is None:
+        return True
+    try:
+        kb_id = json.loads(raw_json).get("kb_id")
+    except (json.JSONDecodeError, AttributeError):
+        return False
+    return kb_id in allowed if kb_id else principal.is_org_admin
 
 
 @router.get(
@@ -806,14 +819,14 @@ async def _authorize_admin_token(token: Optional[str]) -> bool:
 )
 async def swarm_events_stream(
     request: Request,
-    token: Optional[str] = Query(default=None),
+    ticket: Optional[str] = Query(default=None),
 ) -> StreamingResponse:
     """
     Stream live swarm worker activity as Server-Sent Events (SSE).
 
     **Auth:** org admin only (fleet-wide activity
     feed). Because EventSource cannot send headers, pass the admin key as
-    ``?token=sk-...``.
+    ``?ticket=`` from ``POST /auth/ticket``.
 
     Architecture
     ------------
@@ -883,11 +896,9 @@ async def swarm_events_stream(
             "session_id":"<optional>"
         }
     """
-    if not await _authorize_admin_token(token):
-        raise HTTPException(
-            status_code=403,
-            detail="Swarm live-log requires an admin API key (pass ?token=sk-...).",
-        )
+    principal = await redeem_ticket(ticket)
+    if principal is None:
+        raise HTTPException(status_code=403, detail="A valid ticket from POST /auth/ticket is required.")
     redis = await _get_redis()
 
     def _heartbeat_frame(message: str) -> str:
@@ -937,6 +948,10 @@ async def swarm_events_stream(
             return
 
         agen = subscribe_to_swarm_logs(redis)
+        # Re-read periodically so a revoked role also stops an open stream.
+        allowed = await accessible_kbs(principal)
+        allowed = None if allowed is None else set(allowed)
+        allowed_at = time.monotonic()
         # One persistent read task that SURVIVES heartbeat timeouts. We race it
         # against the heartbeat interval with asyncio.wait (which leaves the task
         # PENDING on timeout) rather than asyncio.wait_for (which CANCELS it).
@@ -965,6 +980,14 @@ async def swarm_events_stream(
                     raw_json = read_task.result()
                 except StopAsyncIteration:
                     break
+
+                if time.monotonic() - allowed_at > _FEED_ACCESS_REFRESH_S:
+                    refreshed = await accessible_kbs(principal)
+                    allowed = None if refreshed is None else set(refreshed)
+                    allowed_at = time.monotonic()
+                if not _event_visible(raw_json, principal, allowed):
+                    read_task = asyncio.ensure_future(agen.__anext__())
+                    continue
 
                 # ── SSE frame (W3C format) ─────────────────────────────────
                 # The raw_json string already contains no trailing newlines

@@ -40,7 +40,8 @@ import numpy as np
 from fastapi import HTTPException, status
 
 from app.config import settings
-from app.core.kv import get_kv
+from app.core.jobs import spawn
+from app.core.kv import generation_key, get_kv
 from app.core.temporal import edge_visible, to_utc_iso
 from app.lib.litellm_retry import acompletion_with_retry, track_tokens
 from app.models.schemas import Edge, GraphPayload, Node, VerifierResult
@@ -412,6 +413,11 @@ class QueryService:
     # Diplomat Protocol — resolve agent clearance level
     # ------------------------------------------------------------------
 
+    async def _effective_clearance(self, agent_id: str, caller: Optional[int]) -> int:
+        """What this query may read: the KB's level, capped by the caller's own."""
+        kb_level = await self._get_agent_clearance(agent_id)
+        return kb_level if caller is None else min(kb_level, caller)
+
     async def _get_agent_clearance(self, agent_id: str) -> int:
         """Clearance of the KB, read from its SystemAgent node.
 
@@ -505,6 +511,7 @@ class QueryService:
                 "pheromone",
                 agent_id,
                 f"Boosted {len(node_ids)} node(s): {preview}{more}",
+                kb_id=agent_id,
                 node_ids=node_ids[:25],
                 count=len(node_ids),
             )
@@ -512,16 +519,27 @@ class QueryService:
             logger.debug("query_nl | pheromone publish skipped: %s", exc)
 
     @staticmethod
-    def _cache_key(question: str, agent_id: str) -> str:
-        h = hashlib.sha256(f"{agent_id}:{question.strip().lower()}".encode()).hexdigest()[:16]
+    def _cache_key(question: str, agent_id: str, clearance: int = 5, generation: int = 0) -> str:
+        # An answer built from secret nodes must never reach a lower-clearance
+        # caller, and any write to the KB retires its answers.
+        material = f"{agent_id}:{clearance}:{generation}:{question.strip().lower()}"
+        h = hashlib.sha256(material.encode()).hexdigest()[:16]
         return f"spaider:query:cache:{h}"
 
-    async def _cache_get(self, question: str, agent_id: str) -> Optional[QueryResult]:
+    @staticmethod
+    async def _generation(redis, agent_id: str) -> int:
+        try:
+            return int(await redis.get(generation_key(agent_id)) or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    async def _cache_get(self, question: str, agent_id: str, clearance: int = 5) -> Optional[QueryResult]:
         redis = await self._get_redis()
         if not redis:
             return None
         try:
-            raw = await redis.get(self._cache_key(question, agent_id))
+            generation = await self._generation(redis, agent_id)
+            raw = await redis.get(self._cache_key(question, agent_id, clearance, generation))
             if raw:
                 d = json.loads(raw)
                 return QueryResult(
@@ -535,7 +553,7 @@ class QueryService:
             pass
         return None
 
-    async def _cache_set(self, result: QueryResult, agent_id: str) -> None:
+    async def _cache_set(self, result: QueryResult, agent_id: str, clearance: int = 5) -> None:
         redis = await self._get_redis()
         if not redis:
             return
@@ -549,8 +567,9 @@ class QueryService:
                     "edges": [e.model_dump() for e in result.subgraph.edges],
                 },
             }
+            generation = await self._generation(redis, agent_id)
             await redis.set(
-                self._cache_key(result.question, agent_id),
+                self._cache_key(result.question, agent_id, clearance, generation),
                 json.dumps(payload),
                 ex=_CACHE_TTL,
             )
@@ -886,9 +905,8 @@ class QueryService:
         )
 
         # Fire-and-forget: boost energy on every node returned to the LLM
-        import asyncio
         node_ids = [r["node_id"] for r in records if r.get("node_id")]
-        asyncio.create_task(self._cognitive.boost_nodes(node_ids))
+        spawn(self._cognitive.boost_nodes(node_ids, allowed_agent_ids))
 
         # Append the 1-hop relationships so the model can traverse an edge to
         # answer (e.g. the decision owner of X), not just read disconnected facts.
@@ -1115,9 +1133,8 @@ class QueryService:
         )
 
         # Fire-and-forget: boost energy on every node returned to the LLM
-        import asyncio
         node_ids = [r["node_id"] for r in records if r.get("node_id")]
-        asyncio.create_task(self._cognitive.boost_nodes(node_ids))
+        spawn(self._cognitive.boost_nodes(node_ids, allowed_agent_ids))
 
         # Append the 1-hop relationships so the model can traverse an edge to
         # answer (e.g. the decision owner of X), not just read disconnected facts.
@@ -1242,6 +1259,7 @@ class QueryService:
         agent_id: str,
         top_k: Optional[int] = None,
         decompose: Optional[bool] = None,
+        max_clearance: Optional[int] = None,
     ) -> QueryResult:
         """Token-tracking entry point for the NL query pipeline.
 
@@ -1251,7 +1269,7 @@ class QueryService:
         stays ``None`` rather than a misleading ``{0, 0}``.
         """
         with track_tokens() as bucket:
-            result = await self._query_nl_impl(question, agent_id, top_k, decompose)
+            result = await self._query_nl_impl(question, agent_id, top_k, decompose, max_clearance)
         if result is not None and not getattr(result, "from_cache", False):
             result.token_usage = dict(bucket)
         return result
@@ -1262,6 +1280,7 @@ class QueryService:
         agent_id: str,
         top_k: Optional[int] = None,
         decompose: Optional[bool] = None,
+        max_clearance: Optional[int] = None,
     ) -> QueryResult:
         """
         Iterative Self-RAG query loop — Agentic QA architecture.
@@ -1287,7 +1306,8 @@ class QueryService:
         import asyncio
 
         # ── 1. Cache hit ────────────────────────────────────────────────────
-        cached = await self._cache_get(question, agent_id)
+        agent_clearance = await self._effective_clearance(agent_id, max_clearance)
+        cached = await self._cache_get(question, agent_id, agent_clearance)
         if cached:
             logger.info("query_nl cache HIT for agent=%s", agent_id)
             return cached
@@ -1309,10 +1329,9 @@ class QueryService:
         else:
             subqueries = [question]
 
-        sq_embeddings, memory_mode, agent_clearance = await asyncio.gather(
+        sq_embeddings, memory_mode = await asyncio.gather(
             asyncio.gather(*[self._embedding.embed(sq) for sq in subqueries]),
             self._get_memory_mode(agent_id),
-            self._get_agent_clearance(agent_id),
         )
         # off -> classic retrieval; explicit/implicit -> synaptic (v2) retrieval.
         use_v2 = memory_mode != "off"
@@ -1404,7 +1423,12 @@ class QueryService:
             # ── 1-hop expansion → accumulate into cumulative dicts (O(1)) ────
             if iter_seeds:
                 expansions = await asyncio.gather(
-                    *[self._graph.get_subgraph(n.id, depth=1) for n in iter_seeds],
+                    *[
+                        self._graph.get_subgraph(
+                            n.id, depth=1, agent_id=n.agent_id, max_clearance=agent_clearance
+                        )
+                        for n in iter_seeds
+                    ],
                     return_exceptions=True,
                 )
                 for exp in expansions:
@@ -1507,8 +1531,9 @@ class QueryService:
         # them up on the Live Pheromone Stream.
         _boosted = list(cumulative_nodes.keys())
         _labels = {nid: getattr(n, "label", "") for nid, n in cumulative_nodes.items()}
-        asyncio.create_task(self._cognitive.boost_nodes(_boosted))
-        asyncio.create_task(self._publish_pheromone(_boosted, agent_id, _labels))
+        _source_kbs = sorted({n.agent_id for n in cumulative_nodes.values() if n.agent_id} | {agent_id})
+        spawn(self._cognitive.boost_nodes(_boosted, _source_kbs))
+        spawn(self._publish_pheromone(_boosted, agent_id, _labels))
 
         # Implicit Hebbian reinforcement: in "on" mode a grounded, confident
         # answer strengthens ONLY the edges among the nodes the answer actually
@@ -1530,8 +1555,8 @@ class QueryService:
             # Fall back to the full set only when nothing surfaced (rare) so a
             # grounded answer never reinforces zero edges.
             _reinforce_targets = _answer_path if len(_answer_path) >= 2 else _boosted
-            asyncio.create_task(
-                self._cognitive.reinforce_edges(_reinforce_targets, settings.hebbian_step_implicit)
+            spawn(
+                self._cognitive.reinforce_edges(_reinforce_targets, settings.hebbian_step_implicit, _source_kbs)
             )
 
         result = QueryResult(
@@ -1545,7 +1570,7 @@ class QueryService:
             verifier_feedback=all_feedback if all_feedback else None,
         )
 
-        await self._cache_set(result, agent_id)
+        await self._cache_set(result, agent_id, agent_clearance)
 
         logger.info(
             "query_nl | agent=%s mode=%s swarm=%s iter=%d re_query=%s confidence=%.2f",
@@ -1555,7 +1580,11 @@ class QueryService:
         return result
 
     async def stream_query_nl(
-        self, question: str, agent_id: str, top_k: Optional[int] = None
+        self,
+        question: str,
+        agent_id: str,
+        top_k: Optional[int] = None,
+        max_clearance: Optional[int] = None,
     ) -> AsyncIterator[str]:
         """
         Streaming swarm-RAG — classic or synaptic routing based on the agent's memory_mode.
@@ -1563,16 +1592,16 @@ class QueryService:
         """
         import asyncio
 
-        cached = await self._cache_get(question, agent_id)
+        agent_clearance = await self._effective_clearance(agent_id, max_clearance)
+        cached = await self._cache_get(question, agent_id, agent_clearance)
         if cached:
             yield cached.answer
             return
 
         q_embedding = await self._embedding.embed(question)
 
-        memory_mode, agent_clearance, seed_nodes = await asyncio.gather(
+        memory_mode, seed_nodes = await asyncio.gather(
             self._get_memory_mode(agent_id),
-            self._get_agent_clearance(agent_id),
             self._graph.vector_search(
                 embedding=q_embedding, agent_id=agent_id, top_k=top_k or _DEFAULT_TOP_K
             ),
@@ -1610,7 +1639,12 @@ class QueryService:
         subgraph_edges: dict[str, Edge] = {}
         if seed_nodes:
             expansions = await asyncio.gather(
-                *[self._graph.get_subgraph(n.id, depth=1) for n in seed_nodes],
+                *[
+                    self._graph.get_subgraph(
+                        n.id, depth=1, agent_id=n.agent_id, max_clearance=agent_clearance
+                    )
+                    for n in seed_nodes
+                ],
                 return_exceptions=True,
             )
             for exp in expansions:
@@ -1646,8 +1680,9 @@ class QueryService:
         # updates even though the same nodes are retrieved. Fire-and-forget.
         _boosted = list(valid_node_ids)
         _labels = {nid: getattr(n, "label", "") for nid, n in subgraph_nodes.items()}
-        asyncio.create_task(self._cognitive.boost_nodes(_boosted))
-        asyncio.create_task(self._publish_pheromone(_boosted, agent_id, _labels))
+        _source_kbs = sorted({n.agent_id for n in subgraph_nodes.values() if n.agent_id} | {agent_id})
+        spawn(self._cognitive.boost_nodes(_boosted, _source_kbs))
+        spawn(self._publish_pheromone(_boosted, agent_id, _labels))
 
         vector_context = self._build_context(subgraph)
         if vector_context and vector_context != "No relevant entities found in the knowledge graph.":
@@ -1673,7 +1708,7 @@ class QueryService:
         result = QueryResult(
             question=question, answer=full_answer, subgraph=subgraph
         )
-        await self._cache_set(result, agent_id)
+        await self._cache_set(result, agent_id, agent_clearance)
 
     async def query_cypher(self, cypher: str, agent_id: str) -> list[dict]:
         """Execute a raw read-only Cypher query.
@@ -1702,6 +1737,7 @@ class QueryService:
         relation_filter: Optional[list[str]] = None,
         agent_id: Optional[str] = None,
         as_of: Optional[datetime] = None,
+        max_clearance: int = 5,
     ) -> GraphPayload:
         """Walk RELATION edges up to ``depth`` hops from a node.
 
@@ -1717,6 +1753,7 @@ class QueryService:
               AND all(r IN rels WHERE {edge_visible("r")}
                       AND ($rel_filter IS NULL OR r.relation IN $rel_filter)
                       AND ($agent_id IS NULL OR r.agent_id = $agent_id))
+              AND all(x IN nodes(path) WHERE coalesce(x.clearance_level, 1) <= $max_clearance)
             WITH collect(path) AS paths
             WHERE size(paths) > 0
             UNWIND paths AS p UNWIND nodes(p) AS n
@@ -1731,6 +1768,7 @@ class QueryService:
                 rel_filter=relation_filter,
                 agent_id=agent_id,
                 as_of=to_utc_iso(as_of),
+                max_clearance=max_clearance,
             )
             record = await result.single()
 

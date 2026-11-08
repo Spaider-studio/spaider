@@ -129,7 +129,7 @@ async def test_synthesize_factual_strategy(rich_graph):
 
     with (
         patch("litellm.acompletion", new_callable=AsyncMock) as mock_llm,
-        patch("app.services.synthesizer._OUTPUT_DIR", Path("/tmp/spaider_test/datasets")),
+        patch("app.services.synthesizer.dataset_root", return_value=Path("/tmp/spaider_test/datasets")),
         patch("pathlib.Path.mkdir"),
         patch("pathlib.Path.write_text"),
     ):
@@ -167,7 +167,7 @@ async def test_synthesize_reasoning_strategy(rich_graph):
 
     with (
         patch("litellm.acompletion", new_callable=AsyncMock) as mock_llm,
-        patch("app.services.synthesizer._OUTPUT_DIR", Path("/tmp/spaider_test/datasets")),
+        patch("app.services.synthesizer.dataset_root", return_value=Path("/tmp/spaider_test/datasets")),
         patch("pathlib.Path.mkdir"),
         patch("pathlib.Path.write_text"),
     ):
@@ -204,7 +204,7 @@ async def test_synthesize_relations_strategy(rich_graph):
 
     with (
         patch("litellm.acompletion", new_callable=AsyncMock) as mock_llm,
-        patch("app.services.synthesizer._OUTPUT_DIR", Path("/tmp/spaider_test/datasets")),
+        patch("app.services.synthesizer.dataset_root", return_value=Path("/tmp/spaider_test/datasets")),
         patch("pathlib.Path.mkdir"),
         patch("pathlib.Path.write_text"),
     ):
@@ -243,7 +243,7 @@ async def test_output_format_openai(rich_graph):
 
     with (
         patch("litellm.acompletion", new_callable=AsyncMock) as mock_llm,
-        patch("app.services.synthesizer._OUTPUT_DIR", Path("/tmp/spaider_test/datasets")),
+        patch("app.services.synthesizer.dataset_root", return_value=Path("/tmp/spaider_test/datasets")),
         patch("pathlib.Path.mkdir"),
         patch("pathlib.Path.write_text", side_effect=lambda text, **kw: written_text.append(text)),
     ):
@@ -280,7 +280,7 @@ async def test_output_format_alpaca(rich_graph):
 
     with (
         patch("litellm.acompletion", new_callable=AsyncMock) as mock_llm,
-        patch("app.services.synthesizer._OUTPUT_DIR", Path("/tmp/spaider_test/datasets")),
+        patch("app.services.synthesizer.dataset_root", return_value=Path("/tmp/spaider_test/datasets")),
         patch("pathlib.Path.mkdir"),
         patch("pathlib.Path.write_text"),
     ):
@@ -317,7 +317,7 @@ async def test_deduplication(rich_graph):
     # Always return the same single QA pair → synthesizer must deduplicate
     with (
         patch("litellm.acompletion", new_callable=AsyncMock) as mock_llm,
-        patch("app.services.synthesizer._OUTPUT_DIR", Path("/tmp/spaider_test/datasets")),
+        patch("app.services.synthesizer.dataset_root", return_value=Path("/tmp/spaider_test/datasets")),
         patch("pathlib.Path.mkdir"),
         patch("pathlib.Path.write_text"),
     ):
@@ -364,7 +364,7 @@ async def test_quality_filter_by_confidence():
 
     with (
         patch("litellm.acompletion", new_callable=AsyncMock) as mock_llm,
-        patch("app.services.synthesizer._OUTPUT_DIR", Path("/tmp/spaider_test/datasets")),
+        patch("app.services.synthesizer.dataset_root", return_value=Path("/tmp/spaider_test/datasets")),
         patch("pathlib.Path.mkdir"),
         patch("pathlib.Path.write_text"),
     ):

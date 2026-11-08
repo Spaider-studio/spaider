@@ -38,6 +38,7 @@ from app.models.responses import (
 )
 from app.models.schemas import Agent, Edge, GraphPayload, Node
 from app.services.identity_service import get_identity_service
+from app.services.purge_service import purge_kb
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +144,7 @@ async def _ndjson_export_generator(
     agent_id: str,
     agent: Agent,
     include_embeddings: bool,
+    max_clearance: int = 5,
 ) -> AsyncGenerator[str, None]:
     """
     Async generator — yields NDJSON lines for a complete agent graph export.
@@ -204,6 +206,7 @@ async def _ndjson_export_generator(
     if include_embeddings:
         _node_cypher = """
             MATCH (n:SpaiderNode {agent_id: $agent_id})
+            WHERE coalesce(n.clearance_level, 1) <= $max_clearance
             RETURN n.id                           AS id,
                    n.label                        AS label,
                    n.type                         AS type,
@@ -217,6 +220,7 @@ async def _ndjson_export_generator(
     else:
         _node_cypher = """
             MATCH (n:SpaiderNode {agent_id: $agent_id})
+            WHERE coalesce(n.clearance_level, 1) <= $max_clearance
             RETURN n.id                           AS id,
                    n.label                        AS label,
                    n.type                         AS type,
@@ -228,7 +232,7 @@ async def _ndjson_export_generator(
         """
 
     async with graph._driver.session(fetch_size=_BOLT_FETCH_SIZE) as session:
-        result = await session.run(_node_cypher, agent_id=agent_id)
+        result = await session.run(_node_cypher, agent_id=agent_id, max_clearance=max_clearance)
         async for record in result:
             yield json.dumps(
                 {"type": "node", "data": dict(record)},
@@ -243,6 +247,8 @@ async def _ndjson_export_generator(
             MATCH (a:SpaiderNode {agent_id: $agent_id})
                   -[r:RELATION]->
                   (b:SpaiderNode {agent_id: $agent_id})
+            WHERE coalesce(a.clearance_level, 1) <= $max_clearance
+              AND coalesce(b.clearance_level, 1) <= $max_clearance
             RETURN r.id                            AS id,
                    a.id                            AS source_id,
                    b.id                            AS target_id,
@@ -252,6 +258,7 @@ async def _ndjson_export_generator(
                    coalesce(r.utility_weight, 1.0) AS utility_weight
             """,
             agent_id=agent_id,
+            max_clearance=max_clearance,
         )
         async for record in result:
             yield json.dumps(
@@ -1230,7 +1237,7 @@ async def export_agent_graph_ndjson(
         agent_id, include_embeddings,
     )
     return StreamingResponse(
-        _ndjson_export_generator(agent_id, agent, include_embeddings),
+        _ndjson_export_generator(agent_id, agent, include_embeddings, auth.clearance_level),
         media_type="application/x-ndjson",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
@@ -1316,9 +1323,8 @@ async def delete_agent(agent_id: str, auth: Principal = Depends(get_principal)):
 
     graph = _get_graph_service()
     try:
-        # Delete all nodes (and their edges) belonging to this agent
-        await graph.delete_agent_graph(agent_id)
-        logger.info("Deleted graph data for agent %s", agent_id)
+        await purge_kb(graph, agent_id, actor_id=auth.id)
+        logger.info("Purged KB %s", agent_id)
     except Exception as exc:
         logger.exception("Could not delete graph data for agent %s: %s", agent_id, exc)
         # We must not proceed with agent record deletion if graph cleanup fails,

@@ -275,7 +275,7 @@ async def _fuse_agent_duplicates(driver, agent_id: str, np) -> int:
                 else:
                     keep_id, drop_id = ids[j], ids[global_i]
 
-                await _merge_node_pair(driver, keep_id, drop_id)
+                await _merge_node_pair(driver, keep_id, drop_id, agent_id)
                 merged_ids.add(drop_id)
                 total_merged += 1
                 logger.debug(
@@ -285,35 +285,35 @@ async def _fuse_agent_duplicates(driver, agent_id: str, np) -> int:
     return total_merged
 
 
-async def _merge_node_pair(driver, keep_id: str, drop_id: str) -> None:
+async def _merge_node_pair(driver, keep_id: str, drop_id: str, agent_id: str) -> None:
     """Redirect all edges from drop_id to keep_id, then delete drop_id."""
     async with driver.session() as session:
         # Outgoing edges from drop → re-attach to keep
         await session.run(
             """
-            MATCH (drop:SpaiderNode {id: $drop_id})-[r]->(target)
+            MATCH (drop:SpaiderNode {id: $drop_id, agent_id: $agent_id})-[r]->(target)
             WHERE target.id <> $keep_id
-            MATCH (keep:SpaiderNode {id: $keep_id})
+            MATCH (keep:SpaiderNode {id: $keep_id, agent_id: $agent_id})
             MERGE (keep)-[nr:RELATED_TO]->(target)
             ON CREATE SET nr = properties(r)
             """,
-            drop_id=drop_id, keep_id=keep_id,
+            drop_id=drop_id, keep_id=keep_id, agent_id=agent_id,
         )
         # Incoming edges to drop → re-attach to keep
         await session.run(
             """
-            MATCH (source)-[r]->(drop:SpaiderNode {id: $drop_id})
+            MATCH (source)-[r]->(drop:SpaiderNode {id: $drop_id, agent_id: $agent_id})
             WHERE source.id <> $keep_id
-            MATCH (keep:SpaiderNode {id: $keep_id})
+            MATCH (keep:SpaiderNode {id: $keep_id, agent_id: $agent_id})
             MERGE (source)-[nr:RELATED_TO]->(keep)
             ON CREATE SET nr = properties(r)
             """,
-            drop_id=drop_id, keep_id=keep_id,
+            drop_id=drop_id, keep_id=keep_id, agent_id=agent_id,
         )
         # Delete the duplicate
         await session.run(
-            "MATCH (n:SpaiderNode {id: $drop_id}) DETACH DELETE n",
-            drop_id=drop_id,
+            "MATCH (n:SpaiderNode {id: $drop_id, agent_id: $agent_id}) DETACH DELETE n",
+            drop_id=drop_id, agent_id=agent_id,
         )
 
 

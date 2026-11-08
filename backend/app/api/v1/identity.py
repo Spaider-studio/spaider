@@ -23,6 +23,7 @@ from app.core.authz import (
     get_principal,
     require_org,
 )
+from app.core.tickets import TICKET_TTL_SECONDS, issue_ticket
 from app.services.identity_service import (
     AlreadyBootstrapped,
     UnknownPrincipal,
@@ -95,6 +96,12 @@ async def whoami(auth: Principal = Depends(get_principal)):
         "clearance_level": auth.clearance_level,
         "default_kb": auth.default_kb,
     }
+
+
+@router.post("/auth/ticket", status_code=201)
+async def create_ticket(auth: Principal = Depends(get_principal)):
+    """A single-use ticket for one WebSocket or event-stream connection."""
+    return {"ticket": await issue_ticket(auth), "expires_in": TICKET_TTL_SECONDS}
 
 
 @router.post("/auth/rotate")

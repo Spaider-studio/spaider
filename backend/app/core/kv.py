@@ -71,3 +71,16 @@ def reset_kv() -> None:
     global _fake_server
     _clients.clear()
     _fake_server = None
+
+
+def generation_key(agent_id: str) -> str:
+    return f"spaider:cachegen:{agent_id}"
+
+
+async def cache_generation(agent_id: str) -> int:
+    """Part of every query-cache key, so bumping it invalidates a KB's answers."""
+    return int(await get_kv().get(generation_key(agent_id)) or 0)
+
+
+async def bump_cache_generation(agent_id: str) -> None:
+    await get_kv().incr(generation_key(agent_id))

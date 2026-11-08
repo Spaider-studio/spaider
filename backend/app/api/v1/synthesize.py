@@ -30,6 +30,7 @@ from app.lib.litellm_retry import acompletion_with_retry
 from app.models.requests import SynthesizeRequest
 from app.models.schemas import SynthesizeResult
 from app.services.graph_service import get_graph_service
+from app.services.purge_service import dataset_root
 
 # Service-module SynthesizeConfig — distinct from app.models.schemas.SynthesizeConfig
 # (which is the older API-layer DTO). Aliased on import so the dual-class
@@ -409,6 +410,7 @@ async def synthesize_dataset(
         service_result = await synthesizer.synthesize(
             agent_id=request.agent_id,
             config=config,
+            max_clearance=auth.clearance_level,
         )
 
         # ── Map service result → API SynthesizeResult ───────────────────
@@ -859,6 +861,14 @@ async def generate_agentic_dataset(
     )
 
 
+def _generated_at_clearance(path: Path) -> int:
+    """The clearance a dataset was generated with. Unreadable means highest."""
+    try:
+        return int(json.loads(path.with_suffix(".meta.json").read_text(encoding="utf-8"))["clearance"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return 5
+
+
 @router.get("/download/{dataset_id}")
 async def download_dataset(
     dataset_id: str,
@@ -874,11 +884,10 @@ async def download_dataset(
     if not re.fullmatch(r"[\w.-]+", dataset_id) or ".." in dataset_id:
         raise HTTPException(status_code=400, detail="Invalid dataset id.")
 
-    # Datasets are stored under /tmp/spaider_datasets/<agent_id>/<id>.jsonl.
-    dataset_dir = Path("/tmp/spaider_datasets")
     candidates = [
-        path for path in dataset_dir.glob(f"*/{dataset_id}*.jsonl")
-        if await can(auth, path.parent.name, Action.READ)
+        path for path in dataset_root().glob(f"*/{dataset_id}*.jsonl")
+        if _generated_at_clearance(path) <= auth.clearance_level
+        and await can(auth, path.parent.name, Action.READ)
     ]
 
     if not candidates:

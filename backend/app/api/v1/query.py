@@ -143,6 +143,7 @@ async def query_nl(
                 question=request.question,
                 agent_id=request.agent_id,
                 top_k=request.top_k,
+                max_clearance=auth.clearance_level,
             ),
             query_service.get_agent_interaction_memory(request.agent_id),
         )
@@ -160,6 +161,7 @@ async def query_nl(
                 question=request.question,
                 answer_summary=svc_result.answer or "",
                 source_node_ids=source_node_ids,
+                source_agent_ids=sorted({n.agent_id for n in svc_result.subgraph.nodes if n.agent_id}),
             )
 
         # Backend token usage from query_nl. Coerce to a plain dict-or-None
@@ -291,6 +293,7 @@ async def traverse(
             relation_filter=request.relation_filter,
             agent_id=scope_agent_id,
             as_of=request.as_of,
+            max_clearance=auth.clearance_level,
         )
         return subgraph
     except ValueError as exc:
@@ -326,6 +329,7 @@ async def stream_query(
                 question=request.question,
                 agent_id=request.agent_id,
                 top_k=request.top_k,
+                max_clearance=auth.clearance_level,
             ):
                 yield f"data: {token}\n\n"
         except Exception as exc:

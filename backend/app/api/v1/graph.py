@@ -9,7 +9,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.core.authz import Action, OrgAction, Principal, authorize, get_principal, require_org
+from app.core.authz import Action, OrgAction, Principal, accessible_kbs, authorize, get_principal, require_org
 from app.core.temporal import to_utc_iso
 from app.models.responses import GraphResponse
 from app.models.schemas import ClusterGraphPayload, GraphStats
@@ -77,7 +77,8 @@ async def get_graph(
     graph = _get_graph_service()
     try:
         payload = await graph.get_full_graph(
-            agent_id=agent_id, limit=limit, offset=offset, as_of=to_utc_iso(as_of)
+            agent_id=agent_id, limit=limit, offset=offset, as_of=to_utc_iso(as_of),
+            max_clearance=auth.clearance_level,
         )
         nodes = payload.nodes
         edges = payload.edges
@@ -142,7 +143,9 @@ async def get_multiverse_graph(
     await require_org(auth, OrgAction.ADMIN)
     graph = _get_graph_service()
     try:
-        payload = await graph.get_all_agents_graph(limit=limit)
+        payload = await graph.get_all_agents_graph(
+            limit=limit, agent_ids=await accessible_kbs(auth), max_clearance=auth.clearance_level
+        )
 
         serialized_nodes = [
             {
@@ -205,7 +208,9 @@ async def get_graph_clusters(
     await authorize(auth, agent_id, Action.READ)
     graph = _get_graph_service()
     try:
-        return await graph.get_graph_clusters(agent_id=agent_id, zoom_level=zoom_level)
+        return await graph.get_graph_clusters(
+            agent_id=agent_id, zoom_level=zoom_level, max_clearance=auth.clearance_level
+        )
     except Exception as exc:
         logger.exception("Error clustering graph for agent_id=%s: %s", agent_id, exc)
         raise HTTPException(status_code=500, detail=str(exc))
@@ -227,7 +232,7 @@ async def get_graph_stats(
     await authorize(auth, agent_id, Action.READ)
     graph = _get_graph_service()
     try:
-        stats = await graph.get_graph_stats(agent_id=agent_id)
+        stats = await graph.get_graph_stats(agent_id=agent_id, max_clearance=auth.clearance_level)
 
         node_count = stats["node_count"]
         edge_count = stats["edge_count"]
@@ -242,7 +247,7 @@ async def get_graph_stats(
         # Relation distribution is not returned by get_graph_stats (it only
         # returns relation *types*, not counts) — use get_schema to stay
         # memory-safe rather than loading all edges.
-        schema = await graph.get_schema(agent_id=agent_id)
+        schema = await graph.get_schema(agent_id=agent_id, max_clearance=auth.clearance_level)
         relation_distribution: dict[str, int] = {
             r: 0 for r in (schema.get("relation_types") or [])
         }

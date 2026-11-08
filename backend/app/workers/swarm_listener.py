@@ -49,6 +49,7 @@ these out to all connected browser clients in real-time:
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import json
 import logging
 import os
@@ -75,6 +76,8 @@ from app.services.redis_service import (
 )
 
 logger = logging.getLogger(__name__)
+
+_CURRENT_KB: contextvars.ContextVar[str | None] = contextvars.ContextVar("swarm_current_kb", default=None)
 
 # ---------------------------------------------------------------------------
 # Tuning constants — stream consumer
@@ -353,6 +356,8 @@ async def _process_message(
     node_id    = fields.get("node_id", "")
     agent_type = fields.get("agent_type", "")
     session_id = fields.get("session_id")   # None when field is absent
+    kb_id      = fields.get("kb_id")        # node ids are only unique per KB
+    _CURRENT_KB.set(kb_id)
 
     if not node_id or not agent_type:
         logger.warning(
@@ -369,6 +374,7 @@ async def _process_message(
         redis_client,
         event_type="routing",
         agent=agent_id,
+        kb_id=kb_id,
         message=f"Agent woke up. Evaluating context for node {node_id}...",
         node_id=node_id,
     )
@@ -393,6 +399,7 @@ async def _process_message(
         node_id=node_id,
         agent_id=_CONSUMER_NAME,
         lease_duration_sec=_LEASE_DURATION_SEC,
+        kb_id=kb_id,
     )
     if not claimed:
         logger.info(
@@ -405,6 +412,7 @@ async def _process_message(
             redis_client,
             event_type="error",
             agent=agent_id,
+            kb_id=kb_id,
             message="Lock denied or execution failed. Reason: lease held by another worker",
             node_id=node_id,
         )
@@ -416,6 +424,7 @@ async def _process_message(
         redis_client,
         event_type="lock",
         agent=agent_id,
+        kb_id=kb_id,
         message=f"Atomic lease secured. Claimed node {node_id}.",
         node_id=node_id,
     )
@@ -432,12 +441,13 @@ async def _process_message(
         await _dispatch(node_id, agent_type, context, graph_service)
 
         # 5. Clear Neo4j pheromone — raises on failure (no XACK if this fails)
-        await pheromone.clear_pheromone(node_id)
+        await pheromone.clear_pheromone(node_id, kb_id=kb_id)
 
         # 6. Release the lease — only this worker can release its own lock
         await graph_service.release_node_claim(
             node_id=node_id,
             agent_id=_CONSUMER_NAME,
+            kb_id=kb_id,
         )
 
         # ── TELEMETRY HOOK 3: Task complete ──────────────────────────────
@@ -447,6 +457,7 @@ async def _process_message(
             redis_client,
             event_type="success",
             agent=agent_id,
+            kb_id=kb_id,
             message="Task resolved. ACT-R energy boost triggered.",
             node_id=node_id,
         )
@@ -462,6 +473,7 @@ async def _process_message(
             redis_client,
             event_type="error",
             agent=agent_id,
+            kb_id=kb_id,
             message=f"Lock denied or execution failed. Reason: {exc}",
             node_id=node_id,
         )
@@ -689,7 +701,7 @@ async def _specialist_summariser(
     working_memory provides prior conversation turns so the summary stays
     coherent with the user's current line of inquiry.
     """
-    node = await graph_service.get_node_by_id(node_id)
+    node = await graph_service.get_node_by_id(node_id, agent_id=_CURRENT_KB.get())
     if node is None:
         logger.warning("SwarmListener | summariser: node=%s not found", node_id)
         return
@@ -708,7 +720,7 @@ async def _specialist_summariser(
         logger.warning("SwarmListener | summariser: empty summary for node=%s", node_id)
         return
 
-    await graph_service.set_node_description(node_id, summary)
+    await graph_service.set_node_description(node_id, summary, agent_id=_CURRENT_KB.get())
     logger.info(
         "SwarmListener | summariser: node=%s description updated (%d chars)",
         node_id, len(summary),
@@ -721,7 +733,7 @@ async def _specialist_classifier(
     graph_service: "GraphService",
 ) -> None:
     """Zero-shot classify a node into the NodeType vocabulary and update n.type."""
-    node = await graph_service.get_node_by_id(node_id)
+    node = await graph_service.get_node_by_id(node_id, agent_id=_CURRENT_KB.get())
     if node is None:
         logger.warning("SwarmListener | classifier: node=%s not found", node_id)
         return
@@ -744,7 +756,7 @@ async def _specialist_classifier(
         )
         return
 
-    await graph_service.set_node_type(node_id, predicted)
+    await graph_service.set_node_type(node_id, predicted, agent_id=_CURRENT_KB.get())
     logger.info("SwarmListener | classifier: node=%s type=%s", node_id, predicted)
 
 
@@ -760,7 +772,7 @@ async def _specialist_enricher(
     Entities are capped at 3 per run and constrained to the NodeType /
     RelationType vocabularies to keep the graph clean.
     """
-    node = await graph_service.get_node_by_id(node_id)
+    node = await graph_service.get_node_by_id(node_id, agent_id=_CURRENT_KB.get())
     if node is None:
         logger.warning("SwarmListener | enricher: node=%s not found", node_id)
         return

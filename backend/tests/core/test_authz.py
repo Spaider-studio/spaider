@@ -349,9 +349,10 @@ async def test_node_delete_needs_editor_on_the_owning_kb(auth_world):
         await session.run(
             "CREATE (:SpaiderNode {id: 'n1', agent_id: $a, label: 'L', type: 'CONCEPT'})", a=kb["id"]
         )
-    denied = await auth_world.client.delete("/api/v1/node/n1", headers=auth_world.headers(reader["api_key"]))
+    url = f"/api/v1/node/n1?agent_id={kb['id']}"
+    denied = await auth_world.client.delete(url, headers=auth_world.headers(reader["api_key"]))
     assert denied.status_code == 403
-    allowed = await auth_world.client.delete("/api/v1/node/n1", headers=auth_world.headers(editor["api_key"]))
+    allowed = await auth_world.client.delete(url, headers=auth_world.headers(editor["api_key"]))
     assert allowed.status_code == 200, allowed.text
     assert allowed.json()["audit_entry"]["agent_id"] == kb["id"]
     assert allowed.json()["audit_entry"]["node_label"] == "L"

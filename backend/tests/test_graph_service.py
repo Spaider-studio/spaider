@@ -317,6 +317,7 @@ async def test_initialize_auto_creates_on_empty_db():
         run_mock = AsyncMock(
             side_effect=[
                 *[generic_result] * len(FOUNDATION_SCHEMA),
+                generic_result, generic_result, generic_result,  # drop old id constraint, id and edge indexes
                 generic_result, generic_result, generic_result, generic_result,
                 generic_result, generic_result,
                 show_result, count_result, generic_result,
@@ -354,6 +355,7 @@ async def test_initialize_refuses_auto_create_on_populated_db():
         run_mock = AsyncMock(
             side_effect=[
                 *[generic_result] * len(FOUNDATION_SCHEMA),
+                generic_result, generic_result, generic_result,  # drop old id constraint, id and edge indexes
                 generic_result, generic_result, generic_result, generic_result,
                 generic_result, generic_result, generic_result,
                 show_result, count_result,
@@ -369,7 +371,7 @@ async def test_initialize_refuses_auto_create_on_populated_db():
 
     assert gs.vector_index_available is False
     # CREATE VECTOR INDEX must NOT have been called — only the 9 queries above.
-    assert run_mock.call_count == 9 + len(FOUNDATION_SCHEMA)
+    assert run_mock.call_count == 12 + len(FOUNDATION_SCHEMA)
 
 
 # ---------------------------------------------------------------------------

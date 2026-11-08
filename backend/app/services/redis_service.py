@@ -132,6 +132,7 @@ class PheromoneService:
     # Cypher: stamp the pheromone onto the node.
     _MARK_CYPHER = """
     MATCH (n:SpaiderNode {id: $node_id})
+    WHERE $kb_id IS NULL OR n.agent_id = $kb_id
     SET n.needs_agent = $agent_type
     """
 
@@ -139,6 +140,7 @@ class PheromoneService:
     # Also imported directly by swarm_listener without needing an instance.
     REMOVE_CYPHER = """
     MATCH (n:SpaiderNode {id: $node_id})
+    WHERE $kb_id IS NULL OR n.agent_id = $kb_id
     REMOVE n.needs_agent
     """
 
@@ -159,6 +161,7 @@ class PheromoneService:
         node_id: str,
         agent_type_needed: str,
         session_id: str | None = None,
+        kb_id: str | None = None,
     ) -> str | None:
         """
         Stamp a pheromone on a graph node and append an event to the stream.
@@ -196,7 +199,7 @@ class PheromoneService:
             async with self._driver.session() as session:
                 result = await session.run(
                     self._MARK_CYPHER,
-                    node_id=node_id,
+                    node_id=node_id, kb_id=kb_id,
                     agent_type=agent_type_needed,
                 )
                 summary = await result.consume()
@@ -226,6 +229,8 @@ class PheromoneService:
         }
         if session_id is not None:
             fields["session_id"] = session_id
+        if kb_id is not None:
+            fields["kb_id"] = kb_id
 
         try:
             entry_id = await self._redis.xadd(
@@ -255,7 +260,7 @@ class PheromoneService:
     # Pheromone removal (called by swarm_listener after successful work)
     # ------------------------------------------------------------------
 
-    async def clear_pheromone(self, node_id: str) -> None:
+    async def clear_pheromone(self, node_id: str, kb_id: str | None = None) -> None:
         """
         Remove the ``needs_agent`` pheromone from a node after processing.
 
@@ -267,7 +272,7 @@ class PheromoneService:
         """
         try:
             async with self._driver.session() as session:
-                await session.run(self.REMOVE_CYPHER, node_id=node_id)
+                await session.run(self.REMOVE_CYPHER, node_id=node_id, kb_id=kb_id)
             logger.debug(
                 "PheromoneService | pheromone cleared on node=%s", node_id
             )
