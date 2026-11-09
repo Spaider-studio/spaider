@@ -201,6 +201,7 @@ def run(
         err_console.print(f"  [red]✗[/] agent provisioning failed: {exc}")
         raise typer.Exit(code=1)
     console.print(f"  [green]✓[/] agent ready (id={agent_id})")
+    config_lib.save(agent_id=agent_id)
 
     if skip_mcp:
         console.print("\n[dim]Skipping MCP install (--skip-mcp).[/]")

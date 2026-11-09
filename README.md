@@ -1,294 +1,70 @@
-# SpAIder: Memory Infrastructure for AI Agents
+# SpAIder
 
 <p align="center">
-  <a href="https://github.com/Spaider-studio/spaider/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/Spaider-studio/spaider?style=flat&label=%E2%98%85"></a>
-  <a href="https://github.com/Spaider-studio/spaider/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Spaider-studio/spaider/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/Spaider-studio/spaider/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Spaider-studio/spaider/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="MCP-native" src="https://img.shields.io/badge/MCP-native-violet">
-  <img alt="Python" src="https://img.shields.io/badge/python-3.11%2B-blue">
-  <a href="benchmarks/reports/COMPARISON.md"><img alt="Benchmarks" src="https://img.shields.io/badge/benchmarks-public-green"></a>
+  <img alt="License: AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-blue">
 </p>
 
 <p align="center">
-  <img src="docs/images/multiverse.png" alt="SpAIder Neural Multiverse, every agent's knowledge graph rendered as a living galaxy" width="100%">
-  <br>
-  <sub><i>The Neural Multiverse. Each cluster is one agent's knowledge graph, entities and relations laid out live.</i></sub>
+  <img src="docs/images/multiverse.png" alt="SpAIder Studio showing each agent's knowledge graph" width="100%">
 </p>
 
-SpAIder gives every AI agent a persistent, queryable knowledge graph. Agents ingest unstructured text, SpAIder extracts structured knowledge, and answers are grounded in a live graph of entities and relationships rather than raw document retrieval. **MCP-native**: drop into Claude Code, Cursor, OpenCode, or any MCP client with one command. No SDK, no glue code. **100% open-source-capable**: every model step (LLM *and* embeddings) runs on local Ollama with no API key (see [Run fully local](#run-fully-local)).
+**Long-term memory for AI agents.** Your agents remember across sessions, and every answer cites where it came from. Open source, self-hosted, and works with any MCP client.
 
-<p align="center">
-  <b>97% accurate on data the model has never seen, at one flat cost that doesn't grow with your knowledge base.</b>
-</p>
+## Why SpAIder
 
-> **Phase 1 is self-hosted only.** Run your own instance via the Quickstart below; `spaider init` provisions an agent and issues your first API key. A managed hosted service is on the roadmap but not yet open for signup.
-
----
-
-## The 5 Pillars
-
-| Pillar | Description |
-|---|---|
-| **Ingest** | Stream raw text through Kafka; the SemanticCompressor (LLM) extracts nodes and edges |
-| **Resolve** | The EntityResolver deduplicates via embedding cosine similarity, so no redundant facts |
-| **Store** | Neo4j graph database with APOC; every node and edge is agent-namespaced |
-| **Query** | Semantic search retrieves the relevant subgraph; an LLM generates a grounded answer |
-| **Connect** | The ConnectorScheduler pulls from external sources (web, files, APIs) on a configurable schedule |
-
----
-
-## Memory tiers: how each agent remembers
-
-Human memory isn't one thing. A working memory keeps the current state and lets go of what it no longer needs; a long-term memory preserves the record. SpAIder gives every agent that same choice, as three independent switches on the agent card.
-
-<p align="center">
-  <img src="docs/images/memory-tiers.svg" alt="Two-tier memory per agent: an archive agent keeps the full history while a working agent supersedes stale facts" width="92%">
-</p>
-
-| | Synaptic Memory | Supersede updates | Hibernation |
-|---|---|---|---|
-| **Archive** (long-term) | off | Archive | off |
-| **Working** (short-term) | on | Working | daily / hourly |
-
-- **Synaptic Memory** reinforces the facts an agent actually uses and lets unused ones decay (Hebbian weights on the graph edges).
-- **Supersede updates** decides what happens on a contradiction. An *archive* agent keeps both "Idris was CEO" and "Priya is CEO", the full history. A *working* agent supersedes the stale fact, so retrieval returns only the current answer.
-- **Hibernation** consolidates the graph on a schedule (prune orphans, fuse duplicates), the way sleep consolidates memory.
-
-Same facts in, different memory out: ask *"who is the CEO?"* and the archive agent answers *"Idris Kane and Priya Nair"* while the working agent answers *"Priya Nair."*
-
-Supersession is validated on real data, not just toy cases: on 83 real business facts (mostly events like merges and reviews) it fires **zero** false updates, and on genuine functional updates it takes current-state answers from **0 to 100%** (95% CI excludes 0).
-
----
-
-## Benchmarks
-
-Benchmarked on **24 HotpotQA** multi-hop questions + a **16-question private corpus**, scored on EM / F1 / GEval (LLM-judge), **8 sweeps**, **95% CIs cluster-bootstrapped over the distinct questions** (not the graded rows), with an **independent gpt-4o judge**.
-
-### Accuracy: the value is the memory, not the model
-
-| Metric | HotpotQA (*public, the LLM memorized it*) | AcmeAI (*private, the LLM can't know it*) |
-|--------|---|---|
-| **GEval** (gpt-4o judge) | 0.43 → 0.77 (**+0.34**) ✅ | **0.00 → 0.97 (+0.97)** ✅ |
-| F1 | 0.09 → 0.70 (**+0.61**) ✅ | 0.00 → 0.78 (**+0.78**) ✅ |
-| Exact Match | 0.00 → 0.52 (**+0.52**) ✅ | 0.00 → 0.72 (**+0.72**) ✅ |
-
-*vanilla (gpt-4o-mini alone) → with-SpAIder. ✅ = lift's 95% CI excludes 0.*
-
-<sub>Re-validated against the current code (2026-06): across 6 fresh sweeps, F1 and Exact-Match reproduce within their 95% CIs, GEval reproduces for HotpotQA (0.72 [0.65, 0.79]), and AcmeAI GEval is corroborated by its 0.70 exact-match rate (a hard floor for GEval).</sub>
-
-On **private data the LLM has never seen**, the bare LLM scores **0.00 on every metric** and SpAIder lifts semantic correctness to **0.97**. That is the entire value of the memory. Even on public trivia the LLM already half-knows, grounding the answer in retrieved facts still lifts it markedly (0.43 → 0.77).
-
-<sub>**Head-to-head:** on identical corpora, questions and an independent gpt-4o judge, SpAIder is **statistically tied with Mem0 and Cognee** — every system-vs-system difference falls within its 95% CI — while all three beat a bare model by a wide margin on private data. Full reproducible table (3 corpora, both retrieval-isolated and native modes): [benchmarks/reports/COMPARISON_SYSTEMS.md](benchmarks/reports/COMPARISON_SYSTEMS.md).</sub>
-
-### Cost: flat as your knowledge base grows
-
-Getting from **0.00 to 0.97** means grounding the answer in your data. The brute-force way, pasting your entire knowledge base into every prompt (*context-stuffing*), reaches the same accuracy, but its cost grows with every fact you add and eventually hits a hard wall. SpAIder retrieves only the relevant slice, so it **matches that accuracy at a flat, corpus-independent cost**.
-
-<p align="center">
-  <img src="docs/images/token-scaling.png" alt="Cost per query vs private knowledge-base size: SpAIder stays flat while context-stuffing climbs into the GPT-4o token limit" width="88%">
-  <br>
-  <sub><i>Your data can be a library. SpAIder reads only the chapter that matters, and answers like it read everything.</i></sub>
-</p>
-
-- **SpAIder:** ~flat **$0.002 / query** at any corpus size (it sends a bounded retrieved slice, not the whole corpus).
-- **Context-stuffing:** cost climbs linearly, **crosses SpAIder at ~15k tokens** (roughly a 30-page document), and above **~30k tokens** the request is rejected outright by the model's token limits. SpAIder is unaffected.
-
-So on a private knowledge base of any real size, SpAIder is both **more accurate than the model alone** (0.97 vs 0.00) **and cheaper than stuffing the corpus**, and it keeps working where context-stuffing cannot.
-
-→ Full results: **[benchmarks/reports/COMPARISON.md](benchmarks/reports/COMPARISON.md)** · per-corpus [HotpotQA](benchmarks/reports/scorecard_hotpotqa.md) / [AcmeAI](benchmarks/reports/scorecard_acmeai.md) · token economics + methodology: **[docs/token-economics.md](docs/token-economics.md)** · reproduce with `make bench-scorecard`.
-
-### Continual learning: does it forget?
-
-Memory systems are sold on ingest and recall, but nobody reports what happens to *earlier* knowledge as *new* knowledge arrives. SpAIder ships a reproducible **continual-learning benchmark** that measures exactly that: ingest a task, then re-probe earlier tasks to quantify **forgetting** (accuracy lost on old knowledge) and **knowledge transfer** (whether earlier learning helps later tasks). To our knowledge, no other memory system publishes this.
-
-On the example sequences (invented private corpora the model cannot know), SpAIder retains **~89% of earlier-task accuracy** after learning new tasks, with **near-zero average forgetting**, and occasionally *positive* backward transfer (later learning reinforcing an earlier fact).
-
-- Run one: `python -m benchmarks.continual.sequence_runner --sequence benchmarks/continual/sequences/example_org_products.yaml`
-- A/B the synaptic engine against classic retrieval, per agent: `--memory-mode on|off`
-- Results render in the dashboard's **Continual learning** tab (accuracy matrix + forgetting/transfer).
-
-<sub>This is a measurement tool, not a leaderboard claim: on the current sequences the synaptic engine and classic retrieval score within noise of each other. The benchmark exists so that as the cognitive layer evolves, any real gain is provable rather than asserted.</sub>
-
----
-
-## Architecture
-
-```
-                          ┌─────────────────────────────────────────┐
-                          │              Kong Gateway :8080          │
-                          │   rate-limiting · CORS · routing         │
-                          └────────────────┬────────────────────────┘
-                                           │
-                          ┌────────────────▼────────────────────────┐
-                          │           FastAPI Backend :8000          │
-                          │  /ingest  /query  /graph  /synthesize   │
-                          │  /agents  /connectors  /swarm           │
-                          └──┬───────────────┬──────────────┬───────┘
-                             │               │              │
-               ┌─────────────▼──┐   ┌────────▼──────┐  ┌───▼────────┐
-               │  Kafka :9092   │   │  Neo4j :7687  │  │ Redis :6379│
-               │  spaider.ingest│   │  Graph Store  │  │  Cache /   │
-               │  .raw topic    │   │  + APOC + FTS │  │  Sessions  │
-               └────────┬───────┘   └───────────────┘  └────────────┘
-                        │
-               ┌────────▼───────────────────┐   ┌─────────────────────────────┐
-               │  backend-worker (x N)       │   │  PostgreSQL :5432           │
-               │  SemanticCompressor (LLM)   │   │  Connector state +          │
-               │  EntityResolver (embeddings)│   │  credentials (AES-256-GCM)  │
-               │  ConnectorScheduler         │   └─────────────────────────────┘
-               └─────────────────────────────┘   ┌─────────────────────────────┐
-                                                  │  Next.js Frontend :3000     │
-                                                  │  3D Force Graph (WebGL)     │
-                                                  └─────────────────────────────┘
-```
-
-ClickHouse (:8123) stores analytics and audit logs. See [docs/operations.md](docs/operations.md) for the full service table and scaling.
-
----
+- **It remembers what matters.** Text becomes a knowledge graph. Duplicates merge and outdated facts retire, with their history kept.
+- **Answers show their sources.** Every claim links back to the fact it came from.
+- **Fast when it has to be.** Writing and recalling take about 20 ms at 100,000 nodes with no LLM call, quick enough for robots.
+- **It learns from use.** Feedback and a nightly sleep cycle consolidate memory and improve what gets recalled.
+- **It stays yours.** Roles, clearance levels and approved sharing between knowledge bases. Run it fully local with Ollama.
 
 ## Quickstart
 
-```bash
-git clone https://github.com/Spaider-studio/spaider.git
-cd spaider
-pip install -e ./cli         # or pipx install ./cli (recommended)
-spaider init                 # interactive setup wizard
-```
-
-That's the whole flow. `spaider init` checks Docker, prompts for your LLM provider (OpenAI / Anthropic / Ollama) and validates the credentials (Ollama needs none), generates the JWT/connector/Neo4j secrets, writes `.env`, brings up `backend-api`, provisions a personal `dev-<USER>` agent, and writes `~/.claude/.mcp.json` + `~/.claude/skills/spaider.md` so Claude Code reflexively reaches for SpAIder. Restart Claude Code and you're done. (Re-running is safe: existing secrets are preserved.)
-
-Run `spaider doctor` any time for a read-only audit of the install.
-
-**Prefer prebuilt images?** Skip the source build — pull the published containers and run the stack:
+You need Docker and Python 3.11 or later.
 
 ```bash
 git clone https://github.com/Spaider-studio/spaider.git && cd spaider
-cp .env.example .env          # defaults to local Ollama (LLM + embeddings, no key)
-docker compose pull           # fetch ghcr.io/spaider-studio/spaider-* images
-docker compose up -d          # latest by default; pin with SPAIDER_VERSION=<x.y.z>
+pip install -e ./cli
+spaider init
 ```
 
-The default compose builds the app images from source (`docker compose up --build`); the lines above pull the prebuilt images from GHCR instead.
-
-### Wire it into your coding agent
-
-`spaider init` wires Claude Code automatically. For other MCP clients, one command writes the config (Streamable HTTP endpoint + your agent's bearer token):
+`spaider init` asks for your LLM provider (OpenAI, Anthropic or local Ollama), starts the stack, creates your first knowledge base and connects Claude Code. Then try it:
 
 ```bash
-spaider mcp install --for claude-code   # ~/.claude/.mcp.json  (default)
-spaider mcp install --for opencode      # ~/.config/opencode/opencode.json + AGENTS.md
-spaider mcp install --for cursor        # ./.cursorrules
+spaider ingest "Priya Nair is the CEO of Zephyr Robotics."
+spaider query "Who runs Zephyr Robotics?"
 ```
 
-All three point at the same backend (`http://localhost:8000/api/v1/mcp`); each agent then sees the `spaider.*` tools. `spaider doctor` reports which agents are wired up.
+Something off? Run `spaider doctor`. For other setups, see [installation](docs/installation.md).
 
-### Run fully local
-
-SpAIder is provider-agnostic end to end. **No model step is pinned to a proprietary API.** The shipped `.env.example` defaults to local [Ollama](https://ollama.com) for **both** the LLM and embeddings, so the whole stack runs offline with no API key:
+## Connect your agent
 
 ```bash
-ollama pull qwen3.5:9b           # LLM (or gemma4:e4b)
-ollama pull embeddinggemma:300m  # embeddings (768-dim)
-cp .env.example .env             # already defaults to the two models above
-docker compose up -d
+spaider mcp add cursor
 ```
 
-Pair it with [OpenCode](https://opencode.ai) (which also runs on Ollama) for a 100% self-hosted agent + memory stack. Switch any step to OpenAI/Anthropic by uncommenting the cloud block in `.env`. One caveat: `EMBEDDING_DIMENSIONS` must match your embedder (Ollama `embeddinggemma` = 768, OpenAI `text-embedding-3-small` = 1536) and be set **before the first ingest** (it sizes the Neo4j vector index). See [docs/opencode.md](docs/opencode.md) for the OpenCode walkthrough.
+Works with `claude-code`, `claude-desktop`, `cursor`, `windsurf`, `vscode`, `zed`, `opencode` and `codex`. Each client gets its own key, so you can revoke one without touching the others.
 
-<details>
-<summary><b>Manual install</b> (advanced)</summary>
+## What you get
 
-```bash
-git clone https://github.com/Spaider-studio/spaider.git
-cd spaider
-make setup                   # copies .env.example → .env
-```
-
-Edit `.env` and fill in your secrets:
-
-```bash
-LLM_API_KEY=sk-your-key-here
-NEO4J_PASSWORD=choose-a-strong-password
-SPAIDER_BOOTSTRAP_TOKEN=$(python -c "import secrets; print(secrets.token_hex(32))")
-CONNECTOR_SECRET_KEY=$(python -c "import secrets,base64; print(base64.b64encode(secrets.token_bytes(32)).decode())")
-```
-
-Bring up the stack and wire MCP by hand:
-
-```bash
-make dev          # development with hot reload   (make prod for production)
-scripts/dev/setup_mcp_dev_agent.sh
-# copy the printed JSON block into ~/.claude/.mcp.json under mcpServers
-```
-
-(`spaider init` does all of the above in one command.)
-
-</details>
-
----
-
-## Use SpAIder in Claude Code
-
-Once `spaider init` completes:
-
-1. Restart Claude Code so it picks up `~/.claude/.mcp.json` and the new `~/.claude/skills/spaider.md` skill.
-2. In a fresh session, ask Claude *"what do you remember about this project?"*. It should reach for `spaider.list_recent` and `spaider.query` on its own.
-3. Capture non-obvious learnings via `spaider.ingest_fact`. The skill file documents when each tool is appropriate, the feedback protocol (`spaider.feedback`), and how to fail gracefully when the backend is down.
-
-The skill file is the high-leverage half. Without it Claude Code sees `spaider.*` as just-another-tool; with it the LLM has explicit triggers for when to use each one. Source: [`cli/src/spaider_cli/skills/claude_code.md`](cli/src/spaider_cli/skills/claude_code.md), free to copy and adapt for other AI tools.
-
----
-
-## Python SDK
-
-```bash
-pip install spaider-client
-```
-
-```python
-from spaider import Spaider
-
-sp = Spaider(api_key="sk-...", agent_id="my-agent")
-sp.ingest("Max Mustermann arbeitet bei Google.")
-answer = sp.query("Wo arbeitet Max?")
-print(answer.text, answer.subgraph.nodes)
-
-# Fine-tuning dataset export
-sp.synthesize(strategy="reasoning", max_samples=1000).save("training.jsonl")
-```
-
-An async client (`AsyncSpaider`) and **LangChain** / **LlamaIndex** memory adapters ship in the same package. See [`sdk/python/README.md`](sdk/python/README.md) for full SDK documentation.
-
----
-
-## Documentation
-
-| Topic | |
+| | |
 |---|---|
-| **[API reference](docs/api.md)** | All REST endpoints, auth, connectors, MCP, swarm |
-| **[Operations](docs/operations.md)** | Docker services, scaling, embedding providers, graph maintenance |
-| **[Repository structure](docs/repository-structure.md)** | Project layout + `make` targets |
-| **[Developer guide](docs/developer-guide.md)** | Stigmergic swarm internals (Redis Streams) |
-| **[Training-data export](docs/finetuning-export.md)** | Export your graph as SFT/DPO fine-tuning data (UI, REST, CLI) |
-| **[Token economics](docs/token-economics.md)** | Is SpAIder cheaper than context-stuffing or a bare LLM? Measuring the grounding cost |
+| **Memory** | Knowledge graph, fast episodes, sleep cycle. [How it works](docs/architecture.md) |
+| **Studio** | Browse the graph, manage members and sharing at `localhost:3000`. Start it with `docker compose up -d` |
+| **Clients** | [Python](sdk/python/README.md), [TypeScript](sdk/typescript/README.md), [REST](docs/api.md), MCP and the [CLI](cli/README.md) |
+| **Robotics** | On-device memory with [spaider-edge](sdk/edge/README.md) and a [ROS 2 bridge](sdk/ros2/README.md) (tested with simulated ROS 2 only) |
+| **Fine-tuning** | Train on your own knowledge through OpenAI, Together or Tinker. [Details](docs/finetuning-export.md) |
 
----
+## Benchmarks
 
-## Contributing
+On private data a model can't already know (16 questions), `gpt-4o-mini` alone scores **0.00**. With SpAIder it scores **0.96** (95% CI 0.89 to 1.00, judged by `gpt-4o`, measured on 0.5.0). That is the value of memory in general: in earlier head-to-head tests, Mem0 and Cognee came out statistically tied with SpAIder.
 
-Fork, branch, make your changes, then `make test && make lint` (both must pass) and open a PR against `main`. All contributors sign a one-click CLA on their first PR (via [CLA Assistant](https://cla-assistant.io/)). See [CONTRIBUTING.md](CONTRIBUTING.md) for details and commit style.
+Methods and full results: [benchmarks](docs/benchmarks.md).
 
----
+## More
 
-## License
+[All documentation](docs/README.md) · [Upgrading to 0.5](docs/migrating-to-0.5.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
-SpAIder is split-licensed:
-
-- **Core**: the backend server and frontend are **GNU AGPL-3.0** ([LICENSE](LICENSE)). Self-host freely; if you run a modified version as a network service, the AGPL requires you to offer your modifications under the same license.
-- **Client tooling**: the CLI ([`cli/`](cli/LICENSE)) and Python SDK ([`sdk/python/`](sdk/python/LICENSE)) are **Apache-2.0**, so you can embed them in any application without copyleft obligations.
-- **Commercial license**: the AGPL's copyleft (publish the source of any modified network service you run) is a blocker for some organisations, e.g. embedding SpAIder in a closed-source product, or running a private modified instance without releasing the changes. A commercial license grants the right to use SpAIder under different terms. **You run your own deployment**; this licenses the software, it is not a hosted/managed service. Contact **contact@spaider.studio**.
-
-Contributions are accepted under the CLA, which is what lets us offer the commercial license above.
-
-## Security
-
-Security issues: please email **security@spaider.studio** rather than opening a public issue. See [SECURITY.md](SECURITY.md) for the full policy.
+Backend and Studio are AGPL-3.0, with a [commercial license](docs/licensing.md) available. The CLI and SDKs are Apache-2.0.

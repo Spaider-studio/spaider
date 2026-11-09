@@ -58,15 +58,15 @@ class SpaiderAdapter(MemorySystemAdapter):
                 "Run scripts/dev/setup_mcp_dev_agent.sh to provision one."
             )
         self._mcp_url = mcp_url or os.environ.get(
-            "SPAIDER_MCP_URL", "http://localhost:8001/api/v1/mcp/sse"
+            "SPAIDER_MCP_URL", "http://localhost:8000/api/v1/mcp/"
         )
 
     async def _call_query(self, question: str, top_k: int = 10) -> str:
         from mcp import ClientSession
-        from mcp.client.sse import sse_client
 
-        headers = {"Authorization": f"Bearer {self._api_key}"}
-        async with sse_client(self._mcp_url, headers=headers) as streams:
+        from benchmarks.mcp_connect import connect
+
+        async with connect(self._api_key, self._mcp_url) as streams:
             async with ClientSession(*streams) as session:
                 await session.initialize()
                 res = await session.call_tool(
