@@ -397,12 +397,21 @@ class SleepOrchestrator:
         return {"nodes": records[0]["nodes"], "edges": await decay_agent_edges(self._driver, agent_id)}
 
     async def _pass_archive(self, agent_id: str) -> dict:
+        """Retire only what is long idle, barely used and barely connected.
+
+        Energy alone is not enough. It halves in about a day, so it ranks recent
+        memories well but would archive most of a healthy graph within days.
+        A later write to an archived node makes it active again.
+        """
         records = await self._rows(
             """
             MATCH (n:SpaiderNode {agent_id: $kb})
             WHERE NOT n:SystemAgent AND coalesce(n.status, 'active') = 'active'
               AND coalesce(n.energy_level, 1.0) < $threshold
               AND NOT coalesce(n.type, '') IN $protected
+              AND n.last_activation < datetime($idle_since)
+              AND coalesce(n.retrieval_count, 0) <= 1
+              AND COUNT { (n)-[:RELATION]-() } <= 1
             SET n.status = 'archived', n.archived_at = $now
             RETURN count(n) AS archived
             """,
@@ -410,6 +419,7 @@ class SleepOrchestrator:
             threshold=settings.sleep_archive_energy,
             protected=PROTECTED_TYPES,
             now=_now().isoformat(),
+            idle_since=(_now() - timedelta(days=settings.sleep_archive_after_days)).isoformat(),
         )
         return {"archived": records[0]["archived"]}
 

@@ -333,6 +333,12 @@ class Migration:
         """One service account per KB, holding every key that KB had."""
         records = await self._redis_json("spaider:apikey:*")
         known = await self._known_kbs()
+        # In a dry run the Redis-only KBs have not been created yet.
+        for _, agent in await self._redis_json("spaider:agent:*"):
+            if agent.get("id"):
+                known.setdefault(
+                    agent["id"], {"id": agent["id"], "name": agent.get("name"), "c": agent.get("clearance_level", 1)}
+                )
         accounts: dict[str, dict] = {}
         keys, orphans = [], 0
         for redis_key, record in records:
@@ -437,9 +443,14 @@ class Migration:
         self._note("aliases", pending=pending, changed=changed)
 
     async def _redis_connections(self) -> None:
-        connections = [
+        known = await self._known_kbs()
+        found = [
             row for key, row in await self._redis_json("spaider:swarm:connection:*") if row.get("id")
             and key.count(":") == 3
+        ]
+        connections = [
+            row for row in found
+            if row.get("source_agent_id") in known and row.get("target_agent_id") in known
         ]
         rows = [
             {
@@ -458,7 +469,7 @@ class Migration:
             "UNWIND $ids AS id OPTIONAL MATCH (g:FederationGrant {id: id}) RETURN count(id) - count(g) AS missing",
             ids=[row["id"] for row in rows],
         )
-        self._note("swarm_connections", to_create=record["missing"])
+        self._note("swarm_connections", to_create=record["missing"], with_a_missing_kb=len(found) - len(connections))
         if not self._apply:
             return
         await self._run(

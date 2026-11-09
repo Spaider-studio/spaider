@@ -313,6 +313,7 @@ class Settings(BaseSettings):
     sleep_extract_min_age_seconds: int = Field(default=300, ge=0)
     sleep_contradictions_batch: int = Field(default=200, ge=1)
     sleep_archive_energy: float = Field(default=0.05, ge=0.0, le=1.0)
+    sleep_archive_after_days: int = Field(default=90, ge=1, description="Idle time before a node may be archived.")
     sleep_lessons_batch: int = Field(default=20, ge=1)
     sleep_skill_similarity: float = Field(default=0.5, ge=0.0, le=1.0)
     sleep_skill_min_support: int = Field(default=3, ge=2)

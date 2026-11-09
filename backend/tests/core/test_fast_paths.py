@@ -326,3 +326,35 @@ async def test_snapshot_needs_access_to_the_kb(auth_world):
     first, second = await auth_world.create_kb(), await auth_world.create_kb()
     response = await auth_world.client.get(f"/api/v1/agents/{first['id']}/snapshot", headers=auth_world.headers(second["api_key"]))
     assert response.status_code == 403
+
+
+# ── A small KB next to a busy one ─────────────────────────────────────────
+
+
+async def _crowd(world, kb_id, count=400):
+    async with world.driver.session() as session:
+        await session.run(
+            "UNWIND range(1, $n) AS i CREATE (:SpaiderNode {id: 'c' + i, agent_id: $kb, label: 'Gizmo Prime ' + i, type: 'CONCEPT'})",
+            n=count, kb=kb_id,
+        )
+
+
+async def test_recall_finds_a_small_kbs_nodes_next_to_a_busy_kb(auth_world):
+    busy, small = await auth_world.create_kb("busy"), await auth_world.create_kb("small")
+    await _crowd(auth_world, busy["id"])
+    await _seed(auth_world, small["id"], "mine", "Gizmo Prime")
+    results = await _recall(auth_world, small, query="Gizmo", limit=3)
+    assert [r["id"] for r in results] == ["mine"]
+
+
+async def test_resolver_finds_a_match_next_to_a_busy_kb(auth_world, resolver):
+    busy, small = await auth_world.create_kb("busy"), await auth_world.create_kb("small")
+    await _crowd(auth_world, busy["id"])
+    await _seed(auth_world, small["id"], "mine", "Gizmo Prime")
+    assert [n.id for n in (await _resolve(resolver, small["id"], "gizmo prime")).nodes] == ["mine"]
+
+
+async def test_a_kb_id_with_quotes_is_harmless(auth_world):
+    from app.core.fulltext import scoped
+
+    assert 'agent_id:"a\\"b"' in scoped("x", ['a"b'])

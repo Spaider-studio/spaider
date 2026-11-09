@@ -15,6 +15,7 @@ from typing import Optional
 from neo4j import AsyncDriver, AsyncGraphDatabase
 
 from app.config import settings
+from app.core.fulltext import scoped
 from app.core.schema import FOUNDATION_SCHEMA
 from app.core.temporal import edge_visible, node_visible, to_utc_iso
 from app.models.schemas import (
@@ -125,6 +126,7 @@ _NODE_WRITE_TAIL: str = """
     SET n.description = COALESCE(row.description, n.description)
     SET n.source_text = COALESCE(row.source_text, n.source_text)
     SET n.aliases_text = COALESCE(row.aliases_text, n.aliases_text)
+    SET n.status = CASE WHEN n.status = 'archived' THEN 'active' ELSE n.status END
     RETURN sum(was_created) AS created, sum(1 - was_created) AS merged
 """
 
@@ -379,7 +381,7 @@ class GraphService:
                 existing_fields = record["properties"] if record else None
                 if (
                     isinstance(existing_fields, (list, tuple))
-                    and "aliases_text" not in existing_fields
+                    and "agent_id" not in existing_fields
                 ):
                     await session.run("DROP INDEX spaider_label_fulltext IF EXISTS")
                     logger.info(
@@ -389,7 +391,7 @@ class GraphService:
                 logger.warning("Fulltext index definition check skipped: %s", exc)
             await session.run(
                 "CREATE FULLTEXT INDEX spaider_label_fulltext IF NOT EXISTS "
-                "FOR (n:SpaiderNode) ON EACH [n.label, n.description, n.source_text, n.aliases_text]"
+                "FOR (n:SpaiderNode) ON EACH [n.label, n.description, n.source_text, n.aliases_text, n.agent_id]"
             )
 
             # ── Vector index (requires Neo4j >= 5.11) ────────────────────
@@ -1064,7 +1066,11 @@ class GraphService:
         Uses the full-text index with fuzzy terms, so cost follows the batch and
         not the size of the graph. Facts are excluded: they never deduplicate.
         """
-        searches = [query for query in (self._fuzzy_query(label) for label in dict.fromkeys(labels)) if query]
+        searches = [
+            scoped(query, [agent_id])
+            for query in (self._fuzzy_query(label) for label in dict.fromkeys(labels))
+            if query
+        ]
         if not searches:
             return []
         async with self._driver.session() as session:

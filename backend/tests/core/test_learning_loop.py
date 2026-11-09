@@ -443,18 +443,37 @@ async def test_fusion_leaves_facts_alone(auth_world, orchestrator):
     assert report["passes"]["fusion"]["merged"] == 0
 
 
-async def test_decay_persists_and_archive_hides_unused_nodes(auth_world, orchestrator, monkeypatch):
+async def test_decay_persists_and_archive_takes_only_long_idle_unused_nodes(auth_world, orchestrator, monkeypatch):
     monkeypatch.setattr(settings, "cognitive_base_decay", 0.1)
+    monkeypatch.setattr(settings, "sleep_archive_after_days", 30)
     kb = await auth_world.create_kb()
     await _seed_node(auth_world, kb["id"], "old", created_at=_iso(60))
     await _seed_node(auth_world, kb["id"], "old-fact", created_at=_iso(60), type="FACT")
+    await _seed_node(auth_world, kb["id"], "old-used", created_at=_iso(60), retrieval_count=5)
+    await _seed_node(auth_world, kb["id"], "idle-a-week", created_at=_iso(7))
     await _seed_node(auth_world, kb["id"], "fresh")
+    await _seed_node(auth_world, kb["id"], "hub", created_at=_iso(60))
+    await _seed_node(auth_world, kb["id"], "x1")
+    await _seed_node(auth_world, kb["id"], "x2")
+    await _seed_edge(auth_world, kb["id"], "hub", "x1", "e1")
+    await _seed_edge(auth_world, kb["id"], "hub", "x2", "e2")
     await orchestrator.run(kb["id"], passes=("decay", "archive"))
     rows = await _rows(auth_world, "MATCH (n:SpaiderNode {agent_id: $kb}) RETURN n.id AS id, n.energy_level AS e, n.status AS s", kb=kb["id"])
     by_id = {row["id"]: row for row in rows}
     assert by_id["old"]["e"] < 0.05 and by_id["old"]["s"] == "archived"
-    assert by_id["old-fact"]["s"] is None
-    assert by_id["fresh"]["e"] > 0.9 and by_id["fresh"]["s"] is None
+    for kept in ("old-fact", "old-used", "idle-a-week", "fresh", "hub"):
+        assert by_id[kept]["s"] is None, kept
+    assert by_id["fresh"]["e"] > 0.9
+
+
+async def test_writing_to_an_archived_node_reactivates_it(auth_world):
+    from app.models.schemas import GraphPayload, Node
+
+    kb = await auth_world.create_kb()
+    await _seed_node(auth_world, kb["id"], "old", status="archived")
+    node = Node(id="old", label="old", type="CONCEPT", agent_id=kb["id"])
+    await get_graph_service().write_graph(GraphPayload(nodes=[node]), kb["id"])
+    assert await _rows(auth_world, "MATCH (n:SpaiderNode {id: 'old'}) RETURN n.status AS s") == [{"s": "active"}]
 
 
 async def test_decay_does_not_compound_across_runs(auth_world, orchestrator, monkeypatch):

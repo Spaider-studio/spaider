@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
+from app.core.fulltext import scoped
 from app.core.hashing import hash_embed
 from app.core.temporal import node_visible, to_utc_iso
 from app.services.episode_store import Location
@@ -147,7 +148,7 @@ class RecallService:
         async with self._driver.session() as session:
             result = await session.run(
                 cypher,
-                search=search,
+                search=scoped(search, [item["kb"] for item in allowed]),
                 k=max(query.limit * _OVERFETCH, 100),
                 fed_sources=allowed,
                 limit=query.limit,
