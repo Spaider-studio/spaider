@@ -160,7 +160,10 @@ def run(
     if skip_docker:
         console.print("\n[bold][5/6] Stack startup[/]  [dim](skipped via --skip-docker)[/]")
     else:
-        console.print("\n[bold][5/6] Building and starting the stack[/]  [dim](the first build takes several minutes)[/]")
+        console.print(
+            "\n[bold][5/6] Building and starting the stack[/]  "
+            "[dim](the first build takes several minutes)[/]"
+        )
         compose = docker_lib.compose_up(repo)
         if not compose.ok:
             err_console.print(
