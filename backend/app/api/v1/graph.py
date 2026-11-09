@@ -4,12 +4,16 @@ Graph API endpoints: retrieve graph data and statistics.
 from __future__ import annotations
 
 import logging
+from datetime import datetime
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.core.authz import Action, OrgAction, Principal, accessible_kbs, authorize, get_principal, require_org
+from app.core.temporal import to_utc_iso
 from app.models.responses import GraphResponse
 from app.models.schemas import ClusterGraphPayload, GraphStats
-from app.services.auth_service import _check_idor, _require_admin, verify_api_key
+from app.services.graph_service import get_graph_service
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +27,7 @@ _graph_service = None
 
 
 def _get_graph_service():
-    global _graph_service
-    if _graph_service is None:
-        from app.services.graph_service import GraphService
-        _graph_service = GraphService()
-    return _graph_service
+    return _graph_service or get_graph_service()
 
 
 # ---------------------------------------------------------------------------
@@ -49,7 +49,10 @@ async def get_graph(
         ),
     ),
     offset: int = Query(default=0, ge=0, description="Node offset for pagination"),
-    auth: dict = Depends(verify_api_key),
+    as_of: Optional[datetime] = Query(
+        default=None, description="Show the graph as it stood at this time."
+    ),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Return a coherent page of nodes and edges for an agent namespace.
@@ -70,10 +73,13 @@ async def get_graph(
     next-page URL without tracking state:
     ``GET /graph?agent_id=X&limit=500&offset=500``
     """
-    _check_idor(auth, agent_id)
+    await authorize(auth, agent_id, Action.READ)
     graph = _get_graph_service()
     try:
-        payload = await graph.get_full_graph(agent_id=agent_id, limit=limit, offset=offset)
+        payload = await graph.get_full_graph(
+            agent_id=agent_id, limit=limit, offset=offset, as_of=to_utc_iso(as_of),
+            max_clearance=auth.clearance_level,
+        )
         nodes = payload.nodes
         edges = payload.edges
 
@@ -124,7 +130,7 @@ async def get_graph(
 @router.get("/multiverse", response_model=GraphResponse)
 async def get_multiverse_graph(
     limit: int = Query(default=2000, ge=1, le=10000, description="Max nodes to return"),
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Return the full multiverse: every SystemAgent gravity-centre node,
@@ -134,10 +140,12 @@ async def get_multiverse_graph(
     **Auth:** admin-only — this is an inherently cross-namespace view of every
     agent's graph. Non-admins use ``GET /graph?agent_id=<self>`` instead.
     """
-    _require_admin(auth)
+    await require_org(auth, OrgAction.ADMIN)
     graph = _get_graph_service()
     try:
-        payload = await graph.get_all_agents_graph(limit=limit)
+        payload = await graph.get_all_agents_graph(
+            limit=limit, agent_ids=await accessible_kbs(auth), max_clearance=auth.clearance_level
+        )
 
         serialized_nodes = [
             {
@@ -187,7 +195,7 @@ async def get_graph_clusters(
             "sub-community refinement."
         ),
     ),
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Return a level-of-detail overview of the agent's graph.
@@ -197,10 +205,12 @@ async def get_graph_clusters(
     Designed for million-node scale — the payload stays bounded by the number
     of distinct node types, regardless of total graph size.
     """
-    _check_idor(auth, agent_id)
+    await authorize(auth, agent_id, Action.READ)
     graph = _get_graph_service()
     try:
-        return await graph.get_graph_clusters(agent_id=agent_id, zoom_level=zoom_level)
+        return await graph.get_graph_clusters(
+            agent_id=agent_id, zoom_level=zoom_level, max_clearance=auth.clearance_level
+        )
     except Exception as exc:
         logger.exception("Error clustering graph for agent_id=%s: %s", agent_id, exc)
         raise HTTPException(status_code=500, detail=str(exc))
@@ -209,7 +219,7 @@ async def get_graph_clusters(
 @router.get("/stats", response_model=GraphStats)
 async def get_graph_stats(
     agent_id: str = Query(default="default", description="Agent namespace"),
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Return aggregate statistics for the agent's graph:
@@ -219,10 +229,10 @@ async def get_graph_stats(
     materialising the full graph into Python memory — safe on graphs with
     millions of nodes.
     """
-    _check_idor(auth, agent_id)
+    await authorize(auth, agent_id, Action.READ)
     graph = _get_graph_service()
     try:
-        stats = await graph.get_graph_stats(agent_id=agent_id)
+        stats = await graph.get_graph_stats(agent_id=agent_id, max_clearance=auth.clearance_level)
 
         node_count = stats["node_count"]
         edge_count = stats["edge_count"]
@@ -237,7 +247,7 @@ async def get_graph_stats(
         # Relation distribution is not returned by get_graph_stats (it only
         # returns relation *types*, not counts) — use get_schema to stay
         # memory-safe rather than loading all edges.
-        schema = await graph.get_schema(agent_id=agent_id)
+        schema = await graph.get_schema(agent_id=agent_id, max_clearance=auth.clearance_level)
         relation_distribution: dict[str, int] = {
             r: 0 for r in (schema.get("relation_types") or [])
         }

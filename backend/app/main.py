@@ -17,11 +17,15 @@ from app.api.router import api_router
 from app.config import settings
 from app.logging_config import configure_logging
 from app.middleware.logging_middleware import RequestLoggingMiddleware
+from app.middleware.rate_limiter import RateLimiterMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.services.graph_service import VectorIndexUnavailableError
 
 configure_logging()
 
 logger = logging.getLogger(__name__)
+
+_DEFAULT_NEO4J_PASSWORD = "spaider-dev-2024"
 
 
 # ---------------------------------------------------------------------------
@@ -179,24 +183,18 @@ async def lifespan(app: FastAPI):
 
     # --- Startup ---
 
-    # 0. Auth posture banner. When API-key auth is disabled every REST route is
-    # open to anyone who can reach the port — fine for local single-tenant dev,
-    # dangerous on any shared or network-exposed deployment. Make the choice
-    # impossible to miss in the logs.
-    import os as _os
-    if _os.environ.get("REQUIRE_API_KEY_AUTH", "false").lower() != "true":
-        logger.warning(
-            "SECURITY: REQUIRE_API_KEY_AUTH is OFF — all API routes are "
-            "unauthenticated. Set REQUIRE_API_KEY_AUTH=true for any multi-tenant "
-            "or network-exposed deployment."
-        )
-    else:
-        logger.info("REQUIRE_API_KEY_AUTH is ON — REST routes require an API key.")
+    # 0. Refuse to run wide open in production; shout about it anywhere else.
+    if settings.spaider_insecure_dev:
+        if settings.environment == "production":
+            raise RuntimeError("SPAIDER_INSECURE_DEV cannot be used with ENVIRONMENT=production.")
+        logger.warning("SECURITY: SPAIDER_INSECURE_DEV is set; every request is an unauthenticated owner.")
+    if settings.environment != "development" and settings.neo4j_password == _DEFAULT_NEO4J_PASSWORD:
+        raise RuntimeError("Refusing to start: NEO4J_PASSWORD is still the default.")
 
     # 1. Neo4j
     try:
-        from app.services.graph_service import GraphService
-        _graph_service = GraphService()
+        from app.services.graph_service import get_graph_service
+        _graph_service = get_graph_service()
         await _graph_service.initialize()
         logger.info("Neo4j connected and initialised")
     except Exception as exc:
@@ -221,10 +219,10 @@ async def lifespan(app: FastAPI):
 
     # 2. Redis
     try:
-        import redis.asyncio as aioredis
-        _redis_client = aioredis.from_url(settings.redis_url, decode_responses=True)
+        from app.core.kv import get_kv, kv_is_external
+        _redis_client = get_kv()
         await _redis_client.ping()
-        logger.info("Redis connected at %s", settings.redis_url)
+        logger.info("Key-value store ready (%s)", "redis" if kv_is_external() else "in-process")
     except Exception as exc:
         logger.warning("Redis connection failed: %s", exc)
         _redis_client = None
@@ -238,26 +236,28 @@ async def lifespan(app: FastAPI):
             logger.warning("Redis Stream init failed (non-fatal): %s", exc)
 
     # 3. Kafka producer
-    try:
-        from app.services.kafka_producer import KafkaProducerService
-        _kafka_producer = KafkaProducerService()
-        await _kafka_producer.start()
-        logger.info("Kafka producer started")
-    except Exception as exc:
-        logger.warning("Kafka producer start failed (async ingest unavailable): %s", exc)
-        _kafka_producer = None
+    if settings.kafka_bootstrap_servers:
+        try:
+            from app.services.kafka_producer import KafkaProducerService
+            _kafka_producer = KafkaProducerService()
+            await _kafka_producer.start()
+            logger.info("Kafka producer started")
+        except Exception as exc:
+            logger.warning("Kafka producer start failed (async ingest unavailable): %s", exc)
+            _kafka_producer = None
 
     # 4. ClickHouse analytics
-    try:
-        from app.services.analytics_service import AnalyticsService
-        _analytics_service = AnalyticsService()
-        await _analytics_service.initialize()
-        # expose globally so routes can import it
-        import app.main as _self
-        _self._analytics_service = _analytics_service
-    except Exception as exc:
-        logger.warning("ClickHouse analytics init failed (non-fatal): %s", exc)
-        _analytics_service = None
+    if settings.clickhouse_host:
+        try:
+            from app.services.analytics_service import AnalyticsService
+            _analytics_service = AnalyticsService()
+            await _analytics_service.initialize()
+            # expose globally so routes can import it
+            import app.main as _self
+            _self._analytics_service = _analytics_service
+        except Exception as exc:
+            logger.warning("ClickHouse analytics init failed (non-fatal): %s", exc)
+            _analytics_service = None
 
     logger.info("%s started in %s mode", settings.app_name, settings.environment)
 
@@ -265,9 +265,9 @@ async def lifespan(app: FastAPI):
     try:
         from app.db.postgres import init_db
         await init_db()
-        logger.info("PostgreSQL connector tables ready")
+        logger.info("Connector tables ready")
     except Exception as exc:
-        logger.warning("PostgreSQL init failed (non-fatal): %s", exc)
+        logger.warning("Connector table init failed (non-fatal): %s", exc)
 
     # 5. Connector scheduler — polls connector configs every 5 min for
     #    SQL/URL ingest dispatch (non-blocking). NOT memory consolidation —
@@ -366,12 +366,12 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning("Replay service stop error: %s", exc)
 
-    if _redis_client is not None:
-        try:
-            await _redis_client.aclose()
-            logger.info("Redis connection closed")
-        except Exception as exc:
-            logger.warning("Redis close error: %s", exc)
+    from app.core.jobs import drain_background, get_job_queue
+    from app.core.kv import close_kv
+
+    await get_job_queue().stop()
+    await drain_background()
+    await close_kv()
 
     if _graph_service is not None:
         try:
@@ -395,7 +395,7 @@ app = FastAPI(
         "Ingest unstructured text, build a persistent knowledge graph, query it in natural language, "
         "and synthesise fine-tuning datasets for downstream models."
     ),
-    version="0.4.0",
+    version="0.5.0",
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
@@ -419,6 +419,9 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Request-ID"],
 )
+
+app.add_middleware(RateLimiterMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Outermost middleware — wraps CORS so every request (including OPTIONS
 # preflights and auth failures) gets a request_id header + structured log.
@@ -466,7 +469,7 @@ async def health() -> dict[str, Any]:
     """
     status: dict[str, Any] = {
         "app": settings.app_name,
-        "version": "0.4.0",
+        "version": "0.5.0",
         "environment": settings.environment,
         "services": {},
     }

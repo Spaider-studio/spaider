@@ -107,7 +107,9 @@ async def _seed(facts: list[dict[str, str]], concurrency: int) -> int:
     multiplexing race.
     """
     from mcp import ClientSession
-    from mcp.client.sse import sse_client
+
+    from benchmarks.mcp_connect import connect
+    from benchmarks.mcp_connect import mcp_url as default_mcp_url
 
     api_key = os.environ.get("SPAIDER_API_KEY")
     if not api_key:
@@ -117,9 +119,7 @@ async def _seed(facts: list[dict[str, str]], concurrency: int) -> int:
             file=sys.stderr,
         )
         return 2
-    mcp_url = os.environ.get(
-        "SPAIDER_MCP_URL", "http://localhost:8001/api/v1/mcp/sse",
-    )
+    mcp_url = default_mcp_url()
 
     total = len(facts)
     # Print every 10 completions for small seeds, every ~1% for big ones —
@@ -138,13 +138,12 @@ async def _seed(facts: list[dict[str, str]], concurrency: int) -> int:
 
     done = 0
     failed = 0
-    headers = {"Authorization": f"Bearer {api_key}"}
 
     async def _worker(worker_id: int) -> None:
         """Open one MCP session and drain the queue. Each call_tool runs on
         this worker's own SSE stream — no cross-worker multiplexing."""
         nonlocal done, failed
-        async with sse_client(mcp_url, headers=headers) as streams:
+        async with connect(api_key, mcp_url) as streams:
             async with ClientSession(*streams) as session:
                 await session.initialize()
                 while True:

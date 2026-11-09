@@ -19,7 +19,7 @@ services:
     plugins:
       - name: rate-limiting
         config:
-          minute: 60
+          minute: 3000
           policy: local
           fault_tolerant: true
           hide_client_headers: false
@@ -35,6 +35,7 @@ services:
             - OPTIONS
           headers:
             - Authorization
+            - X-Api-Key
             - Content-Type
           exposed_headers:
             - X-Auth-Token

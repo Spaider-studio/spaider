@@ -31,7 +31,7 @@ async def test_summariser_writes_description():
     graph.get_node_by_id = AsyncMock(return_value=_node(description="A long body of source text."))
     with patch.object(sl, "_llm_complete", AsyncMock(return_value="A concise summary.")):
         await sl._specialist_summariser("n1", [], graph)
-    graph.set_node_description.assert_awaited_once_with("n1", "A concise summary.")
+    graph.set_node_description.assert_awaited_once_with("n1", "A concise summary.", agent_id=None)
 
 
 @pytest.mark.asyncio
@@ -62,7 +62,7 @@ async def test_classifier_sets_valid_type():
     graph.get_node_by_id = AsyncMock(return_value=_node(label="Marie Curie"))
     with patch.object(sl, "_llm_complete", AsyncMock(return_value="person")):
         await sl._specialist_classifier("n1", [], graph)
-    graph.set_node_type.assert_awaited_once_with("n1", "PERSON")
+    graph.set_node_type.assert_awaited_once_with("n1", "PERSON", agent_id=None)
 
 
 @pytest.mark.asyncio

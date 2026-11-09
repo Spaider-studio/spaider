@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.config import settings
-from app.services.auth_service import _require_admin, verify_api_key
+from app.core.authz import OrgAction, Principal, get_principal, require_org
 
 logger = logging.getLogger(__name__)
 
@@ -45,10 +45,9 @@ class ReflectionToggle(BaseModel):
 
 
 def _get_driver():
-    """Return the Neo4j async driver from the shared GraphService singleton."""
-    from app.services.graph_service import GraphService
-    svc = GraphService()
-    return svc._driver
+    from app.services.graph_service import get_graph_service
+
+    return get_graph_service()._driver
 
 
 # ---------------------------------------------------------------------------
@@ -119,7 +118,7 @@ async def _read_settings() -> SystemSettingsResponse:
 
 @router.get("/settings", response_model=SystemSettingsResponse)
 async def get_system_settings(
-    auth: dict = Depends(verify_api_key),  # noqa: ARG001 — authentication only
+    auth: Principal = Depends(get_principal),  # noqa: ARG001 — authentication only
 ):
     """
     Read the global system settings from Neo4j.
@@ -141,7 +140,7 @@ async def get_system_settings(
 @router.post("/settings/reflection", response_model=SystemSettingsResponse)
 async def set_reflection_toggle(
     body: ReflectionToggle,
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Enable or disable the autonomous Reflection Engine (Hippocampus).
@@ -152,7 +151,7 @@ async def set_reflection_toggle(
 
     **Auth:** admin-only — this is global, fleet-wide configuration.
     """
-    _require_admin(auth)
+    await require_org(auth, OrgAction.ADMIN)
     driver = _get_driver()
     try:
         async with driver.session() as session:
@@ -200,7 +199,7 @@ class ConsolidateResponse(BaseModel):
 @router.post("/consolidate", response_model=ConsolidateResponse)
 async def trigger_consolidate(
     body: Optional[ConsolidateRequest] = None,
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """Trigger the graph_maintenance Airflow DAG immediately, off its
     normal schedule. Useful right after a heavy ingest, or when the
@@ -220,7 +219,7 @@ async def trigger_consolidate(
     auth schemes (Kerberos, JWT) would need a separate adapter.
     **Auth:** admin-only — triggers fleet-wide graph maintenance.
     """
-    _require_admin(auth)
+    await require_org(auth, OrgAction.ADMIN)
     if not settings.airflow_base_url:
         raise HTTPException(
             status_code=503,

@@ -13,7 +13,8 @@ class Settings(BaseSettings):
     neo4j_password: str = "spaider-dev-2024"
 
     # Kafka
-    kafka_bootstrap_servers: str = "localhost:9092"
+    # Empty disables Kafka; async ingest then uses the in-process job queue.
+    kafka_bootstrap_servers: str = ""
     kafka_topic_ingest: str = "spaider.ingest.raw"
     kafka_topic_dlq: str = "spaider.ingest.dlq"
     kafka_consumer_group: str = "spaider-compressor-workers"
@@ -22,7 +23,8 @@ class Settings(BaseSettings):
     kafka_replay_consumer_group: str = "spaider-replay-readers"
 
     # Redis
-    redis_url: str = "redis://localhost:6379/0"
+    # Empty selects the in-process store (see app/core/kv.py).
+    redis_url: str = ""
 
     # LLM (via LiteLLM)
     llm_provider: str = "openai"
@@ -60,12 +62,18 @@ class Settings(BaseSettings):
     )
 
     # Auth
-    jwt_secret: str = "change-me-in-production"
-    jwt_algorithm: str = "HS256"
-    jwt_expiration_hours: int = 24
+    # Disables authentication entirely. Refused when ENVIRONMENT=production.
+    spaider_insecure_dev: bool = False
+    # Enables POST /auth/bootstrap until the first organization exists.
+    spaider_bootstrap_token: str = ""
+    # Lets connectors reach private addresses and local databases.
+    spaider_allow_private_net: bool = False
+    # Comma-separated exact commands the MCP connector may spawn. Empty disables stdio.
+    mcp_stdio_allowed_commands: str = ""
 
     # ClickHouse
-    clickhouse_host: str = "localhost"
+    # Empty disables ClickHouse; audit events then go to Neo4j.
+    clickhouse_host: str = ""
     clickhouse_port: int = 8123
     clickhouse_database: str = "spaider"
     clickhouse_user: str = "default"
@@ -74,7 +82,10 @@ class Settings(BaseSettings):
     # PostgreSQL (connector state & secrets store)
     # Scheme MUST be postgresql+asyncpg:// — the sync psycopg2 scheme will
     # deadlock inside an asyncio event loop.
-    postgres_url: str = "postgresql+asyncpg://spaider:spaider@localhost:5432/spaider"
+    # Empty stores connector state in SQLite under data_dir.
+    postgres_url: str = ""
+    # Local persistent files (SQLite state, generated artifacts).
+    data_dir: str = "data"
 
     # Connector secret encryption key — 32-byte value base64-encoded.
     # Used as the Key Encryption Key (KEK) for envelope-encrypting connector
@@ -83,7 +94,7 @@ class Settings(BaseSettings):
     connector_secret_key: str = ""
 
     # Rate Limiting
-    rate_limit_requests_per_minute: int = 60
+    rate_limit_requests_per_minute: int = 600
 
     # LiteLLM call retry — exponential backoff on transient provider
     # errors (RateLimitError, APIConnectionError, Timeout, 5xx). Without
@@ -291,6 +302,28 @@ class Settings(BaseSettings):
         default=10,
         description="Max prior facts considered as supersession candidates per new edge.",
     )
+    llm_fast_model: str = Field(default="", description="Cheaper model for routing and background work.")
+    finetune_openai_api_key: str = ""
+    finetune_together_api_key: str = ""
+    finetune_tinker_api_key: str = ""
+    finetune_tinker_base_url: str = "https://api.thinkingmachines.ai/v1"
+    query_deadline_seconds: float = Field(default=90.0, gt=0, description="A query that runs longer returns 504.")
+    sleep_lease_ttl_seconds: int = Field(default=120, ge=1)
+    sleep_extract_batch: int = Field(default=50, ge=1)
+    sleep_extract_min_age_seconds: int = Field(default=300, ge=0)
+    sleep_contradictions_batch: int = Field(default=200, ge=1)
+    sleep_archive_energy: float = Field(default=0.05, ge=0.0, le=1.0)
+    sleep_archive_after_days: int = Field(default=90, ge=1, description="Idle time before a node may be archived.")
+    sleep_lessons_batch: int = Field(default=20, ge=1)
+    sleep_skill_similarity: float = Field(default=0.5, ge=0.0, le=1.0)
+    sleep_skill_min_support: int = Field(default=3, ge=2)
+    sleep_compact_after_days: int = Field(default=7, ge=0)
+    sleep_compact_min_group: int = Field(default=5, ge=2)
+    ranker_min_examples: int = Field(default=20, ge=2)
+    supersession_max_concurrency: int = Field(
+        default=8,
+        description="Max simultaneous supersession LLM calls for one ingest.",
+    )
     supersession_judge_model: str = Field(
         default="",
         description="Model for the supersession judge; empty = use litellm_model. A "
@@ -359,9 +392,16 @@ class Settings(BaseSettings):
     model_config = {"env_file": ".env", "populate_by_name": True, "extra": "ignore"}
 
     @property
+    def litellm_fast_model(self) -> str:
+        return self._with_provider(self.llm_fast_model) if self.llm_fast_model.strip() else self.litellm_model
+
+    @property
     def litellm_model(self) -> str:
+        return self._with_provider(self.llm_model)
+
+    def _with_provider(self, model_name: str) -> str:
         """Return model with provider prefix for LiteLLM when missing."""
-        model = (self.llm_model or "").strip()
+        model = (model_name or "").strip()
         if not model:
             return model
         if "/" in model:

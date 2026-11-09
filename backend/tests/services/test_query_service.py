@@ -100,7 +100,7 @@ def _patch_engine_and_swarm(monkeypatch):
     async def _clearance(self, agent_id):
         return 5  # admin — no clearance filtering
 
-    async def _swarm(self, target_agent_id, query, agent_clearance=1, top_k=None):
+    async def _swarm(self, target_agent_id, query, agent_clearance=1, top_k=None, **kwargs):
         return "Swarm context text.", ["agent-1"]
 
     monkeypatch.setattr(QueryService, "_get_memory_mode", _memory_off)
@@ -235,6 +235,7 @@ class TestIterativePath:
 
         # search_nodes called exactly once — only for the re-query
         mock_graph.search_nodes.assert_awaited_once_with(
+            max_clearance=5,
             query="Acme Corp founding year revenue",
             agent_id="agent-1",
             limit=8,  # _DEFAULT_TOP_K

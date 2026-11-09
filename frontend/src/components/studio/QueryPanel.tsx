@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@/lib/auth";
 import { useState, useRef } from "react";
 import { Search, AlertCircle, X, Zap, ThumbsUp, ThumbsDown, Brain } from "lucide-react";
 import { useGraph } from "@/hooks/useGraph";
@@ -59,6 +60,8 @@ export default function QueryPanel() {
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [topKIndex, setTopKIndex] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
+  const [queryId, setQueryId] = useState<string | null>(null);
+  const [citations, setCitations] = useState<{ ref: string; label: string }[]>([]);
   const { agentId, clearHighlights, highlightedIds } = useGraph();
   const { memoryMode } = useMemoryMode();
   const isV2 = memoryMode === "on";
@@ -71,6 +74,8 @@ export default function QueryPanel() {
     setAnswer("");
     setFromCache(false);
     setV2Result(null);
+    setQueryId(null);
+    setCitations([]);
     setFeedback(null);
     setFeedbackSent(false);
 
@@ -81,6 +86,8 @@ export default function QueryPanel() {
       try {
         const res = await queryNL(question, agentId ?? "", topK);
         setAnswer(res.answer);
+        setQueryId(res.query_id ?? null);
+        setCitations(res.citations ?? []);
         setV2Result({
           nodes: res.subgraph.nodes,
           edges: res.subgraph.edges,
@@ -97,7 +104,7 @@ export default function QueryPanel() {
     // V1: streaming
     abortRef.current = new AbortController();
     try {
-      const res = await fetch(`${BASE_URL}/query/stream`, {
+      const res = await authFetch(`${BASE_URL}/query/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question, agent_id: agentId, top_k: topK }),
@@ -121,6 +128,12 @@ export default function QueryPanel() {
         const lines = buffer.split("\n\n");
         buffer = lines.pop() ?? "";
         for (const line of lines) {
+          if (line.startsWith("event: meta")) {
+            const meta = JSON.parse(line.split("data: ")[1] ?? "{}");
+            setQueryId(meta.query_id ?? null);
+            setCitations(meta.citations ?? []);
+            continue;
+          }
           if (!line.startsWith("data: ")) continue;
           const token = line.slice(6);
           if (token === "[DONE]") break;
@@ -137,15 +150,16 @@ export default function QueryPanel() {
   }
 
   async function submitFeedback(success: boolean) {
-    if (!v2Result || feedbackSent || v2Result.nodeIds.length === 0) return;
+    if (feedbackSent || (!queryId && (!v2Result || v2Result.nodeIds.length === 0))) return;
     setFeedback(success ? "up" : "down");
     try {
-      await fetch(`${BASE_URL}/system/feedback`, {
+      await authFetch(`${BASE_URL}/system/feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          query_id: crypto.randomUUID(),
-          used_node_ids: v2Result.nodeIds,
+          query_id: queryId ?? crypto.randomUUID(),
+          used_node_ids: queryId ? [] : v2Result?.nodeIds ?? [],
+          agent_id: agentId,
           success,
         }),
       });
@@ -291,6 +305,34 @@ export default function QueryPanel() {
               <span className="inline-block w-1.5 h-4 bg-accent-blue ml-0.5 animate-pulse align-middle" />
             )}
           </div>
+
+          {!loading && citations.length > 0 && (
+            <ul className="flex flex-wrap gap-1.5 text-[10px] text-zinc-400">
+              {citations.map((citation) => (
+                <li key={citation.ref} className="rounded bg-white/5 px-1.5 py-0.5">
+                  [{citation.ref}] {citation.label}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {!isV2 && !loading && queryId && (
+            <div className="flex items-center gap-2 text-[10px] text-zinc-400">
+              {feedbackSent ? (
+                <span>Thanks, feedback saved.</span>
+              ) : (
+                <>
+                  <span>Was this right?</span>
+                  <button onClick={() => submitFeedback(true)} className="rounded bg-white/5 px-2 py-0.5">
+                    Yes
+                  </button>
+                  <button onClick={() => submitFeedback(false)} className="rounded bg-white/5 px-2 py-0.5">
+                    No
+                  </button>
+                </>
+              )}
+            </div>
+          )}
 
           {/* ── V2 Synapse Strength Panel ── */}
           {isV2 && !loading && topNodes.length > 0 && (

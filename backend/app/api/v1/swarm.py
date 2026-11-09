@@ -17,27 +17,30 @@ import logging
 # CLEARANCE_DEFAULT_DENY=true, else 1 (public, legacy). Read once at
 # module load — the env flag is process-lifetime stable.
 import os as _os
+import time
 import uuid
-from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
-import app.services.auth_service as _auth
 from app.config import settings
-from app.lib.litellm_retry import acompletion_with_retry
-from app.models.requests import SwarmConnectionRequest, SwarmQueryRequest
-from app.models.responses import APIResponse, SwarmConnectionResponse, SwarmQueryResponse
-from app.models.schemas import SwarmConnection
-from app.services.auth_service import (
-    AuthService,
-    _check_idor,
-    _is_admin,
-    _require_admin,
-    scoped_agent_id,
-    verify_api_key,
+from app.core.authz import (
+    Action,
+    OrgAction,
+    Principal,
+    accessible_kbs,
+    authorize,
+    get_principal,
+    require_org,
+    resolve_kb,
 )
+from app.core.kv import get_kv
+from app.core.tickets import redeem_ticket
+from app.lib.litellm_retry import acompletion_with_retry
+from app.models.requests import SwarmQueryRequest
+from app.models.responses import SwarmQueryResponse
+from app.services.graph_service import get_graph_service
 from app.services.redis_service import subscribe_to_swarm_logs
 
 _CLEARANCE_DEFAULT_VALUE: int = (
@@ -93,29 +96,12 @@ _embedding_service = None
 async def _get_redis():
     global _redis_client
     if _redis_client is None:
-        import redis.asyncio as aioredis
-        _redis_client = aioredis.from_url(settings.redis_url, decode_responses=True)
+        _redis_client = get_kv()
     return _redis_client
 
 
 def _get_graph():
-    global _graph_service
-    if _graph_service is None:
-        # Reuse main.py's already-initialized singleton so the vector index is
-        # ready (vector_index_available=True). Without this, query_nl's
-        # vector_search guard trips — the old node-only path masked it by calling
-        # db.index.vector.queryNodes directly. Mirrors query.py's accessor.
-        try:
-            import app.main as _main
-            svc = getattr(_main, "_graph_service", None)
-            if svc is not None:
-                _graph_service = svc
-                return _graph_service
-        except Exception:
-            pass
-        from app.services.graph_service import GraphService
-        _graph_service = GraphService()
-    return _graph_service
+    return _graph_service or get_graph_service()
 
 
 def _get_embedding():
@@ -129,46 +115,6 @@ def _get_embedding():
 # ---------------------------------------------------------------------------
 # Connection helpers (Redis-backed)
 # ---------------------------------------------------------------------------
-
-
-async def _save_connection(conn: SwarmConnection) -> None:
-    redis = await _get_redis()
-    key = CONNECTION_KEY.format(id=conn.id)
-    await redis.set(key, conn.model_dump_json())
-    await redis.sadd(CONNECTION_INDEX_KEY, conn.id)
-    await redis.sadd(AGENT_CONNECTIONS_KEY.format(agent_id=conn.source_agent_id), conn.id)
-    await redis.sadd(AGENT_CONNECTIONS_KEY.format(agent_id=conn.target_agent_id), conn.id)
-
-
-async def _load_connection(conn_id: str) -> Optional[SwarmConnection]:
-    redis = await _get_redis()
-    raw = await redis.get(CONNECTION_KEY.format(id=conn_id))
-    if raw is None:
-        return None
-    return SwarmConnection(**json.loads(raw))
-
-
-async def _delete_connection(conn_id: str) -> bool:
-    conn = await _load_connection(conn_id)
-    if conn is None:
-        return False
-    redis = await _get_redis()
-    await redis.delete(CONNECTION_KEY.format(id=conn_id))
-    await redis.srem(CONNECTION_INDEX_KEY, conn_id)
-    await redis.srem(AGENT_CONNECTIONS_KEY.format(agent_id=conn.source_agent_id), conn_id)
-    await redis.srem(AGENT_CONNECTIONS_KEY.format(agent_id=conn.target_agent_id), conn_id)
-    return True
-
-
-async def _get_connections_for_agent(agent_id: str) -> list[SwarmConnection]:
-    redis = await _get_redis()
-    conn_ids = await redis.smembers(AGENT_CONNECTIONS_KEY.format(agent_id=agent_id))
-    connections: list[SwarmConnection] = []
-    for cid in conn_ids:
-        conn = await _load_connection(cid)
-        if conn:
-            connections.append(conn)
-    return connections
 
 
 # ---------------------------------------------------------------------------
@@ -391,131 +337,16 @@ async def _synthesize_with_llm(query: str, context: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-@router.post("/connections", response_model=SwarmConnectionResponse, status_code=201)
-async def create_connection(
-    request: SwarmConnectionRequest,
-    auth: dict = Depends(verify_api_key),
-):
-    """
-    Establish a swarm connection granting one agent access to another agent's graph.
-
-    Permissions:
-    - read_only: target can query source's graph but not modify it
-    - read_write: target can read and write to source's graph
-
-    Scope:
-    - full: all node/edge types
-    - filtered: restricted to allowed_node_types / allowed_relation_types
-
-    **Auth:** X-Api-Key required when REQUIRE_API_KEY_AUTH=true. The
-    authenticated agent must be the source of the connection — only
-    the data-owner can grant access to its own graph. IDOR guard
-    enforces ``auth.agent_id == request.source_agent_id``.
-    """
-    _check_idor(auth, request.source_agent_id)
-    if request.source_agent_id == request.target_agent_id:
-        raise HTTPException(status_code=400, detail="An agent cannot connect to itself.")
-
-    conn = SwarmConnection(
-        id=str(uuid.uuid4()),
-        source_agent_id=request.source_agent_id,
-        target_agent_id=request.target_agent_id,
-        permission=request.permission,
-        scope=request.scope,
-        allowed_node_types=request.allowed_node_types,
-        allowed_relation_types=request.allowed_relation_types,
-        created_at=datetime.now(timezone.utc),
-    )
-
-    try:
-        await _save_connection(conn)
-    except Exception as exc:
-        logger.exception("Failed to create swarm connection: %s", exc)
-        raise HTTPException(status_code=500, detail=str(exc))
-
-    logger.info(
-        "Swarm connection %s created: %s -> %s (%s)",
-        conn.id,
-        conn.source_agent_id,
-        conn.target_agent_id,
-        conn.permission,
-    )
-    return SwarmConnectionResponse(success=True, connection=conn)
-
-
-@router.get("/connections")
-async def list_connections(
-    agent_id: str = Query(..., description="Agent ID to list connections for"),
-    auth: dict = Depends(verify_api_key),
-):
-    """List all swarm connections for a given agent (as source or target).
-
-    **Auth:** Caller must be the agent whose connections are being listed
-    (IDOR guard). When the auth flag is off, behavior is unchanged.
-    """
-    _check_idor(auth, agent_id)
-    try:
-        connections = await _get_connections_for_agent(agent_id)
-        return {
-            "connections": [c.model_dump(mode="json") for c in connections],
-            "total": len(connections),
-        }
-    except Exception as exc:
-        logger.exception("Error listing connections for agent %s: %s", agent_id, exc)
-        raise HTTPException(status_code=500, detail=str(exc))
-
-
-@router.delete("/connections/{connection_id}", response_model=APIResponse)
-async def revoke_connection(
-    connection_id: str,
-    auth: dict = Depends(verify_api_key),
-):
-    """Revoke (delete) a swarm connection by ID.
-
-    **Auth:** requires a valid key. A non-admin caller may only revoke a
-    connection it participates in (as source or target); an admin may revoke
-    any. This closes the previous IDOR where any authenticated caller could
-    revoke any connection by id.
-    """
-    conn = await _load_connection(connection_id)
-    if conn is None:
-        raise HTTPException(status_code=404, detail=f"Connection '{connection_id}' not found")
-
-    # Ownership: caller must be a participant (source or target) unless admin.
-    scope = scoped_agent_id(auth)
-    if scope is not None and scope not in (conn.source_agent_id, conn.target_agent_id):
-        raise HTTPException(
-            status_code=403,
-            detail=f"Authenticated agent '{scope}' is not a participant in this connection.",
-        )
-
-    try:
-        deleted = await _delete_connection(connection_id)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
-
-    if not deleted:
-        raise HTTPException(status_code=404, detail=f"Connection '{connection_id}' not found")
-
-    logger.info("Swarm connection %s revoked", connection_id)
-    return APIResponse(success=True, message=f"Connection '{connection_id}' revoked.")
-
-
-# ---------------------------------------------------------------------------
-# Route — Swarm Intelligence Query
-# ---------------------------------------------------------------------------
-
-
 _NO_FACTS_MSG = (
-    "Im Multiversum wurden keine relevanten Fakten für diese Frage gefunden. "
-    "Bitte stelle sicher, dass Agenten Wissen ingested haben."
+    "No relevant facts were found for this question. "
+    "Make sure the knowledge bases have ingested data."
 )
 
 
 @router.post("/query", response_model=SwarmQueryResponse)
 async def swarm_query(
     request: SwarmQueryRequest,
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Swarm Intelligence: federated multi-agent query with LLM synthesis.
@@ -530,47 +361,27 @@ async def swarm_query(
       * No ``agent_ids`` → broad **multiverse scan**: a single cross-agent
         vector search (breadth over depth, no per-agent agentic loop).
 
-    **Auth & access control (Fort Knox Patch):**
-    When ``REQUIRE_API_KEY_AUTH=true``:
-      - X-Api-Key required
-      - ``request.agent_ids=None`` (legacy "query all") is RESTRICTED to
-        the caller's own agent_id only — closes the global cross-tenant
-        search hole documented in SWARM_SECURITY_MANIFEST.md §1.4.
-      - Any explicit ``agent_ids`` must contain only the caller's own
-        agent_id. Cross-agent federation via ``:SwarmConnection`` /
-        ``SHARES_KNOWLEDGE_WITH`` is Phase 2 work (manifest §3).
-      - Clearance filter is applied to every retrieved node using the
-        caller's clearance level (resolved from the authenticated
-        agent record).
-
-    When the flag is off, behavior is unchanged for backwards compat.
+    Requires read access to every KB queried. Omitting ``agent_ids`` queries
+    the caller's default KB. Retrieved nodes are limited to the caller's
+    clearance level.
     """
-    # --- Auth-aware scope resolution ---------------------------------
-    auth_agent_id: Optional[str] = (
-        None if auth.get("auth_bypassed") else auth.get("agent_id")
-    )
-    requested_agent_ids = request.agent_ids if request.agent_ids else None
+    # Omitting agent_ids means the caller's default KB or, for a key without
+    # one, the KBs it can read. Never "everything".
+    scan_scope: Optional[list[str]] = None
+    # Insecure dev keeps the broad multiverse scan.
+    if request.agent_ids:
+        requested_agent_ids = list(request.agent_ids)
+    elif auth.default_kb or auth.insecure:
+        default_kb = resolve_kb(auth, None)
+        requested_agent_ids = [default_kb] if default_kb else None
+    else:
+        requested_agent_ids = None
+        scan_scope = await accessible_kbs(auth)
+    for kb in requested_agent_ids or []:
+        await authorize(auth, kb, Action.READ)
+    auth_agent_id = requested_agent_ids[0] if requested_agent_ids else None
 
-    if auth_agent_id is not None:
-        # Default empty → caller only. Closes the global-search hole.
-        if requested_agent_ids is None:
-            requested_agent_ids = [auth_agent_id]
-        else:
-            # Phase 1 strict mode: caller can only query themselves.
-            illegal = [aid for aid in requested_agent_ids if aid != auth_agent_id]
-            if illegal:
-                raise HTTPException(
-                    status_code=403,
-                    detail=(
-                        f"Authenticated agent '{auth_agent_id}' cannot query "
-                        f"agents {illegal}. Cross-agent federation is "
-                        "Phase 2 work."
-                    ),
-                )
-
-    # Resolve caller's clearance level. Falls back to 1 (legacy public)
-    # when auth is bypassed OR when the auth record lacks clearance_level.
-    agent_clearance: int = int(auth.get("clearance_level") or 1)
+    agent_clearance: int = auth.clearance_level
     agent_ids = requested_agent_ids
 
     # Dispatch on the RESOLVED scope (not raw request.agent_ids) so the
@@ -595,9 +406,9 @@ async def swarm_query(
     )
     try:
         if agent_ids:
-            resp = await _federated_deep_query(query, agent_ids)
+            resp = await _federated_deep_query(query, agent_ids, max_clearance=agent_clearance)
         else:
-            resp = await _broad_vector_scan(query, agent_clearance=agent_clearance)
+            resp = await _broad_vector_scan(query, agent_clearance=agent_clearance, scope=scan_scope)
     except Exception:
         _fire_replay_event(
             workflow_id, obs_agent_id, "query_failed",
@@ -627,7 +438,7 @@ async def swarm_query(
         {
             "question_length": len(query),
             "answer_length": len(resp.answer or ""),
-            "answer": (resp.answer or "")[:2000],
+            "answer": (resp.answer or "")[:2000] if auth.clearance_level <= 1 else None,
             "nodes_in_result": len(resp.source_node_ids),
             "edges_in_result": 0,
             "latency_ms": round(latency_ms, 2),
@@ -638,7 +449,9 @@ async def swarm_query(
     return resp
 
 
-async def _federated_deep_query(query: str, agent_ids: list[str]) -> SwarmQueryResponse:
+async def _federated_deep_query(
+    query: str, agent_ids: list[str], max_clearance: Optional[int] = None
+) -> SwarmQueryResponse:
     """Federate across explicit agents by reusing the graph-aware single-agent
     pipeline per agent, then synthesising one answer from the grounded results.
 
@@ -655,7 +468,9 @@ async def _federated_deep_query(query: str, agent_ids: list[str]) -> SwarmQueryR
             # Decompose: a federated question often spans agents, so each agent
             # must retrieve on its own sub-entities (the global default stays off
             # for single-agent queries / benchmarks).
-            return aid, await qs.query_nl(question=query, agent_id=aid, decompose=True)
+            return aid, await qs.query_nl(
+                question=query, agent_id=aid, decompose=True, max_clearance=max_clearance
+            )
         except Exception as exc:
             logger.warning("swarm federated: query_nl failed for agent %s: %s", aid, exc)
             return aid, None
@@ -671,7 +486,7 @@ async def _federated_deep_query(query: str, agent_ids: list[str]) -> SwarmQueryR
 
     # Each per-agent answer is already grounded in that agent's full graph;
     # synthesise a single attributed answer over them.
-    context = "\n".join(f"[Agent: {aid}] Antwort: {res.answer}" for aid, res in grounded)
+    context = "\n".join(f"[Agent: {aid}] Answer: {res.answer}" for aid, res in grounded)
     try:
         answer = await _synthesize_with_llm(query, context)
     except Exception as exc:
@@ -691,18 +506,24 @@ async def _federated_deep_query(query: str, agent_ids: list[str]) -> SwarmQueryR
     )
 
 
-async def _broad_vector_scan(query: str, agent_clearance: int = 1) -> SwarmQueryResponse:
+async def _broad_vector_scan(
+    query: str, agent_clearance: int = 1, scope: Optional[list[str]] = None
+) -> SwarmQueryResponse:
     """Cross-agent vector scan over the whole multiverse (no agent filter).
 
     Only reached when auth is bypassed (flag off) or the caller resolved to no
     explicit scope; clearance still gates which nodes are visible.
     """
+    # An empty scope must not fall through to the unfiltered search below.
+    if scope is not None and not scope:
+        return SwarmQueryResponse(answer=_NO_FACTS_MSG, source_node_ids=[], agents_involved=[])
+
     records: list[dict] = []
     try:
         embedding_svc = _get_embedding()
         q_embedding = await embedding_svc.embed(query)
         records = await _vector_search_multi_agent(
-            q_embedding, None, top_k=20, agent_clearance=agent_clearance,
+            q_embedding, scope, top_k=20, agent_clearance=agent_clearance,
         )
         logger.info("Swarm vector search returned %d records", len(records))
     except Exception as exc:
@@ -712,7 +533,7 @@ async def _broad_vector_scan(query: str, agent_clearance: int = 1) -> SwarmQuery
     if len(records) < 5:
         try:
             text_records = await _text_search_multi_agent(
-                query, None, limit=20, agent_clearance=agent_clearance,
+                query, scope, limit=20, agent_clearance=agent_clearance,
             )
             # Merge, deduplicate by node_id
             existing_ids = {r["node_id"] for r in records}
@@ -761,11 +582,11 @@ _HEARTBEAT_S = 15.0
 
 
 @router.get("/health", summary="Live worker presence — Swarm Pulse")
-async def swarm_health(auth: dict = Depends(verify_api_key)):
+async def swarm_health(auth: Principal = Depends(get_principal)):
     """
     Aggregate all live swarm worker heartbeats into a single health snapshot.
 
-    **Auth:** admin-only when ``REQUIRE_API_KEY_AUTH=true`` — fleet-wide worker
+    **Auth:** org admin only — fleet-wide worker
     presence is operational information, not per-agent data.
 
     Discovery mechanism
@@ -797,7 +618,7 @@ async def swarm_health(auth: dict = Depends(verify_api_key)):
 
     An empty ``active_agents`` list means no workers are currently running.
     """
-    _require_admin(auth)
+    await require_org(auth, OrgAction.ADMIN)
     redis = await _get_redis()
 
     active_agents: list[str] = []
@@ -832,40 +653,44 @@ async def swarm_health(auth: dict = Depends(verify_api_key)):
 # ---------------------------------------------------------------------------
 
 
-async def _authorize_admin_token(token: Optional[str]) -> bool:
-    """Admin authorization for an SSE stream via a ``?token=`` query param.
+_FEED_ACCESS_REFRESH_S = 30.0
 
-    EventSource clients cannot set request headers, so the admin key is passed
-    as a query parameter. Returns True when auth is disabled, or the token is a
-    valid admin key. Any other case is denied.
+
+def _event_visible(raw_json: str, principal: Principal, allowed: Optional[set[str]]) -> bool:
+    """Whether a live-log event may be shown to this caller.
+
+    Events name the KB they concern. Worker-level events with no KB describe the
+    whole deployment and go to org admins only.
     """
-    if not _auth._REQUIRE_API_KEY_AUTH:
+    if allowed is None:
         return True
-    if not token:
-        return False
     try:
-        record = await AuthService().get_agent_by_api_key(token)
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("Swarm SSE auth lookup failed: %s", exc)
+        kb_id = json.loads(raw_json).get("kb_id")
+    except (json.JSONDecodeError, AttributeError):
         return False
-    return bool(record) and _is_admin(record)
+    return kb_id in allowed if kb_id else principal.is_org_admin
 
 
-@router.get(
+# EventSource cannot send headers, so this route sits outside the key check on
+# the rest of the router and is guarded by its single-use ticket instead.
+events_router = APIRouter()
+
+
+@events_router.get(
     "/events/stream",
     summary="Swarm Live-Log — Server-Sent Events",
     response_class=StreamingResponse,
 )
 async def swarm_events_stream(
     request: Request,
-    token: Optional[str] = Query(default=None),
+    ticket: Optional[str] = Query(default=None),
 ) -> StreamingResponse:
     """
     Stream live swarm worker activity as Server-Sent Events (SSE).
 
-    **Auth:** admin-only when ``REQUIRE_API_KEY_AUTH=true`` (fleet-wide activity
+    **Auth:** org admin only (fleet-wide activity
     feed). Because EventSource cannot send headers, pass the admin key as
-    ``?token=sk-...``.
+    ``?ticket=`` from ``POST /auth/ticket``.
 
     Architecture
     ------------
@@ -935,11 +760,9 @@ async def swarm_events_stream(
             "session_id":"<optional>"
         }
     """
-    if not await _authorize_admin_token(token):
-        raise HTTPException(
-            status_code=403,
-            detail="Swarm live-log requires an admin API key (pass ?token=sk-...).",
-        )
+    principal = await redeem_ticket(ticket)
+    if principal is None:
+        raise HTTPException(status_code=401, detail="A valid ticket from POST /auth/ticket is required.")
     redis = await _get_redis()
 
     def _heartbeat_frame(message: str) -> str:
@@ -989,6 +812,10 @@ async def swarm_events_stream(
             return
 
         agen = subscribe_to_swarm_logs(redis)
+        # Re-read periodically so a revoked role also stops an open stream.
+        allowed = await accessible_kbs(principal)
+        allowed = None if allowed is None else set(allowed)
+        allowed_at = time.monotonic()
         # One persistent read task that SURVIVES heartbeat timeouts. We race it
         # against the heartbeat interval with asyncio.wait (which leaves the task
         # PENDING on timeout) rather than asyncio.wait_for (which CANCELS it).
@@ -1017,6 +844,14 @@ async def swarm_events_stream(
                     raw_json = read_task.result()
                 except StopAsyncIteration:
                     break
+
+                if time.monotonic() - allowed_at > _FEED_ACCESS_REFRESH_S:
+                    refreshed = await accessible_kbs(principal)
+                    allowed = None if refreshed is None else set(refreshed)
+                    allowed_at = time.monotonic()
+                if not _event_visible(raw_json, principal, allowed):
+                    read_task = asyncio.ensure_future(agen.__anext__())
+                    continue
 
                 # ── SSE frame (W3C format) ─────────────────────────────────
                 # The raw_json string already contains no trailing newlines

@@ -38,6 +38,7 @@ accordingly to stay within Postgres ``max_connections``).
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import AsyncIterator
 
 from sqlalchemy.ext.asyncio import (
@@ -98,18 +99,26 @@ def get_engine() -> AsyncEngine:
     """
     global _engine
     if _engine is None:
-        _engine = create_async_engine(
-            settings.postgres_url,
-            pool_pre_ping=True,
-            pool_size=10,
-            max_overflow=20,
-            echo=settings.debug,
-        )
-        logger.info(
-            "PostgreSQL async engine created (url=%s)",
-            # Redact password in logs
-            settings.postgres_url.split("@")[-1] if "@" in settings.postgres_url else settings.postgres_url,
-        )
+        if settings.postgres_url:
+            _engine = create_async_engine(
+                settings.postgres_url,
+                pool_pre_ping=True,
+                pool_size=10,
+                max_overflow=20,
+                echo=settings.debug,
+            )
+            logger.info(
+                "PostgreSQL async engine created (url=%s)",
+                # Redact password in logs
+                settings.postgres_url.split("@")[-1],
+            )
+        else:
+            data_dir = Path(settings.data_dir)
+            data_dir.mkdir(parents=True, exist_ok=True)
+            _engine = create_async_engine(
+                f"sqlite+aiosqlite:///{data_dir / 'connectors.db'}", echo=settings.debug
+            )
+            logger.info("Connector state stored in SQLite under %s", data_dir)
     return _engine
 
 

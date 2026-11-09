@@ -193,8 +193,8 @@ export default function AgentCard({ agent, onDelete, onRotate }: Props) {
 
             {/* Per-agent memory behaviour: synaptic memory + supersession */}
             <div className="mt-3 pt-3 border-t border-[#2A2A35]/60 flex flex-col gap-2">
-              <MemoryModeToggle agentId={agent.id} />
-              <SupersessionToggle agentId={agent.id} />
+              <MemoryModeToggle agentId={agent.id} initial={agent.memory_mode} />
+              <SupersessionToggle agentId={agent.id} initial={agent.supersede} />
             </div>
           </div>
         </div>

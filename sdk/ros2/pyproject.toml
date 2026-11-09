@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spaider-ros2"
+version = "0.1.0"
+description = "ROS 2 bridge that stores topics as SpAIder memory"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.9"
+authors = [{ name = "Spaider Studio" }]
+keywords = ["ros2", "robotics", "memory"]
+# rclpy comes from the ROS 2 installation and cannot be installed from PyPI.
+dependencies = ["spaider-edge>=0.1.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+spaider-ros2-bridge = "spaider_ros2.bridge:main"
+
+[tool.setuptools.packages.find]
+include = ["spaider_ros2*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

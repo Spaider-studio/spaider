@@ -8,19 +8,19 @@ from typing import Any, Optional
 
 import httpx
 
+from ._api import MemoryApi
 from .exceptions import AuthError, NotFoundError, RateLimitError, ServerError, SpaiderError
 from .models import (
     GraphPayload,
     IngestResult,
     Node,
     QueryResult,
-    SwarmConnection,
     SwarmQueryResult,
     SynthesisDataset,
 )
 
 
-class Spaider:
+class Spaider(MemoryApi):
     """
     Spaider Memory Infrastructure Client (synchronous).
 
@@ -51,7 +51,6 @@ class Spaider:
         dataset.save("training.jsonl")
 
         # Swarm: connect to another agent's graph
-        conn = sp.create_swarm_connection(target_agent="agent_sales")
 
         # Query across multiple agents
         result = sp.swarm_query("What are our top clients?", target_agents=["agent_sales"])
@@ -263,39 +262,6 @@ class Spaider:
             },
         )
         return SynthesisDataset(**data)
-
-    def create_swarm_connection(
-        self,
-        target_agent: str,
-        *,
-        permission: str = "read_only",
-        scope: str = "full",
-    ) -> SwarmConnection:
-        """
-        Create a swarm connection from the current agent to *target_agent*.
-
-        This allows :meth:`swarm_query` to reach into *target_agent*'s graph.
-
-        Args:
-            target_agent: ID of the target agent to connect to.
-            permission: ``read_only`` (default) or ``read_write``.
-            scope: ``full`` (default) or ``filtered``.
-
-        Returns:
-            :class:`SwarmConnection` describing the new connection.
-        """
-        data = self._request(
-            "POST",
-            "/api/v1/swarm/connections",
-            json={
-                "source_agent_id": self.agent_id,
-                "target_agent_id": target_agent,
-                "permission": permission,
-                "scope": scope,
-            },
-        )
-        # Response envelope is {success, connection: {...}}.
-        return SwarmConnection(**data["connection"])
 
     def swarm_query(
         self,

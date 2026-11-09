@@ -4,35 +4,26 @@ Query API endpoints: natural-language queries, direct Cypher, and graph traversa
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
-import re
 import uuid
+from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
+from app.config import settings
+from app.core.authz import Action, OrgAction, Principal, authorize, get_principal, require_org, resolve_kb
+from app.core.cypher_guard import CypherRejected, check_cypher
 from app.models.requests import CypherQueryRequest, QueryRequest, TraverseRequest
 from app.models.schemas import GraphPayload, QueryResult
-from app.services.auth_service import _check_idor, _require_admin, verify_api_key
+from app.services.graph_service import get_graph_service
+from app.services.learning import node_clearance
+from app.services.query_service import QueryDeadlineExceeded
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-# ---------------------------------------------------------------------------
-# Blocked Cypher write keywords (READ-ONLY enforcement)
-# ---------------------------------------------------------------------------
-
-# Reject writes AND every procedure call. Keyword blocklists are inherently
-# leaky for Cypher (APOC exposes writes via procedures whose names contain no
-# write keyword, e.g. apoc.create.*, apoc.cypher.doIt), so we block CALL
-# outright rather than trying to enumerate dangerous procedures. The read
-# transaction in QueryService.query_cypher is the real backstop; this pattern
-# gives a clear 403 instead of a database error for the common cases.
-_WRITE_PATTERN = re.compile(
-    r"\b(CREATE|MERGE|DELETE|DETACH\s+DELETE|SET|REMOVE|DROP|FOREACH|CALL|LOAD\s+CSV)\b",
-    re.IGNORECASE,
-)
 
 # ---------------------------------------------------------------------------
 # Lazy singletons
@@ -42,29 +33,23 @@ _query_service = None
 _graph_service = None
 
 
+def _str_or_none(value) -> Optional[str]:
+    return value if isinstance(value, str) else None
+
+
 def _get_graph_service():
-    global _graph_service
-    if _graph_service is None:
-        # Reuse main.py's already-initialized singleton (vector index ready).
-        try:
-            import app.main as _main
-            svc = getattr(_main, "_graph_service", None)
-            if svc is not None:
-                _graph_service = svc
-                return _graph_service
-        except Exception:
-            pass
-        from app.services.graph_service import GraphService
-        _graph_service = GraphService()
-    return _graph_service
+    return _graph_service or get_graph_service()
 
 
 def _get_query_service():
     global _query_service
-    if _query_service is None:
+    from app.services.query_service import QueryService
+
+    graph = _get_graph_service()
+    # Rebuilt if the graph service was replaced; injected test doubles are kept.
+    if _query_service is None or (isinstance(_query_service, QueryService) and _query_service._graph is not graph):
         try:
-            from app.services.query_service import QueryService
-            _query_service = QueryService(graph_service=_get_graph_service())
+            _query_service = QueryService(graph_service=graph)
         except Exception as exc:
             logger.warning("QueryService init failed: %s", exc)
             _query_service = None
@@ -129,23 +114,20 @@ def _fire_replay_event(
 async def query_nl(
     request: QueryRequest,
     background_tasks: BackgroundTasks,
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Natural-language query over the knowledge graph.
     Translates the question to Cypher using an LLM, executes it, and synthesises
     a human-readable answer with supporting subgraph context.
 
-    **Auth:** Requires a valid API key via ``X-Api-Key`` header (or
-    ``Authorization: Bearer``) when ``REQUIRE_API_KEY_AUTH=true``. The
-    authenticated agent_id must match ``request.agent_id`` (IDOR guard).
-    When the flag is off, both checks are bypassed for backwards compat.
+    **Auth:** requires read access to ``request.agent_id``.
 
     **Episodic Memory:** When the agent has ``interaction_memory=True``, the
     query/response pair is recorded asynchronously as an ``InteractionNode``
     in Neo4j (fire-and-forget via BackgroundTasks — zero added latency).
     """
-    _check_idor(auth, request.agent_id)
+    await authorize(auth, request.agent_id, Action.READ)
     query_service = _get_query_service()
     if query_service is None:
         raise HTTPException(status_code=503, detail="QueryService unavailable")
@@ -169,6 +151,7 @@ async def query_nl(
                 question=request.question,
                 agent_id=request.agent_id,
                 top_k=request.top_k,
+                max_clearance=auth.clearance_level,
             ),
             query_service.get_agent_interaction_memory(request.agent_id),
         )
@@ -186,6 +169,7 @@ async def query_nl(
                 question=request.question,
                 answer_summary=svc_result.answer or "",
                 source_node_ids=source_node_ids,
+                source_agent_ids=sorted({n.agent_id for n in svc_result.subgraph.nodes if n.agent_id}),
             )
 
         # Backend token usage from query_nl. Coerce to a plain dict-or-None
@@ -221,7 +205,10 @@ async def query_nl(
             {
                 "question_length": len(request.question),
                 "answer_length": len(svc_result.answer or ""),
-                "answer": (svc_result.answer or "")[:2000],
+                # An auditor's clearance is not checked, so only public answers are kept.
+                "answer": (svc_result.answer or "")[:2000]
+                if all(node_clearance(n) <= 1 for n in svc_result.subgraph.nodes)
+                else None,
                 "nodes_in_result": len(svc_result.subgraph.nodes),
                 "edges_in_result": len(svc_result.subgraph.edges),
                 "latency_ms": round(latency_ms, 2),
@@ -231,6 +218,8 @@ async def query_nl(
         return QueryResult(
             question=svc_result.question,
             answer=svc_result.answer,
+            query_id=_str_or_none(getattr(svc_result, "query_id", None)),
+            citations=svc_result.citations if isinstance(getattr(svc_result, "citations", None), list) else [],
             subgraph=svc_result.subgraph,
             cypher_used=svc_result.cypher,
             iterations_used=getattr(svc_result, "iterations_used", 1),
@@ -239,6 +228,8 @@ async def query_nl(
             verifier_feedback=getattr(svc_result, "verifier_feedback", None),
             token_usage=token_usage,
         )
+    except QueryDeadlineExceeded:
+        raise HTTPException(status_code=504, detail="The query exceeded its time limit.")
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     except Exception as exc:
@@ -249,36 +240,29 @@ async def query_nl(
 @router.post("/cypher", response_model=list[dict])
 async def query_cypher(
     request: CypherQueryRequest,
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Execute a raw Cypher query against the graph.
 
-    Raw Cypher cannot be safely constrained to a single agent's namespace
-    without a full Cypher parser, so this endpoint is **admin-only** when
-    authentication is enforced: a non-admin key cannot read or traverse
-    another agent's subgraph by embedding its UUID in the query. The query
-    also runs inside a Neo4j **read transaction**, so any write is rejected
-    at the database level even if it slips past the keyword filter (e.g. an
-    APOC procedure). Write keywords are still rejected up front as defense
-    in depth.
+    Org admins only, and only while the instance has one organization. The
+    query runs in a read transaction, and may only name knowledge labels
+    (see ``core/cypher_guard.py``).
 
-    **Auth:** requires an API key with the ``admin`` permission when
-    ``REQUIRE_API_KEY_AUTH=true``. When the flag is off (single-tenant /
-    local dev), behavior is unchanged.
+    **Auth:** org admin.
     """
-    _require_admin(auth)
-    _check_idor(auth, request.agent_id)
-    # Reject writes up front (defense in depth; the read transaction below is
-    # the actual enforcement and cannot be bypassed by procedure obfuscation).
-    if _WRITE_PATTERN.search(request.cypher):
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                "Write operations (CREATE, MERGE, DELETE, SET, REMOVE, CALL, "
-                "LOAD CSV) are not permitted via this endpoint."
-            ),
-        )
+    await require_org(auth, OrgAction.ADMIN)
+    await authorize(auth, request.agent_id, Action.READ)
+    async with _get_graph_service()._driver.session() as session:
+        result = await session.run("MATCH (o:Org) RETURN count(o) AS orgs")
+        org_count = (await result.single())["orgs"]
+    # Raw Cypher can name any KB, so it is only safe while there is one tenant.
+    if org_count > 1 and settings.environment != "development":
+        raise HTTPException(status_code=403, detail="Raw Cypher is unavailable with more than one organization.")
+    try:
+        check_cypher(request.cypher)
+    except CypherRejected as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
 
     query_service = _get_query_service()
     if query_service is None:
@@ -300,29 +284,22 @@ async def query_cypher(
 @router.post("/traverse", response_model=GraphPayload)
 async def traverse(
     request: TraverseRequest,
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Traverse the graph from a start node up to the requested depth.
     Optionally filter by relationship type.
 
-    **Auth:** Requires X-Api-Key when REQUIRE_API_KEY_AUTH=true. The
-    traversal is scoped to the authenticated agent's namespace: the start
-    node must belong to the caller, otherwise an empty graph is returned.
-    A non-admin therefore cannot walk another agent's subgraph by passing a
-    foreign ``start_node_id``. When the flag is off, traversal is unscoped
-    (single-tenant behavior). Admin keys traverse without scoping.
+    The start node must belong to the given KB (the caller's default when
+    ``agent_id`` is omitted); otherwise the result is an empty graph.
     """
     query_service = _get_query_service()
     if query_service is None:
         raise HTTPException(status_code=503, detail="QueryService unavailable")
 
-    # Scope to the caller unless auth is bypassed (flag off) or the caller is
-    # an admin. ``agent_id`` is None in both those cases → unscoped traversal.
-    from app.services.auth_service import _is_admin
-    scope_agent_id = None
-    if not auth.get("auth_bypassed") and not _is_admin(auth):
-        scope_agent_id = auth.get("agent_id")
+    scope_agent_id = resolve_kb(auth, request.agent_id)
+    if scope_agent_id is not None:
+        await authorize(auth, scope_agent_id, Action.READ)
 
     try:
         subgraph: GraphPayload = await query_service.traverse(
@@ -330,6 +307,8 @@ async def traverse(
             depth=request.depth,
             relation_filter=request.relation_filter,
             agent_id=scope_agent_id,
+            as_of=request.as_of,
+            max_clearance=auth.clearance_level,
         )
         return subgraph
     except ValueError as exc:
@@ -342,7 +321,7 @@ async def traverse(
 @router.post("/stream")
 async def stream_query(
     request: QueryRequest,
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Streaming natural-language query via Server-Sent Events.
@@ -354,7 +333,7 @@ async def stream_query(
         data: <token>\\n\\n
         data: [DONE]\\n\\n
     """
-    _check_idor(auth, request.agent_id)
+    await authorize(auth, request.agent_id, Action.READ)
     query_service = _get_query_service()
     if query_service is None:
         raise HTTPException(status_code=503, detail="QueryService unavailable")
@@ -365,8 +344,12 @@ async def stream_query(
                 question=request.question,
                 agent_id=request.agent_id,
                 top_k=request.top_k,
+                max_clearance=auth.clearance_level,
             ):
-                yield f"data: {token}\n\n"
+                if isinstance(token, dict):
+                    yield f"event: meta\ndata: {json.dumps(token)}\n\n"
+                else:
+                    yield f"data: {token}\n\n"
         except Exception as exc:
             logger.exception("Streaming query error: %s", exc)
             yield f"data: [ERROR] {exc}\n\n"

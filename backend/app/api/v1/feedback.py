@@ -28,7 +28,8 @@ from typing import List, Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
-from app.services.auth_service import _is_admin, verify_api_key
+from app.core.authz import Action, Principal, authorize, get_principal, resolve_kb
+from app.services.learning import apply_feedback, feedback_targets
 
 logger = logging.getLogger(__name__)
 
@@ -45,11 +46,15 @@ class FeedbackPayload(BaseModel):
         description="Correlation ID returned by the query endpoint (or any client-generated UUID).",
     )
     used_node_ids: List[str] = Field(
-        min_length=1,
+        default_factory=list,
         description="IDs of SpaiderNodes that were part of the RAG context for this query.",
     )
     success: bool = Field(
         description="True if the answer was judged correct/helpful; False otherwise.",
+    )
+    agent_id: Optional[str] = Field(
+        default=None,
+        description="Knowledge base the nodes belong to. Defaults to the key's own.",
     )
 
     @field_validator("used_node_ids")
@@ -73,8 +78,9 @@ class FeedbackResponse(BaseModel):
 
 
 def _get_driver():
-    from app.services.graph_service import GraphService
-    return GraphService()._driver
+    from app.services.graph_service import get_graph_service
+
+    return get_graph_service()._driver
 
 
 # ---------------------------------------------------------------------------
@@ -174,7 +180,7 @@ async def _apply_hebbian_update(
 async def submit_feedback(
     body: FeedbackPayload,
     background_tasks: BackgroundTasks,
-    auth: dict = Depends(verify_api_key),
+    auth: Principal = Depends(get_principal),
 ):
     """
     Submit feedback for a completed query to trigger Hebbian weight updates.
@@ -190,36 +196,40 @@ async def submit_feedback(
     RAG retrieval (Managed Forgetting), while high-weight edges are prioritised
     at the top of the LLM context window.
     """
-    if not body.used_node_ids:
-        raise HTTPException(
-            status_code=422,
-            detail="used_node_ids must contain at least one node ID.",
-        )
-
     received_at = datetime.now(timezone.utc).isoformat()
 
-    # Scope the synaptic update to the caller's namespace unless auth is off or
-    # the caller is an admin (then agent_id is None → cross-namespace, as before).
-    scope_agent_id = None
-    if not auth.get("auth_bypassed") and not _is_admin(auth):
-        scope_agent_id = auth.get("agent_id")
+    scope_agent_id = resolve_kb(auth, body.agent_id)
+    if scope_agent_id is not None:
+        await authorize(auth, scope_agent_id, Action.WRITE)
 
-    background_tasks.add_task(
-        _apply_hebbian_update,
-        query_id=body.query_id,
-        node_ids=body.used_node_ids,
-        success=body.success,
-        received_at=received_at,
-        agent_id=scope_agent_id,
-    )
+    node_ids = body.used_node_ids
+    if scope_agent_id is not None:
+        node_ids = await feedback_targets(_get_driver(), scope_agent_id, body.query_id, body.used_node_ids)
+    if not node_ids:
+        raise HTTPException(
+            status_code=422,
+            detail="No stored answer for this query_id, so used_node_ids must contain at least one node ID.",
+        )
+
+    if scope_agent_id is not None:
+        background_tasks.add_task(apply_feedback, _get_driver(), scope_agent_id, body.query_id, body.success, node_ids)
+    else:
+        background_tasks.add_task(
+            _apply_hebbian_update,
+            query_id=body.query_id,
+            node_ids=node_ids,
+            success=body.success,
+            received_at=received_at,
+            agent_id=None,
+        )
 
     direction = "reinforced" if body.success else "weakened"
     return FeedbackResponse(
         accepted=True,
         query_id=body.query_id,
         message=(
-            f"Feedback accepted. {len(body.used_node_ids)} nodes queued for "
+            f"Feedback accepted. {len(node_ids)} nodes queued for "
             f"synaptic {direction} update."
         ),
-        node_count=len(body.used_node_ids),
+        node_count=len(node_ids),
     )

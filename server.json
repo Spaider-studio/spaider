@@ -1,0 +1,29 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "name": "io.github.spaider-studio/spaider",
+  "description": "Knowledge-graph memory for AI agents: remember, recall, cited answers and consolidation.",
+  "version": "0.5.0",
+  "repository": { "url": "https://github.com/Spaider-studio/spaider", "source": "github" },
+  "packages": [
+    {
+      "registry_type": "pypi",
+      "identifier": "spaider-backend",
+      "version": "0.5.0",
+      "transport": { "type": "stdio" },
+      "runtime_hint": "uvx",
+      "package_arguments": [{ "type": "positional", "value": "spaider-mcp" }],
+      "environment_variables": [
+        { "name": "SPAIDER_API_KEY", "description": "SpAIder API key", "is_required": true, "is_secret": true },
+        { "name": "NEO4J_URI", "description": "Neo4j connection URI", "is_required": true },
+        { "name": "NEO4J_PASSWORD", "description": "Neo4j password", "is_required": true, "is_secret": true }
+      ]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "http://localhost:8000/api/v1/mcp/",
+      "headers": [{ "name": "Authorization", "description": "Bearer <api-key>", "is_required": true, "is_secret": true }]
+    }
+  ]
+}

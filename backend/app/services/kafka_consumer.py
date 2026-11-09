@@ -16,7 +16,10 @@ from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 from aiokafka.errors import KafkaError
 
 from app.config import settings
+from app.core.jobs import mark_job_finished
 from app.logging_context import bind_request_context, reset_request_context
+from app.services.graph_service import get_graph_service
+from app.services.ingest_pipeline import IngestPipeline
 
 if TYPE_CHECKING:
     from app.services.compressor import SemanticCompressor
@@ -232,15 +235,18 @@ class KafkaConsumerService:
             # ── Write phase (single UNWIND batch) ─────────────────────
             if good:
                 try:
-                    write_items = [(gp, aid) for gp, aid, _ in good]
-                    await graph_service.write_graph_batch(write_items)
+                    await IngestPipeline(graph_service).commit_many([item for item, _, _ in good])
                     # Commit offsets for all successfully written messages
                     await self._consumer.commit()
+                    for item, agent_id, message in good:
+                        job_id = message.value.get("message_id") if isinstance(message.value, dict) else None
+                        if job_id:
+                            await mark_job_finished(job_id, agent_id, "done")
                     logger.info(
                         "Batch written | messages=%d total_nodes=%d total_edges=%d",
                         len(good),
-                        sum(len(gp.nodes) for gp, _, _ in good),
-                        sum(len(gp.edges) for gp, _, _ in good),
+                        sum(len(item.payload.nodes) for item, _, _ in good),
+                        sum(len(item.payload.edges) for item, _, _ in good),
                     )
                 except Exception as exc:
                     logger.error("Neo4j batch write failed: %s — messages will retry", exc)
@@ -311,15 +317,15 @@ class KafkaConsumerService:
         try:
             logger.debug("Extracting message_id=%s agent_id=%s", message_id, agent_id)
 
-            graph_payload = await compressor.extract(
-                text=text,
+            pipeline = IngestPipeline(get_graph_service(), compressor, entity_resolver)
+            prepared = await pipeline.prepare_text(
+                agent_id,
+                text,
+                source=payload.get("source"),
                 context=payload.get("metadata"),
+                caller_context="kafka",
             )
-            resolved = await entity_resolver.resolve.__func__(  # type: ignore[attr-defined]
-                entity_resolver, graph_payload, agent_id, None  # graph_service passed later
-            ) if False else await _resolve_no_graph(entity_resolver, graph_payload, agent_id)
-
-            return resolved, agent_id
+            return prepared, agent_id
         finally:
             reset_request_context(tokens)
 
@@ -420,16 +426,3 @@ def _extract_header(message, name: str) -> Optional[str]:
 # ---------------------------------------------------------------------------
 # Helper: resolve without graph_service (micro-batcher resolves in write phase)
 # ---------------------------------------------------------------------------
-
-async def _resolve_no_graph(resolver, payload, agent_id):
-    """
-    Lightweight resolve — skips semantic/Levenshtein matching against the live
-    graph (too expensive per-message in a batch).  Full resolution happens when
-    write_graph_batch merges duplicate node IDs via MERGE semantics in Cypher.
-    """
-    # Attach agent_id + return as-is; deduplication is handled by Neo4j MERGE
-    for node in payload.nodes:
-        node.agent_id = agent_id
-    for edge in payload.edges:
-        edge.agent_id = agent_id
-    return payload

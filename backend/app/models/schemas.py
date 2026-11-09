@@ -97,6 +97,12 @@ class Edge(BaseModel):
     properties: dict = Field(default_factory=dict)
     agent_id: Optional[str] = None
     created_at: Optional[datetime] = None
+    valid_from: Optional[datetime] = Field(
+        default=None, description="When the fact became true. Defaults to the write time."
+    )
+    valid_to: Optional[datetime] = Field(
+        default=None, description="When the fact stopped being true, if known."
+    )
     utility_weight: float = Field(
         default=1.0,
         description="Synapse strength (V2 Cognitive Graph). Controls edge width in 3D view.",
@@ -198,11 +204,14 @@ class SwarmConnection(BaseModel):
 
 
 class Agent(BaseModel):
+    # Current settings, so a list view needs no extra request per agent.
+    memory_mode: Optional[str] = None
+    supersede: Optional[bool] = None
+    consolidation_interval_hours: Optional[int] = None
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
     description: Optional[str] = None
     tenant_id: str = "default"
-    permissions: list[str] = Field(default_factory=lambda: ["read", "write", "query"])
     clearance_level: int = Field(
         default=1,
         ge=1,
@@ -217,19 +226,8 @@ class Agent(BaseModel):
     api_key: Optional[str] = Field(
         default=None,
         description=(
-            "Transient response field — populated exactly once in POST /agents "
-            "and POST /agents/{id}/rotate-key so the caller can copy the raw "
-            "key. Never persisted: only its SHA-256 hash lives in Redis (at "
-            "spaider:apikey:<hash>) via AuthService.generate_and_store_api_key()."
-        ),
-    )
-    api_key_hash: Optional[str] = Field(
-        default=None,
-        description=(
-            "Internal: SHA-256 hash of the agent's current API key. Persisted "
-            "on the agent record so rotation can revoke the previous key with "
-            "a single Redis DEL instead of scanning spaider:apikey:*. Always "
-            "nulled on list/get/update responses — never exposed to callers."
+            "Transient response field, set once by POST /agents and "
+            "POST /agents/{id}/rotate-key. Never persisted."
         ),
     )
     interaction_memory: bool = Field(
@@ -341,6 +339,8 @@ class TokenUsage(BaseModel):
 class QueryResult(BaseModel):
     question: str
     answer: str
+    query_id: Optional[str] = Field(default=None, description="Pass to POST /feedback to rate this answer.")
+    citations: list[dict] = Field(default_factory=list, description="Nodes the answer cites as [nK].")
     subgraph: GraphPayload
     cypher_used: Optional[str] = None
     token_usage: Optional[TokenUsage] = Field(

@@ -34,7 +34,7 @@ def _prime_env_example(repo: Path) -> Path:
     (repo / ".env.example").write_text(
         "LLM_API_KEY=sk-your-key-here\n"
         "EMBEDDING_API_KEY=\n"
-        "JWT_SECRET=change-me\n"
+        "SPAIDER_BOOTSTRAP_TOKEN=change-me\n"
         "CONNECTOR_SECRET_KEY=\n"
         "NEO4J_PASSWORD=spaider-dev-2024\n"
     )
@@ -75,7 +75,7 @@ def test_init_full_happy_path(tmp_path: Path, monkeypatch):
     # .env written with our overrides
     env_body = (repo / ".env").read_text()
     assert "LLM_API_KEY=sk-input-key" in env_body
-    assert "JWT_SECRET=" in env_body
+    assert "SPAIDER_BOOTSTRAP_TOKEN=" in env_body
     assert "CONNECTOR_SECRET_KEY=" in env_body
     # Final summary references the agent + key
     assert "dev-tester" in result.output
@@ -114,7 +114,7 @@ def test_init_rerun_preserves_existing_secrets(tmp_path: Path, monkeypatch):
     env1 = parse_env_text((repo / ".env").read_text())
     # first run replaced the .env.example placeholders with real generated secrets
     assert env1["NEO4J_PASSWORD"] != "spaider-dev-2024"
-    assert env1["JWT_SECRET"] != "change-me"
+    assert env1["SPAIDER_BOOTSTRAP_TOKEN"] != "change-me"
 
     r2 = _run()
     assert r2.exit_code == 0, r2.output
@@ -122,7 +122,7 @@ def test_init_rerun_preserves_existing_secrets(tmp_path: Path, monkeypatch):
     env2 = parse_env_text(body2)
     # the whole point: secrets are identical across the re-run
     assert env2["NEO4J_PASSWORD"] == env1["NEO4J_PASSWORD"]
-    assert env2["JWT_SECRET"] == env1["JWT_SECRET"]
+    assert env2["SPAIDER_BOOTSTRAP_TOKEN"] == env1["SPAIDER_BOOTSTRAP_TOKEN"]
     assert env2["CONNECTOR_SECRET_KEY"] == env1["CONNECTOR_SECRET_KEY"]
     # and not duplicated
     assert body2.count("NEO4J_PASSWORD=") == 1

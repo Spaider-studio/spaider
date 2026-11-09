@@ -157,10 +157,10 @@ streamlit run benchmarks/dashboard.py
 | Variable          | Default                                    |
 | ----------------- | ------------------------------------------ |
 | `SPAIDER_API_KEY` | required; benchmark agent's API key (e.g. `bench-acmeai-clean`); see CLAUDE.md §9 for naming |
-| `SPAIDER_MCP_URL` | `http://localhost:8001/api/v1/mcp/sse`     |
+| `SPAIDER_MCP_URL` | `http://localhost:8000/api/v1/mcp/`     |
 
 If you'd rather hit the compose stack, set
-`SPAIDER_MCP_URL=http://localhost:8000/api/v1/mcp/sse`. The host-side
+`SPAIDER_MCP_URL=http://localhost:8000/api/v1/mcp/`. The host-side
 standalone (`make mcp-server-host`) is recommended because it survives
 `docker compose down/up`.
 
@@ -361,7 +361,7 @@ in async ingest handlers").
 
 If with-spaider also fails 04+05 after seeding, check in order:
 
-1. Is the MCP server reachable? `curl -i http://localhost:8001/api/v1/mcp/sse`
+1. Is the MCP server reachable? `curl -i http://localhost:8000/api/v1/mcp/`
 2. Did the seeder succeed for both facts? Re-run `python -m benchmarks.seed`.
 3. Is the model tool-capable? Gemma 2/3 don't emit `tool_calls` on Ollama;
    switch to `llama3.2:3b` or `qwen2.5:7b`. See the model table above.

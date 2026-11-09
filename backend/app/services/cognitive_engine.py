@@ -122,13 +122,14 @@ class CognitiveGraphService:
 
     _BOOST_CYPHER = """
     MATCH (n:SpaiderNode {id: $node_id})
+    WHERE $kbs IS NULL OR n.agent_id IN $kbs
     SET
       n.energy_level    = 1.0,
       n.retrieval_count = coalesce(n.retrieval_count, 0) + 1,
       n.last_activation = datetime()
     """
 
-    async def upsert_node_activation(self, node_id: str) -> None:
+    async def upsert_node_activation(self, node_id: str, kbs: list[str] | None = None) -> None:
         """
         Boost a single node after it has been retrieved and sent to the LLM.
 
@@ -145,7 +146,7 @@ class CognitiveGraphService:
         """
         try:
             async with self._driver.session() as session:
-                await session.run(self._BOOST_CYPHER, node_id=node_id)
+                await session.run(self._BOOST_CYPHER, node_id=node_id, kbs=kbs)
         except Exception as exc:
             logger.warning(
                 "CognitiveGraphService.upsert_node_activation failed for "
@@ -153,7 +154,7 @@ class CognitiveGraphService:
                 node_id, exc,
             )
 
-    async def boost_nodes(self, node_ids: list[str]) -> None:
+    async def boost_nodes(self, node_ids: list[str], kbs: list[str] | None = None) -> None:
         """
         Boost a batch of nodes in parallel after a retrieval call.
 
@@ -169,7 +170,7 @@ class CognitiveGraphService:
             return
 
         await asyncio.gather(
-            *[self.upsert_node_activation(nid) for nid in node_ids],
+            *[self.upsert_node_activation(nid, kbs) for nid in node_ids],
             return_exceptions=True,  # one failing node must not abort the rest
         )
         logger.debug(
@@ -187,12 +188,13 @@ class CognitiveGraphService:
     UNWIND $node_ids AS tgt_id
     WITH src_id, tgt_id WHERE src_id <> tgt_id
     MATCH (a:SpaiderNode {id: src_id})-[r:RELATION]->(b:SpaiderNode {id: tgt_id})
+    WHERE $kbs IS NULL OR r.agent_id IN $kbs
     WITH r, coalesce(r.utility_weight, 1.0) AS w
     SET r.utility_weight = CASE WHEN w + $step >= 2.0 THEN 2.0 ELSE w + $step END
     RETURN count(r) AS updated_count
     """
 
-    async def reinforce_edges(self, node_ids: list[str], step: float) -> None:
+    async def reinforce_edges(self, node_ids: list[str], step: float, kbs: list[str] | None = None) -> None:
         """
         Strengthen RELATION edges among ``node_ids`` by ``step`` (capped 2.0).
 
@@ -204,7 +206,7 @@ class CognitiveGraphService:
         try:
             async with self._driver.session() as session:
                 result = await session.run(
-                    self._REINFORCE_EDGES_CYPHER, node_ids=node_ids, step=step,
+                    self._REINFORCE_EDGES_CYPHER, node_ids=node_ids, step=step, kbs=kbs,
                 )
                 record = await result.single()
                 updated = int(record["updated_count"]) if record else 0

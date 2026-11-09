@@ -286,20 +286,14 @@ async def test_delete_interactions_wipes_only_interactions(client):
     agent_id = str(uuid.uuid4())
     deleted_count = 7
 
-    # Redis mock: _load_agent reads from spaider:agent:{id}
-    mock_redis = AsyncMock()
-    mock_redis.get = AsyncMock(
-        return_value=_make_agent_json(agent_id, interaction_memory=True)
-    )
-
     mock_gs = MagicMock()
     mock_gs.delete_agent_interactions = AsyncMock(return_value=deleted_count)
     mock_gs.write_graph = AsyncMock()
     mock_gs.delete_agent_graph = AsyncMock()
 
     with (
-        patch("app.api.v1.agents._redis_client", mock_redis),
-        patch("app.api.v1.agents._graph_service", mock_gs),
+        patch("app.api.v1.agents._load_agent", AsyncMock(return_value=MagicMock())),
+        patch("app.api.v1.agents._get_graph_service", return_value=mock_gs),
     ):
         resp = await client.delete(f"/api/v1/agents/{agent_id}/interactions")
 

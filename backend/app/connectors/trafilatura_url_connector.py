@@ -39,6 +39,7 @@ from typing import AsyncGenerator
 import httpx
 
 from app.connectors import BaseConnector, ConnectorRecord, RunState, send_to_dlq
+from app.core.net_guard import BlockedTarget, UnresolvableHost, check_urls, guarded_get
 from app.services.parser_service import parse
 
 logger = logging.getLogger(__name__)
@@ -65,69 +66,13 @@ class URLConnector(BaseConnector):
         *,
         urls: list[str],
     ) -> AsyncGenerator[ConnectorRecord, None]:
-        """
-        Parameters
-        ----------
-        agent_id : str
-            Owning agent namespace — stamped on every yielded record.
-        run_state : RunState
-            Read before each request for conditional headers; mutated in-place
-            after every HTTP 200 response.  Caller must persist after the run.
-        urls : list[str]
-            Absolute HTTP/HTTPS URLs to fetch.
-        """
-        if not urls:
-            logger.debug("url_connector: no URLs supplied — yielding nothing.")
-            return
-
-        logger.info(
-            "url_connector: starting batch agent_id=%s url_count=%d",
-            agent_id, len(urls),
-        )
-
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(_HTTP_TIMEOUT),
-            follow_redirects=True,
-            headers={
-                "User-Agent": "SpAIder-URLConnector/1.0 (+https://spaider.ai/bot)",
-            },
-        ) as client:
-            for url in urls:
-                await self._fetch_one(
-                    client=client,
-                    url=url,
-                    agent_id=agent_id,
-                    run_state=run_state,
-                )
-                # _fetch_one is a regular coroutine — we must yield from outside.
-                # Re-implement inline so we can yield inside the async-with block.
-
-        # Implementation note: Python's async generator protocol does not allow
-        # `yield` inside a helper coroutine called from a generator.  The fetch
-        # logic is therefore inlined in the loop below rather than factored out.
-        #
-        # The async-with block above was illustrative.  The real loop follows.
-
-    # ------------------------------------------------------------------
-    # Actual generator body (inlined for yield-inside-async-with compat)
-    # ------------------------------------------------------------------
-
-    # Override __init_subclass__ trick is unnecessary — Python 3.11 allows
-    # `yield` inside `async with` blocks in async generators natively.
-    # We simply re-declare `run` as the true generator below.
-
-    async def run(  # type: ignore[override]  # noqa: F811 — intentional redefinition
-        self,
-        agent_id: str,
-        run_state: RunState,
-        *,
-        urls: list[str],
-    ) -> AsyncGenerator[ConnectorRecord, None]:
         """Async-generator implementation (yield inside async-with is valid in 3.11+)."""
         if not urls:
             logger.debug("url_connector: no URLs supplied — yielding nothing.")
             return
 
+        await check_urls(urls)
+
         logger.info(
             "url_connector: starting batch agent_id=%s url_count=%d",
             agent_id, len(urls),
@@ -135,7 +80,7 @@ class URLConnector(BaseConnector):
 
         async with httpx.AsyncClient(
             timeout=httpx.Timeout(_HTTP_TIMEOUT),
-            follow_redirects=True,
+            follow_redirects=False,
             headers={
                 "User-Agent": "SpAIder-URLConnector/1.0 (+https://spaider.ai/bot)",
             },
@@ -159,7 +104,19 @@ class URLConnector(BaseConnector):
 
                 # ── HTTP fetch ────────────────────────────────────────────
                 try:
-                    response = await client.get(url, headers=request_headers)
+                    response = await guarded_get(client, url, headers=request_headers)
+                except (BlockedTarget, UnresolvableHost) as exc:
+                    # A redirect or DNS change after the batch check.
+                    logger.warning("url_connector: refused url=%r: %s", url, exc)
+                    await send_to_dlq(
+                        payload={"connector_id": self.connector_id, "source_uri": url, "agent_id": agent_id},
+                        connector_id=self.connector_id,
+                        source_uri=url,
+                        agent_id=agent_id,
+                        error=str(exc),
+                        reason="target_refused",
+                    )
+                    continue
                 except httpx.TimeoutException as exc:
                     logger.error("url_connector: timeout url=%r: %s", url, exc)
                     await send_to_dlq(

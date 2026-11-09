@@ -56,6 +56,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.connectors import BaseConnector, ConnectorRecord, RunState
+from app.core.net_guard import check_dsn
 
 logger = logging.getLogger(__name__)
 
@@ -158,6 +159,7 @@ class SQLConnector(BaseConnector):
             agent_id, cursor_column, batch_size, cursor_val,
         )
 
+        await check_dsn(dsn)
         engine = create_async_engine(dsn, echo=False, pool_pre_ping=True)
         rows_yielded = 0
         try:

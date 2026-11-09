@@ -26,6 +26,15 @@ import ServiceConnectivityPanel from "@/components/shared/ServiceConnectivityPan
 
 export default function SettingsPage() {
   const { toast } = useToast();
+  const [version, setVersion] = useState("…");
+
+  useEffect(() => {
+    fetch("/api/health")
+      .then((res) => res.json())
+      .then((health) => setVersion(health.version ?? "unknown"))
+      .catch(() => setVersion("unknown"));
+  }, []);
+
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loadingAgents, setLoadingAgents] = useState(false);
   const [agentsLoaded, setAgentsLoaded] = useState(false);
@@ -81,7 +90,7 @@ export default function SettingsPage() {
               <div className="grid grid-cols-2 gap-4">
                 {[
                   { label: "Application", value: "SpAIder" },
-                  { label: "Version", value: "0.4.0" },
+                  { label: "Version", value: version },
                   { label: "Backend", value: "FastAPI + Neo4j" },
                   { label: "Streaming", value: "Apache Kafka" },
                 ].map((item) => (

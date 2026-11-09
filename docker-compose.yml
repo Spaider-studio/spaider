@@ -3,8 +3,8 @@ services:
     image: neo4j:5.23-community
     container_name: spaider-neo4j
     ports:
-      - "7474:7474"
-      - "7687:7687"
+      - "${SPAIDER_BIND:-127.0.0.1}:7474:7474"
+      - "${SPAIDER_BIND:-127.0.0.1}:7687:7687"
     environment:
       NEO4J_AUTH: "${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-spaider-dev-2024}"
       NEO4J_PLUGINS: '["apoc"]'
@@ -22,21 +22,23 @@ services:
     restart: unless-stopped
 
   zookeeper:
+    profiles: ["full"]
     image: confluentinc/cp-zookeeper:7.6.0
     container_name: spaider-zookeeper
     ports:
-      - "2181:2181"
+      - "${SPAIDER_BIND:-127.0.0.1}:2181:2181"
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     restart: unless-stopped
 
   kafka:
+    profiles: ["full"]
     image: confluentinc/cp-kafka:7.6.0
     container_name: spaider-kafka
     ports:
-      - "9092:9092"
-      - "29092:29092"
+      - "${SPAIDER_BIND:-127.0.0.1}:9092:9092"
+      - "${SPAIDER_BIND:-127.0.0.1}:29092:29092"
     depends_on:
       - zookeeper
     environment:
@@ -60,24 +62,27 @@ services:
     restart: unless-stopped
 
   redis:
+    profiles: ["full"]
     image: redis:7.4-alpine
     container_name: spaider-redis
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-spaider-dev-2024}"]
     ports:
-      - "6379:6379"
+      - "${SPAIDER_BIND:-127.0.0.1}:6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-spaider-dev-2024}", "--no-auth-warning", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
   postgres:
+    profiles: ["full"]
     image: postgres:16-alpine
     container_name: spaider-postgres
     ports:
-      - "5432:5432"
+      - "${SPAIDER_BIND:-127.0.0.1}:5432:5432"
     environment:
       # Dev defaults for a localhost stack. Override via .env (or shell env) for
       # any non-local deployment — never run these defaults on an exposed host.
@@ -95,11 +100,12 @@ services:
     restart: unless-stopped
 
   clickhouse:
+    profiles: ["full"]
     image: clickhouse/clickhouse-server:24.8-alpine
     container_name: spaider-clickhouse
     ports:
-      - "8123:8123"
-      - "9000:9000"
+      - "${SPAIDER_BIND:-127.0.0.1}:8123:8123"
+      - "${SPAIDER_BIND:-127.0.0.1}:9000:9000"
     environment:
       CLICKHOUSE_USER: default
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-spaider-dev-2024}
@@ -118,7 +124,42 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  # Lite: Neo4j and the API only. Key-value, job and audit features fall back to
+  # in-process and Neo4j implementations; connector state lives under /data.
+  backend-lite:
+    profiles: ["lite"]
+    image: ghcr.io/spaider-studio/spaider-backend:${SPAIDER_VERSION:-latest}
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: spaider-backend-lite
+    ports:
+      - "${SPAIDER_BIND:-127.0.0.1}:8000:8000"
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      NEO4J_URI: bolt://neo4j:7687
+      REDIS_URL: ""
+      KAFKA_BOOTSTRAP_SERVERS: ""
+      CLICKHOUSE_HOST: ""
+      POSTGRES_URL: ""
+      DATA_DIR: /data
+    volumes:
+      - spaider_data:/data
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)\""]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
   backend-api:
+    profiles: ["full"]
     # `docker compose pull` fetches the published image; `--build` rebuilds from
     # source. Pin a version with SPAIDER_VERSION (e.g. 0.1.0); defaults to latest.
     image: ghcr.io/spaider-studio/spaider-backend:${SPAIDER_VERSION:-latest}
@@ -127,7 +168,7 @@ services:
       dockerfile: Dockerfile
     container_name: spaider-backend-api
     ports:
-      - "8000:8000"
+      - "${SPAIDER_BIND:-127.0.0.1}:8000:8000"
     depends_on:
       neo4j:
         condition: service_healthy
@@ -146,7 +187,7 @@ services:
     environment:
       NEO4J_URI: bolt://neo4j:7687
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://:${REDIS_PASSWORD:-spaider-dev-2024}@redis:6379/0
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-spaider-dev-2024}
       POSTGRES_URL: postgresql+asyncpg://${POSTGRES_USER:-spaider}:${POSTGRES_PASSWORD:-spaider}@postgres:5432/${POSTGRES_DB:-spaider}
@@ -167,6 +208,7 @@ services:
     restart: unless-stopped
 
   backend-worker:
+    profiles: ["full"]
     image: ghcr.io/spaider-studio/spaider-worker:${SPAIDER_VERSION:-latest}
     build:
       context: ./backend
@@ -196,7 +238,7 @@ services:
     environment:
       NEO4J_URI: bolt://neo4j:7687
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://:${REDIS_PASSWORD:-spaider-dev-2024}@redis:6379/0
       POSTGRES_URL: postgresql+asyncpg://${POSTGRES_USER:-spaider}:${POSTGRES_PASSWORD:-spaider}@postgres:5432/${POSTGRES_DB:-spaider}
     command: ["python", "-m", "app.worker"]
     logging:
@@ -207,6 +249,7 @@ services:
     restart: unless-stopped
 
   frontend:
+    profiles: ["full"]
     image: ghcr.io/spaider-studio/spaider-frontend:${SPAIDER_VERSION:-latest}
     build:
       context: ./frontend
@@ -214,7 +257,7 @@ services:
         BACKEND_API_URL: "http://kong:8000/api"
     container_name: spaider-frontend
     ports:
-      - "3000:3000"
+      - "${SPAIDER_BIND:-127.0.0.1}:3000:3000"
     depends_on:
       backend-api:
         condition: service_healthy
@@ -227,11 +270,11 @@ services:
     restart: unless-stopped
 
   kong:
+    profiles: ["full"]
     image: kong:3.7
     container_name: spaider-kong
     ports:
-      - "8080:8000"
-      - "8001:8001"
+      - "${SPAIDER_BIND:-127.0.0.1}:8080:8000"
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /etc/kong/kong.yml
@@ -239,7 +282,7 @@ services:
       KONG_ADMIN_ACCESS_LOG: /dev/stdout
       KONG_PROXY_ERROR_LOG: /dev/stderr
       KONG_ADMIN_ERROR_LOG: /dev/stderr
-      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+      KONG_ADMIN_LISTEN: "127.0.0.1:8001"
     volumes:
       - ./gateway/kong.yml:/etc/kong/kong.yml:ro
     depends_on:
@@ -257,6 +300,7 @@ services:
     restart: unless-stopped
 
   kafka-topic-init:
+    profiles: ["full"]
     image: confluentinc/cp-kafka:7.6.0
     container_name: spaider-kafka-topic-init
     depends_on:
@@ -270,6 +314,7 @@ services:
     restart: on-failure
 
 volumes:
+  spaider_data:
   neo4j_data:
   neo4j_logs:
   redis_data:

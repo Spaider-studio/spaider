@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from typer.testing import CliRunner
 
 from spaider_cli.lib.docker import DockerStatus
@@ -25,7 +26,7 @@ def _good_docker():
 def _prime_env(tmp_path: Path, *, llm_key: str = "sk-good") -> Path:
     (tmp_path / ".env").write_text(
         f"LLM_API_KEY={llm_key}\n"
-        "JWT_SECRET=ignore-me\n"
+        "SPAIDER_BOOTSTRAP_TOKEN=ignore-me\n"
         "CONNECTOR_SECRET_KEY=also-ignore\n"
     )
     return tmp_path
@@ -42,8 +43,15 @@ def _prime_claude_dir(home: Path, *, with_spaider: bool = True, with_skill: bool
         skill_dir = home / ".claude" / "skills"
         skill_dir.mkdir(parents=True, exist_ok=True)
         (skill_dir / "spaider.md").write_text(
-            "name: spaider\nspaider.query\nspaider.feedback\n"
+            "name: spaider\nspaider.query\nspaider.feedback\nspaider.recall\nspaider.remember\n"
         )
+
+
+@pytest.fixture(autouse=True)
+def _login_is_fine(monkeypatch):
+    from spaider_cli.commands import doctor
+
+    monkeypatch.setattr(doctor, "check_login", lambda: doctor._ok("API key", "ok"))
 
 
 class TestDoctorAllGreen:

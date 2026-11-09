@@ -88,6 +88,9 @@ _configured = False
 
 def configure_logging() -> None:
     """Idempotent — safe to call from every entrypoint (API, worker, scripts)."""
+    # Neo4j warns about every property that does not exist yet (revoked_at, say),
+    # which on a young database means several lines per request.
+    logging.getLogger("neo4j.notifications").setLevel(logging.ERROR)
     global _configured
     if _configured:
         return

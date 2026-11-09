@@ -5,6 +5,7 @@ Output formats: OpenAI messages format, Alpaca instruction format.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from datetime import datetime, timezone
@@ -17,11 +18,11 @@ from app.config import settings
 from app.lib.litellm_retry import acompletion_with_retry
 from app.models.schemas import Edge, GraphPayload, Node
 from app.services.graph_service import GraphService
+from app.services.purge_service import dataset_root
 
 logger = logging.getLogger(__name__)
 
 _SYNTH_PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "synthesizer_qa.txt"
-_OUTPUT_DIR = Path("/tmp/spaider/datasets")
 
 _MIN_CONFIDENCE = 0.0  # placeholder – nodes/edges don't have confidence yet; extend as needed
 
@@ -102,6 +103,7 @@ class ModelSynthesizer:
         self,
         agent_id: str,
         config: SynthesizeConfig,
+        max_clearance: int = 5,
     ) -> SynthesizeResult:
         """
         Run all requested synthesis strategies and save JSONL output.
@@ -113,7 +115,7 @@ class ModelSynthesizer:
         Returns:
             SynthesizeResult with stats and output path.
         """
-        graph = await self._graph.get_full_graph(agent_id, limit=5000)
+        graph = await self._graph.get_full_graph(agent_id, limit=5000, max_clearance=max_clearance)
 
         # Apply node type filter
         if config.node_types:
@@ -160,7 +162,9 @@ class ModelSynthesizer:
         duplicate_count = len(examples) - len(deduped)
 
         # Format and save
-        output_path = self._save_jsonl(agent_id, deduped, config.output_format)
+        output_path = await asyncio.to_thread(
+            self._save_jsonl, agent_id, deduped, config.output_format, max_clearance
+        )
 
         logger.info(
             "synthesize | agent=%s total=%d dupes=%d path=%s",
@@ -390,9 +394,10 @@ class ModelSynthesizer:
         agent_id: str,
         examples: list[dict],
         output_format: str,
+        max_clearance: int = 5,
     ) -> str:
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        out_dir = _OUTPUT_DIR / agent_id
+        out_dir = dataset_root() / agent_id
         out_dir.mkdir(parents=True, exist_ok=True)
         out_path = out_dir / f"{timestamp}.jsonl"
 
@@ -410,4 +415,6 @@ class ModelSynthesizer:
                 lines.append(to_alpaca_format(instruction, context, response))
 
         out_path.write_text("\n".join(lines), encoding="utf-8")
+        # The file is as sensitive as the most sensitive node it could contain.
+        out_path.with_suffix(".meta.json").write_text(json.dumps({"clearance": max_clearance}), encoding="utf-8")
         return str(out_path)

@@ -21,6 +21,8 @@ import typer
 from rich.console import Console
 
 from spaider_cli.lib import api as api_client
+from spaider_cli.lib import client as http_client
+from spaider_cli.lib import clients as clients_lib
 from spaider_cli.lib import mcp as mcp_lib
 
 app = typer.Typer(no_args_is_help=True)
@@ -121,6 +123,34 @@ def install(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+@app.command("skill")
+def skill() -> None:
+    """Refresh the Claude Code skill file. Keys and MCP entries are not touched."""
+    path = mcp_lib.claude_code_paths().skill_file
+    path.parent.mkdir(parents=True, exist_ok=True)
+    mcp_lib.backup_if_exists(path)
+    mcp_lib.atomic_write_text(path, mcp_lib.read_packaged_skill())
+    console.print(f"[green]✓[/] {path}")
+
+
+@app.command("add")
+def add(
+    client: str = typer.Argument(..., help=f"One of: {', '.join(clients_lib.SUPPORTED)}."),
+    agent: str | None = typer.Option(None, "--agent", help="Knowledge base id."),
+    url: str = typer.Option(DEFAULT_MCP_URL, "--url"),
+) -> None:
+    """Connect one client, with its own key that can be revoked separately."""
+    if client not in clients_lib.SUPPORTED:
+        console.print(f"[red]✗[/] Unknown client. Choose from: {', '.join(clients_lib.SUPPORTED)}")
+        raise typer.Exit(code=1)
+    kb = http_client.agent_or_exit(agent)
+    account = http_client.request(
+        "POST", f"/agents/{kb}/service-accounts", json={"name": f"mcp-{client}", "role": "contributor"}
+    )
+    path = clients_lib.install(client, url, account["api_key"])
+    console.print(f"[green]✓[/] {client} connected ({path})")
 
 
 def _default_agent_name() -> str:

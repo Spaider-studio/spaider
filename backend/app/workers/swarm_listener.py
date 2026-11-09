@@ -49,6 +49,7 @@ these out to all connected browser clients in real-time:
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import json
 import logging
 import os
@@ -62,6 +63,7 @@ if TYPE_CHECKING:
     from app.services.graph_service import GraphService
 
 from app.config import settings
+from app.core.kv import get_kv, kv_is_external
 from app.lib.litellm_retry import acompletion_with_retry
 from app.models.schemas import Edge, GraphPayload, Node, NodeType, RelationType
 from app.services.embedding_service import EmbeddingService
@@ -74,6 +76,8 @@ from app.services.redis_service import (
 )
 
 logger = logging.getLogger(__name__)
+
+_CURRENT_KB: contextvars.ContextVar[str | None] = contextvars.ContextVar("swarm_current_kb", default=None)
 
 # ---------------------------------------------------------------------------
 # Tuning constants — stream consumer
@@ -99,6 +103,7 @@ _RECONNECT_DELAY: float  = 5.0
 # Giving the blocking read its own socket timeout, comfortably LONGER than the
 # block, lets the server's BLOCK response always arrive first — idle reads
 # return a clean empty result instead of a spurious timeout.
+_LOCAL_POLL_S: float = 0.25  # idle poll interval for the in-process store
 _STREAM_SOCKET_TIMEOUT_S: float = _BLOCK_MS / 1000 + 5.0  # 10 s for a 5 s block
 
 # Lease duration granted per node.  Set longer than the slowest specialist
@@ -211,7 +216,6 @@ async def swarm_listener(
     is created immediately and cancelled on exit so the presence key expires
     gracefully after _HEARTBEAT_TTL_S seconds.
     """
-    import redis.asyncio as aioredis
     from redis.exceptions import TimeoutError as RedisTimeoutError
 
     pheromone = PheromoneService(
@@ -225,11 +229,7 @@ async def swarm_listener(
     # the shared request pool so a stream read can never stall or churn the
     # connections that serve HTTP queries and the SSE pheromone feed.  All
     # short ops (publishes, acks, leases) still use the passed-in client.
-    stream_redis = aioredis.from_url(
-        settings.redis_url,
-        decode_responses=True,
-        socket_timeout=_STREAM_SOCKET_TIMEOUT_S,
-    )
+    stream_redis = get_kv(socket_timeout=_STREAM_SOCKET_TIMEOUT_S)
 
     # ── Swarm Pulse — assign identity and start heartbeat ─────────────────
     agent_id = _make_agent_id()
@@ -265,7 +265,9 @@ async def swarm_listener(
                         consumername=_CONSUMER_NAME,
                         streams={PHEROMONE_STREAM: ">"},
                         count=_READ_COUNT,
-                        block=_BLOCK_MS,
+                        # The in-process store answers a blocking read without
+                        # ever yielding, which would starve the event loop.
+                        block=_BLOCK_MS if kv_is_external() else None,
                     )
                 except RedisTimeoutError:
                     # An idle block window with no new messages — benign.  Loop
@@ -274,6 +276,8 @@ async def swarm_listener(
                     continue
 
                 if not results:
+                    if not kv_is_external():
+                        await asyncio.sleep(_LOCAL_POLL_S)
                     continue
 
                 for _stream_name, entries in results:
@@ -352,6 +356,8 @@ async def _process_message(
     node_id    = fields.get("node_id", "")
     agent_type = fields.get("agent_type", "")
     session_id = fields.get("session_id")   # None when field is absent
+    kb_id      = fields.get("kb_id")        # node ids are only unique per KB
+    _CURRENT_KB.set(kb_id)
 
     if not node_id or not agent_type:
         logger.warning(
@@ -368,6 +374,7 @@ async def _process_message(
         redis_client,
         event_type="routing",
         agent=agent_id,
+        kb_id=kb_id,
         message=f"Agent woke up. Evaluating context for node {node_id}...",
         node_id=node_id,
     )
@@ -392,6 +399,7 @@ async def _process_message(
         node_id=node_id,
         agent_id=_CONSUMER_NAME,
         lease_duration_sec=_LEASE_DURATION_SEC,
+        kb_id=kb_id,
     )
     if not claimed:
         logger.info(
@@ -404,6 +412,7 @@ async def _process_message(
             redis_client,
             event_type="error",
             agent=agent_id,
+            kb_id=kb_id,
             message="Lock denied or execution failed. Reason: lease held by another worker",
             node_id=node_id,
         )
@@ -415,6 +424,7 @@ async def _process_message(
         redis_client,
         event_type="lock",
         agent=agent_id,
+        kb_id=kb_id,
         message=f"Atomic lease secured. Claimed node {node_id}.",
         node_id=node_id,
     )
@@ -431,12 +441,13 @@ async def _process_message(
         await _dispatch(node_id, agent_type, context, graph_service)
 
         # 5. Clear Neo4j pheromone — raises on failure (no XACK if this fails)
-        await pheromone.clear_pheromone(node_id)
+        await pheromone.clear_pheromone(node_id, kb_id=kb_id)
 
         # 6. Release the lease — only this worker can release its own lock
         await graph_service.release_node_claim(
             node_id=node_id,
             agent_id=_CONSUMER_NAME,
+            kb_id=kb_id,
         )
 
         # ── TELEMETRY HOOK 3: Task complete ──────────────────────────────
@@ -446,6 +457,7 @@ async def _process_message(
             redis_client,
             event_type="success",
             agent=agent_id,
+            kb_id=kb_id,
             message="Task resolved. ACT-R energy boost triggered.",
             node_id=node_id,
         )
@@ -461,6 +473,7 @@ async def _process_message(
             redis_client,
             event_type="error",
             agent=agent_id,
+            kb_id=kb_id,
             message=f"Lock denied or execution failed. Reason: {exc}",
             node_id=node_id,
         )
@@ -688,7 +701,7 @@ async def _specialist_summariser(
     working_memory provides prior conversation turns so the summary stays
     coherent with the user's current line of inquiry.
     """
-    node = await graph_service.get_node_by_id(node_id)
+    node = await graph_service.get_node_by_id(node_id, agent_id=_CURRENT_KB.get())
     if node is None:
         logger.warning("SwarmListener | summariser: node=%s not found", node_id)
         return
@@ -707,7 +720,7 @@ async def _specialist_summariser(
         logger.warning("SwarmListener | summariser: empty summary for node=%s", node_id)
         return
 
-    await graph_service.set_node_description(node_id, summary)
+    await graph_service.set_node_description(node_id, summary, agent_id=_CURRENT_KB.get())
     logger.info(
         "SwarmListener | summariser: node=%s description updated (%d chars)",
         node_id, len(summary),
@@ -720,7 +733,7 @@ async def _specialist_classifier(
     graph_service: "GraphService",
 ) -> None:
     """Zero-shot classify a node into the NodeType vocabulary and update n.type."""
-    node = await graph_service.get_node_by_id(node_id)
+    node = await graph_service.get_node_by_id(node_id, agent_id=_CURRENT_KB.get())
     if node is None:
         logger.warning("SwarmListener | classifier: node=%s not found", node_id)
         return
@@ -743,7 +756,7 @@ async def _specialist_classifier(
         )
         return
 
-    await graph_service.set_node_type(node_id, predicted)
+    await graph_service.set_node_type(node_id, predicted, agent_id=_CURRENT_KB.get())
     logger.info("SwarmListener | classifier: node=%s type=%s", node_id, predicted)
 
 
@@ -759,7 +772,7 @@ async def _specialist_enricher(
     Entities are capped at 3 per run and constrained to the NodeType /
     RelationType vocabularies to keep the graph clean.
     """
-    node = await graph_service.get_node_by_id(node_id)
+    node = await graph_service.get_node_by_id(node_id, agent_id=_CURRENT_KB.get())
     if node is None:
         logger.warning("SwarmListener | enricher: node=%s not found", node_id)
         return

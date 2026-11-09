@@ -11,6 +11,75 @@ for their released versions. The release process is documented in
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-08
+
+Identity and governance, a learning loop, federation, fast memory paths, robotics,
+fine-tuning and a Lite mode. Upgrading needs a data migration: see
+[docs/migrating-to-0.5.md](docs/migrating-to-0.5.md).
+
+### Breaking changes
+- Authentication is always on and JWT is removed. Use API keys (`sk-` for users,
+  `ss-` for service accounts). `SPAIDER_INSECURE_DEV` opts out for local use.
+- Organizations, workspaces, users, groups and roles now live in Neo4j. Agent
+  records and API key hashes moved there from Redis.
+- `?token=` on WebSocket and event-stream URLs is replaced by single-use tickets.
+- `/swarm/connections*`, `/agents/connect`, `/agents/links` and `/agents/link` are
+  replaced by federation grants.
+- Node ids are unique per knowledge base. `DELETE /node/{id}` takes `agent_id` when
+  the key has no default KB.
+- `docker compose up` needs the `lite` or `full` profile. Compose publishes ports on
+  loopback only, Redis needs a password, Kong's admin API is not published, and
+  images run as uid 10001.
+- Python SDK 0.2.0 removes `create_swarm_connection`.
+
+### Added
+- Short-term memory: `POST /episodes`, `POST /recall`, MCP `spaider.remember` and
+  `spaider.recall`, with no LLM call, plus idempotency keys and spatial search.
+- Bi-temporal edges and `as_of` queries.
+- One `IngestPipeline` for every ingest path, with a job queue when Kafka is absent.
+- Learning loop: `[nK]` citations, `query_id`, feedback where the latest verdict
+  wins, co-activation links and a per-KB `RecallRanker`.
+- A ten-pass sleep cycle under a per-KB lease, with lessons, on-demand skills and
+  compaction, and MCP `spaider.sleep_report`, `spaider.compact` and resources.
+- Federation grants with scope, expiry and approval, enforced inside the Cypher, and
+  Knowledge Pull Requests with overlap-safe revert.
+- Fine-tuning through OpenAI, Together and Tinker, a `ModelVersion` registry and a
+  server-side evaluation gate. Adapters are verified only against reconstructed
+  API fixtures.
+- `spaider-edge` 0.1.0 for on-device memory and `spaider-ros2` 0.1.0. ROS 2 and
+  LeRobot are tested only with fakes.
+- CLI 0.2.0 with eight client installers, `@spaider/client` 0.1.0, MCP over stdio,
+  and Studio pages for sign-in, members, sharing, learning and training.
+- GDPR purge across graph, episodes, connector state, datasets and model artifacts.
+- `benchmarks/latency`, a deterministic robotics simulation and runners for
+  LongMemEval, LoCoMo and MemoryAgentBench-style datasets.
+
+### Changed
+- The entity resolver uses the full-text index, so its cost follows the batch and
+  not the size of the graph.
+- Clearance applies to every read path, including traversal and exports. Answers
+  use the lower of the caller's and the KB's clearance.
+- Queries have a deadline and return 504 past it. `LLM_FAST_MODEL` serves routing
+  and background work.
+
+### Fixed
+- Two facts from one document could supersede each other.
+- Orphan pruning never matched because it compared dates with an integer.
+- Node energy never decayed below 1.0.
+- Fusion rewrote knowledge edges as `RELATED_TO`, which retrieval ignores.
+- The streaming ingest route dropped FACT nodes and skipped supersession.
+- `feedback` and `system_settings` opened a new Neo4j driver on every call.
+- Dataset generation and download used different directories.
+
+### Security
+- Connectors check every URL hop, DSN and stdio command against private networks
+  and pin connections to the checked address.
+- Raw Cypher is limited by an allow-list to knowledge labels and is dev-only once an
+  instance has more than one organization.
+- Connector secrets are bound to their owner with AES-GCM associated data.
+- Rate limiting and security headers are on, and the default Neo4j password is
+  refused outside development.
+
 ## [0.4.0] - 2026-09-30
 
 Faster ingestion, a fixed MCP server, and a full dependency refresh.

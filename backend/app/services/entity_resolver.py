@@ -14,10 +14,12 @@ Dimension mismatches are handled differently per caller context:
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import TYPE_CHECKING, Literal, Optional
 
 from fastapi import HTTPException
+from rapidfuzz import fuzz, process
 
 from app.config import settings
 from app.models.schemas import Edge, GraphPayload, Node
@@ -58,6 +60,17 @@ def build_embed_text(node: Node) -> str:
     if source_text and source_text != description:
         text += f" — {source_text[:300]}"
     return text
+
+
+def _best_fuzzy(label: str, candidates: list[Node]) -> Optional[Node]:
+    """Runs in a worker thread: scoring many labels must not stall the event loop."""
+    best = process.extractOne(
+        label.lower(),
+        [candidate.label.lower() for candidate in candidates],
+        scorer=fuzz.ratio,
+        score_cutoff=_FUZZY_THRESHOLD * 100,
+    )
+    return candidates[best[2]] if best else None
 
 
 def _levenshtein_similarity(a: str, b: str) -> float:
@@ -223,9 +236,10 @@ class EntityResolver:
         # because strategies 1-3 see the FULL graph (no cap), and strategy
         # 4 sees the embedding-nearest candidates which is precisely what it
         # wants.
-        existing_nodes: list[Node] = await graph_service.list_nodes_for_resolver(
-            agent_id=agent_id,
+        existing_nodes: list[Node] = await graph_service.resolver_candidates(
+            agent_id, [node.label for node in payload.nodes if node.type != "FACT"],
         )
+        first_seen_in_payload: dict[str, str] = {}
 
         id_map: dict[str, str] = {}           # new_node_id → canonical_node_id
         nodes_to_add: list[Node] = []
@@ -244,6 +258,12 @@ class EntityResolver:
             if new_node.type == "FACT":
                 id_map[new_node.id] = new_node.id
                 nodes_to_add.append(new_node)
+                continue
+
+            # Two mentions in one document are one entity even when it is new.
+            label_key = new_node.label.lower()
+            if label_key in first_seen_in_payload:
+                id_map[new_node.id] = first_seen_in_payload[label_key]
                 continue
 
             # Strategies 1-3 see the full label-only set; strategy 4 sees
@@ -276,6 +296,7 @@ class EntityResolver:
             else:
                 id_map[new_node.id] = new_node.id
                 nodes_to_add.append(new_node)
+            first_seen_in_payload[label_key] = id_map[new_node.id]
 
         # Apply property updates to existing nodes in-memory
         # (graph_service.write_graph will handle persistence via MERGE).
@@ -352,9 +373,9 @@ class EntityResolver:
             aliases = [a.lower() for a in existing.properties.get("aliases", [])]
             if new_label_lower in aliases:
                 return existing
-        for existing in label_only_existing:
-            if _levenshtein_similarity(new_node.label, existing.label) >= _FUZZY_THRESHOLD:
-                return existing
+        fuzzy = await asyncio.to_thread(_best_fuzzy, new_node.label, label_only_existing)
+        if fuzzy is not None:
+            return fuzzy
 
         # ── Phase 2: vector-index probe for cosine-similarity match ────
         if not new_embedding:

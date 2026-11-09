@@ -29,7 +29,6 @@ MAPPING: dict[type, str] = {
     models.GraphPayload: "GraphResponse",
     models.IngestResult: "IngestQueuedResponse",
     models.SwarmQueryResult: "SwarmQueryResponse",
-    models.SwarmConnection: "SwarmConnection",
 }
 
 

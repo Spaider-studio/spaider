@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "spaider-backend"
-version = "0.4.0"
+version = "0.5.0"
 description = "SpAIder — agent-scoped knowledge graph backend"
 license = "AGPL-3.0-only"
 requires-python = ">=3.11"
@@ -20,15 +20,16 @@ dependencies = [
     # C-extension deps below pinned to versions that ship cp313 wheels.
     "aiokafka>=0.12.0",
     "redis[hiredis]>=5.2.0",
+    "fakeredis>=2.26.0",
+    "aiosqlite>=0.20.0",
     "neo4j==6.3.1",
-    "python-jose[cryptography]==3.5.0",
-    "passlib[bcrypt]==1.7.4",
     "networkx==3.6.1",
     "numpy>=2.2.0",
     "pandas>=2.2.3",
     "python-multipart==0.0.32",
     "httpx==0.28.1",
     "Levenshtein>=0.26.0",
+    "rapidfuzz>=3.10.0",
     "clickhouse-connect>=0.7.0",
     "cryptography>=43.0.0",
     "python-json-logger>=2.0.7",
@@ -40,6 +41,9 @@ dependencies = [
     "markdown-it-py>=3.0.0",
     "mcp>=2.0.0,<3.0.0",  # 2.x: tool handlers are constructor callbacks (see mcp_server.py)
 ]
+
+[project.scripts]
+spaider-mcp = "app.mcp_stdio:main"
 
 [project.optional-dependencies]
 # Installed in Docker images via `uv pip install --system .[dev]` so

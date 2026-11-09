@@ -23,7 +23,7 @@ vars from `.env.example` work here unchanged:
 
 CLI ``--provider`` and ``--model`` override the env vars. With-MCP mode
 additionally needs ``SPAIDER_API_KEY`` (the dev-{user} agent's key) and
-optionally ``SPAIDER_MCP_URL`` (default: host-side standalone on :8001).
+optionally ``SPAIDER_MCP_URL`` (default: http://localhost:8000/api/v1/mcp/).
 
 Usage
 -----
@@ -49,6 +49,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import sys
 import time
 import uuid
@@ -535,7 +536,8 @@ async def _run_with_spaider(task: Task, cfg: LLMConfig) -> RunRecord:
     bridges OpenAI-style tool_calls to the MCP server via mcp.client.sse."""
     from litellm import acompletion
     from mcp import ClientSession
-    from mcp.client.sse import sse_client
+    from benchmarks.mcp_connect import connect
+    from benchmarks.mcp_connect import mcp_url as resolve_mcp_url
 
     api_key = os.environ.get("SPAIDER_API_KEY")
     if not api_key:
@@ -543,10 +545,8 @@ async def _run_with_spaider(task: Task, cfg: LLMConfig) -> RunRecord:
             "SPAIDER_API_KEY required for --mode with-spaider. "
             "Run scripts/dev/setup_mcp_dev_agent.sh to provision one."
         )
-    mcp_url = os.environ.get(
-        "SPAIDER_MCP_URL", "http://localhost:8001/api/v1/mcp/sse",
-    )
 
+    mcp_url = resolve_mcp_url()
     started = datetime.now(timezone.utc)
     t0 = time.perf_counter()
     err: Optional[str] = None
@@ -581,7 +581,7 @@ async def _run_with_spaider(task: Task, cfg: LLMConfig) -> RunRecord:
     format_hint_injected = False
 
     try:
-        async with sse_client(mcp_url, headers={"Authorization": f"Bearer {api_key}"}) as streams:
+        async with connect(api_key) as streams:
             async with ClientSession(*streams) as mcp_session:
                 await mcp_session.initialize()
 
@@ -898,7 +898,7 @@ def _feedback_url_from_mcp(mcp_url: str) -> str:
     prefix='/system', ...)``) so its full path is ``/api/v1/system/feedback``,
     NOT ``/api/v1/feedback``.
     """
-    return mcp_url.replace("/mcp/sse", "/system/feedback")
+    return re.sub(r"/mcp(/sse)?/?$", "/system/feedback", mcp_url)
 
 
 async def _post_feedback(

@@ -27,6 +27,8 @@ on:
       - "cli/pyproject.toml"
       - "sdk/python/pyproject.toml"
       - "sdk/python-stub/pyproject.toml"
+      - "sdk/edge/pyproject.toml"
+      - "sdk/ros2/pyproject.toml"
 
 permissions:
   contents: write   # create + push tags
@@ -56,6 +58,14 @@ jobs:
             manifest: sdk/python-stub/pyproject.toml
             tag_prefix: sdk-python-stub/v
             workflow: sdk-python-stub-release.yml
+          - name: sdk-edge
+            manifest: sdk/edge/pyproject.toml
+            tag_prefix: sdk-edge/v
+            workflow: sdk-edge-release.yml
+          - name: sdk-ros2
+            manifest: sdk/ros2/pyproject.toml
+            tag_prefix: sdk-ros2/v
+            workflow: sdk-ros2-release.yml
     steps:
       - uses: actions/checkout@v7
 

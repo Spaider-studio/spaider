@@ -229,7 +229,9 @@ class ConnectorRunner:
         credentials: dict = {}
         for row in secret_rows:
             try:
-                partial = self._secrets.decrypt(row.ciphertext, row.nonce)
+                partial = self._secrets.decrypt(
+                    row.ciphertext, row.nonce, context=f"{row.connector_id}:{row.key_name}"
+                )
                 credentials[row.key_name] = partial.get(row.key_name, partial)
             except Exception as exc:
                 raise ConnectorRunnerError(

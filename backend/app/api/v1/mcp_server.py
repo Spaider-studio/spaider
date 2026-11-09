@@ -14,14 +14,14 @@ Architecture
   JSON-RPC to ``/api/v1/mcp`` and may open a GET stream on the same URL. Served
   by ``StreamableHTTPSessionManager`` in stateless mode.
 - Auth is HTTP-layer: every request must carry
-  ``Authorization: Bearer <api-key>``. The key resolves to an agent_id via
-  ``AuthService.verify_token`` (already supports ``sk-…`` raw API keys).
+  ``Authorization: Bearer <api-key>``. The key resolves to a principal, whose
+  default knowledge base is the namespace every tool operates in.
   The agent_id is then bound to a ``contextvars.ContextVar`` so the per-tool
   handlers can read it without leaking it through the MCP message envelope.
 - The session manager's ``run()`` context must be entered in the host app's
   lifespan (done in ``app.main`` and ``app.mcp_standalone``).
 - Same process as the main FastAPI app — reuses ``QueryService``,
-  ``GraphService`` and ``AuthService``. No new datastore.
+  ``GraphService`` and the identity service. No new datastore.
 
 Tools exposed (read-only first per the plan's cut-point — ``spaider.ingest_fact``
 ships in a follow-up)::
@@ -63,15 +63,19 @@ from __future__ import annotations
 import contextvars
 import json
 import logging
+import re
 from typing import Any, Optional
 
 import mcp.types as mcp_types
 from mcp.server.lowlevel import Server
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 
-from app.services.auth_service import AuthService
-from app.services.graph_service import GraphService
+from app.core.authz import Action, Principal, authorize, resolve_token
+from app.services.episode_store import EpisodeInput, EpisodeStore
+from app.services.graph_service import GraphService, get_graph_service
 from app.services.query_service import QueryService
+from app.services.recall_service import RecallQuery, RecallService
+from app.services.sleep_service import SleepBusy, SleepOrchestrator, latest_report
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +85,11 @@ logger = logging.getLogger(__name__)
 _AGENT_ID: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
     "spaider_mcp_agent_id", default=None,
 )
+_PRINCIPAL: contextvars.ContextVar[Optional[Principal]] = contextvars.ContextVar(
+    "spaider_mcp_principal", default=None,
+)
+_WRITE_TOOLS = frozenset({"spaider.ingest_fact", "spaider.feedback", "spaider.remember"})
+_MANAGE_TOOLS = frozenset({"spaider.compact"})
 
 
 # ---------------------------------------------------------------------------
@@ -93,44 +102,19 @@ _AGENT_ID: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
 # Lazy singletons — same pattern as the rest of app/api/v1.
 _query_service: Optional[QueryService] = None
 _graph_service: Optional[GraphService] = None
-_auth_service: Optional[AuthService] = None
 
 
 def _get_graph_service() -> GraphService:
-    """Return the lifespan-initialised GraphService singleton.
-
-    Importantly we reuse the instance that ``main.lifespan`` constructed
-    and ran ``initialize()`` on — that's the one that has detected the
-    Neo4j vector index. Constructing a fresh ``GraphService()`` here
-    leaves ``vector_index_available=False`` permanently and breaks
-    ``spaider.query`` even when the index is ONLINE. Fall back to a
-    bare instance only if main has not yet initialised one (e.g. when
-    the standalone MCP app from ``app.mcp_standalone`` is starting up
-    before its own lifespan has run)."""
-    global _graph_service
-    if _graph_service is None:
-        from app import main as _app_main
-        if _app_main._graph_service is not None:
-            _graph_service = _app_main._graph_service
-        else:
-            _graph_service = GraphService()
-    return _graph_service
+    return _graph_service or get_graph_service()
 
 
 def _get_query_service() -> QueryService:
     global _query_service
-    if _query_service is None:
-        # QueryService requires a GraphService dependency for Cypher access
-        # — same construction pattern used by app/api/v1/query.py.
-        _query_service = QueryService(graph_service=_get_graph_service())
+    graph = _get_graph_service()
+    if _query_service is None or _query_service._graph is not graph:
+        _query_service = QueryService(graph_service=graph)
     return _query_service
 
-
-def _get_auth_service() -> AuthService:
-    global _auth_service
-    if _auth_service is None:
-        _auth_service = AuthService()
-    return _auth_service
 
 
 async def list_tools() -> list[mcp_types.Tool]:
@@ -263,6 +247,55 @@ async def list_tools() -> list[mcp_types.Tool]:
             },
         ),
         mcp_types.Tool(
+            name="spaider.remember",
+            description=(
+                "Store an observation immediately, with no LLM call. Use this for "
+                "frequent writes; the sleep cycle extracts knowledge later."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "content": {"type": "string", "description": "What happened."},
+                    "kind": {"type": "string"},
+                    "session_id": {"type": "string"},
+                    "idempotency_key": {"type": "string", "description": "Makes retries safe."},
+                },
+                "required": ["content"],
+            },
+        ),
+        mcp_types.Tool(
+            name="spaider.recall",
+            description=(
+                "Search memory with no LLM call and return matching episodes and "
+                "nodes. Faster and cheaper than spaider.query; gives raw memories, not an answer."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"},
+                    "limit": {"type": "integer"},
+                    "federated": {"type": "boolean", "description": "Also search KBs shared with this one."},
+                },
+                "required": ["query"],
+            },
+        ),
+        mcp_types.Tool(
+            name="spaider.sleep_report",
+            description=(
+                "Read the latest sleep report for this knowledge base (READ-ONLY): "
+                "what each consolidation pass did, in counts."
+            ),
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        mcp_types.Tool(
+            name="spaider.compact",
+            description=(
+                "Fold old episodes into summaries now instead of waiting for the next "
+                "sleep cycle. Needs the steward role."
+            ),
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        mcp_types.Tool(
             name="spaider.status",
             description=(
                 "Read the calling agent's memory configuration (READ-ONLY). "
@@ -277,11 +310,14 @@ async def list_tools() -> list[mcp_types.Tool]:
 
 
 async def call_tool(name: str, arguments: dict[str, Any]) -> list[mcp_types.TextContent]:
-    """Dispatch tool calls to the underlying services. Auth was checked in the
-    ASGI wrapper (`mcp_app`); here we just read the agent_id contextvar."""
+    """Dispatch tool calls. The caller was authenticated in `mcp_app`; each tool
+    is authorized here because keys can be read-only on their KB."""
     agent_id = _AGENT_ID.get()
-    if agent_id is None:
-        raise ValueError("Tool called without authenticated agent_id (auth bug?)")
+    principal = _PRINCIPAL.get()
+    if agent_id is None or principal is None:
+        raise ValueError("Tool called without an authenticated caller (auth bug?)")
+    required = Action.MANAGE if name in _MANAGE_TOOLS else Action.WRITE if name in _WRITE_TOOLS else Action.READ
+    await authorize(principal, agent_id, required)
 
     if name == "spaider.status":
         graph = _get_graph_service()
@@ -322,7 +358,12 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[mcp_types.Text
         # model needs enough context that the relevant FACT-type nodes
         # actually surface alongside the entity nodes.
         top_k = arguments.get("top_k", 15)
-        result = await _get_query_service().query_nl(question, agent_id, top_k=top_k)
+        result = await _get_query_service().query_nl(
+            question,
+            agent_id,
+            top_k=top_k,
+            max_clearance=_PRINCIPAL.get().clearance_level if _PRINCIPAL.get() else None,
+        )
         nodes = result.subgraph.nodes if result.subgraph else []
 
         # Split the subgraph by node type. FACT nodes carry the
@@ -386,6 +427,51 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[mcp_types.Text
 
         return [mcp_types.TextContent(type="text", text="\n\n".join(sections))]
 
+    if name == "spaider.remember":
+        content = arguments.get("content")
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("`content` is required and must be a non-empty string")
+        written = await EpisodeStore(_get_graph_service()._driver).write_batch(
+            agent_id,
+            [
+                EpisodeInput(
+                    content=content[:100_000],
+                    kind=str(arguments.get("kind") or "observation"),
+                    session_id=arguments.get("session_id"),
+                    idempotency_key=arguments.get("idempotency_key"),
+                    source="mcp",
+                )
+            ],
+        )
+        return [mcp_types.TextContent(type="text", text=json.dumps(written[0]))]
+
+    if name == "spaider.recall":
+        text = arguments.get("query")
+        if not isinstance(text, str) or not text.strip():
+            raise ValueError("`query` is required and must be a non-empty string")
+        results = await RecallService(_get_graph_service()._driver).recall(
+            RecallQuery(
+                agent_id=agent_id,
+                text=text,
+                limit=min(int(arguments.get("limit") or 10), 100),
+                clearance=principal.clearance_level,
+                federated=bool(arguments.get("federated")),
+            )
+        )
+        return [mcp_types.TextContent(type="text", text=json.dumps(results, default=str))]
+
+    if name == "spaider.sleep_report":
+        report = await latest_report(_get_graph_service()._driver, agent_id)
+        text = json.dumps(report, indent=2) if report else "This knowledge base has not slept yet."
+        return [mcp_types.TextContent(type="text", text=text)]
+
+    if name == "spaider.compact":
+        try:
+            report = await SleepOrchestrator(_get_graph_service()).run(agent_id, passes=("compaction",))
+        except SleepBusy:
+            raise ValueError("This knowledge base is already sleeping; try again shortly.")
+        return [mcp_types.TextContent(type="text", text=json.dumps(report["passes"]["compaction"]))]
+
     if name == "spaider.ingest_fact":
         text = arguments.get("text")
         if not isinstance(text, str) or not text.strip():
@@ -414,10 +500,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[mcp_types.Text
         )
         # MCP has already authenticated this session and pinned agent_id, so the
         # REST handler's IDOR check is a matching no-op — pass the identity through.
-        result = await _ingest_module.ingest_text_sync(
-            request_obj,
-            auth={"agent_id": agent_id, "auth_bypassed": False, "permissions": []},
-        )
+        result = await _ingest_module.ingest_text_sync(request_obj, auth=principal)
         body = (
             f"Ingested under agent {agent_id}.\n"
             f"Nodes: {result.nodes_created} created / {result.nodes_merged} merged\n"
@@ -432,7 +515,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[mcp_types.Text
             raise ValueError("`limit` must be between 1 and 200")
         cypher = (
             "MATCH (n:SpaiderNode {agent_id: $agent_id}) "
-            "WHERE n.created_at IS NOT NULL "
+            f"WHERE n.created_at IS NOT NULL AND coalesce(n.clearance_level, 1) <= {int(principal.clearance_level)} "
             "RETURN n.label AS label, n.type AS type, n.created_at AS created_at "
             "ORDER BY n.created_at DESC "
             f"LIMIT {limit}"
@@ -539,6 +622,77 @@ async def _on_call_tool(
         )
 
 
+_RESOURCE_KINDS = {"skills": "SKILL", "lessons": "LESSON"}
+
+
+def _resource_scope() -> tuple[str, int]:
+    agent_id, principal = _AGENT_ID.get(), _PRINCIPAL.get()
+    if agent_id is None or principal is None:
+        raise ValueError("Not authenticated.")
+    return agent_id, principal.clearance_level
+
+
+async def _on_list_resources(ctx, params=None) -> mcp_types.ListResourcesResult:
+    """Skills and lessons this caller may read. Listing them costs no LLM call."""
+    agent_id, clearance = _resource_scope()
+    await authorize(_PRINCIPAL.get(), agent_id, Action.READ)
+    folders = {node_type: folder for folder, node_type in _RESOURCE_KINDS.items()}
+    async with _get_graph_service()._driver.session() as session:
+        result = await session.run(
+            """
+            MATCH (n:SpaiderNode {agent_id: $kb})
+            WHERE n.type IN ['SKILL', 'LESSON'] AND coalesce(n.clearance_level, 1) <= $clearance
+              AND coalesce(n.status, 'active') = 'active'
+            RETURN n.id AS id, n.type AS type, n.label AS label
+            ORDER BY n.updated_at DESC LIMIT 200
+            """,
+            kb=agent_id,
+            clearance=clearance,
+        )
+        resources = [
+            mcp_types.Resource(
+                name=record["label"],
+                uri=f"spaider://{folders[record['type']]}/{record['id']}",
+                mime_type="text/plain",
+            )
+            async for record in result
+        ]
+    return mcp_types.ListResourcesResult(resources=resources)
+
+
+async def read_resource(uri: str) -> str:
+    agent_id, clearance = _resource_scope()
+    await authorize(_PRINCIPAL.get(), agent_id, Action.READ)
+    match = re.fullmatch(r"spaider://(skills|lessons)/([\w.-]+)", str(uri))
+    if match is None:
+        raise ValueError("Unknown resource.")
+    async with _get_graph_service()._driver.session() as session:
+        record = await (
+            await session.run(
+                """
+                MATCH (n:SpaiderNode {id: $id, agent_id: $kb, type: $type})
+                WHERE coalesce(n.clearance_level, 1) <= $clearance
+                RETURN n.description AS text
+                """,
+                id=match.group(2),
+                kb=agent_id,
+                type=_RESOURCE_KINDS[match.group(1)],
+                clearance=clearance,
+            )
+        ).single()
+    # The same answer for missing and hidden, so ids cannot be probed.
+    if record is None:
+        raise ValueError("Unknown resource.")
+    return record["text"]
+
+
+async def _on_read_resource(ctx, params: mcp_types.ReadResourceRequestParams) -> mcp_types.ReadResourceResult:
+    text = await read_resource(str(params.uri))
+    return mcp_types.ReadResourceResult(
+        contents=[mcp_types.TextResourceContents(uri=str(params.uri), mime_type="text/plain", text=text)]
+    )
+
+
 def _spaider_version() -> str:
     """Package version for the MCP serverInfo. v1's Server auto-derived this;
     v2 does not, so derive it from the installed distribution (falls back when
@@ -555,6 +709,8 @@ mcp_server = Server(
     version=_spaider_version(),
     on_list_tools=_on_list_tools,
     on_call_tool=_on_call_tool,
+    on_list_resources=_on_list_resources,
+    on_read_resource=_on_read_resource,
 )
 
 
@@ -628,18 +784,19 @@ async def mcp_app(scope, receive, send) -> None:
     if not token:
         await _send_json_401(send, "Missing Bearer token")
         return
-    try:
-        payload = await _get_auth_service().verify_token(token)
-    except Exception as exc:  # noqa: BLE001 — degrade to 401 on any auth error
-        await _send_json_401(send, f"Invalid token: {exc}")
+    principal = await resolve_token(token)
+    if principal is None:
+        await _send_json_401(send, "Invalid token")
         return
-    agent_id = payload.get("sub") if isinstance(payload, dict) else None
+    agent_id = principal.default_kb or ("default" if principal.insecure else None)
     if not agent_id:
-        await _send_json_401(send, "Token has no agent_id")
+        await _send_json_401(send, "This key has no default knowledge base")
         return
 
+    principal_token = _PRINCIPAL.set(principal)
     ctx_token = _AGENT_ID.set(agent_id)
     try:
         await mcp_session_manager.handle_request(scope, receive, send)
     finally:
         _AGENT_ID.reset(ctx_token)
+        _PRINCIPAL.reset(principal_token)

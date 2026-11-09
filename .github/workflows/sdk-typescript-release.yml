@@ -1,0 +1,43 @@
+name: Release / TypeScript SDK
+
+# Publishes @spaider/client to npm when a sdk-typescript/v* tag is pushed.
+# Needs an NPM_TOKEN secret and the @spaider scope on npm.
+
+on:
+  push:
+    tags:
+      - "sdk-typescript/v*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (default). Type false to actually publish."
+        required: false
+        default: "true"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: npm
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+      - working-directory: sdk/typescript
+        run: npm ci
+      - working-directory: sdk/typescript
+        run: npm test
+      - working-directory: sdk/typescript
+        run: npm run build
+      - name: Publish
+        if: github.event_name == 'push' || inputs.dry_run == 'false'
+        working-directory: sdk/typescript
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance

@@ -3,15 +3,126 @@ Shared pytest fixtures for SpAIder backend tests.
 """
 from __future__ import annotations
 
-import json
-import uuid
-from datetime import datetime, timezone
-from typing import AsyncIterator
-from unittest.mock import AsyncMock, MagicMock, patch
+# Must run before anything below imports app.config. See tests/_safety.py.
+from tests import _safety  # isort: skip
 
-import pytest
+_safety.install_test_environment()
+_safety.block_real_services()
 
-from app.models.schemas import Agent, Edge, GraphPayload, Node
+import json  # noqa: E402
+import os  # noqa: E402
+import uuid  # noqa: E402
+from datetime import datetime, timezone  # noqa: E402
+from typing import AsyncIterator  # noqa: E402
+from unittest.mock import AsyncMock, MagicMock, patch  # noqa: E402
+
+import pytest  # noqa: E402
+
+from app.models.schemas import Agent, Edge, GraphPayload, Node  # noqa: E402
+from tests.stubs.fixtures import openai_stub  # noqa: E402, F401
+
+
+def _integration_unavailable(service: str, exc: Exception) -> None:
+    """Skip locally; fail when the gate demands real services."""
+    message = f"{service} test service unreachable: {exc}"
+    if os.environ.get("SPAIDER_REQUIRE_INTEGRATION") == "1":
+        pytest.fail(message)
+    pytest.skip(message)
+
+
+@pytest.fixture(autouse=True)
+def _fresh_kv():
+    """Cached clients must not leak mocks or event loops between tests."""
+    from app.core.jobs import reset_job_queue
+    from app.core.kv import reset_kv
+
+    reset_kv()
+    reset_job_queue()
+    yield
+    reset_kv()
+    reset_job_queue()
+
+
+@pytest.fixture
+async def neo4j_test_driver():
+    """A driver for the throwaway Neo4j, wiped before each test."""
+    from neo4j import AsyncGraphDatabase
+
+    driver = AsyncGraphDatabase.driver(
+        _safety.neo4j_uri_for_tests(),
+        auth=("neo4j", _safety.neo4j_password_for_tests()),
+    )
+    try:
+        await driver.verify_connectivity()
+    except Exception as exc:  # noqa: BLE001
+        await driver.close()
+        _integration_unavailable("Neo4j", exc)
+    await _safety.assert_test_database(driver)
+    await _safety.wipe_test_database(driver)
+    yield driver
+    await _safety.wipe_test_database(driver)
+    await driver.close()
+
+
+class AuthWorld:
+    """An org on the real test database, driven through the real API router."""
+
+    def __init__(self, client, identity, driver, owner_key, org_id) -> None:
+        self.client = client
+        self.identity = identity
+        self.driver = driver
+        self.owner_key = owner_key
+        self.org_id = org_id
+
+    @staticmethod
+    def headers(key: str) -> dict:
+        return {"X-Api-Key": key}
+
+    async def create_kb(self, name: str = "kb", key: str | None = None, **body) -> dict:
+        response = await self.client.post(
+            "/api/v1/agents",
+            json={"name": name, **body},
+            headers=self.headers(key or self.owner_key),
+        )
+        assert response.status_code == 201, response.text
+        return response.json()["agent"]
+
+    async def user(self, name: str = "u", **kwargs) -> dict:
+        return await self.identity.create_user(self.org_id, name, **kwargs)
+
+    async def member(self, kb_id: str, role: str, **kwargs) -> dict:
+        """A user holding ``role`` on one KB."""
+        user = await self.user(role, **kwargs)
+        await self.identity.grant_role(self.org_id, kb_id, user["id"], role)
+        return user
+
+
+@pytest.fixture
+async def auth_world(neo4j_test_driver, monkeypatch):
+    """Authentication on, schema created, API router mounted, one org bootstrapped."""
+    from fastapi import FastAPI
+    from httpx import ASGITransport, AsyncClient
+
+    from app.api.router import api_router
+    from app.config import settings
+    from app.services import graph_service as graph_module
+    from app.services.identity_service import get_identity_service
+
+    monkeypatch.setattr(settings, "spaider_insecure_dev", False)
+    monkeypatch.setattr(settings, "spaider_bootstrap_token", "bootstrap-secret")
+    service = graph_module.GraphService()
+    await service.initialize()
+    monkeypatch.setattr(graph_module, "_shared_graph_service", service)
+    # It holds the driver it was built with, which the previous test closed.
+    monkeypatch.setattr("app.api.v1.replay._replay_service", None)
+
+    app = FastAPI()
+    app.include_router(api_router, prefix="/api/v1")
+    identity = get_identity_service()
+    created = await identity.bootstrap("Acme", "Owner")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as client:
+        yield AuthWorld(client, identity, service._driver, created["api_key"], created["org_id"])
+    await service.close()
 
 
 # ---------------------------------------------------------------------------

@@ -25,9 +25,12 @@ state-assertion fact costs one LLM call per candidate it has.
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import json
 import logging
 import re
+from datetime import datetime, timezone
+from typing import Optional
 
 from app.config import settings
 from app.lib.litellm_retry import acompletion_with_retry
@@ -35,15 +38,22 @@ from app.lib.litellm_retry import acompletion_with_retry
 logger = logging.getLogger(__name__)
 
 
+# Only strictly older edges are candidates. Edges written together share a
+# timestamp, so two facts from one document can never supersede each other, and
+# a slow judge for an older edge cannot retire a newer one.
+#
 # Candidates share an entity endpoint with the new edge (either end), regardless
 # of the relation TYPE. This is deliberately broad: SpAIder's predicates are
 # inconsistent ("headquartered in" vs "relocated to"), so requiring the same
 # relation misses real updates. The LLM judge does the discrimination; this query
 # only narrows to "facts about a shared entity" and caps the count.
 _CANDIDATE_CYPHER = """
+MATCH ()-[new:RELATION {id: $new_id, agent_id: $aid}]->()
+WITH coalesce(new.recorded_at, new.created_at, '') AS new_at
 MATCH (a:SpaiderNode {agent_id: $aid})-[r:RELATION]->(b:SpaiderNode {agent_id: $aid})
 WHERE NOT coalesce(r.superseded, false)
   AND r.id <> $new_id
+  AND coalesce(r.recorded_at, r.created_at, '') < new_at
   AND coalesce(r.relation, '') <> 'MENTIONS'
   AND (a.id IN [$src, $tgt] OR b.id IN [$src, $tgt])
 RETURN r.id AS edge_id, a.label AS subj, coalesce(r.relation, 'RELATED') AS rel,
@@ -55,12 +65,13 @@ LIMIT $max
 # superseded edge's source sentence (so the stale text stops being retrievable).
 _MARK_CYPHER = """
 UNWIND $items AS item
-MATCH ()-[r:RELATION {id: item.edge_id}]->()
-SET r.superseded = true, r.superseded_by = $new_id
+MATCH ()-[r:RELATION {id: item.edge_id, agent_id: $aid}]->()
+SET r.superseded = true, r.superseded_by = $new_id,
+    r.valid_to = coalesce(r.valid_to, $now), r.expired_at = $now
 WITH collect(item.text) AS texts
 MATCH (f:SpaiderNode {agent_id: $aid, type: 'FACT'})
 WHERE any(t IN texts WHERE t <> '' AND f.description CONTAINS t)
-SET f.superseded = true, f.superseded_by = $new_id
+SET f.superseded = true, f.superseded_by = $new_id, f.superseded_at = $now
 RETURN count(f) AS facts_marked
 """
 
@@ -72,7 +83,7 @@ RETURN count(f) AS facts_marked
 # FACT still mentions that entity (guard against wiping a still-supported one).
 _NEUTRALIZE_CYPHER = """
 UNWIND $items AS item
-MATCH (a:SpaiderNode)-[r:RELATION {id: item.edge_id}]->(b:SpaiderNode)
+MATCH (a:SpaiderNode)-[r:RELATION {id: item.edge_id, agent_id: $aid}]->(b:SpaiderNode)
 WITH [a, b] AS ents, item.text AS ftext
 UNWIND ents AS ent
 WITH DISTINCT ent, ftext
@@ -109,10 +120,15 @@ def _parse_superseded_ids(content: str, valid: set[str]) -> set[str]:
         return set()
 
 
+_LLM_FAILURES: contextvars.ContextVar[Optional[list]] = contextvars.ContextVar(
+    "supersession_llm_failures", default=None
+)
+
+
 async def _llm_json(prompt: str) -> str:
     """One temperature-0 completion via the configured judge model. '' on failure."""
     kwargs: dict = {
-        "model": settings.supersession_judge_model or settings.litellm_model,
+        "model": settings.supersession_judge_model or settings.litellm_fast_model,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0,
     }
@@ -125,6 +141,9 @@ async def _llm_json(prompt: str) -> str:
         return resp.choices[0].message.content or ""
     except Exception as exc:  # noqa: BLE001
         logger.warning("supersession llm call failed: %s", exc)
+        failures = _LLM_FAILURES.get()
+        if failures is not None:
+            failures.append(type(exc).__name__)
         return ""
 
 
@@ -232,12 +251,40 @@ async def resolve_supersession(driver, agent_id: str, resolved_payload) -> int:
     if not candidates_edges:
         return 0
 
+    # A failed LLM call looks like "not a state update", so remember it: those
+    # edges must stay unchecked for the sleep cycle to retry.
+    failures: list = []
+    _LLM_FAILURES.set(failures)
+
+    async def _mark_checked() -> None:
+        if failures:
+            return
+        try:
+            async with driver.session() as session:
+                await session.run(
+                    """
+                    UNWIND $ids AS edge_id
+                    MATCH ()-[r:RELATION {id: edge_id, agent_id: $aid}]->()
+                    SET r.contradiction_checked = true
+                    """,
+                    ids=[edge.id for edge, _ in candidates_edges],
+                    aid=agent_id,
+                )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("supersession could not mark edges checked: %s", type(exc).__name__)
+
     # Phase 1 — classify each distinct fact as a state assertion, CONCURRENTLY.
     # Previously this was one serial LLM call per edge; the calls are
     # independent, so we fan them out and dedup by text (one call per fact).
+    llm_slots = asyncio.Semaphore(settings.supersession_max_concurrency)
+
+    async def _limited(call):
+        async with llm_slots:
+            return await call
+
     unique_texts = list({t for _, t in candidates_edges})
     state_flags = await asyncio.gather(
-        *[_is_state_update(t) for t in unique_texts], return_exceptions=True
+        *[_limited(_is_state_update(t)) for t in unique_texts], return_exceptions=True
     )
     state_map = {
         t: (flag is True)  # a failed classification (Exception) → not a state
@@ -245,6 +292,7 @@ async def resolve_supersession(driver, agent_id: str, resolved_payload) -> int:
     }
     state_edges = [(e, t) for (e, t) in candidates_edges if state_map.get(t)]
     if not state_edges:
+        await _mark_checked()
         return 0
 
     # Phase 2 — for each state edge, search candidates + judge + mark,
@@ -267,7 +315,7 @@ async def resolve_supersession(driver, agent_id: str, resolved_payload) -> int:
                 ]
             if not candidates:
                 return 0
-            superseded_ids = await _judge(new_text, candidates)
+            superseded_ids = await _limited(_judge(new_text, candidates))
             if not superseded_ids:
                 return 0
             items = [
@@ -277,7 +325,10 @@ async def resolve_supersession(driver, agent_id: str, resolved_payload) -> int:
             if not items:
                 return 0
             async with driver.session() as session:
-                await session.run(_MARK_CYPHER, items=items, new_id=edge.id, aid=agent_id)
+                await session.run(
+                    _MARK_CYPHER, items=items, new_id=edge.id, aid=agent_id,
+                    now=datetime.now(timezone.utc).isoformat(),
+                )
                 await session.run(_NEUTRALIZE_CYPHER, items=items, aid=agent_id)
             logger.info(
                 "supersession: new edge %s superseded %d prior fact(s)", edge.id, len(items),
@@ -288,4 +339,5 @@ async def resolve_supersession(driver, agent_id: str, resolved_payload) -> int:
             return 0
 
     counts = await asyncio.gather(*[_process_edge(e, t) for e, t in state_edges])
+    await _mark_checked()
     return sum(counts)

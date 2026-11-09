@@ -8,19 +8,19 @@ from typing import Any, Optional
 
 import httpx
 
+from ._api import MemoryApi
 from .exceptions import AuthError, NotFoundError, RateLimitError, ServerError, SpaiderError
 from .models import (
     GraphPayload,
     IngestResult,
     Node,
     QueryResult,
-    SwarmConnection,
     SwarmQueryResult,
     SynthesisDataset,
 )
 
 
-class AsyncSpaider:
+class AsyncSpaider(MemoryApi):
     """
     Spaider Memory Infrastructure Client (asynchronous).
 
@@ -241,37 +241,6 @@ class AsyncSpaider:
             },
         )
         return SynthesisDataset(**data)
-
-    async def create_swarm_connection(
-        self,
-        target_agent: str,
-        *,
-        permission: str = "read_only",
-        scope: str = "full",
-    ) -> SwarmConnection:
-        """
-        Create a swarm connection from the current agent to *target_agent*.
-
-        Args:
-            target_agent: ID of the target agent to connect to.
-            permission: ``read_only`` (default) or ``read_write``.
-            scope: ``full`` (default) or ``filtered``.
-
-        Returns:
-            :class:`SwarmConnection` describing the new connection.
-        """
-        data = await self._request(
-            "POST",
-            "/api/v1/swarm/connections",
-            json={
-                "source_agent_id": self.agent_id,
-                "target_agent_id": target_agent,
-                "permission": permission,
-                "scope": scope,
-            },
-        )
-        # Response envelope is {success, connection: {...}}.
-        return SwarmConnection(**data["connection"])
 
     async def swarm_query(
         self,

@@ -100,7 +100,7 @@ Connect multiple agents and query across their graphs:
 sp = Spaider(api_key="sk-...", agent_id="agent-hr")
 
 # Connect to another agent
-sp.create_swarm_connection(target_agent="agent-sales")
+sp.request_grant("agent-sales", max_clearance=1)
 
 # Query across both graphs
 result = sp.swarm_query(
@@ -180,7 +180,9 @@ print(str(response))
 | `get_node(node_id)` | Fetch a single node |
 | `delete_node(node_id)` | Delete a node (GDPR) |
 | `synthesize(strategy?, max_samples?)` | Generate fine-tuning dataset |
-| `create_swarm_connection(target_agent)` | Connect to another agent |
+| `request_grant(source_kb)` | Ask to read another knowledge base; a steward approves it |
+| `remember(content)` / `recall(query)` | Fast memory with no LLM call |
+| `sleep()` / `sleep_report()` | Run and inspect consolidation |
 | `swarm_query(question, target_agents?, top_k?)` | Cross-agent query |
 
 ### Models

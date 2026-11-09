@@ -13,7 +13,7 @@ import io
 import json
 import logging
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import FastAPI
@@ -155,19 +155,24 @@ async def test_kafka_consumer_binds_context_during_extraction(monkeypatch) -> No
     """The consumer must set request_id / agent_id contextvars while extract()
     runs so downstream log lines from compressor / resolver carry the trace ID.
     """
-    from app.services.kafka_consumer import KafkaConsumerService, _resolve_no_graph
+    from app.services import kafka_consumer
+    from app.services.kafka_consumer import KafkaConsumerService
 
     captured: dict = {}
 
     async def fake_extract(*, text: str, context=None):
         captured["request_id"] = request_id_var.get()
         captured["agent_id"] = agent_id_var.get()
-        # Return a minimal payload-shaped object; the consumer only forwards
-        # it to `_resolve_no_graph`, which iterates nodes/edges.
+        # A minimal payload-shaped object; the pipeline only iterates nodes/edges.
         return SimpleNamespace(nodes=[], edges=[])
 
     compressor = SimpleNamespace(extract=fake_extract)
-    resolver = SimpleNamespace()
+
+    async def resolve(payload, agent_id, graph, caller_context="api"):
+        return payload
+
+    resolver = SimpleNamespace(resolve=resolve)
+    monkeypatch.setattr(kafka_consumer, "get_graph_service", MagicMock)
     service = KafkaConsumerService()
 
     message = SimpleNamespace(

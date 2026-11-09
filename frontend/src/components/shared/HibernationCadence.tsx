@@ -24,13 +24,21 @@ const OPTIONS: { label: string; hours: number }[] = [
   { label: "Weekly", hours: 168 },
 ];
 
-export default function HibernationCadence({ agentId }: { agentId: string }) {
+export default function HibernationCadence({
+  agentId,
+  initial,
+}: {
+  agentId: string;
+  initial?: number | null;
+}) {
   const { toast } = useToast();
-  const [hours, setHours] = useState<number | null>(null); // null = loading
+  const [hours, setHours] = useState<number | null>(initial ?? null); // null = loading
   const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
 
   useEffect(() => {
+    // The list response already gave us the value.
+    if (initial !== undefined && initial !== null) return;
     let cancelled = false;
     getConsolidationConfig(agentId)
       .then((c) => {
@@ -42,7 +50,7 @@ export default function HibernationCadence({ agentId }: { agentId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [agentId]);
+  }, [agentId, initial]);
 
   async function onChange(next: number) {
     setSaving(true);

@@ -4,16 +4,23 @@ vector index, parameterized Cypher, and GDPR-compliant deletion.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
+import random
+import re
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
 from neo4j import AsyncDriver, AsyncGraphDatabase
+from neo4j.exceptions import Neo4jError, TransientError
 
 from app.config import settings
+from app.core.fulltext import scoped
+from app.core.schema import FOUNDATION_SCHEMA
+from app.core.temporal import edge_visible, node_visible, to_utc_iso
 from app.models.schemas import (
     ClusterGraphPayload,
     Edge,
@@ -24,6 +31,15 @@ from app.models.schemas import (
 )
 
 logger = logging.getLogger(__name__)
+
+_SCHEMA_INIT_ATTEMPTS = 6
+# Raised despite IF NOT EXISTS when another process creates the same rule at
+# that instant. The next attempt sees the rule and moves on.
+_SCHEMA_RACE_CODES = frozenset({
+    "Neo.ClientError.Schema.EquivalentSchemaRuleAlreadyExists",
+    "Neo.ClientError.Schema.IndexAlreadyExists",
+    "Neo.ClientError.Schema.ConstraintAlreadyExists",
+})
 
 # ---------------------------------------------------------------------------
 # Vector search tuning constants
@@ -82,7 +98,7 @@ _MEMORY_VERSIONING_ENABLED: bool = (
 #   4. WITH row drops the `existing` binding before the main MERGE so the
 #      subsequent MERGE picks a fresh node binding cleanly.
 _VERSIONING_PRELUDE: str = """
-    OPTIONAL MATCH (existing:SpaiderNode {id: row.id})
+    OPTIONAL MATCH (existing:SpaiderNode {id: row.id, agent_id: row.agent_id})
     FOREACH (_ IN CASE WHEN existing IS NOT NULL THEN [1] ELSE [] END |
         CREATE (v:NodeVersion {
             version_id:   randomUUID(),
@@ -106,9 +122,8 @@ _VERSIONING_PRELUDE: str = """
 # versioned paths. Extracted as a constant so the two write functions
 # in this module share a single source of truth.
 _NODE_WRITE_TAIL: str = """
-    MERGE (n:SpaiderNode {id: row.id})
+    MERGE (n:SpaiderNode {id: row.id, agent_id: row.agent_id})
     ON CREATE SET
-        n.agent_id    = row.agent_id,
         n.label       = row.label,
         n.type        = row.type,
         n.created_at  = $now,
@@ -122,6 +137,8 @@ _NODE_WRITE_TAIL: str = """
     SET n.embedding   = CASE WHEN row.embedding IS NOT NULL THEN row.embedding ELSE n.embedding END
     SET n.description = COALESCE(row.description, n.description)
     SET n.source_text = COALESCE(row.source_text, n.source_text)
+    SET n.aliases_text = COALESCE(row.aliases_text, n.aliases_text)
+    SET n.status = CASE WHEN n.status = 'archived' THEN 'active' ELSE n.status END
     RETURN sum(was_created) AS created, sum(1 - was_created) AS merged
 """
 
@@ -138,6 +155,34 @@ def _node_write_cypher() -> str:
     if _MEMORY_VERSIONING_ENABLED:
         return head + _VERSIONING_PRELUDE + _NODE_WRITE_TAIL
     return head + _NODE_WRITE_TAIL
+
+
+_shared_graph_service: Optional["GraphService"] = None
+
+
+def get_graph_service() -> "GraphService":
+    """The process-wide GraphService, created on first use.
+
+    The app lifespan calls ``initialize()`` on this same instance; a separately
+    constructed GraphService never learns that the vector index exists.
+    """
+    global _shared_graph_service
+    if _shared_graph_service is None:
+        _shared_graph_service = GraphService()
+    return _shared_graph_service
+
+
+def reset_graph_service() -> None:
+    global _shared_graph_service
+    _shared_graph_service = None
+
+
+_VISIBLE = "coalesce({v}.clearance_level, 1) <= $max_clearance"
+
+
+def _aliases_text(node) -> Optional[str]:
+    aliases = (node.properties or {}).get("aliases")
+    return " ".join(str(alias) for alias in aliases) if aliases else None
 
 
 class VectorIndexUnavailableError(RuntimeError):
@@ -258,6 +303,25 @@ class GraphService:
     # ------------------------------------------------------------------
 
     async def initialize(self) -> None:
+        """Set up the schema, retrying when another process is doing the same.
+
+        The API and the worker start together. On an empty database their
+        schema statements can deadlock or collide, and the loser would otherwise
+        run with vector search off until restarted. Every statement is
+        ``IF NOT EXISTS``, so repeating them is safe.
+        """
+        for attempt in range(_SCHEMA_INIT_ATTEMPTS):
+            try:
+                await self._initialize_schema()
+                return
+            except Neo4jError as exc:
+                raced = isinstance(exc, TransientError) or exc.code in _SCHEMA_RACE_CODES
+                if not raced or attempt == _SCHEMA_INIT_ATTEMPTS - 1:
+                    raise
+                logger.info("Schema setup retrying after a transient error: %s", exc.code)
+                await asyncio.sleep(0.5 * 2**attempt + random.random())
+
+    async def _initialize_schema(self) -> None:
         """
         Create constraints + indexes on startup and verify the vector index.
 
@@ -292,13 +356,25 @@ class GraphService:
         async with self._driver.session() as session:
             # ── Uniqueness constraints ────────────────────────────────────
             await session.run(
-                "CREATE CONSTRAINT spaider_node_id IF NOT EXISTS "
-                "FOR (n:SpaiderNode) REQUIRE n.id IS UNIQUE"
+                "DROP CONSTRAINT spaider_node_id IF EXISTS"
+            )
+            await session.run(
+                "CREATE CONSTRAINT spaider_node_kb_id IF NOT EXISTS "
+                "FOR (n:SpaiderNode) REQUIRE (n.agent_id, n.id) IS UNIQUE"
+            )
+            await session.run(
+                "CREATE INDEX spaider_node_id_lookup IF NOT EXISTS FOR (n:SpaiderNode) ON (n.id)"
+            )
+            await session.run(
+                "CREATE INDEX spaider_relation_id IF NOT EXISTS FOR ()-[r:RELATION]-() ON (r.id)"
             )
             await session.run(
                 "CREATE CONSTRAINT system_agent_id IF NOT EXISTS "
                 "FOR (a:SystemAgent) REQUIRE a.agent_id IS UNIQUE"
             )
+
+            for statement in FOUNDATION_SCHEMA:
+                await session.run(statement)
 
             # ── B-Tree indexes ────────────────────────────────────────────
             # Composite (agent_id, label): exact/alias lookup within a tenant
@@ -336,7 +412,7 @@ class GraphService:
                 existing_fields = record["properties"] if record else None
                 if (
                     isinstance(existing_fields, (list, tuple))
-                    and "source_text" not in existing_fields
+                    and "agent_id" not in existing_fields
                 ):
                     await session.run("DROP INDEX spaider_label_fulltext IF EXISTS")
                     logger.info(
@@ -346,7 +422,7 @@ class GraphService:
                 logger.warning("Fulltext index definition check skipped: %s", exc)
             await session.run(
                 "CREATE FULLTEXT INDEX spaider_label_fulltext IF NOT EXISTS "
-                "FOR (n:SpaiderNode) ON EACH [n.label, n.description, n.source_text]"
+                "FOR (n:SpaiderNode) ON EACH [n.label, n.description, n.source_text, n.aliases_text, n.agent_id]"
             )
 
             # ── Vector index (requires Neo4j >= 5.11) ────────────────────
@@ -460,6 +536,7 @@ class GraphService:
                     "id": node.id,
                     "agent_id": agent_id,
                     "label": node.label,
+                    "aliases_text": _aliases_text(node),
                     "type": node.type,
                     "description": description,
                     "source_text": source_text,
@@ -472,6 +549,8 @@ class GraphService:
                     "target_id": edge.target_id,
                     "edge_id": edge.id,
                     "relation": edge.relation,
+                    "valid_from": to_utc_iso(edge.valid_from),
+                    "valid_to": to_utc_iso(edge.valid_to),
                     "agent_id": agent_id,
                     "properties": json.dumps(_flatten_properties(edge.properties or {})),
                 })
@@ -507,6 +586,9 @@ class GraphService:
                         r.relation   = row.relation,
                         r.agent_id   = row.agent_id,
                         r.created_at = $now,
+                        r.recorded_at = $now,
+                        r.valid_from = coalesce(row.valid_from, $now),
+                        r.valid_to = row.valid_to,
                         r.updated_at = $now,
                         r.properties = row.properties
                     ON MATCH SET
@@ -562,6 +644,7 @@ class GraphService:
                 "id": node.id,
                 "agent_id": agent_id,
                 "label": node.label,
+                "aliases_text": _aliases_text(node),
                 "type": node.type,
                 "description": description,
                 "source_text": source_text,
@@ -575,6 +658,8 @@ class GraphService:
                 "target_id": edge.target_id,
                 "edge_id": edge.id,
                 "relation": edge.relation,
+                "valid_from": to_utc_iso(edge.valid_from),
+                "valid_to": to_utc_iso(edge.valid_to),
                 "agent_id": agent_id,
                 "properties": json.dumps(_flatten_properties(edge.properties or {})),
             }
@@ -612,6 +697,9 @@ class GraphService:
                         r.relation   = row.relation,
                         r.agent_id   = row.agent_id,
                         r.created_at = $now,
+                        r.recorded_at = $now,
+                        r.valid_from = coalesce(row.valid_from, $now),
+                        r.valid_to = row.valid_to,
                         r.updated_at = $now,
                         r.properties = row.properties
                     ON MATCH SET
@@ -657,6 +745,8 @@ class GraphService:
         agent_id: str,
         limit: int = 500,
         offset: int = 0,
+        as_of: Optional[str] = None,
+        max_clearance: int = 5,
     ) -> GraphPayload:
         """
         Return a coherent page of the agent's graph.
@@ -688,12 +778,14 @@ class GraphService:
         """
         async with self._driver.session() as session:
             result = await session.run(
-                """
-                MATCH (n:SpaiderNode {agent_id: $agent_id})
+                f"""
+                MATCH (n:SpaiderNode {{agent_id: $agent_id}})
+                WHERE ($as_of IS NULL OR {node_visible("n")}) AND {_VISIBLE.format(v="n")}
                 WITH n ORDER BY n.id SKIP $offset LIMIT $limit
                 WITH collect(n) AS paged_nodes
                 UNWIND paged_nodes AS n
-                OPTIONAL MATCH (n)-[r:RELATION]->(m) WHERE m IN paged_nodes
+                OPTIONAL MATCH (n)-[r:RELATION]->(m)
+                WHERE m IN paged_nodes AND {edge_visible("r")}
                 RETURN
                     n.id           AS id,
                     n.label        AS label,
@@ -712,6 +804,8 @@ class GraphService:
                 agent_id=agent_id,
                 offset=offset,
                 limit=limit,
+                as_of=as_of,
+                max_clearance=max_clearance,
             )
             records = await result.data()
 
@@ -747,6 +841,7 @@ class GraphService:
         self,
         agent_id: str,
         zoom_level: int = 0,
+        max_clearance: int = 5,
     ) -> ClusterGraphPayload:
         """
         Return a pre-aggregated LOD overview of the agent's graph.
@@ -767,7 +862,7 @@ class GraphService:
             cluster_result = await session.run(
                 """
                 MATCH (n:SpaiderNode {agent_id: $agent_id})
-                WHERE NOT n:SystemAgent
+                WHERE NOT n:SystemAgent AND coalesce(n.clearance_level, 1) <= $max_clearance
                 WITH coalesce(n.type, 'OTHER') AS cluster_type,
                      count(n)                  AS node_count,
                      collect(n.id)[..10]       AS sample_ids
@@ -775,6 +870,7 @@ class GraphService:
                 ORDER BY node_count DESC
                 """,
                 agent_id=agent_id,
+                max_clearance=max_clearance,
             )
             cluster_rows = await cluster_result.data()
 
@@ -782,6 +878,8 @@ class GraphService:
                 """
                 MATCH (a:SpaiderNode {agent_id: $agent_id})-[r:RELATION]->(b:SpaiderNode {agent_id: $agent_id})
                 WHERE NOT a:SystemAgent AND NOT b:SystemAgent
+                  AND coalesce(a.clearance_level, 1) <= $max_clearance
+                  AND coalesce(b.clearance_level, 1) <= $max_clearance
                 WITH coalesce(a.type, 'OTHER') AS src_type,
                      coalesce(b.type, 'OTHER') AS tgt_type,
                      count(r)                  AS rel_count
@@ -789,6 +887,7 @@ class GraphService:
                 ORDER BY rel_count DESC
                 """,
                 agent_id=agent_id,
+                max_clearance=max_clearance,
             )
             edge_rows = await edge_result.data()
 
@@ -825,19 +924,22 @@ class GraphService:
             agent_id=agent_id,
         )
 
-    async def get_node_by_id(self, node_id: str) -> Optional[Node]:
-        """Fetch a specific node by its id."""
+    async def get_node_by_id(self, node_id: str, agent_id: Optional[str] = None) -> Optional[Node]:
+        """Fetch a node. Ids are unique per KB, so pass ``agent_id`` whenever it is known."""
         async with self._driver.session() as session:
             result = await session.run(
-                "MATCH (n:SpaiderNode {id: $node_id}) RETURN properties(n) AS p",
+                "MATCH (n:SpaiderNode {id: $node_id}) "
+                "WHERE $agent_id IS NULL OR n.agent_id = $agent_id "
+                "RETURN properties(n) AS p",
                 node_id=node_id,
+                agent_id=agent_id,
             )
             record = await result.single()
             if not record:
                 return None
-            return self._record_to_node(record)
+            return self._record_to_node(record["p"])
 
-    async def set_node_description(self, node_id: str, description: str) -> bool:
+    async def set_node_description(self, node_id: str, description: str, agent_id: Optional[str] = None) -> bool:
         """Overwrite a node's description. Used by the summariser specialist.
 
         Returns True if a node matched, False otherwise.
@@ -846,14 +948,15 @@ class GraphService:
         async with self._driver.session() as session:
             result = await session.run(
                 "MATCH (n:SpaiderNode {id: $node_id}) "
+                "WHERE $agent_id IS NULL OR n.agent_id = $agent_id "
                 "SET n.description = $description, n.updated_at = $now "
                 "RETURN count(n) AS updated",
-                node_id=node_id, description=description, now=now,
+                node_id=node_id, description=description, now=now, agent_id=agent_id,
             )
             rec = await result.single()
             return bool(rec and rec["updated"])
 
-    async def set_node_type(self, node_id: str, node_type: str) -> bool:
+    async def set_node_type(self, node_id: str, node_type: str, agent_id: Optional[str] = None) -> bool:
         """Overwrite a node's type. Used by the classifier specialist.
 
         Returns True if a node matched, False otherwise.
@@ -862,37 +965,55 @@ class GraphService:
         async with self._driver.session() as session:
             result = await session.run(
                 "MATCH (n:SpaiderNode {id: $node_id}) "
+                "WHERE $agent_id IS NULL OR n.agent_id = $agent_id "
                 "SET n.type = $node_type, n.updated_at = $now "
                 "RETURN count(n) AS updated",
-                node_id=node_id, node_type=node_type, now=now,
+                node_id=node_id, node_type=node_type, now=now, agent_id=agent_id,
             )
             rec = await result.single()
             return bool(rec and rec["updated"])
 
-    async def get_subgraph(self, node_id: str, depth: int = 2) -> GraphPayload:
-        """Retrieve the subgraph surrounding a node up to given traversal depth."""
+    async def get_subgraph(
+        self,
+        node_id: str,
+        depth: int = 2,
+        agent_id: Optional[str] = None,
+        max_clearance: int = 5,
+    ) -> GraphPayload:
+        """Retrieve the subgraph around a node.
+
+        A path through a node above ``max_clearance`` is dropped whole, so a
+        hidden node cannot be used to reach what lies behind it.
+        """
         # Neo4j 5.x does not allow parameters in variable-length quantifiers,
         # so inline the depth value directly into the query string.
         d = max(0, int(depth))
         async with self._driver.session() as session:
             node_result = await session.run(
                 f"""
-                MATCH path = (start:SpaiderNode {{id: $node_id}})-[*0..{d}]-(end:SpaiderNode)
+                MATCH path = (start:SpaiderNode {{id: $node_id}})-[:RELATION*0..{d}]-(end:SpaiderNode)
+                WHERE ($agent_id IS NULL OR start.agent_id = $agent_id)
+                  AND all(x IN nodes(path) WHERE coalesce(x.clearance_level, 1) <= $max_clearance)
                 UNWIND nodes(path) AS n
                 WITH DISTINCT n
                 WHERE NOT coalesce(n.superseded, false)
+                  AND coalesce(n.status, 'active') = 'active'
                 RETURN n.id AS id, n.label AS label, n.type AS type,
                        n.description AS description,
                        n.properties AS properties, n.embedding AS embedding,
                        n.agent_id AS agent_id, n.clearance_level AS clearance_level
                 """,
                 node_id=node_id,
+                agent_id=agent_id,
+                max_clearance=max_clearance,
             )
             node_records = await node_result.data()
 
             edge_result = await session.run(
                 f"""
-                MATCH path = (start:SpaiderNode {{id: $node_id}})-[*0..{d}]-(end:SpaiderNode)
+                MATCH path = (start:SpaiderNode {{id: $node_id}})-[:RELATION*0..{d}]-(end:SpaiderNode)
+                WHERE ($agent_id IS NULL OR start.agent_id = $agent_id)
+                  AND all(x IN nodes(path) WHERE coalesce(x.clearance_level, 1) <= $max_clearance)
                 UNWIND relationships(path) AS r
                 WITH DISTINCT r
                 WHERE NOT coalesce(r.superseded, false)
@@ -902,6 +1023,8 @@ class GraphService:
                        coalesce(r.utility_weight, 1.0) AS utility_weight
                 """,
                 node_id=node_id,
+                agent_id=agent_id,
+                max_clearance=max_clearance,
             )
             edge_records = await edge_result.data()
 
@@ -917,6 +1040,7 @@ class GraphService:
         query: str,
         agent_id: str,
         limit: int = 10,
+        max_clearance: int = 5,
     ) -> list[Node]:
         """Full-text label/type search for nodes belonging to an agent."""
         if not query:
@@ -925,12 +1049,14 @@ class GraphService:
                 result = await session.run(
                     """
                     MATCH (n:SpaiderNode {agent_id: $agent_id})
+                    WHERE coalesce(n.clearance_level, 1) <= $max_clearance
                     RETURN n.id AS id, n.label AS label, n.type AS type,
                            properties(n) AS node_props
                     LIMIT $limit
                     """,
                     agent_id=agent_id,
                     limit=limit,
+                    max_clearance=max_clearance,
                 )
                 records = await result.data()
             return [self._record_to_node(rec) for rec in records]
@@ -947,6 +1073,8 @@ class GraphService:
                 CALL db.index.fulltext.queryNodes("spaider_label_fulltext", $ft_query)
                 YIELD node AS n, score
                 WHERE n.agent_id = $agent_id
+                  AND coalesce(n.clearance_level, 1) <= $max_clearance
+                  AND coalesce(n.status, 'active') = 'active'
                   AND NOT coalesce(n.superseded, false)
                 RETURN n.id AS id, n.label AS label, n.type AS type,
                        n.description AS description,
@@ -957,54 +1085,54 @@ class GraphService:
                 """,
                 ft_query=ft_query,
                 agent_id=agent_id,
+                max_clearance=max_clearance,
                 limit=limit,
             )
             records = await result.data()
         return [self._record_to_node(rec) for rec in records]
 
-    async def list_nodes_for_resolver(
-        self,
-        agent_id: str,
-    ) -> list[Node]:
-        """List all of an agent's SpaiderNodes WITHOUT embeddings.
+    async def resolver_candidates(self, agent_id: str, labels: list[str], per_label: int = 25) -> list[Node]:
+        """Existing nodes that could match any of ``labels``.
 
-        the EntityResolver previously called ``search_nodes
-        (query="", limit=2000)`` which capped at 2K, hauled embeddings
-        across the wire, and was the dominant per-fact cost as graphs
-        grew. The resolver only needs labels + aliases for strategies
-        1-3 (exact / alias / fuzzy Levenshtein); semantic-match
-        (strategy 4) is now handled per-new-node via the existing
-        ``vector_search`` Neo4j vector-index probe.
-
-        This call returns the full label-set with NO 2K cap and NO
-        embedding payload — bytes per node drop from ~12 KB (1536-dim
-        float embedding) to ~200 B (label + aliases). 10 KB → 50 KB
-        even on a 250 KB / 35K-node agent, safe to fetch in full.
+        Uses the full-text index with fuzzy terms, so cost follows the batch and
+        not the size of the graph. Facts are excluded: they never deduplicate.
         """
+        searches = [
+            scoped(query, [agent_id])
+            for query in (self._fuzzy_query(label) for label in dict.fromkeys(labels))
+            if query
+        ]
+        if not searches:
+            return []
         async with self._driver.session() as session:
             result = await session.run(
                 """
-                MATCH (n:SpaiderNode {agent_id: $agent_id})
-                RETURN n.id AS id,
-                       n.label AS label,
-                       n.type AS type,
-                       n.description AS description,
-                       n.properties AS properties,
-                       n.agent_id AS agent_id,
-                       n.clearance_level AS clearance_level
+                UNWIND $searches AS search
+                CALL db.index.fulltext.queryNodes('spaider_label_fulltext', search, {limit: $k})
+                YIELD node AS n
+                WHERE n.agent_id = $agent_id AND coalesce(n.type, '') <> 'FACT' AND NOT n:SystemAgent
+                WITH DISTINCT n
+                RETURN n.id AS id, n.label AS label, n.type AS type, n.description AS description,
+                       n.properties AS properties, n.agent_id AS agent_id, n.clearance_level AS clearance_level
                 """,
+                searches=searches,
+                k=per_label * 8,
                 agent_id=agent_id,
             )
             records = await result.data()
-        # Skip the embedding column; resolver doesn't need it for
-        # strategies 1-3, and strategy 4 will fetch candidates via
-        # vector_search.
-        nodes: list[Node] = []
-        for rec in records:
-            node = self._record_to_node(rec)
-            node.embedding = None  # explicit — saves resolver thinking
-            nodes.append(node)
+        nodes = [self._record_to_node(record) for record in records]
+        for node in nodes:
+            node.embedding = None
         return nodes
+
+    @staticmethod
+    def _fuzzy_query(label: str) -> Optional[str]:
+        terms = [term.lower() for term in re.sub(r'[+\-&|!(){}\[\]^"~*?:\\/]', " ", label).split() if term]
+        if not terms:
+            return None
+        clauses = [f"{term}~0.8" if len(term) > 3 else term for term in terms[:8]]
+        joined = " AND ".join(clauses)
+        return f"label:({joined}) OR aliases_text:({joined})"
 
     async def vector_search(
         self,
@@ -1056,6 +1184,7 @@ class GraphService:
                 YIELD node, score
                 WHERE node.agent_id = $agent_id
                   AND NOT coalesce(node.superseded, false)
+                  AND coalesce(node.status, 'active') = 'active'
                 RETURN node.id AS id, node.label AS label, node.type AS type,
                        node.description AS description,
                        node.properties AS properties, node.embedding AS embedding,
@@ -1072,36 +1201,12 @@ class GraphService:
             records = await result.data()
         return [self._record_to_node(rec) for rec in records]
 
-    async def connect_agents(self, source_agent_id: str, target_agent_id: str) -> str:
-        """
-        Create (or confirm) a SHARES_KNOWLEDGE_WITH relationship between two SystemAgent nodes.
-        Returns the relationship type string on success.
-        Raises ValueError if either SystemAgent node does not exist in Neo4j.
-        """
-        async with self._driver.session() as session:
-            result = await session.run(
-                """
-                MATCH (a:SystemAgent {agent_id: $source}), (b:SystemAgent {agent_id: $target})
-                MERGE (a)-[r:SHARES_KNOWLEDGE_WITH]->(b)
-                RETURN type(r) AS link_type
-                """,
-                source=source_agent_id,
-                target=target_agent_id,
-            )
-            record = await result.single()
-            if record is None:
-                raise ValueError(
-                    f"One or both SystemAgent nodes not found: "
-                    f"source='{source_agent_id}' target='{target_agent_id}'"
-                )
-            link_type: str = record["link_type"]
-            logger.info(
-                "Synaptic bridge established: %s -[%s]-> %s",
-                source_agent_id, link_type, target_agent_id,
-            )
-            return link_type
-
-    async def get_all_agents_graph(self, limit: int = 2000) -> GraphPayload:
+    async def get_all_agents_graph(
+        self,
+        limit: int = 2000,
+        agent_ids: Optional[list[str]] = None,
+        max_clearance: int = 5,
+    ) -> GraphPayload:
         """
         Multiverse view: all SystemAgent cores + all SpaiderNodes + RELATION + BELONGS_TO_AGENT edges.
         Used by the /graph/multiverse endpoint and the 3D galaxy frontend.
@@ -1111,12 +1216,16 @@ class GraphService:
             node_result = await session.run(
                 """
                 MATCH (n:SpaiderNode)
+                WHERE ($agent_ids IS NULL OR n.agent_id IN $agent_ids)
+                  AND coalesce(n.clearance_level, 1) <= $max_clearance
                 RETURN n.id AS id, n.label AS label, n.type AS type,
                        n.description AS description,
                        n.properties AS properties, n.agent_id AS agent_id
                 LIMIT $limit
                 """,
                 limit=limit,
+                agent_ids=agent_ids,
+                max_clearance=max_clearance,
             )
             node_records = await node_result.data()
 
@@ -1124,10 +1233,12 @@ class GraphService:
             agent_result = await session.run(
                 """
                 MATCH (a:SystemAgent)
+                WHERE $agent_ids IS NULL OR a.agent_id IN $agent_ids
                 RETURN a.agent_id AS id,
                        coalesce(a.name, a.agent_id) AS label,
                        a.agent_id AS agent_id
-                """
+                """,
+                agent_ids=agent_ids,
             )
             agent_records = await agent_result.data()
 
@@ -1135,6 +1246,9 @@ class GraphService:
             edge_result = await session.run(
                 """
                 MATCH (a:SpaiderNode)-[r:RELATION]->(b:SpaiderNode)
+                WHERE ($agent_ids IS NULL OR r.agent_id IN $agent_ids)
+                  AND coalesce(a.clearance_level, 1) <= $max_clearance
+                  AND coalesce(b.clearance_level, 1) <= $max_clearance
                 RETURN r.id AS id, r.relation AS relation,
                        r.properties AS properties, r.agent_id AS agent_id,
                        a.id AS src, b.id AS tgt,
@@ -1142,6 +1256,8 @@ class GraphService:
                 LIMIT $limit
                 """,
                 limit=limit,
+                agent_ids=agent_ids,
+                max_clearance=max_clearance,
             )
             edge_records = await edge_result.data()
 
@@ -1213,18 +1329,23 @@ class GraphService:
     # Delete (GDPR killswitch)
     # ------------------------------------------------------------------
 
-    async def delete_node_cascade(self, node_id: str) -> DeleteResult:
+    async def delete_node_cascade(self, node_id: str, agent_id: Optional[str] = None) -> DeleteResult:
         """DETACH DELETE a single node and all its relationships."""
         async with self._driver.session() as session:
             result = await session.run(
                 """
                 MATCH (n:SpaiderNode {id: $node_id})
+                WHERE $agent_id IS NULL OR n.agent_id = $agent_id
                 OPTIONAL MATCH (n)-[r]-()
                 WITH n, count(r) AS edge_count
+                OPTIONAL MATCH (v:NodeVersion {original_id: n.id, agent_id: n.agent_id})
+                WITH n, edge_count, collect(v) AS versions
+                FOREACH (v IN versions | DETACH DELETE v)
                 DETACH DELETE n
                 RETURN edge_count
                 """,
                 node_id=node_id,
+                agent_id=agent_id,
             )
             record = await result.single()
         deleted_edges = record["edge_count"] if record else 0
@@ -1261,18 +1382,22 @@ class GraphService:
     # Analytics
     # ------------------------------------------------------------------
 
-    async def get_graph_stats(self, agent_id: str) -> dict:
+    async def get_graph_stats(self, agent_id: str, max_clearance: int = 5) -> dict:
         """Return node count, edge count, and type distribution for an agent."""
         async with self._driver.session() as session:
             result = await session.run(
                 """
                 MATCH (n:SpaiderNode {agent_id: $agent_id})
+                WHERE coalesce(n.clearance_level, 1) <= $max_clearance
                 WITH count(n) AS node_count,
                      collect(DISTINCT n.type) AS node_types
                 OPTIONAL MATCH (a:SpaiderNode {agent_id: $agent_id})-[r:RELATION]->(b:SpaiderNode {agent_id: $agent_id})
+                WHERE coalesce(a.clearance_level, 1) <= $max_clearance
+                  AND coalesce(b.clearance_level, 1) <= $max_clearance
                 RETURN node_count, node_types, count(r) AS edge_count
                 """,
                 agent_id=agent_id,
+                max_clearance=max_clearance,
             )
             record = await result.single()
         if not record:
@@ -1283,24 +1408,29 @@ class GraphService:
             "node_types": record["node_types"],
         }
 
-    async def get_schema(self, agent_id: str) -> dict:
+    async def get_schema(self, agent_id: str, max_clearance: int = 5) -> dict:
         """Return all node types and edge relation types for an agent."""
         async with self._driver.session() as session:
             node_result = await session.run(
                 """
                 MATCH (n:SpaiderNode {agent_id: $agent_id})
+                WHERE coalesce(n.clearance_level, 1) <= $max_clearance
                 RETURN DISTINCT n.type AS node_type
                 """,
                 agent_id=agent_id,
+                max_clearance=max_clearance,
             )
             node_records = await node_result.data()
 
             edge_result = await session.run(
                 """
-                MATCH (:SpaiderNode {agent_id: $agent_id})-[r:RELATION]->(:SpaiderNode {agent_id: $agent_id})
+                MATCH (a:SpaiderNode {agent_id: $agent_id})-[r:RELATION]->(b:SpaiderNode {agent_id: $agent_id})
+                WHERE coalesce(a.clearance_level, 1) <= $max_clearance
+                  AND coalesce(b.clearance_level, 1) <= $max_clearance
                 RETURN DISTINCT r.relation AS relation_type
                 """,
                 agent_id=agent_id,
+                max_clearance=max_clearance,
             )
             edge_records = await edge_result.data()
 
@@ -1318,6 +1448,7 @@ class GraphService:
         node_id: str,
         agent_id: str,
         lease_duration_sec: int = 30,
+        kb_id: Optional[str] = None,
     ) -> bool:
         """
         Attempt to acquire an exclusive lease on a SpaiderNode.
@@ -1373,7 +1504,8 @@ class GraphService:
         # so result.single() is always non-None.
         _CLAIM_CYPHER = """
         MATCH (n:SpaiderNode {id: $node_id})
-        WHERE n.claimed_by IS NULL OR n.lease_expires < datetime()
+        WHERE ($kb_id IS NULL OR n.agent_id = $kb_id)
+          AND (n.claimed_by IS NULL OR n.lease_expires < datetime())
         SET n.claimed_by    = $agent_id,
             n.lease_expires = datetime() + duration({seconds: $lease_duration_sec})
         RETURN COUNT(n) > 0 AS claimed_successfully
@@ -1383,6 +1515,7 @@ class GraphService:
                 result = await session.run(
                     _CLAIM_CYPHER,
                     node_id=node_id,
+                    kb_id=kb_id,
                     agent_id=agent_id,
                     lease_duration_sec=lease_duration_sec,
                 )
@@ -1415,6 +1548,7 @@ class GraphService:
         self,
         node_id: str,
         agent_id: str,
+        kb_id: Optional[str] = None,
     ) -> None:
         """
         Release a previously acquired lease.
@@ -1437,6 +1571,7 @@ class GraphService:
         """
         _RELEASE_CYPHER = """
         MATCH (n:SpaiderNode {id: $node_id, claimed_by: $agent_id})
+        WHERE $kb_id IS NULL OR n.agent_id = $kb_id
         REMOVE n.claimed_by, n.lease_expires
         """
         try:
@@ -1445,6 +1580,7 @@ class GraphService:
                     _RELEASE_CYPHER,
                     node_id=node_id,
                     agent_id=agent_id,
+                    kb_id=kb_id,
                 )
                 await result.consume()
                 # Any matched row means we removed the properties — log accordingly.
@@ -1608,6 +1744,7 @@ class GraphService:
         question: str,
         answer_summary: str,
         source_node_ids: list[str],
+        source_agent_ids: Optional[list[str]] = None,
     ) -> None:
         """
         Persist an InteractionNode and its relationships to Neo4j.
@@ -1662,6 +1799,7 @@ class GraphService:
         MATCH (i:InteractionNode {id: $id})
         UNWIND $source_node_ids AS source_id
         MATCH (n:SpaiderNode {id: source_id})
+        WHERE n.agent_id IN $kbs
         CREATE (i)-[:INFORMED_BY]->(n)
         """
 
@@ -1681,6 +1819,7 @@ class GraphService:
                         _CREATE_INFORMED_BY,
                         id=node_id,
                         source_node_ids=ids,
+                        kbs=[agent_id, *(source_agent_ids or [])],
                     )
 
             async with self._driver.session() as session:

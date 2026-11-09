@@ -25,7 +25,7 @@ from spaider_cli.lib.mcp import atomic_write_text, backup_if_exists
 # ---------------------------------------------------------------------------
 
 
-def generate_jwt_secret() -> str:
+def generate_bootstrap_token() -> str:
     """64 hex chars (matches ``python -c "import secrets; print(secrets.token_hex(32))"``)."""
     return secrets.token_hex(32)
 

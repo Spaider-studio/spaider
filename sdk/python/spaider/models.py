@@ -64,6 +64,8 @@ class GraphPayload(BaseModel):
 
 class QueryResult(BaseModel):
     """Result of a natural-language query — mirrors the backend ``QueryResult``."""
+    query_id: Optional[str] = None
+    citations: list[dict] = Field(default_factory=list)
 
     model_config = ConfigDict(extra="ignore")
 
@@ -115,22 +117,6 @@ class SynthesisDataset(BaseModel):
         with out.open("w", encoding="utf-8") as fh:
             for sample in self.samples:
                 fh.write(json.dumps(sample, ensure_ascii=False) + "\n")
-
-
-class SwarmConnection(BaseModel):
-    """A cross-agent swarm connection — mirrors the backend ``SwarmConnection``."""
-
-    model_config = ConfigDict(extra="ignore")
-
-    id: str
-    source_agent_id: str
-    target_agent_id: str
-    permission: str = "read_only"
-    scope: str = "full"
-    allowed_node_types: Optional[list[str]] = None
-    allowed_relation_types: Optional[list[str]] = None
-    expires_at: Optional[datetime] = None
-    created_at: Optional[datetime] = None
 
 
 class SwarmQueryResult(BaseModel):

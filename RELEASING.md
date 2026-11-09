@@ -17,6 +17,9 @@ moment you publish release notes.
 |---|---|---|---|
 | `spaider-cli` | PyPI | `cli/vX.Y.Z` | automatic, on merging a bump of `cli/pyproject.toml` |
 | `spaider-client` | PyPI | `sdk-python/vX.Y.Z` | automatic, on merging a bump of `sdk/python/pyproject.toml` |
+| `spaider-edge` | PyPI | `sdk-edge/vX.Y.Z` | automatic, on merging a bump of `sdk/edge/pyproject.toml` |
+| `spaider-ros2` | PyPI | `sdk-ros2/vX.Y.Z` | automatic, on merging a bump of `sdk/ros2/pyproject.toml` |
+| `@spaider/client` | npm | `sdk-typescript/vX.Y.Z` | manual |
 | `spaider` (name-squat stub) | PyPI | `sdk-python-stub/vX.Y.Z` | automatic, on merging a bump of `sdk/python-stub/pyproject.toml` |
 | Container images (backend, worker, frontend) | GHCR | `vX.Y.Z` | manual, via the Releases UI |
 

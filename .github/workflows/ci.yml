@@ -12,9 +12,9 @@ name: CI
 #   backend-deps     installs the backend on each supported Python and
 #                    byte-compiles every module; catches a dependency without
 #                    wheels for a new Python (a common dependency-bump break).
-#   backend-tests    full compose stack (Neo4j / Redis / Kafka / ...) and the
-#                    backend pytest suite inside the API container, exactly as
-#                    it runs locally. The regression wall.
+#   backend-tests    throwaway Neo4j and Redis from tests/docker-compose.test.yml
+#                    and the backend pytest suite against them, exactly as it
+#                    runs locally. The regression wall.
 #   frontend-build   `npm ci && npm run build` for the Next.js app, so a
 # dependency bump can't silently break the build.
 #   cli-tests        lint + pytest for spaider-cli on 3.11-3.14. Self-contained.
@@ -50,6 +50,8 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       cli: ${{ steps.filter.outputs.cli }}
       sdk: ${{ steps.filter.outputs.sdk }}
+      edge: ${{ steps.filter.outputs.edge }}
+      typescript: ${{ steps.filter.outputs.typescript }}
     steps:
       - uses: actions/checkout@v7
       # Third-party action: pinned to a full commit SHA (v4.0.1).
@@ -71,6 +73,14 @@ jobs:
               - '.github/workflows/ci.yml'
             sdk:
               - 'sdk/python/**'
+              - '.github/workflows/ci.yml'
+            edge:
+              - 'sdk/edge/**'
+              - 'sdk/ros2/**'
+              - 'benchmarks/**'
+              - '.github/workflows/ci.yml'
+            typescript:
+              - 'sdk/typescript/**'
               - '.github/workflows/ci.yml'
 
   backend-lint:
@@ -122,50 +132,96 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Prepare .env
-        env:
-          # Optional: add an OPENAI_API_KEY repo secret to also run the live
-          # ingest->query e2e tests; without it they skip and the rest run.
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: |
-          cp .env.example .env
-          python3 - <<'PY'
-          import base64, os, pathlib, re, secrets
-          p = pathlib.Path(".env")
-          s = p.read_text()
-          key = base64.b64encode(secrets.token_bytes(32)).decode()
-          s = re.sub(r"(?m)^CONNECTOR_SECRET_KEY=.*$", f"CONNECTOR_SECRET_KEY={key}", s)
-          # Pin a deterministic model config for the test suite. The shipped
-          # .env.example defaults to local Ollama (LLM + 768-dim embeddings) for
-          # a no-key onboarding, but the test suite is written against a 1536-dim
-          # OpenAI setup (e.g. the entity-resolver dimension-mismatch tests), so
-          # force that here regardless of the onboarding default.
-          for pat, repl in [
-              (r"(?m)^LLM_PROVIDER=.*$", "LLM_PROVIDER=openai"),
-              (r"(?m)^LLM_MODEL=.*$", "LLM_MODEL=gpt-4o-mini"),
-              (r"(?m)^LLM_BASE_URL=.*$", "LLM_BASE_URL="),
-              (r"(?m)^EMBEDDING_PROVIDER=.*$", "EMBEDDING_PROVIDER=openai"),
-              (r"(?m)^EMBEDDING_MODEL=.*$", "EMBEDDING_MODEL=text-embedding-3-small"),
-              (r"(?m)^EMBEDDING_BASE_URL=.*$", "EMBEDDING_BASE_URL="),
-              (r"(?m)^EMBEDDING_DIMENSIONS=.*$", "EMBEDDING_DIMENSIONS=1536"),
-          ]:
-              s = re.sub(pat, repl, s)
-          llm = os.environ.get("OPENAI_API_KEY", "")
-          if llm:
-              s = re.sub(r"(?m)^LLM_API_KEY=.*$", f"LLM_API_KEY={llm}", s)
-              s = re.sub(r"(?m)^EMBEDDING_API_KEY=.*$", f"EMBEDDING_API_KEY={llm}", s)
-          p.write_text(s)
-          PY
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
 
-      - name: Bring up the stack
-        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build --wait backend-api backend-worker
+      - name: Install backend
+        working-directory: backend
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install -q -e ".[dev]"
+
+      # Throwaway databases on their own ports. The test guard refuses any
+      # database that lacks its marker, so the app compose stack cannot be used.
+      - name: Start test databases
+        working-directory: backend
+        run: docker compose -p spaider-test -f tests/docker-compose.test.yml up -d --wait
 
       - name: Run backend test suite
-        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml exec -T backend-api python -m pytest tests/ --ignore=tests/eval -q
+        working-directory: backend
+        env:
+          SPAIDER_REQUIRE_INTEGRATION: "1"
+          SPAIDER_TEST_NEO4J_URI: bolt://localhost:17687
+          SPAIDER_TEST_NEO4J_PASSWORD: testpassword123
+          SPAIDER_TEST_REDIS_URL: redis://localhost:16379/0
+        run: .venv/bin/python -m pytest tests/ -q --ignore=tests/eval -p no:cacheprovider --deselect tests/test_e2e_spaider.py
 
-      - name: Stack logs on failure
+      - name: Database logs on failure
         if: failure()
-        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml logs --tail=150 backend-api neo4j redis kafka
+        working-directory: backend
+        run: docker compose -p spaider-test -f tests/docker-compose.test.yml logs --tail=150
+
+  edge-tests:
+    needs: changes
+    if: needs.changes.outputs.edge == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install edge and ROS 2 packages
+        run: pip install pytest -e ./sdk/edge -e ./sdk/ros2
+      - name: Edge tests
+        working-directory: sdk/edge
+        run: python -m pytest -q
+      - name: ROS 2 bridge tests (fakes only)
+        working-directory: sdk/ros2
+        run: python -m pytest -q
+      - name: Benchmark tests
+        run: python -m pytest benchmarks/tests/test_robotics_sim.py benchmarks/tests/test_memory_runners.py -q -c /dev/null --rootdir=.
+
+  typescript-tests:
+    needs: changes
+    if: needs.changes.outputs.typescript == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - working-directory: sdk/typescript
+        run: npm ci
+      - working-directory: sdk/typescript
+        run: npm run typecheck
+      - working-directory: sdk/typescript
+        run: npm test
+
+  docs-gates:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.cli == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Install
+        run: pip install -e "./backend" -e "./cli"
+      - name: Compose stack bundled in the CLI is current
+        run: python scripts/sync_cli_stack.py --check
+      - name: API docs and SDK contract are current
+        run: python scripts/gen_api_docs.py --check
+      - name: Docs mention only real routes and commands
+        run: python scripts/check_docs.py --require-cli
 
   frontend-build:
     needs: changes
@@ -182,6 +238,9 @@ jobs:
       - name: Install (clean, from lockfile)
         working-directory: frontend
         run: npm ci
+      - name: Unit tests
+        working-directory: frontend
+        run: npm test
       - name: Build
         working-directory: frontend
         run: npm run build

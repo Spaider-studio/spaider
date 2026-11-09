@@ -95,3 +95,5 @@ benchmarks/runs_refresh/
 # benchmarks/adapters/README.md; never commit.
 benchmarks/.venv-*
 benchmarks/.bench_data/
+sdk/typescript/node_modules/
+sdk/typescript/dist/

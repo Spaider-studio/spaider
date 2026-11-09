@@ -42,11 +42,11 @@ def _make_node(label: str, node_type: str = "Person", node_id: str | None = None
 
 def _make_mock_graph_service(existing_nodes: list[Node]) -> AsyncMock:
     """Mock GraphService returning ``existing_nodes`` from the candidate fetches
-    the resolver actually uses: ``list_nodes_for_resolver`` (strategies 1-3,
+    the resolver actually uses: ``resolver_candidates`` (strategies 1-3,
     exact/alias/fuzzy over the full graph) and ``vector_search`` (strategy 4,
     cosine over the embedding-nearest candidates)."""
     gs = AsyncMock()
-    gs.list_nodes_for_resolver = AsyncMock(return_value=existing_nodes)
+    gs.resolver_candidates = AsyncMock(return_value=existing_nodes)
     gs.vector_search = AsyncMock(return_value=existing_nodes)
     return gs
 

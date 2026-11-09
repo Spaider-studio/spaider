@@ -64,10 +64,10 @@ async def lifespan(_: FastAPI):
     """
     from app import main as _app_main
     from app.api.v1.mcp_server import mcp_session_manager
-    from app.services.graph_service import GraphService
+    from app.services.graph_service import get_graph_service
 
     try:
-        _app_main._graph_service = GraphService()
+        _app_main._graph_service = get_graph_service()
         await _app_main._graph_service.initialize()
         logger.info(
             "standalone: GraphService initialised "

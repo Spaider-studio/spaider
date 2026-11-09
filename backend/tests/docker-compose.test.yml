@@ -1,0 +1,40 @@
+# Throwaway services for the backend integration tests.
+#
+#   docker compose -p spaider-test -f backend/tests/docker-compose.test.yml up -d --wait
+#   export SPAIDER_TEST_NEO4J_URI=bolt://localhost:17687
+#   export SPAIDER_TEST_NEO4J_PASSWORD=testpassword123
+#   export SPAIDER_TEST_REDIS_URL=redis://localhost:16379/0
+#
+# Ports are deliberately not the standard ones: a developer's real stack usually
+# owns 7687 and 6379, and integration tests wipe the database they connect to.
+# Storage is tmpfs, so nothing survives `down`.
+services:
+  neo4j:
+    image: neo4j:5.23-community
+    environment:
+      NEO4J_AUTH: neo4j/testpassword123
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 1g
+      NEO4J_server_memory_pagecache_size: 256m
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
+    ports:
+      - "127.0.0.1:17687:7687"
+    tmpfs:
+      - /data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p testpassword123 'RETURN 1' || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:16379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 10

@@ -3,25 +3,24 @@
 Thin wrapper over httpx that exposes only the endpoints the CLI needs. All
 calls target ``${SPAIDER_API_BASE:-http://localhost:8000/api/v1}`` by default.
 
-The local dev API does not require authentication for /agents endpoints; the
-client therefore makes unauthenticated calls. If the user is targeting a
-deployment behind Kong with auth enforced (production / managed Cloud), a
-future ``--api-key`` flag on the CLI will be plumbed through here.
+Every call carries the key from ``spaider login`` or SPAIDER_API_KEY.
 """
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from typing import Any
 
 import httpx
 
+from spaider_cli.lib import config
+from spaider_cli.lib.client import headers as client_headers
+
 DEFAULT_API_BASE = "http://localhost:8000/api/v1"
 
 
 def api_base() -> str:
-    """Resolve the API base URL from the environment, with a localhost default."""
-    return os.environ.get("SPAIDER_API_BASE", DEFAULT_API_BASE).rstrip("/")
+    """The API base URL from the environment or saved login."""
+    return config.api_base()
 
 
 class SpaiderApiError(RuntimeError):
@@ -51,7 +50,25 @@ class Agent:
 
 
 def _client(timeout: float = 10.0) -> httpx.Client:
-    return httpx.Client(base_url=api_base(), timeout=timeout)
+    return httpx.Client(base_url=api_base(), timeout=timeout, headers=client_headers())
+
+
+def bootstrap(token: str, org_name: str, owner_name: str) -> dict[str, Any]:
+    """Create the first organization and owner. Works once per install."""
+    try:
+        with httpx.Client(base_url=api_base(), timeout=30.0) as client:
+            response = client.post(
+                "/auth/bootstrap",
+                json={"org_name": org_name, "owner_name": owner_name},
+                headers={"X-Bootstrap-Token": token},
+            )
+    except httpx.HTTPError as exc:
+        raise SpaiderApiError(f"bootstrap failed: {exc}") from exc
+    if response.status_code == 409:
+        raise SpaiderApiError("already-bootstrapped")
+    if response.status_code >= 400:
+        raise SpaiderApiError(f"bootstrap failed: {response.status_code}")
+    return response.json()
 
 
 def health() -> bool:
