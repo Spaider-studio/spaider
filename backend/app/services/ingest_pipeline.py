@@ -234,7 +234,7 @@ class IngestPipeline:
         try:
             async with self._graph._driver.session() as session:
                 await session.run(
-                    "MATCH (e:Episode {id: $id}) SET e.status = 'extracted', e.extracted_at = $now",
+                    "MATCH (e:Episode {id: $id, status: 'new'}) SET e.status = 'extracted', e.extracted_at = $now",
                     id=episode_id,
                     now=datetime.now(timezone.utc).isoformat(),
                 )

@@ -200,3 +200,14 @@ def test_up_passes_the_profile(monkeypatch, tmp_path):
     result = runner.invoke(app, ["up", "--profile", "lite"])
     assert result.exit_code == 0, result.output
     assert seen["command"][:4] == ["docker", "compose", "--profile", "lite"] and "--wait" in seen["command"]
+
+
+def test_bootstrap_network_failure_is_a_clean_error(monkeypatch):
+    import importlib
+
+    from spaider_cli.lib import api
+
+    importlib.reload(api)
+    monkeypatch.setenv("SPAIDER_API_BASE", "http://127.0.0.1:9/api/v1")
+    with pytest.raises(api.SpaiderApiError):
+        api.bootstrap("t", "o", "n")

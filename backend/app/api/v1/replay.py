@@ -131,7 +131,8 @@ async def record_event(
 
     target = resolve_kb(auth, request.agent_id)
     if target is not None:
-        await authorize(auth, target, Action.WRITE)
+        # Audit history is only as good as who can add to it.
+        await authorize(auth, target, Action.MANAGE)
     effective_agent_id = target or settings.kafka_agent_namespace
     try:
         event_id = await svc.record_event(

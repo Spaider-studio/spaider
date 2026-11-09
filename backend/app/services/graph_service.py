@@ -1007,6 +1007,7 @@ class GraphService:
         query: str,
         agent_id: str,
         limit: int = 10,
+        max_clearance: int = 5,
     ) -> list[Node]:
         """Full-text label/type search for nodes belonging to an agent."""
         if not query:
@@ -1015,12 +1016,14 @@ class GraphService:
                 result = await session.run(
                     """
                     MATCH (n:SpaiderNode {agent_id: $agent_id})
+                    WHERE coalesce(n.clearance_level, 1) <= $max_clearance
                     RETURN n.id AS id, n.label AS label, n.type AS type,
                            properties(n) AS node_props
                     LIMIT $limit
                     """,
                     agent_id=agent_id,
                     limit=limit,
+                    max_clearance=max_clearance,
                 )
                 records = await result.data()
             return [self._record_to_node(rec) for rec in records]
@@ -1037,6 +1040,8 @@ class GraphService:
                 CALL db.index.fulltext.queryNodes("spaider_label_fulltext", $ft_query)
                 YIELD node AS n, score
                 WHERE n.agent_id = $agent_id
+                  AND coalesce(n.clearance_level, 1) <= $max_clearance
+                  AND coalesce(n.status, 'active') = 'active'
                   AND NOT coalesce(n.superseded, false)
                 RETURN n.id AS id, n.label AS label, n.type AS type,
                        n.description AS description,
@@ -1047,6 +1052,7 @@ class GraphService:
                 """,
                 ft_query=ft_query,
                 agent_id=agent_id,
+                max_clearance=max_clearance,
                 limit=limit,
             )
             records = await result.data()

@@ -55,12 +55,15 @@ def _client(timeout: float = 10.0) -> httpx.Client:
 
 def bootstrap(token: str, org_name: str, owner_name: str) -> dict[str, Any]:
     """Create the first organization and owner. Works once per install."""
-    with httpx.Client(base_url=api_base(), timeout=30.0) as client:
-        response = client.post(
-            "/auth/bootstrap",
-            json={"org_name": org_name, "owner_name": owner_name},
-            headers={"X-Bootstrap-Token": token},
-        )
+    try:
+        with httpx.Client(base_url=api_base(), timeout=30.0) as client:
+            response = client.post(
+                "/auth/bootstrap",
+                json={"org_name": org_name, "owner_name": owner_name},
+                headers={"X-Bootstrap-Token": token},
+            )
+    except httpx.HTTPError as exc:
+        raise SpaiderApiError(f"bootstrap failed: {exc}") from exc
     if response.status_code == 409:
         raise SpaiderApiError("already-bootstrapped")
     if response.status_code >= 400:

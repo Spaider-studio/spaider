@@ -695,3 +695,91 @@ async def test_mcp_tools_for_sleep(auth_world, orchestrator):
     result = (await mcp_server.call_tool("spaider.compact", {}))[0].text
     assert json.loads(result)["status"] == "ok"
     assert "compaction" in (await mcp_server.call_tool("spaider.sleep_report", {}))[0].text
+
+
+# ── Clearance through the whole query path ────────────────────────────────
+
+
+async def test_low_clearance_query_never_sends_secret_nodes_to_the_llm(auth_world, openai_stub):
+    from app.services.query_service import QueryService
+
+    kb = await auth_world.create_kb(clearance_level=5)
+    await _ingest(auth_world, kb, "Quasar is the public launch codename.")
+    vector = [1.0] + [0.0] * (settings.embedding_dimensions - 1)
+    await _seed_node(
+        auth_world, kb["id"], "secret", label="Quasar secret launch code", description="Quasar code is 7742",
+        type="CONCEPT", clearance_level=4, embedding=vector,
+    )
+    async with auth_world.driver.session() as session:
+        await session.run("CALL db.awaitIndexes(30)")
+        await session.run("CALL db.index.fulltext.awaitEventuallyConsistentIndexRefresh()")
+    reader = await auth_world.member(kb["id"], "reader", clearance_level=1)
+    response = await auth_world.client.post(
+        "/api/v1/query",
+        json={"question": "What is the Quasar launch code?", "agent_id": kb["id"]},
+        headers=auth_world.headers(reader["api_key"]),
+    )
+    assert response.status_code == 200, response.text
+    await drain_background()
+    prompts = " ".join(str(message.get("content")) for call in openai_stub.chat_calls for message in call)
+    assert "7742" not in prompts and "7742" not in response.text
+
+    openai_stub.chat_calls.clear()
+    high = await QueryService(get_graph_service()).query_nl("What is the Quasar launch code?", kb["id"], max_clearance=5)
+    await drain_background()
+    assert any("secret" in node.id for node in high.subgraph.nodes)
+
+
+async def test_answers_from_secret_nodes_are_left_out_of_the_audit_log(auth_world, openai_stub, monkeypatch):
+    from app.api.v1 import query as query_module
+
+    events = []
+    monkeypatch.setattr(query_module, "_fire_replay_event", lambda workflow, kb, event, payload, **kw: events.append((event, payload)))
+    kb = await auth_world.create_kb(clearance_level=5)
+    await _seed_node(auth_world, kb["id"], "s", label="Nimbus secret", description="Nimbus code", clearance_level=4)
+    async with auth_world.driver.session() as session:
+        await session.run("CALL db.index.fulltext.awaitEventuallyConsistentIndexRefresh()")
+    response = await auth_world.client.post(
+        "/api/v1/query", json={"question": "What is the Nimbus code?", "agent_id": kb["id"]},
+        headers=auth_world.headers(auth_world.owner_key),
+    )
+    assert response.status_code == 200, response.text
+    assert dict(events)["query_answered"]["answer"] is None
+
+
+async def test_audit_events_need_a_steward(auth_world):
+    kb = await auth_world.create_kb()
+    contributor = await auth_world.member(kb["id"], "contributor")
+    response = await auth_world.client.post(
+        "/api/v1/replay/events",
+        json={"workflow_id": "w", "agent_id": kb["id"], "event_type": "forged", "payload": {}},
+        headers=auth_world.headers(contributor["api_key"]),
+    )
+    assert response.status_code == 403
+
+
+async def test_mcp_list_recent_hides_secret_nodes(auth_world):
+    from app.api.v1 import mcp_server
+    from app.core.authz import resolve_token
+
+    kb = await auth_world.create_kb()
+    await _seed_node(auth_world, kb["id"], "open", label="Open thing")
+    await _seed_node(auth_world, kb["id"], "hidden", label="Hidden thing", clearance_level=4)
+    reader = await auth_world.member(kb["id"], "reader", clearance_level=1)
+    mcp_server._AGENT_ID.set(kb["id"])
+    mcp_server._PRINCIPAL.set(await resolve_token(reader["api_key"]))
+    text = (await mcp_server.call_tool("spaider.list_recent", {"limit": 5}))[0].text
+    assert "Open thing" in text and "Hidden thing" not in text
+
+
+async def test_reingesting_does_not_revive_a_compacted_episode(auth_world):
+    from app.models.schemas import GraphPayload
+    from app.services.ingest_pipeline import IngestPipeline, Prepared
+
+    kb = await auth_world.create_kb()
+    await _seed_episode(auth_world, kb["id"], "e1", status="compacted")
+    pipeline = IngestPipeline(get_graph_service())
+    await pipeline.commit(Prepared(kb["id"], GraphPayload(), episode_id="e1"))
+    await drain_background()
+    rows = await _rows(auth_world, "MATCH (e:Episode {id: 'e1'}) RETURN e.status AS s")
+    assert rows == [{"s": "compacted"}]

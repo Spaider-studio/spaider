@@ -433,7 +433,7 @@ async def swarm_query(
         {
             "question_length": len(query),
             "answer_length": len(resp.answer or ""),
-            "answer": (resp.answer or "")[:2000],
+            "answer": (resp.answer or "")[:2000] if auth.clearance_level <= 1 else None,
             "nodes_in_result": len(resp.source_node_ids),
             "edges_in_result": 0,
             "latency_ms": round(latency_ms, 2),

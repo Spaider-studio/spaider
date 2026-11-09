@@ -54,7 +54,7 @@ from app.services.embedding_service import EmbeddingService
 from app.services.federation import FederationService, sources_param
 from app.services.finetune.service import serving_override
 from app.services.graph_service import GraphService
-from app.services.learning import parse_citations, record_exchange, strengthen_co_activation
+from app.services.learning import node_clearance, parse_citations, record_exchange, strengthen_co_activation
 
 logger = logging.getLogger(__name__)
 
@@ -718,6 +718,7 @@ class QueryService:
         question: str,
         agent_id: str,
         limit: int = _DEFAULT_TOP_K,
+        max_clearance: int = 5,
     ) -> list[Node]:
         """Keyword leg of the hybrid seed retrieval.
 
@@ -736,13 +737,18 @@ class QueryService:
                     CALL db.index.fulltext.queryNodes("spaider_label_fulltext", $ft_query)
                     YIELD node AS n, score
                     WHERE n.agent_id = $agent_id AND NOT n:SystemAgent
+                      AND coalesce(n.clearance_level, 1) <= $max_clearance
+                      AND NOT coalesce(n.superseded, false)
+                      AND coalesce(n.status, 'active') = 'active'
+                      AND coalesce(n.type, '') <> 'SKILL'
                     RETURN n.id AS id, n.label AS label, n.type AS type,
                            n.description AS description,
                            n.properties AS properties, n.embedding AS embedding,
-                           n.agent_id AS agent_id
+                           n.agent_id AS agent_id, n.clearance_level AS clearance_level
                     ORDER BY score DESC
                     LIMIT $limit
                     """,
+                    max_clearance=max_clearance,
                     ft_query=ft_query,
                     agent_id=agent_id,
                     limit=limit,
@@ -761,7 +767,7 @@ class QueryService:
                     label=rec.get("label") or "",
                     type=rec.get("type") or "OTHER",
                     description=rec.get("description"),
-                    properties=props or {},
+                    properties={**(props or {}), "clearance_level": rec.get("clearance_level") or 1},
                     embedding=rec.get("embedding"),
                     agent_id=rec.get("agent_id"),
                 ))
@@ -1449,7 +1455,7 @@ class QueryService:
                 for emb in sq_embeddings
             ],
             *[
-                self._fulltext_seed_search(sq, agent_id=agent_id, limit=seed_k)
+                self._fulltext_seed_search(sq, agent_id=agent_id, limit=seed_k, max_clearance=agent_clearance)
                 for sq in subqueries
             ],
         )
@@ -1486,6 +1492,7 @@ class QueryService:
         # Text-search fallback when vector index is empty
         if not seed_nodes:
             seed_nodes = await self._graph.search_nodes(
+                max_clearance=agent_clearance,
                 query=question[:50], agent_id=agent_id, limit=top_k or _DEFAULT_TOP_K
             )
 
@@ -1547,10 +1554,10 @@ class QueryService:
                     if isinstance(exp, Exception):
                         continue
                     for n in exp.nodes:
-                        node_clearance = int(
+                        this_clearance = int(
                             (n.properties or {}).get("clearance_level", _DEFAULT_CLEARANCE)
                         )
-                        if node_clearance <= agent_clearance:
+                        if this_clearance <= agent_clearance:
                             cumulative_nodes[n.id] = n  # O(1) insert + dedup
                     for e in exp.edges:
                         if use_v2:
@@ -1600,6 +1607,7 @@ class QueryService:
                 agent_id, iteration_count, current_search_query,
             )
             current_iter_seeds = await self._graph.search_nodes(
+                max_clearance=agent_clearance,
                 query=current_search_query[:80],
                 agent_id=agent_id,
                 limit=top_k or _DEFAULT_TOP_K,
@@ -1647,7 +1655,7 @@ class QueryService:
         query_id = str(uuid.uuid4())
         _used_ids = [item["node_id"] for item in citations]
         _boosted = _used_ids or list(cumulative_nodes.keys())
-        _labels = {nid: getattr(n, "label", "") for nid, n in cumulative_nodes.items()}
+        _labels = {nid: getattr(n, "label", "") for nid, n in cumulative_nodes.items() if node_clearance(n) <= 1}
         # Reading through a grant never changes the source KB's memory.
         _source_kbs = [agent_id]
         spawn(self._cognitive.boost_nodes(_boosted, _source_kbs))
@@ -1757,6 +1765,7 @@ class QueryService:
 
         if not seed_nodes:
             seed_nodes = await self._graph.search_nodes(
+                max_clearance=agent_clearance,
                 query=question[:50], agent_id=agent_id, limit=top_k or _DEFAULT_TOP_K
             )
 
@@ -1782,10 +1791,10 @@ class QueryService:
                 if isinstance(exp, Exception):
                     continue
                 for n in exp.nodes:
-                    node_clearance = int(
+                    this_clearance = int(
                         (n.properties or {}).get("clearance_level", _DEFAULT_CLEARANCE)
                     )
-                    if node_clearance <= agent_clearance:
+                    if this_clearance <= agent_clearance:
                         subgraph_nodes[n.id] = n
                 for e in exp.edges:
                     if use_v2:
@@ -1809,7 +1818,7 @@ class QueryService:
         # ACT-R activation, mirroring the non-streaming query_nl path. The studio
         # queries via /query/stream, so without this the pheromone feed never
         # updates even though the same nodes are retrieved. Fire-and-forget.
-        _labels = {nid: getattr(n, "label", "") for nid, n in subgraph_nodes.items()}
+        _labels = {nid: getattr(n, "label", "") for nid, n in subgraph_nodes.items() if node_clearance(n) <= 1}
 
         vector_context = self._build_context(subgraph, context_nodes)
         if vector_context and vector_context != "No relevant entities found in the knowledge graph.":

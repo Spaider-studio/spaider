@@ -8,6 +8,7 @@ recording that the erasure happened and holding no content.
 
 Cached query answers cannot be enumerated because their keys are hashed. The
 generation bump makes them unreachable at once, and they expire within minutes.
+The extraction cache is keyed by a hash of the text and expires within 24 hours.
 """
 from __future__ import annotations
 

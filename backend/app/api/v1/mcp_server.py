@@ -515,7 +515,7 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[mcp_types.Text
             raise ValueError("`limit` must be between 1 and 200")
         cypher = (
             "MATCH (n:SpaiderNode {agent_id: $agent_id}) "
-            "WHERE n.created_at IS NOT NULL "
+            f"WHERE n.created_at IS NOT NULL AND coalesce(n.clearance_level, 1) <= {int(principal.clearance_level)} "
             "RETURN n.label AS label, n.type AS type, n.created_at AS created_at "
             "ORDER BY n.created_at DESC "
             f"LIMIT {limit}"

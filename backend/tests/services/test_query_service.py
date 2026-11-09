@@ -235,6 +235,7 @@ class TestIterativePath:
 
         # search_nodes called exactly once — only for the re-query
         mock_graph.search_nodes.assert_awaited_once_with(
+            max_clearance=5,
             query="Acme Corp founding year revenue",
             agent_id="agent-1",
             limit=8,  # _DEFAULT_TOP_K

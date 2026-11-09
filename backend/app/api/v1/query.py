@@ -18,6 +18,7 @@ from app.core.cypher_guard import CypherRejected, check_cypher
 from app.models.requests import CypherQueryRequest, QueryRequest, TraverseRequest
 from app.models.schemas import GraphPayload, QueryResult
 from app.services.graph_service import get_graph_service
+from app.services.learning import node_clearance
 from app.services.query_service import QueryDeadlineExceeded
 
 logger = logging.getLogger(__name__)
@@ -204,7 +205,10 @@ async def query_nl(
             {
                 "question_length": len(request.question),
                 "answer_length": len(svc_result.answer or ""),
-                "answer": (svc_result.answer or "")[:2000],
+                # An auditor's clearance is not checked, so only public answers are kept.
+                "answer": (svc_result.answer or "")[:2000]
+                if all(node_clearance(n) <= 1 for n in svc_result.subgraph.nodes)
+                else None,
                 "nodes_in_result": len(svc_result.subgraph.nodes),
                 "edges_in_result": len(svc_result.subgraph.edges),
                 "latency_ms": round(latency_ms, 2),

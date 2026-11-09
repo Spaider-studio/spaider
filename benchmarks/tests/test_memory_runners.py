@@ -44,7 +44,7 @@ LONGMEM = [
         "answer": "Berlin",
         "question_type": "single-session",
         "haystack_session_ids": ["s1"],
-        "haystack_sessions": [[{"role": "user", "content": "Which city? Berlin"}]],
+        "haystack_sessions": [[{"role": "user", "content": "the city is here: Berlin"}]],
     }
 ]
 LOCOMO = [
