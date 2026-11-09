@@ -3,7 +3,8 @@
 ```bash
 git clone https://github.com/Spaider-studio/spaider.git
 cd spaider
-pip install -e ./cli         # or pipx install ./cli (recommended)
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ./cli         # or: pipx install ./cli
 spaider init                 # interactive setup wizard
 ```
 

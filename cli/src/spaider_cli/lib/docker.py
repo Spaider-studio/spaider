@@ -3,7 +3,7 @@
 Surface intentionally narrow — we only need:
 
 - ``check_docker_available()``: is the ``docker`` CLI installed AND the daemon running?
-- ``compose_up(repo_root)``: bring up ``docker compose -f ... -f docker-compose.dev.yml up -d backend-api``.
+- ``compose_up(repo_root)``: build the checkout and start the whole stack.
 - ``wait_for_backend(timeout)``: poll ``http://localhost:8000/health`` until it returns ``healthy: true``.
 
 All subprocess calls go through ``subprocess.run`` with explicit ``capture_output``
@@ -22,6 +22,10 @@ import httpx
 # ---------------------------------------------------------------------------
 # Detection
 # ---------------------------------------------------------------------------
+
+
+# Includes a first build of every image from source.
+COMPOSE_UP_TIMEOUT = 1800
 
 
 @dataclass(frozen=True)
@@ -71,15 +75,16 @@ class ComposeResult:
     returncode: int
 
 
-def compose_up(repo_root: Path, service: str = "backend-api") -> ComposeResult:
-    """Bring up the dev stack via ``docker compose -f ... up -d <service>``."""
-    cmd = [
-        "docker", "compose",
-        "-f", str(repo_root / "docker-compose.yml"),
-        "-f", str(repo_root / "docker-compose.dev.yml"),
-        "up", "-d", service,
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+def compose_up(repo_root: Path) -> ComposeResult:
+    """Build the checkout and start every service in the ``.env`` profile.
+
+    Building matters: ``up`` alone pulls ``:latest``, which can be an older
+    release than the code that was cloned.
+    """
+    cmd = ["docker", "compose", "up", "-d", "--build"]
+    result = subprocess.run(
+        cmd, cwd=repo_root, capture_output=True, text=True, timeout=COMPOSE_UP_TIMEOUT,
+    )
     return ComposeResult(
         ok=result.returncode == 0,
         stdout=result.stdout,

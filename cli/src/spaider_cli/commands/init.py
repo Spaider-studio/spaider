@@ -12,7 +12,7 @@ Order of operations:
    Neo4j password).
 4. Merge the values into the ``.env`` file (creating from ``.env.example`` if
    needed, preserving any user-set keys, backing up any prior version).
-5. ``docker compose up -d backend-api``; wait for ``/health`` to go healthy.
+5. Build and start the stack with ``docker compose up``; wait for ``/health``.
 6. Provision a dev agent named ``dev-${USER}`` (or rotate it if it already
    exists).
 7. Install the MCP server entry + skill file into ``~/.claude/`` (skip with
@@ -160,7 +160,7 @@ def run(
     if skip_docker:
         console.print("\n[bold][5/6] Stack startup[/]  [dim](skipped via --skip-docker)[/]")
     else:
-        console.print("\n[bold][5/6] Starting Docker stack[/]")
+        console.print("\n[bold][5/6] Building and starting the stack[/]  [dim](the first build takes several minutes)[/]")
         compose = docker_lib.compose_up(repo)
         if not compose.ok:
             err_console.print(
@@ -168,7 +168,7 @@ def run(
                 f"  {compose.stderr.strip()[:400]}"
             )
             raise typer.Exit(code=1)
-        console.print("  Containers starting…")
+        console.print("  Containers started")
         if not docker_lib.wait_for_backend():
             err_console.print(
                 "  [red]✗[/] backend-api did not become healthy within 120s. "

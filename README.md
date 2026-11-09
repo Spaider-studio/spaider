@@ -26,6 +26,7 @@ You need Docker and Python 3.11 or later.
 
 ```bash
 git clone https://github.com/Spaider-studio/spaider.git && cd spaider
+python3 -m venv .venv && source .venv/bin/activate
 pip install -e ./cli
 spaider init
 ```
@@ -52,7 +53,7 @@ Works with `claude-code`, `claude-desktop`, `cursor`, `windsurf`, `vscode`, `zed
 | | |
 |---|---|
 | **Memory** | Knowledge graph, fast episodes, sleep cycle. [How it works](docs/architecture.md) |
-| **Studio** | Browse the graph, manage members and sharing at `localhost:3000`. Start it with `docker compose up -d` |
+| **Studio** | Browse the graph, manage members and sharing at `localhost:3000` |
 | **Clients** | [Python](sdk/python/README.md), [TypeScript](sdk/typescript/README.md), [REST](docs/api.md), MCP and the [CLI](cli/README.md) |
 | **Robotics** | On-device memory with [spaider-edge](sdk/edge/README.md) and a [ROS 2 bridge](sdk/ros2/README.md) (tested with simulated ROS 2 only) |
 | **Fine-tuning** | Train on your own knowledge through OpenAI, Together or Tinker. [Details](docs/finetuning-export.md) |
