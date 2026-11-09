@@ -50,6 +50,17 @@
             "title": "Clearance Level",
             "type": "integer"
           },
+          "consolidation_interval_hours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consolidation Interval Hours"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -76,9 +87,31 @@
             "title": "Interaction Memory",
             "type": "boolean"
           },
+          "memory_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memory Mode"
+          },
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "supersede": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supersede"
           },
           "tenant_id": {
             "default": "default",
@@ -9360,38 +9393,6 @@
                 }
               ],
               "title": "Ticket"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Api-Key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Api-Key"
-            }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
             }
           }
         ],

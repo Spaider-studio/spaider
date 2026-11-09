@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { approveGrant, decideKpr, deleteSwarmLink, listSwarmLinks } from "./api";
+import { approveGrant, decideKpr, deleteSwarmLink, listMembers, listSwarmLinks } from "./api";
 import { clearApiKey, setApiKey } from "./auth";
 
 function stubFetch(body: unknown) {
@@ -14,6 +14,13 @@ const lastCall = (mock: ReturnType<typeof stubFetch>) =>
 beforeEach(() => {
   clearApiKey();
   setApiKey("sk-1");
+});
+
+describe("members", () => {
+  it("unwraps the server's response", async () => {
+    stubFetch({ members: [{ id: "u1", role: "reader" }] });
+    await expect(listMembers("kb")).resolves.toEqual([{ id: "u1", role: "reader" }]);
+  });
 });
 
 describe("federation calls", () => {

@@ -13,11 +13,19 @@ import { useEffect, useState } from "react";
 import { History, Loader2, Zap } from "lucide-react";
 import { getSupersession, setSupersession as apiSetSupersession } from "@/lib/api";
 
-export default function SupersessionToggle({ agentId }: { agentId: string }) {
-  const [on, setOn] = useState<boolean | null>(null); // null = loading
+export default function SupersessionToggle({
+  agentId,
+  initial,
+}: {
+  agentId: string;
+  initial?: boolean | null;
+}) {
+  const [on, setOn] = useState<boolean | null>(initial ?? null); // null = loading
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    // The list response already gave us the value.
+    if (initial !== undefined && initial !== null) return;
     let cancelled = false;
     getSupersession(agentId)
       .then((v) => {
@@ -29,7 +37,7 @@ export default function SupersessionToggle({ agentId }: { agentId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [agentId]);
+  }, [agentId, initial]);
 
   async function toggle(next: boolean) {
     if (busy || next === on) return;

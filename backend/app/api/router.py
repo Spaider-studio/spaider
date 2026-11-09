@@ -39,6 +39,7 @@ api_router.include_router(agents.router, prefix="/agents", tags=["agents"], depe
 api_router.include_router(finetune.router, prefix="/finetune", tags=["finetune"], dependencies=_authenticated)
 api_router.include_router(memory.router, tags=["memory"], dependencies=_authenticated)
 api_router.include_router(federation.router, prefix="/federation", tags=["federation"], dependencies=_authenticated)
+api_router.include_router(swarm.events_router, prefix="/swarm", tags=["swarm"])
 api_router.include_router(swarm.router, prefix="/swarm", tags=["swarm"], dependencies=_authenticated)
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"], dependencies=_authenticated)
 api_router.include_router(system_settings.router, prefix="/system", tags=["system"], dependencies=_authenticated)

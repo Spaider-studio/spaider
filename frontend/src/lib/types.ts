@@ -125,6 +125,9 @@ export interface Agent {
   permissions: string[];
   clearance_level: ClearanceLevel;
   interaction_memory: boolean;
+  memory_mode?: "off" | "on" | null;
+  supersede?: boolean | null;
+  consolidation_interval_hours?: number | null;
   api_key?: string;
   created_at: string;
 }

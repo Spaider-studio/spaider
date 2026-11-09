@@ -85,6 +85,9 @@ def _record_to_agent(props: dict) -> Agent:
         clearance_level=int(props.get("clearance_level") or 1),
         interaction_memory=bool(props.get("interaction_memory", False)),
         created_at=props.get("created_at") or datetime.now(timezone.utc),
+        memory_mode=props.get("memory_mode") or settings.default_memory_mode,
+        supersede=bool(props.get("supersede", settings.default_supersession)),
+        consolidation_interval_hours=int(props.get("consolidation_interval_hours") or 0),
     )
 
 

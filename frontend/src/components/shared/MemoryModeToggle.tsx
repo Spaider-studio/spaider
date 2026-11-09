@@ -13,12 +13,20 @@ import { useEffect, useState } from "react";
 import { Brain, Loader2 } from "lucide-react";
 import { getMemoryMode, setMemoryMode as apiSetMemoryMode } from "@/lib/api";
 
-export default function MemoryModeToggle({ agentId }: { agentId: string }) {
+export default function MemoryModeToggle({
+  agentId,
+  initial,
+}: {
+  agentId: string;
+  initial?: "off" | "on" | null;
+}) {
   // null = still loading the current value
-  const [mode, setMode] = useState<"off" | "on" | null>(null);
+  const [mode, setMode] = useState<"off" | "on" | null>(initial ?? null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    // The list response already gave us the value.
+    if (initial !== undefined && initial !== null) return;
     let cancelled = false;
     getMemoryMode(agentId)
       .then((m) => {
@@ -30,7 +38,7 @@ export default function MemoryModeToggle({ agentId }: { agentId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [agentId]);
+  }, [agentId, initial]);
 
   async function toggle(next: "off" | "on") {
     if (busy || next === mode) return;

@@ -204,6 +204,10 @@ class SwarmConnection(BaseModel):
 
 
 class Agent(BaseModel):
+    # Current settings, so a list view needs no extra request per agent.
+    memory_mode: Optional[str] = None
+    supersede: Optional[bool] = None
+    consolidation_interval_hours: Optional[int] = None
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
     description: Optional[str] = None

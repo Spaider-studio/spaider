@@ -279,7 +279,34 @@ async def test_event_stream_rejects_raw_api_keys(auth_world):
     response = await auth_world.client.get(
         f"/api/v1/swarm/events/stream?token={kb['api_key']}", headers=auth_world.headers(kb["api_key"])
     )
-    assert response.status_code == 403
+    assert response.status_code == 401
+
+
+async def test_event_stream_accepts_a_ticket_without_a_key(auth_world, monkeypatch):
+    from app.api.v1 import swarm
+
+    kb = await auth_world.create_kb()
+
+    async def no_more_events(_redis):
+        yield json.dumps({"type": "pheromone", "kb_id": kb["id"], "message": "seen"})
+
+    async def fake_redis():
+        return object()
+
+    monkeypatch.setattr(swarm, "_get_redis", fake_redis)
+    monkeypatch.setattr(swarm, "subscribe_to_swarm_logs", no_more_events)
+    ticket = await _ticket(auth_world, kb["api_key"])
+    response = await auth_world.client.get(f"/api/v1/swarm/events/stream?ticket={ticket}")
+    assert response.status_code == 200, response.text
+    assert "seen" in response.text
+
+
+async def test_list_agents_carries_their_settings(auth_world):
+    await auth_world.create_kb()
+    listing = await auth_world.client.get("/api/v1/agents", headers=auth_world.headers(auth_world.owner_key))
+    agent = listing.json()["agents"][0]
+    assert agent["memory_mode"] in ("on", "off") and agent["supersede"] in (True, False)
+    assert agent["consolidation_interval_hours"] == 0
 
 
 def _principal(role):

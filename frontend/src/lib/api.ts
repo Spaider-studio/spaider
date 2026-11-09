@@ -475,8 +475,9 @@ export interface Member {
   kind?: string;
 }
 
-export function listMembers(agentId: string): Promise<Member[]> {
-  return request<Member[]>(`/agents/${agentId}/members`);
+export async function listMembers(agentId: string): Promise<Member[]> {
+  const res = await request<{ members: Member[] }>(`/agents/${agentId}/members`);
+  return res.members;
 }
 
 export function setMemberRole(agentId: string, principalId: string, role: string): Promise<unknown> {

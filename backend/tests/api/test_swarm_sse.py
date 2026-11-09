@@ -22,6 +22,7 @@ from app.api.v1 import swarm as swarm_module
 def _make_app() -> FastAPI:
     app = FastAPI()
     app.include_router(swarm_module.router, prefix="/api/v1/swarm")
+    app.include_router(swarm_module.events_router, prefix="/api/v1/swarm")
     return app
 
 

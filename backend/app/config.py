@@ -94,7 +94,7 @@ class Settings(BaseSettings):
     connector_secret_key: str = ""
 
     # Rate Limiting
-    rate_limit_requests_per_minute: int = 60
+    rate_limit_requests_per_minute: int = 600
 
     # LiteLLM call retry — exponential backoff on transient provider
     # errors (RateLimitError, APIConnectionError, Timeout, 5xx). Without

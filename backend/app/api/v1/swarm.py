@@ -660,7 +660,12 @@ def _event_visible(raw_json: str, principal: Principal, allowed: Optional[set[st
     return kb_id in allowed if kb_id else principal.is_org_admin
 
 
-@router.get(
+# EventSource cannot send headers, so this route sits outside the key check on
+# the rest of the router and is guarded by its single-use ticket instead.
+events_router = APIRouter()
+
+
+@events_router.get(
     "/events/stream",
     summary="Swarm Live-Log — Server-Sent Events",
     response_class=StreamingResponse,
@@ -746,7 +751,7 @@ async def swarm_events_stream(
     """
     principal = await redeem_ticket(ticket)
     if principal is None:
-        raise HTTPException(status_code=403, detail="A valid ticket from POST /auth/ticket is required.")
+        raise HTTPException(status_code=401, detail="A valid ticket from POST /auth/ticket is required.")
     redis = await _get_redis()
 
     def _heartbeat_frame(message: str) -> str:

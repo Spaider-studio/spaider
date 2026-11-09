@@ -201,7 +201,7 @@ export default function AgentDetail({ agent, onDelete, onRotate }: Props) {
           <div className="flex items-center gap-3 flex-wrap">
 
             {/* Autonomous consolidation cadence + manual trigger */}
-            <HibernationCadence agentId={agent.id} />
+            <HibernationCadence agentId={agent.id} initial={agent.consolidation_interval_hours} />
 
             {/* Divider */}
             <span className="w-px h-4 bg-[#2A2A35]" />
