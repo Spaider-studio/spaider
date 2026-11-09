@@ -113,6 +113,8 @@ async def auth_world(neo4j_test_driver, monkeypatch):
     service = graph_module.GraphService()
     await service.initialize()
     monkeypatch.setattr(graph_module, "_shared_graph_service", service)
+    # It holds the driver it was built with, which the previous test closed.
+    monkeypatch.setattr("app.api.v1.replay._replay_service", None)
 
     app = FastAPI()
     app.include_router(api_router, prefix="/api/v1")

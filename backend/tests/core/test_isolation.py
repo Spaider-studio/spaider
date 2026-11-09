@@ -309,6 +309,55 @@ async def test_list_agents_carries_their_settings(auth_world):
     assert agent["consolidation_interval_hours"] == 0
 
 
+async def test_audit_list_without_a_kb_covers_what_the_owner_can_audit(auth_world):
+    from app.services.audit_store import AuditStore
+
+    kb = await auth_world.create_kb()
+    store = AuditStore(auth_world.driver)
+    await store.record_event("w1", kb["id"], "x", {})
+    await store.record_event("w2", "not-in-this-org", "x", {})
+    response = await auth_world.client.get("/api/v1/replay/workflows", headers=auth_world.headers(auth_world.owner_key))
+    assert response.status_code == 200, response.text
+    assert [run["workflow_id"] for run in response.json()["workflows"]] == ["w1"]
+
+
+async def test_audit_list_without_a_kb_is_empty_for_a_plain_member(auth_world):
+    await auth_world.create_kb()
+    user = await auth_world.user("plain")
+    response = await auth_world.client.get("/api/v1/replay/workflows", headers=auth_world.headers(user["api_key"]))
+    assert response.status_code == 200 and response.json()["workflows"] == []
+
+
+async def test_swarm_query_without_kbs_scans_only_accessible_ones(auth_world, monkeypatch):
+    from app.api.v1 import swarm
+    from app.models.responses import SwarmQueryResponse
+
+    seen = {}
+
+    async def fake_scan(query, agent_clearance=1, scope=None):
+        seen["scope"] = scope
+        return SwarmQueryResponse(answer="ok", source_node_ids=[], agents_involved=[])
+
+    monkeypatch.setattr(swarm, "_broad_vector_scan", fake_scan)
+    kb = await auth_world.create_kb()
+    response = await auth_world.client.post(
+        "/api/v1/swarm/query", json={"query": "anything"}, headers=auth_world.headers(auth_world.owner_key)
+    )
+    assert response.status_code == 200, response.text
+    assert seen["scope"] == [kb["id"]]
+
+
+async def test_an_empty_scope_never_scans_everything(monkeypatch):
+    from app.api.v1 import swarm
+
+    async def must_not_run(*args, **kwargs):
+        raise AssertionError("searched without a scope")
+
+    monkeypatch.setattr(swarm, "_vector_search_multi_agent", must_not_run)
+    response = await swarm._broad_vector_scan("q", scope=[])
+    assert response.source_node_ids == []
+
+
 def _principal(role):
     from app.core.authz import Principal
 

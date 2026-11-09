@@ -9137,7 +9137,7 @@
     },
     "/api/v1/replay/workflows": {
       "get": {
-        "description": "List distinct workflow runs available for replay.\n\nRequires the audit permission on the KB. An omitted ``agent_id`` means the\ncaller's default KB.",
+        "description": "List distinct workflow runs available for replay.\n\nRequires the audit permission on the KB. An omitted ``agent_id`` means the\ncaller's default KB or, for a key without one, every KB it can audit.",
         "operationId": "list_workflows_api_v1_replay_workflows_get",
         "parameters": [
           {

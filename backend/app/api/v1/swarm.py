@@ -365,13 +365,18 @@ async def swarm_query(
     the caller's default KB. Retrieved nodes are limited to the caller's
     clearance level.
     """
-    # Omitting agent_ids means the caller's default KB, never "everything".
+    # Omitting agent_ids means the caller's default KB or, for a key without
+    # one, the KBs it can read. Never "everything".
+    scan_scope: Optional[list[str]] = None
     # Insecure dev keeps the broad multiverse scan.
     if request.agent_ids:
         requested_agent_ids = list(request.agent_ids)
-    else:
+    elif auth.default_kb or auth.insecure:
         default_kb = resolve_kb(auth, None)
         requested_agent_ids = [default_kb] if default_kb else None
+    else:
+        requested_agent_ids = None
+        scan_scope = await accessible_kbs(auth)
     for kb in requested_agent_ids or []:
         await authorize(auth, kb, Action.READ)
     auth_agent_id = requested_agent_ids[0] if requested_agent_ids else None
@@ -403,7 +408,7 @@ async def swarm_query(
         if agent_ids:
             resp = await _federated_deep_query(query, agent_ids, max_clearance=agent_clearance)
         else:
-            resp = await _broad_vector_scan(query, agent_clearance=agent_clearance)
+            resp = await _broad_vector_scan(query, agent_clearance=agent_clearance, scope=scan_scope)
     except Exception:
         _fire_replay_event(
             workflow_id, obs_agent_id, "query_failed",
@@ -501,18 +506,24 @@ async def _federated_deep_query(
     )
 
 
-async def _broad_vector_scan(query: str, agent_clearance: int = 1) -> SwarmQueryResponse:
+async def _broad_vector_scan(
+    query: str, agent_clearance: int = 1, scope: Optional[list[str]] = None
+) -> SwarmQueryResponse:
     """Cross-agent vector scan over the whole multiverse (no agent filter).
 
     Only reached when auth is bypassed (flag off) or the caller resolved to no
     explicit scope; clearance still gates which nodes are visible.
     """
+    # An empty scope must not fall through to the unfiltered search below.
+    if scope is not None and not scope:
+        return SwarmQueryResponse(answer=_NO_FACTS_MSG, source_node_ids=[], agents_involved=[])
+
     records: list[dict] = []
     try:
         embedding_svc = _get_embedding()
         q_embedding = await embedding_svc.embed(query)
         records = await _vector_search_multi_agent(
-            q_embedding, None, top_k=20, agent_clearance=agent_clearance,
+            q_embedding, scope, top_k=20, agent_clearance=agent_clearance,
         )
         logger.info("Swarm vector search returned %d records", len(records))
     except Exception as exc:
@@ -522,7 +533,7 @@ async def _broad_vector_scan(query: str, agent_clearance: int = 1) -> SwarmQuery
     if len(records) < 5:
         try:
             text_records = await _text_search_multi_agent(
-                query, None, limit=20, agent_clearance=agent_clearance,
+                query, scope, limit=20, agent_clearance=agent_clearance,
             )
             # Merge, deduplicate by node_id
             existing_ids = {r["node_id"] for r in records}

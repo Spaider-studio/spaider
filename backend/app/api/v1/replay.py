@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.config import settings
-from app.core.authz import Action, Principal, authorize, can, get_principal, resolve_kb
+from app.core.authz import Action, Principal, accessible_kbs, authorize, can, get_principal, resolve_kb
 
 logger = logging.getLogger(__name__)
 
@@ -157,9 +157,13 @@ async def list_workflows(
     """List distinct workflow runs available for replay.
 
     Requires the audit permission on the KB. An omitted ``agent_id`` means the
-    caller's default KB.
+    caller's default KB or, for a key without one, every KB it can audit.
     """
-    agent_id = resolve_kb(auth, agent_id)
+    allowed: Optional[set[str]] = None
+    if agent_id is None and auth.default_kb is None and not auth.insecure:
+        allowed = set(await accessible_kbs(auth, Action.AUDIT))
+    else:
+        agent_id = resolve_kb(auth, agent_id)
     if agent_id is not None:
         await authorize(auth, agent_id, Action.AUDIT)
 
@@ -168,7 +172,9 @@ async def list_workflows(
         raise HTTPException(status_code=503, detail="Replay service unavailable.")
 
     try:
-        workflows = await svc.list_workflows(agent_id=agent_id, limit=limit)
+        workflows = await svc.list_workflows(agent_id=agent_id, limit=200 if allowed is not None else limit)
+        if allowed is not None:
+            workflows = [run for run in workflows if run["agent_id"] in allowed][:limit]
         return WorkflowListResponse(workflows=workflows, total=len(workflows))
     except Exception as exc:
         logger.error("Failed to list workflows: %s", exc)

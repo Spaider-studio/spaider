@@ -6,6 +6,7 @@ import { Button, Empty, ErrorNote, reason } from "@/components/shared/ui";
 import {
   approveGrant,
   decideKpr,
+  getAgents,
   denyGrant,
   getKpr,
   listGrants,
@@ -20,6 +21,7 @@ function Sharing({ agentId }: { agentId: string }) {
   const [grants, setGrants] = useState<Grant[]>([]);
   const [kprs, setKprs] = useState<KnowledgePR[]>([]);
   const [open, setOpen] = useState<KnowledgePR | null>(null);
+  const [names, setNames] = useState<Record<string, string>>({});
   const [source, setSource] = useState("");
   const [error, setError] = useState("");
 
@@ -33,6 +35,14 @@ function Sharing({ agentId }: { agentId: string }) {
   }, [agentId]);
 
   useEffect(load, [load]);
+
+  useEffect(() => {
+    getAgents()
+      .then((agents) => setNames(Object.fromEntries(agents.map((agent) => [agent.id, agent.name]))))
+      .catch(() => setNames({}));
+  }, []);
+
+  const nameOf = (id: string) => names[id] ?? id;
 
   async function act(action: Promise<unknown>) {
     setError("");
@@ -58,8 +68,8 @@ function Sharing({ agentId }: { agentId: string }) {
           }}
         >
           <input
-            aria-label="Knowledge base to read from"
-            placeholder="Knowledge base to read from"
+            aria-label="ID of the knowledge base to read from"
+            placeholder="ID of the knowledge base to read from"
             value={source}
             onChange={(event) => setSource(event.target.value)}
             className="flex-1 rounded border border-white/10 bg-black/30 px-2 py-1 text-sm"
@@ -73,7 +83,7 @@ function Sharing({ agentId }: { agentId: string }) {
           {grants.map((grant) => (
             <li key={grant.id} className="flex items-center justify-between gap-3 py-2 text-sm">
               <span className="min-w-0 truncate">
-                {grant.source_kb} → {grant.target_kb}{" "}
+                {nameOf(grant.source_kb)} → {nameOf(grant.target_kb)}{" "}
                 <span className="text-zinc-500">
                   {grant.status}, clearance {grant.max_clearance}
                 </span>
