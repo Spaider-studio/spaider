@@ -4,15 +4,18 @@ vector index, parameterized Cypher, and GDPR-compliant deletion.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
+import random
 import re
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
 from neo4j import AsyncDriver, AsyncGraphDatabase
+from neo4j.exceptions import TransientError
 
 from app.config import settings
 from app.core.fulltext import scoped
@@ -28,6 +31,8 @@ from app.models.schemas import (
 )
 
 logger = logging.getLogger(__name__)
+
+_SCHEMA_INIT_ATTEMPTS = 6
 
 # ---------------------------------------------------------------------------
 # Vector search tuning constants
@@ -291,6 +296,24 @@ class GraphService:
     # ------------------------------------------------------------------
 
     async def initialize(self) -> None:
+        """Set up the schema, retrying when another process is doing the same.
+
+        The API and the worker start together. On an empty database their
+        schema statements can deadlock, and the loser would otherwise run with
+        vector search off until restarted. Every statement is ``IF NOT EXISTS``,
+        so repeating them is safe.
+        """
+        for attempt in range(_SCHEMA_INIT_ATTEMPTS):
+            try:
+                await self._initialize_schema()
+                return
+            except TransientError as exc:
+                if attempt == _SCHEMA_INIT_ATTEMPTS - 1:
+                    raise
+                logger.info("Schema setup retrying after a transient error: %s", exc.code)
+                await asyncio.sleep(0.5 * 2**attempt + random.random())
+
+    async def _initialize_schema(self) -> None:
         """
         Create constraints + indexes on startup and verify the vector index.
 

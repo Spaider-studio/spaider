@@ -433,3 +433,48 @@ async def test_get_all_agents_graph_tolerates_null_edge_id(graph_service):
     assert len(payload.edges) == 1
     assert isinstance(payload.edges[0].id, str) and payload.edges[0].id   # valid, no crash
     assert payload.edges[0].relation == "RELATED_TO"
+
+
+@pytest.mark.asyncio
+async def test_initialize_retries_when_startup_deadlocks():
+    """API and worker racing on an empty DB must not leave vector search off."""
+    from neo4j.exceptions import TransientError
+
+    from app.services.graph_service import GraphService
+
+    gs = GraphService.__new__(GraphService)
+    setup = AsyncMock(side_effect=[TransientError("deadlock"), None])
+    with patch.object(gs, "_initialize_schema", setup), patch(
+        "app.services.graph_service.asyncio.sleep", AsyncMock()
+    ):
+        await gs.initialize()
+
+    assert setup.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_initialize_gives_up_after_repeated_deadlocks():
+    from neo4j.exceptions import TransientError
+
+    from app.services.graph_service import GraphService
+
+    gs = GraphService.__new__(GraphService)
+    setup = AsyncMock(side_effect=TransientError("deadlock"))
+    with patch.object(gs, "_initialize_schema", setup), patch(
+        "app.services.graph_service.asyncio.sleep", AsyncMock()
+    ), pytest.raises(TransientError):
+        await gs.initialize()
+
+    assert setup.await_count == 6
+
+
+@pytest.mark.asyncio
+async def test_initialize_does_not_retry_other_errors():
+    from app.services.graph_service import GraphService
+
+    gs = GraphService.__new__(GraphService)
+    setup = AsyncMock(side_effect=ValueError("bad config"))
+    with patch.object(gs, "_initialize_schema", setup), pytest.raises(ValueError):
+        await gs.initialize()
+
+    assert setup.await_count == 1
