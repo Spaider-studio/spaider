@@ -211,3 +211,47 @@ def test_bootstrap_network_failure_is_a_clean_error(monkeypatch):
     monkeypatch.setenv("SPAIDER_API_BASE", "http://127.0.0.1:9/api/v1")
     with pytest.raises(api.SpaiderApiError):
         api.bootstrap("t", "o", "n")
+
+
+def test_doctor_warns_when_not_logged_in():
+    from spaider_cli.commands import doctor
+
+    result = doctor.check_login()
+    assert result.status == "warn" and "spaider login" in result.detail
+
+
+def test_doctor_fails_on_a_rejected_key(monkeypatch):
+    from spaider_cli.commands import doctor
+
+    config.save(api_key="sk-old")
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: httpx.Response(401, json={}))
+    assert doctor.check_login().status == "fail"
+
+
+def test_doctor_names_the_logged_in_principal(monkeypatch):
+    from spaider_cli.commands import doctor
+
+    config.save(api_key="sk-good")
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: httpx.Response(200, json={"name": "Ann", "org_role": "owner"}))
+    result = doctor.check_login()
+    assert result.status == "ok" and "Ann" in result.detail
+
+
+def test_doctor_flags_a_stale_skill(tmp_path):
+    from spaider_cli.commands import doctor
+
+    path = tmp_path / ".claude/skills/spaider.md"
+    path.parent.mkdir(parents=True)
+    path.write_text("spaider.query spaider.feedback", encoding="utf-8")
+    result = doctor.check_skill_file(home=tmp_path)
+    assert result.status == "warn" and "spaider mcp skill" in result.detail
+
+
+def test_mcp_skill_refreshes_without_touching_keys(tmp_path):
+    config_file = tmp_path / ".claude/.mcp.json"
+    config_file.parent.mkdir(parents=True)
+    config_file.write_text('{"mcpServers": {"spaider": {"url": "x"}}}', encoding="utf-8")
+    result = runner.invoke(app, ["mcp", "skill"])
+    assert result.exit_code == 0, result.output
+    assert "spaider.recall" in (tmp_path / ".claude/skills/spaider.md").read_text(encoding="utf-8")
+    assert config_file.read_text(encoding="utf-8") == '{"mcpServers": {"spaider": {"url": "x"}}}'

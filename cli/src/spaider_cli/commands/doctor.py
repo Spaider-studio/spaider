@@ -15,7 +15,8 @@ Checks (in order, fail-fast for the ones that block later checks):
 6. Stored embeddings all match ``EMBEDDING_DIMENSIONS`` (no silent vector-index
    degradation from mixing providers/dimensions).
 7. ``~/.claude/.mcp.json`` has a SpAIder MCP entry.
-8. ``~/.claude/skills/spaider.md`` exists and references the four MCP tools.
+8. ``~/.claude/skills/spaider.md`` exists and describes the current MCP tools.
+9. The saved API key is accepted by the server.
 """
 from __future__ import annotations
 
@@ -23,13 +24,16 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+import httpx
 import typer
 from rich.console import Console
 from rich.table import Table
 
 from spaider_cli.lib import api as api_client
+from spaider_cli.lib import config as config_lib
 from spaider_cli.lib import docker as docker_lib
 from spaider_cli.lib import llm as llm_lib
+from spaider_cli.lib.client import headers as client_headers
 
 console = Console()
 
@@ -113,6 +117,20 @@ def check_backend_health() -> CheckResult:
     )
 
 
+def check_login() -> CheckResult:
+    """Auth is always on since 0.5, so a working key is part of a working install."""
+    if not config_lib.api_key():
+        return _warn("API key", "not logged in. Run `spaider login`.")
+    try:
+        response = httpx.get(f"{config_lib.api_base()}/auth/whoami", headers=client_headers(), timeout=5)
+    except httpx.HTTPError as exc:
+        return _warn("API key", f"could not check it: {type(exc).__name__}")
+    if response.status_code != 200:
+        return _fail("API key", "rejected by the server. Run `spaider login` with a current key.")
+    who = response.json()
+    return _ok("API key", f"{who.get('name') or who.get('id')} ({who.get('org_role')})")
+
+
 def check_embedding_dimensions() -> CheckResult:
     """Flag a graph whose vectors don't match EMBEDDING_DIMENSIONS.
 
@@ -172,11 +190,13 @@ def check_skill_file(home: Path | None = None) -> CheckResult:
             "skill not installed. Run `spaider mcp install`.",
         )
     body = path.read_text(encoding="utf-8")
-    missing_tools = [t for t in ("spaider.query", "spaider.feedback") if t not in body]
+    missing_tools = [
+        t for t in ("spaider.query", "spaider.feedback", "spaider.recall", "spaider.remember") if t not in body
+    ]
     if missing_tools:
         return _warn(
             "~/.claude/skills/spaider.md",
-            f"present but missing references to {', '.join(missing_tools)} — re-install.",
+            f"out of date (no {', '.join(missing_tools)}). Run `spaider mcp skill`.",
         )
     return _ok("~/.claude/skills/spaider.md", "loaded by Claude Code at session start")
 
@@ -223,6 +243,7 @@ def run(
     results.append(check_env_file(repo))
     results.append(check_llm_key(repo))
     results.append(check_backend_health())
+    results.append(check_login())
     results.append(check_embedding_dimensions())
     results.append(check_mcp_config())
     results.append(check_skill_file())

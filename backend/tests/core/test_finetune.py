@@ -396,3 +396,10 @@ async def test_unknown_provider_is_a_client_error(auth_world, dataset):
         headers=auth_world.headers(auth_world.owner_key),
     )
     assert response.status_code == 422
+
+
+async def test_providers_report_configuration_without_keys(auth_world, monkeypatch):
+    monkeypatch.setattr(settings, "finetune_tinker_api_key", "")
+    response = await auth_world.client.get("/api/v1/finetune/providers", headers=auth_world.headers(auth_world.owner_key))
+    assert response.status_code == 200 and "k-openai" not in response.text
+    assert {row["id"]: row["configured"] for row in response.json()} == {"openai": True, "together": True, "tinker": False}

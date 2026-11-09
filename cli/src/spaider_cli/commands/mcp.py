@@ -125,6 +125,16 @@ def install(
 # ---------------------------------------------------------------------------
 
 
+@app.command("skill")
+def skill() -> None:
+    """Refresh the Claude Code skill file. Keys and MCP entries are not touched."""
+    path = mcp_lib.claude_code_paths().skill_file
+    path.parent.mkdir(parents=True, exist_ok=True)
+    mcp_lib.backup_if_exists(path)
+    mcp_lib.atomic_write_text(path, mcp_lib.read_packaged_skill())
+    console.print(f"[green]✓[/] {path}")
+
+
 @app.command("add")
 def add(
     client: str = typer.Argument(..., help=f"One of: {', '.join(clients_lib.SUPPORTED)}."),

@@ -468,6 +468,36 @@ export function whoAmI(): Promise<WhoAmI> {
   return request<WhoAmI>("/auth/whoami");
 }
 
+export interface Principal {
+  id: string;
+  name?: string;
+  email?: string;
+  kind: string;
+  org_role: string;
+  clearance_level: number;
+  disabled: boolean;
+}
+
+export async function listPrincipals(): Promise<Principal[]> {
+  const res = await request<{ principals: Principal[] }>("/principals");
+  return res.principals;
+}
+
+export function createUser(body: {
+  name: string;
+  email?: string;
+  clearance_level: number;
+}): Promise<{ id: string; api_key: string }> {
+  return request("/users", { method: "POST", body: JSON.stringify(body) });
+}
+
+export function createServiceAccount(
+  agentId: string,
+  body: { name: string; role: string; clearance_level: number }
+): Promise<{ id: string; api_key: string }> {
+  return request(`/agents/${agentId}/service-accounts`, { method: "POST", body: JSON.stringify(body) });
+}
+
 export interface Member {
   id: string;
   name?: string;
@@ -520,6 +550,16 @@ export interface ModelVersion {
   fine_tuned_model?: string;
   eval_result?: string;
   error?: string;
+}
+
+export interface FineTuneProvider {
+  id: string;
+  configured: boolean;
+  env_var: string;
+}
+
+export function listFineTuneProviders(): Promise<FineTuneProvider[]> {
+  return request<FineTuneProvider[]>("/finetune/providers");
 }
 
 export function listModelVersions(agentId: string): Promise<ModelVersion[]> {

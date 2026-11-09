@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from typer.testing import CliRunner
 
 from spaider_cli.lib.docker import DockerStatus
@@ -42,8 +43,15 @@ def _prime_claude_dir(home: Path, *, with_spaider: bool = True, with_skill: bool
         skill_dir = home / ".claude" / "skills"
         skill_dir.mkdir(parents=True, exist_ok=True)
         (skill_dir / "spaider.md").write_text(
-            "name: spaider\nspaider.query\nspaider.feedback\n"
+            "name: spaider\nspaider.query\nspaider.feedback\nspaider.recall\nspaider.remember\n"
         )
+
+
+@pytest.fixture(autouse=True)
+def _login_is_fine(monkeypatch):
+    from spaider_cli.commands import doctor
+
+    monkeypatch.setattr(doctor, "check_login", lambda: doctor._ok("API key", "ok"))
 
 
 class TestDoctorAllGreen:

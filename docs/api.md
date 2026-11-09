@@ -70,6 +70,7 @@ sent as `X-Api-Key` or `Authorization: Bearer`.
 | POST | `/api/v1/finetune/jobs/{version_id}/cancel` | Cancel Job |
 | POST | `/api/v1/finetune/jobs/{version_id}/evaluate` | Evaluate Job |
 | POST | `/api/v1/finetune/jobs/{version_id}/promote` | Promote Job |
+| GET | `/api/v1/finetune/providers` | List Providers |
 | POST | `/api/v1/finetune/rollback` | Rollback |
 
 ## graph

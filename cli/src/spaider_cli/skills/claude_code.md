@@ -11,13 +11,18 @@ description: |
 # SpAIder: durable memory for AI agents
 
 SpAIder is an MCP server that gives every AI session a persistent, queryable
-knowledge graph. Four tools are exposed:
+knowledge graph. These tools are exposed:
 
 | Tool | Purpose |
 |---|---|
 | `spaider.query(question, top_k?)` | Natural-language question against the calling agent's graph; returns LLM-synthesised answer + supporting nodes + a `Node IDs (for feedback): ...` trailer |
 | `spaider.list_recent(limit?)` | The N most recently created nodes for the calling agent; the fastest "what was I just doing?" probe |
 | `spaider.ingest_fact(text, source?, metadata?)` | Write a fact through the standard extraction pipeline |
+| `spaider.recall(query, limit?, federated?)` | Search memory directly with no LLM call. Fast and cheap; returns raw memories, not an answer |
+| `spaider.remember(content, kind?, session_id?, idempotency_key?)` | Store an observation immediately with no LLM call; the sleep cycle extracts knowledge later |
+| `spaider.status()` | Read the knowledge base's memory settings |
+| `spaider.sleep_report()` | What the last consolidation cycle did, in counts |
+| `spaider.compact()` | Fold old episodes into summaries now. Needs the steward role |
 | `spaider.feedback(used_node_ids, success, rationale?)` | Apply Hebbian +0.1 / −0.1 reinforcement to the RELATION edges between the named nodes; shapes which paths future queries see |
 
 ---
@@ -40,6 +45,14 @@ whose answers are already in the graph.
 
 **Skip this for trivial requests** (one-line bug fix, simple file rename).
 The tool round-trip costs more than the value.
+
+### Choosing between the tools
+
+Prefer `spaider.recall` when you only need to find a fact or check whether
+something is known. Use `spaider.query` when you want a synthesised, cited answer.
+
+Use `spaider.remember` for frequent or low-value observations, and
+`spaider.ingest_fact` for a fact that should be searchable as knowledge right away.
 
 ### During the session
 

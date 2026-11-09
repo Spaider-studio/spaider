@@ -6,6 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 
+from app.config import settings
 from app.core.authz import Principal, get_principal
 from app.services.finetune.gate import CONFIDENCE_FLOOR, MIN_DELTA_FLOOR, MIN_ITEMS_FLOOR, GateParams
 from app.services.finetune.service import FineTuneService
@@ -39,6 +40,20 @@ class Evaluate(BaseModel):
     min_delta: float = MIN_DELTA_FLOOR
     memory: bool = True
     min_items: int = MIN_ITEMS_FLOOR
+
+
+@router.get("/providers")
+async def list_providers(auth: Principal = Depends(get_principal)):
+    """Which providers have an API key set. Never returns the keys."""
+    return [
+        {"id": "openai", "configured": bool(settings.finetune_openai_api_key), "env_var": "FINETUNE_OPENAI_API_KEY"},
+        {
+            "id": "together",
+            "configured": bool(settings.finetune_together_api_key),
+            "env_var": "FINETUNE_TOGETHER_API_KEY",
+        },
+        {"id": "tinker", "configured": bool(settings.finetune_tinker_api_key), "env_var": "FINETUNE_TINKER_API_KEY"},
+    ]
 
 
 @router.post("/jobs", status_code=201)

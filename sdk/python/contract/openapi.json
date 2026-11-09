@@ -6789,6 +6789,70 @@
         ]
       }
     },
+    "/api/v1/finetune/providers": {
+      "get": {
+        "description": "Which providers have an API key set. Never returns the keys.",
+        "operationId": "list_providers_api_v1_finetune_providers_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Api-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Providers",
+        "tags": [
+          "finetune"
+        ]
+      }
+    },
     "/api/v1/finetune/rollback": {
       "post": {
         "operationId": "rollback_api_v1_finetune_rollback_post",
