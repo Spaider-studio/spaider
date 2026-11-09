@@ -453,6 +453,42 @@ async def test_initialize_retries_when_startup_deadlocks():
 
 
 @pytest.mark.asyncio
+async def test_initialize_retries_when_another_process_created_the_same_index():
+    from neo4j.exceptions import ClientError
+
+    from app.services.graph_service import GraphService
+
+    class AlreadyExists(ClientError):
+        code = "Neo.ClientError.Schema.EquivalentSchemaRuleAlreadyExists"
+
+    gs = GraphService.__new__(GraphService)
+    setup = AsyncMock(side_effect=[AlreadyExists("exists"), None])
+    with patch.object(gs, "_initialize_schema", setup), patch(
+        "app.services.graph_service.asyncio.sleep", AsyncMock()
+    ):
+        await gs.initialize()
+
+    assert setup.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_initialize_does_not_retry_other_neo4j_errors():
+    from neo4j.exceptions import ClientError
+
+    from app.services.graph_service import GraphService
+
+    class Unauthorized(ClientError):
+        code = "Neo.ClientError.Security.Unauthorized"
+
+    gs = GraphService.__new__(GraphService)
+    setup = AsyncMock(side_effect=Unauthorized("no"))
+    with patch.object(gs, "_initialize_schema", setup), pytest.raises(Unauthorized):
+        await gs.initialize()
+
+    assert setup.await_count == 1
+
+
+@pytest.mark.asyncio
 async def test_initialize_gives_up_after_repeated_deadlocks():
     from neo4j.exceptions import TransientError
 

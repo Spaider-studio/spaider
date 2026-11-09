@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from neo4j import AsyncDriver, AsyncGraphDatabase
-from neo4j.exceptions import TransientError
+from neo4j.exceptions import Neo4jError, TransientError
 
 from app.config import settings
 from app.core.fulltext import scoped
@@ -33,6 +33,13 @@ from app.models.schemas import (
 logger = logging.getLogger(__name__)
 
 _SCHEMA_INIT_ATTEMPTS = 6
+# Raised despite IF NOT EXISTS when another process creates the same rule at
+# that instant. The next attempt sees the rule and moves on.
+_SCHEMA_RACE_CODES = frozenset({
+    "Neo.ClientError.Schema.EquivalentSchemaRuleAlreadyExists",
+    "Neo.ClientError.Schema.IndexAlreadyExists",
+    "Neo.ClientError.Schema.ConstraintAlreadyExists",
+})
 
 # ---------------------------------------------------------------------------
 # Vector search tuning constants
@@ -299,16 +306,17 @@ class GraphService:
         """Set up the schema, retrying when another process is doing the same.
 
         The API and the worker start together. On an empty database their
-        schema statements can deadlock, and the loser would otherwise run with
-        vector search off until restarted. Every statement is ``IF NOT EXISTS``,
-        so repeating them is safe.
+        schema statements can deadlock or collide, and the loser would otherwise
+        run with vector search off until restarted. Every statement is
+        ``IF NOT EXISTS``, so repeating them is safe.
         """
         for attempt in range(_SCHEMA_INIT_ATTEMPTS):
             try:
                 await self._initialize_schema()
                 return
-            except TransientError as exc:
-                if attempt == _SCHEMA_INIT_ATTEMPTS - 1:
+            except Neo4jError as exc:
+                raced = isinstance(exc, TransientError) or exc.code in _SCHEMA_RACE_CODES
+                if not raced or attempt == _SCHEMA_INIT_ATTEMPTS - 1:
                     raise
                 logger.info("Schema setup retrying after a transient error: %s", exc.code)
                 await asyncio.sleep(0.5 * 2**attempt + random.random())
