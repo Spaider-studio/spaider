@@ -429,9 +429,11 @@ class QueryService:
     # ------------------------------------------------------------------
 
     def _learn_from_answer(self, agent_id: str, memory_mode: str, result, context_nodes: list) -> None:
-        """Keep the exchange for feedback and sleep. Off means nothing is remembered."""
-        if memory_mode == "off":
-            return
+        """Keep the exchange so feedback and sleep can use it, in either memory mode.
+
+        ``off`` selects classic retrieval with no automatic reinforcement, so only
+        the co-activation signal is skipped there. Explicit feedback still applies.
+        """
 
         async def _record() -> None:
             driver = self._graph._driver
@@ -444,7 +446,8 @@ class QueryService:
                 retrieved=context_nodes,
                 cited=result.citations,
             )
-            await strengthen_co_activation(driver, agent_id, result.citations)
+            if memory_mode != "off":
+                await strengthen_co_activation(driver, agent_id, result.citations)
 
         spawn(_record(), name=f"learn:{result.query_id}")
 

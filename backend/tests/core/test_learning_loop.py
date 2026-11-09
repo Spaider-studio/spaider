@@ -134,14 +134,17 @@ async def test_nodes_cited_together_get_linked(auth_world):
     assert rows == [{"n": 2}]
 
 
-async def test_memory_off_keeps_no_exchange(auth_world, openai_stub):
+async def test_memory_off_still_keeps_the_exchange_but_not_co_activation(auth_world, openai_stub, monkeypatch):
     kb = await auth_world.create_kb()
-    await _ingest(auth_world, kb, "Acme is based in Berlin.")
+    await _ingest(auth_world, kb, "Acme is based in Berlin. Berlin is in Germany.")
     async with auth_world.driver.session() as session:
         await session.run("MATCH (a:SystemAgent {agent_id: $kb}) SET a.memory_mode = 'off'", kb=kb["id"])
-    await _ask(auth_world, kb, "Where is Acme based?")
-    rows = await _rows(auth_world, "MATCH (e:Episode {agent_id: $kb, kind: 'query'}) RETURN e", kb=kb["id"])
-    assert rows == []
+    body = await _ask(auth_world, kb, "Where is Acme based in Berlin Germany?")
+    rows = await _rows(auth_world, "MATCH (e:Episode {agent_id: $kb, kind: 'query'}) RETURN e.id", kb=kb["id"])
+    assert len(rows) == 1
+    assert await _rows(auth_world, "MATCH ()-[c:CO_ACTIVATED]->() RETURN c") == []
+    await _feedback(auth_world, kb, body["query_id"], True)
+    assert await _rows(auth_world, "MATCH (f:Feedback {query_id: $q}) RETURN f.verdict AS v", q=body["query_id"]) == [{"v": 1}]
 
 
 # ── Feedback ──────────────────────────────────────────────────────────────
