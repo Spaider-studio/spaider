@@ -609,3 +609,28 @@ AGENTS.md existiert im Repo nicht; das Research-PDF war nicht beigefügt (Hinwei
   full/simple/none, dann Fenster+Cross idle-gesteuert).
 - Offen: Testbericht mit Zahlen, KNOWN_LIMITATIONS 0.5, REVIEW_START_HERE, Paket 0.5.0,
   Geheimnis-Scan, Push, Draft-PR gegen feature/spaider-foldable-0.4-review, Prerelease.
+
+### Phase 2 (22:30–23:00): Messharness, Oberflaeche, Befunde aus echten Laeufen
+- Matrix v2: `tests/matrix/tasks_v2.json` (60 Aufgaben, Lern-/Testfaelle, fact_change, variant),
+  `run_matrix_v2.py` (Arme none/simple/full, unabhaengige Pruefung, falsche Fertigmeldungen,
+  Nebenwirkungen, wiederholte Fehler, Spitzen-RSS, Gate-Zeit, idle-gesteuerte Fensteraufgaben,
+  Pausen-Resume nur bei Inaktivitaet), zweite WinForms-App `winforms_formapp.ps1`.
+- Smoke mit Qwen3-4B (`measure/agentv2/smoke2-v2-full.json`): Wiederholungen 6/6, Modellaufrufe
+  5,3 -> 1,0, Dauer -75 %. Befunde daraus und behoben: Browser-Ziele wurden ueber Referenzen
+  abgespielt (-> Rolle+Name, 333e9cf); Parameter der Harness enthielten Werte, die aus Dateien
+  gelesen werden muessen (-> nur Nutzereingaben als Parameter, Rest abgeleitet); Verifier-Regel
+  fuer zitierte Pflichttexte zuerst zu lax (F13 ohne "An:" galt als erfuellt), dann zu streng
+  (F7 "mit der Rolle „Leitung“" galt als Inhalt) -> 1993ad3 mit Regressionstest.
+- Desktop-UI (Subagent, von mir verifiziert: typecheck/lint/123 Tests, Paket gebaut): 1290342.
+- Versionen 0.5.0 (Kern, Desktop). Kernsuite 156 bestanden / 7 uebersprungen (ein neuer Echtlauf
+  `test_real_browser_recorder_compiles_a_candidate` mit echtem Chromium bestanden).
+- Betriebsfehler: taskkill ohne MSYS_NO_PATHCONV beendete nichts -> zeitweise zwei Messlaeufe
+  parallel auf der GPU; alle Baeume beendet, Messreihe um 22:28 sauber neu gestartet
+  (Teil-Logs als *.partialN.log behalten, nicht gewertet).
+
+### Wiederaufnahmepunkt (aktualisiert)
+- Laufend: `scratchpad/overnight_v2.py` (Datei+Browser full/simple/none -> danach Fenster+Cross
+  idle-gesteuert), `idle_gated_baseline.py` (Fenster/Bild-Baseline auf 219828a, wartet auf 10 min
+  Inaktivitaet), PyInstaller-Build 0.5.0 (muss nach 1993ad3 erneut gebaut werden).
+- Danach: Testbericht-Platzhalter fuellen, Paket neu bauen + `package_check_05.py` + Manifest,
+  Scan (`scan_range.py`, WORKLOG-Pfade neutralisieren), Push, Draft-PR, Prerelease.
