@@ -23,6 +23,8 @@ import {
   type Job,
 } from "../api/types";
 import type {
+  BindingResponse,
+  ChatErrorEvent,
   Conversation,
   Document,
   HardwareProfile,
@@ -34,7 +36,9 @@ import type {
   RuntimeState,
   SchedulerEvent,
   Settings,
+  SetBindingRequest,
   SetupStatus,
+  SharingEvent,
   StopEvent,
   Task,
 } from "../api/types";
@@ -45,6 +49,7 @@ import { CHAT_ERROR_LABEL, documentWarningText } from "../lib/labels";
 import { notify } from "../lib/notify";
 import { getPerf } from "../lib/perf";
 import { createTrack, reduceActivity, type ActivityTrack } from "./activity";
+import { consentFromError, type ConsentRequest } from "./hub";
 import {
   applyTaskStreamEvent,
   draftFromScopes,
@@ -69,7 +74,7 @@ import {
   upsertConversation,
 } from "./reducers";
 
-export type SettingsTab = "models" | "storage" | "memory" | "documents" | "preferences" | "live" | "info";
+export type SettingsTab = "models" | "connections" | "storage" | "memory" | "documents" | "preferences" | "live" | "info";
 export type MainView = "chat" | "tasks";
 export type TasksView = "create" | "detail" | "recipes";
 
@@ -106,6 +111,12 @@ export interface AppState {
   activity: Record<string, ActivityTrack>;
   /** Thinking text by assistant message id (session memory only). */
   thinking: Record<string, string>;
+  /** v1.3: binding/project/policy per conversation id (GET /conversations/{id}/binding). */
+  bindings: Record<string, BindingResponse>;
+  /** v1.3: `event: sharing` by assistant message id (what went to a connection). */
+  sharing: Record<string, SharingEvent>;
+  /** v1.3: a `consent_required` error waiting for the user's decision. */
+  pendingConsent: ConsentRequest | null;
 
   scheduler: SchedulerEvent | null;
   activityChannel: ChannelState;
@@ -187,6 +198,13 @@ export interface AppState {
   deleteConversation(id: string): Promise<void>;
   sendMessage(content: string): Promise<void>;
   stopGeneration(): Promise<void>;
+  /** v1.3 */
+  loadBinding(conversationId: string): Promise<void>;
+  setBinding(conversationId: string, body: SetBindingRequest): Promise<BindingResponse | null>;
+  setConversationProject(conversationId: string, projectId: string): Promise<void>;
+  dismissConsent(): void;
+  grantConsentAndResend(): Promise<void>;
+  useLocalAndResend(): Promise<void>;
 
   /** Applies an activity event from the chat stream (only for the current request). */
   applyStreamActivity(ev: ActivityEvent): void;
@@ -262,6 +280,9 @@ export const useAppStore = create<AppState>()((set, get) => ({
   streaming: null,
   activity: {},
   thinking: {},
+  bindings: {},
+  sharing: {},
+  pendingConsent: null,
 
   scheduler: null,
   activityChannel: "closed",
@@ -710,6 +731,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
     const { client, messages, streaming } = get();
     set({ activeId: id });
     if (!id || !client) return;
+    void get().loadBinding(id);
     // Keep the live buffer while a stream for this conversation is running.
     if (streaming?.conversationId === id && messages[id]) return;
     set({ loadingConversation: true });
@@ -738,6 +760,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
         messages: { ...s.messages, [conv.id]: [] },
         activeId: conv.id,
       }));
+      void get().loadBinding(conv.id);
       return conv;
     } catch (e) {
       notify(`Gespräch konnte nicht angelegt werden: ${errorMessage(e)}`, "error");
@@ -816,6 +839,7 @@ export const useAppStore = create<AppState>()((set, get) => ({
     });
 
     let streamError: string | null = null;
+    let errorEvent: ChatErrorEvent | null = null;
     let gotDone = false;
     try {
       await readSseStream(response, (ev) => {
@@ -846,8 +870,18 @@ export const useAppStore = create<AppState>()((set, get) => ({
           case "done":
             gotDone = true;
             break;
+          case "sharing": {
+            const mid = assistantId;
+            if (mid) set((s) => ({ sharing: { ...s.sharing, [mid]: data as unknown as SharingEvent } }));
+            return;
+          }
           case "error":
             if (typeof data.detail === "string") streamError = data.detail;
+            errorEvent = {
+              ...(data as unknown as ChatErrorEvent),
+              detail: typeof data.detail === "string" ? data.detail : "Bei der Antwort ist ein Fehler aufgetreten.",
+              code: typeof data.code === "string" ? data.code : "error",
+            };
             break;
           default:
             break;
@@ -871,8 +905,12 @@ export const useAppStore = create<AppState>()((set, get) => ({
       return { messages: { ...s.messages, [id]: finalized }, streaming: null };
     });
     reportActive(null);
-    if (streamError) notify(streamError, "error");
+    // A consent_required error becomes the consent dialog; every other error is shown on the message.
+    const consent = errorEvent ? consentFromError(id, text, errorEvent, assistantId ? (get().sharing[assistantId] ?? null) : null, get().bindings[id] ?? null) : null;
+    if (consent) set({ pendingConsent: consent });
+    else if (streamError) notify(streamError, "error");
     void get().loadConversations();
+    if (errorEvent) void get().loadBinding(id);
   },
   async stopGeneration() {
     const { client, streaming } = get();
@@ -885,6 +923,70 @@ export const useAppStore = create<AppState>()((set, get) => ({
       set((s) => (s.streaming ? { streaming: { ...s.streaming, stopping: false } } : {}));
       notify(`Stoppen fehlgeschlagen: ${errorMessage(e)}`, "error");
     }
+  },
+
+  // ----- v1.3: bindings, projects, consent ------------------------------------------
+  async loadBinding(conversationId) {
+    const { client } = get();
+    if (!client) return;
+    try {
+      const res = await client.getBinding(conversationId);
+      set((s) => ({ bindings: { ...s.bindings, [conversationId]: res } }));
+    } catch {
+      /* older core without bindings: the header falls back to the local model */
+    }
+  },
+  async setBinding(conversationId, body) {
+    const { client } = get();
+    if (!client) return null;
+    try {
+      const res = await client.setBinding(conversationId, body);
+      set((s) => ({
+        bindings: { ...s.bindings, [conversationId]: res },
+        conversations: s.conversations.map((c) => (c.id === conversationId ? { ...c, binding: res.binding } : c)),
+      }));
+      return res;
+    } catch (e) {
+      notify(`Modellbindung nicht übernommen: ${errorMessage(e)}`, "error");
+      return null;
+    }
+  },
+  async setConversationProject(conversationId, projectId) {
+    const { client } = get();
+    if (!client) return;
+    try {
+      const conv = await client.setConversationProject(conversationId, projectId);
+      set((s) => ({ conversations: upsertConversation(s.conversations, conv) }));
+      await get().loadBinding(conversationId);
+    } catch (e) {
+      notify(`Projekt nicht übernommen: ${errorMessage(e)}`, "error");
+    }
+  },
+  dismissConsent() {
+    set({ pendingConsent: null });
+  },
+  async grantConsentAndResend() {
+    const { client, pendingConsent } = get();
+    if (!client || !pendingConsent) return;
+    set({ pendingConsent: null });
+    try {
+      await client.grantConsent(pendingConsent.connectionId, pendingConsent.projectId);
+    } catch (e) {
+      notify(`Freigabe nicht möglich: ${errorMessage(e)}`, "error");
+      return;
+    }
+    await get().loadBinding(pendingConsent.conversationId);
+    if (get().activeId !== pendingConsent.conversationId) await get().selectConversation(pendingConsent.conversationId);
+    await get().sendMessage(pendingConsent.text);
+  },
+  async useLocalAndResend() {
+    const { pendingConsent } = get();
+    if (!pendingConsent) return;
+    set({ pendingConsent: null });
+    const res = await get().setBinding(pendingConsent.conversationId, { kind: "local" });
+    if (!res) return;
+    if (get().activeId !== pendingConsent.conversationId) await get().selectConversation(pendingConsent.conversationId);
+    await get().sendMessage(pendingConsent.text);
   },
 
   // ----- activity -----------------------------------------------------------------

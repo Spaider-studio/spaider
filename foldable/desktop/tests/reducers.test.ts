@@ -118,3 +118,35 @@ describe("applyChatEvent", () => {
     expect(finalizeDanglingStream(done, null)).toBe(done);
   });
 });
+
+describe("v1.3 chat events", () => {
+  const streaming = [msg("u1", "user", "Hallo"), msg("a1", "assistant", "Teil", "streaming")];
+
+  it("keeps partial text on an error, marks it and stores the error fields", () => {
+    const next = applyChatEvent(streaming, {
+      type: "error",
+      data: { detail: "Die Antwort war leer.", code: "empty_answer", retryable: true, retry_after_s: null, needs_consent: false, partial_text: true, next_action_de: "Erneut senden." },
+    });
+    const a = next[1];
+    expect(a.status).toBe("error");
+    expect(a.content).toBe("Teil");
+    expect(a.error).toBe("Die Antwort war leer.");
+    expect(a.error_info).toMatchObject({ code: "empty_answer", retryable: true, partial_text: true, next_action_de: "Erneut senden." });
+  });
+
+  it("infers partial_text from the streamed content when the core omits it (older core)", () => {
+    const next = applyChatEvent(streaming, { type: "error", data: { detail: "x", code: "generation_failed" } });
+    expect(next[1].error_info?.partial_text).toBe(true);
+    const empty = applyChatEvent([msg("u1", "user", "Hallo"), msg("a1", "assistant", "", "streaming")], { type: "error", data: { detail: "x", code: "consent_required", needs_consent: true } });
+    expect(empty[1].error_info?.partial_text).toBe(false);
+    expect(empty[1].error_info?.needs_consent).toBe(true);
+  });
+
+  it("ignores the sharing event for the message list", () => {
+    const next = applyChatEvent(streaming, {
+      type: "sharing",
+      data: { connection_id: "c", connection_name: "DeepSeek", execution: "cloud", project_id: "default", history_messages: 1, system_prompt: true, memory_chars: 0, sources: 0, images: 0 },
+    });
+    expect(next).toBe(streaming);
+  });
+});

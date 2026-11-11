@@ -6,6 +6,7 @@ import { DOCUMENT_STATUS_LABEL } from "../../lib/labels";
 import { useAppStore } from "../../store/useAppStore";
 import Logo from "../Logo";
 import { Badge } from "../ui";
+import BindingPicker from "./BindingPicker";
 import Composer from "./Composer";
 import MessageBubble from "./MessageBubble";
 
@@ -92,6 +93,7 @@ export default function ChatArea() {
         <h2 className="text-sm font-medium truncate flex-1">
           {conversation ? conversation.title || "Neues Gespräch" : "SpAIder"}
         </h2>
+        {activeId && <BindingPicker conversationId={activeId} />}
         {conversationDocs.length > 0 && (
           <div className="flex items-center gap-1.5 overflow-x-auto">
             {conversationDocs.map((d) => (
@@ -130,9 +132,11 @@ export default function ChatArea() {
             </div>
           ) : (
             <div className="max-w-3xl mx-auto px-5 py-6 flex flex-col gap-6">
-              {messages.map((m) => {
+              {messages.map((m, idx) => {
                 const isLive = isStreamingHere && m.status === "streaming";
                 const track = m.role === "assistant" ? activity[m.id] : undefined;
+                const previousUser = m.role === "assistant" && idx > 0 && messages[idx - 1].role === "user" ? messages[idx - 1].content : null;
+                const retryable = m.status === "error" && m.error_info?.retryable !== false && previousUser !== null && !streaming;
                 return (
                   <MessageBubble
                     key={m.id}
@@ -143,6 +147,7 @@ export default function ChatArea() {
                     thinking={m.role === "assistant" ? thinking[m.id] : undefined}
                     showThinking={showThinking}
                     onStop={isLive ? onStop : undefined}
+                    onRetry={retryable ? () => void sendMessage(previousUser) : undefined}
                   />
                 );
               })}

@@ -355,6 +355,9 @@ export interface Conversation {
   last_model_id: string | null;
   /** v1.1: open memory post-processing tasks of this conversation */
   postprocessing_pending?: number;
+  /** v1.3 */
+  project_id?: string;
+  binding?: ModelBinding | null;
 }
 
 export type MessageStatus = "complete" | "streaming" | "stopped" | "error";
@@ -405,6 +408,11 @@ export interface Message {
   usage: Usage | null;
   /** v1.1 */
   timings?: MessageTimings | null;
+  /** v1.3: answered through a connection (null = embedded runtime) */
+  connection_id?: string | null;
+  provider_model?: string | null;
+  /** Renderer only: the fields of the `error` event that ended this answer. */
+  error_info?: ChatErrorEvent | null;
 }
 
 // ----- activity events (ACTIVITY_EVENTS.md) ---------------------------------------
@@ -484,8 +492,9 @@ export type ChatEvent =
   | { type: "activity"; data: ActivityEvent }
   | { type: "sources"; data: { sources: Source[] } }
   | { type: "observation"; data: ObservationEvent }
+  | { type: "sharing"; data: SharingEvent }
   | { type: "done"; data: { message: Message } }
-  | { type: "error"; data: { detail: string; code: string } };
+  | { type: "error"; data: ChatErrorEvent };
 
 // ----- documents, memory ----------------------------------------------------------------
 
@@ -851,4 +860,319 @@ export interface BrowserStatus {
 export interface BrowserInstallResponse {
   job: Job | null;
   installed?: boolean;
+}
+
+// ----- v1.3 (0.4): providers, connections, credentials, projects, bindings ----------------
+
+export type ProviderProtocol = "llama_local" | "chat_completions" | "responses" | "anthropic_messages";
+export type AuthMethod = "none" | "api_key" | "oauth_siwc";
+export type Execution = "local" | "lan" | "cloud" | "unknown";
+export type CapabilityValue = "declared" | "verified" | "unknown" | "no";
+export type DataSharing = "allow" | "ask" | "deny";
+export type CredentialStorage = "host" | "vault" | "session" | "none";
+
+export interface PresetCapabilities {
+  text: CapabilityValue;
+  vision: CapabilityValue;
+  tools: CapabilityValue;
+  structured_output: CapabilityValue;
+  streaming: CapabilityValue;
+  reasoning: CapabilityValue;
+  notes_de: string;
+}
+
+export interface ProviderPreset {
+  id: string;
+  name: string;
+  protocol: ProviderProtocol;
+  base_url: string;
+  base_url_editable: boolean;
+  auth_methods: AuthMethod[];
+  execution: Execution;
+  capabilities: PresetCapabilities;
+  key_url: string;
+  docs_url: string;
+  subscription_note_de: string;
+  data_note_de: string;
+  free_access_check: boolean;
+  /** Ids of the connections created from this preset. */
+  connections: string[];
+}
+
+export interface VaultStatus {
+  exists: boolean;
+  unlocked: boolean;
+  path: string;
+  kdf: Record<string, unknown> | null;
+}
+
+export interface CredentialStoreStatus {
+  host_available: boolean;
+  vault: VaultStatus;
+  session_items: number;
+}
+
+export interface ProvidersResponse {
+  providers: ProviderPreset[];
+  credential_store: CredentialStoreStatus;
+}
+
+export interface ConnectionTestError {
+  code: string;
+  message_de: string;
+  status: number | null;
+  retryable: boolean;
+  retry_after_s: number | null;
+}
+
+/** Result of `POST /connections/{id}/test` – four separate stages. */
+export interface ConnectionTestResult {
+  server_reached: boolean;
+  access_ok: boolean | null;
+  model_listed: boolean | null;
+  answer_ok: boolean | null;
+  models: string[];
+  message_de: string;
+  error: ConnectionTestError | null;
+  latency_ms: number;
+  details: Record<string, unknown>;
+}
+
+export interface Connection {
+  id: string;
+  provider: string;
+  protocol: ProviderProtocol;
+  name: string;
+  base_url: string;
+  auth_method: AuthMethod;
+  has_credential: boolean;
+  credential_storage: CredentialStorage;
+  account_label: string | null;
+  workspace: string | null;
+  execution: Execution;
+  data_sharing: DataSharing;
+  default_model: string | null;
+  extra: Record<string, unknown>;
+  enabled: boolean;
+  last_test: (Partial<ConnectionTestResult> & { at?: string; tested_at?: string }) | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateConnectionRequest {
+  provider: string;
+  name: string;
+  base_url?: string;
+  auth_method: AuthMethod;
+  api_key?: string;
+  credential_storage: "host" | "vault" | "session";
+  execution?: Execution;
+  data_sharing: DataSharing;
+  default_model?: string | null;
+  extra?: Record<string, unknown>;
+  account_label?: string | null;
+}
+
+export type PatchConnectionRequest = Partial<CreateConnectionRequest> & { enabled?: boolean };
+
+export interface CapabilityProfile {
+  scope: string;
+  model: string;
+  text: CapabilityValue;
+  vision: CapabilityValue;
+  tools: CapabilityValue;
+  structured_output: CapabilityValue;
+  streaming: CapabilityValue;
+  reasoning: CapabilityValue;
+  context_length: number | null;
+  parameters: Record<string, CapabilityValue>;
+  notes_de: string;
+  checked_at: string | null;
+}
+
+export interface ConnectionModel {
+  id: string;
+  display_name: string;
+  owned_by: string | null;
+  context_length: number | null;
+  capabilities: CapabilityProfile | null;
+  /** What the provider's model list declared (shape varies by provider). */
+  declared: Record<string, unknown> | null;
+}
+
+export interface VaultUnlockResult extends CredentialStoreStatus {
+  items?: number;
+  unlock_ms?: number;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  local_only: boolean;
+  conversations: number;
+  documents: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Consent {
+  connection_id: string;
+  project_id: string;
+  scope: string;
+  granted_at: string;
+}
+
+export interface ProjectsResponse {
+  projects: Project[];
+  consents: Consent[];
+}
+
+export interface ModelBinding {
+  kind: "local" | "connection";
+  connection_id: string | null;
+  provider_model_id: string | null;
+  local_model_id: string | null;
+}
+
+export type PolicyCode = "ok" | "local_only" | "denied" | "consent_required" | "disabled" | "unknown_connection";
+
+export interface BindingPolicy {
+  allowed: boolean;
+  reason_de: string;
+  needs_consent: boolean;
+  code: PolicyCode;
+}
+
+export interface BindingResponse {
+  binding: ModelBinding;
+  project: Project | null;
+  policy: BindingPolicy;
+  connection: Connection | null;
+}
+
+export interface SetBindingRequest {
+  kind: "local" | "connection";
+  connection_id?: string;
+  provider_model_id?: string;
+}
+
+/** `event: sharing` – what is about to be sent to a connection (counts only). */
+export interface SharingEvent {
+  connection_id: string;
+  connection_name: string;
+  execution: Execution;
+  project_id: string | null;
+  history_messages: number;
+  system_prompt: boolean;
+  memory_chars: number;
+  sources: number;
+  images: number;
+}
+
+/** `event: error` of the chat stream (v1.3 fields optional for older cores). */
+export interface ChatErrorEvent {
+  detail: string;
+  code: string;
+  retryable?: boolean;
+  retry_after_s?: number | null;
+  needs_consent?: boolean;
+  connection_id?: string | null;
+  project_id?: string | null;
+  partial_text?: boolean;
+  next_action_de?: string;
+}
+
+// ----- v1.3: model library (discover) ------------------------------------------------------
+
+export type DiscoverTask = "any" | "text-generation" | "image-text-to-text";
+export type DiscoverSort = "downloads" | "likes" | "updated" | "trending";
+export type GatedValue = false | "auto" | "manual";
+
+export interface DiscoverItem {
+  repo: string;
+  author: string;
+  name: string;
+  publisher_status: string;
+  likes: number | null;
+  downloads: number | null;
+  updated: string | null;
+  gguf: boolean;
+  gated: GatedValue;
+  private: boolean;
+  pipeline_tag: string | null;
+  library: string | null;
+  family_hints: string[];
+  status: "unverified";
+}
+
+export interface DiscoverQuery {
+  q: string;
+  author: string;
+  task: DiscoverTask;
+  gguf_only: boolean;
+  sort: DiscoverSort;
+}
+
+export interface DiscoverResponse {
+  items: DiscoverItem[];
+  next_cursor: string | null;
+  query?: Record<string, unknown>;
+  tasks?: Record<string, string>;
+  sorts?: string[];
+  cached_at: string | null;
+  offline: boolean;
+  detail?: string;
+}
+
+export interface RepoFile {
+  path: string;
+  size: number;
+  sha256: string | null;
+  split_index: number | null;
+  split_total: number | null;
+}
+
+export type VariantKind = "weights" | "projector" | "auxiliary";
+export type VariantFit = "ok" | "tight" | "too_large" | null;
+
+export interface RepoVariant {
+  key: string;
+  quantization: string;
+  kind: VariantKind;
+  files: RepoFile[];
+  bytes: number;
+  parts: number;
+  needs_projector: boolean;
+  projector_options: string[];
+  fit: VariantFit;
+  fit_note_de?: string;
+}
+
+export interface RepoDetail {
+  repo: string;
+  revision: string;
+  author: string;
+  publisher_status: string;
+  gated: GatedValue;
+  license: string | null;
+  base_model: string | null;
+  tags: string[];
+  last_modified: string | null;
+  variants: RepoVariant[];
+  total_gguf_bytes: number;
+  installed: boolean;
+  cached_at: string | null;
+  offline: boolean;
+  detail?: string;
+}
+
+export interface ModelCard {
+  repo: string;
+  /** Markdown without HTML, at most 6000 characters. */
+  excerpt: string;
+  front_matter: Record<string, unknown>;
+  truncated: boolean;
+  url: string;
+  cached_at: string | null;
+  offline: boolean;
 }

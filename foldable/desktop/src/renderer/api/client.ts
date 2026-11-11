@@ -47,6 +47,23 @@ import type {
   SetupStatus,
   Source,
   SystemInfo,
+  BindingResponse,
+  Connection,
+  ConnectionModel,
+  ConnectionTestResult,
+  Consent,
+  CreateConnectionRequest,
+  CredentialStoreStatus,
+  DiscoverQuery,
+  DiscoverResponse,
+  ModelCard,
+  PatchConnectionRequest,
+  Project,
+  ProjectsResponse,
+  ProvidersResponse,
+  RepoDetail,
+  SetBindingRequest,
+  VaultUnlockResult,
 } from "./types";
 import { parseJsonData, readSseStream } from "./sse";
 
@@ -393,4 +410,52 @@ export class ApiClient {
   agentBrowser = () => this.request<BrowserStatus>("GET", "/api/agent/browser");
   /** Starts the browser download (job kind `browser`, followed like a model download). */
   installBrowser = () => this.request<BrowserInstallResponse>("POST", "/api/agent/browser/install");
+
+  // ----- v1.3: providers, connections, credentials -------------------------------------
+  providers = () => this.request<ProvidersResponse>("GET", "/api/providers");
+  connections = async () => (await this.request<{ connections: Connection[] }>("GET", "/api/connections")).connections;
+  createConnection = async (body: CreateConnectionRequest) =>
+    (await this.request<{ connection: Connection }>("POST", "/api/connections", { json: body })).connection;
+  patchConnection = async (id: string, body: PatchConnectionRequest) =>
+    (await this.request<{ connection: Connection }>("PATCH", `/api/connections/${encodeURIComponent(id)}`, { json: body })).connection;
+  deleteConnection = (id: string) => this.request<{ ok: boolean }>("DELETE", `/api/connections/${encodeURIComponent(id)}`);
+  /** Four-stage connection test; `allow_generation` sends a probe answer (may cost money). */
+  testConnection = (id: string, body: { probe_model?: string; allow_generation: boolean }) =>
+    this.request<{ result: ConnectionTestResult; connection: Connection }>("POST", `/api/connections/${encodeURIComponent(id)}/test`, { json: body });
+  connectionModels = async (id: string, signal?: AbortSignal) =>
+    (await this.request<{ models: ConnectionModel[] }>("GET", `/api/connections/${encodeURIComponent(id)}/models`, { signal })).models;
+  credentialsStatus = () => this.request<CredentialStoreStatus>("GET", "/api/credentials/status");
+  vaultCreate = (password: string) => this.request<VaultUnlockResult>("POST", "/api/credentials/vault/create", { json: { password } });
+  vaultUnlock = (password: string) => this.request<VaultUnlockResult>("POST", "/api/credentials/vault/unlock", { json: { password } });
+  vaultLock = () => this.request<CredentialStoreStatus>("POST", "/api/credentials/vault/lock");
+  vaultChangePassword = (password: string, newPassword: string) =>
+    this.request<CredentialStoreStatus>("POST", "/api/credentials/vault/change-password", { json: { password, new_password: newPassword } });
+
+  // ----- v1.3: projects, consents, bindings --------------------------------------------
+  projects = () => this.request<ProjectsResponse>("GET", "/api/projects");
+  createProject = async (name: string, localOnly: boolean) =>
+    (await this.request<{ project: Project }>("POST", "/api/projects", { json: { name, local_only: localOnly } })).project;
+  patchProject = async (id: string, patch: { name?: string; local_only?: boolean }) =>
+    (await this.request<{ project: Project }>("PATCH", `/api/projects/${encodeURIComponent(id)}`, { json: patch })).project;
+  deleteProject = (id: string) => this.request<{ ok: boolean }>("DELETE", `/api/projects/${encodeURIComponent(id)}`);
+  grantConsent = async (connectionId: string, projectId: string) =>
+    (await this.request<{ consent: Consent }>("POST", "/api/consents", { json: { connection_id: connectionId, project_id: projectId, scope: "chat" } })).consent;
+  revokeConsent = (connectionId: string, projectId: string) =>
+    this.request<{ ok: boolean }>("DELETE", `/api/consents/${encodeURIComponent(connectionId)}/${encodeURIComponent(projectId)}`);
+  getBinding = (conversationId: string) => this.request<BindingResponse>("GET", `/api/conversations/${encodeURIComponent(conversationId)}/binding`);
+  setBinding = (conversationId: string, body: SetBindingRequest) =>
+    this.request<BindingResponse>("PUT", `/api/conversations/${encodeURIComponent(conversationId)}/binding`, { json: body });
+  setConversationProject = async (conversationId: string, projectId: string) =>
+    (await this.request<{ conversation: Conversation }>("PUT", `/api/conversations/${encodeURIComponent(conversationId)}/project`, { json: { project_id: projectId } })).conversation;
+
+  // ----- v1.3: model library ------------------------------------------------------------
+  discoverModels = (query: DiscoverQuery, cursor: string | null, limit = 20, signal?: AbortSignal) =>
+    this.request<DiscoverResponse>("GET", "/api/models/discover", {
+      query: { q: query.q, author: query.author, task: query.task, gguf_only: query.gguf_only, sort: query.sort, limit, cursor: cursor ?? undefined },
+      signal,
+    });
+  repoDetail = (author: string, name: string, signal?: AbortSignal) =>
+    this.request<RepoDetail>("GET", `/api/models/repo/${encodeURIComponent(author)}/${encodeURIComponent(name)}`, { signal });
+  modelCard = (author: string, name: string, revision?: string, signal?: AbortSignal) =>
+    this.request<ModelCard>("GET", `/api/models/card/${encodeURIComponent(author)}/${encodeURIComponent(name)}`, { query: { revision }, signal });
 }

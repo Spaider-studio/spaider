@@ -75,6 +75,7 @@ export default function ActivityLine({
   live,
   stopping,
   onStop,
+  errorText,
 }: {
   track: ActivityTrack;
   /** The chat stream is still open (shows the elapsed counter and Stopp). */
@@ -82,11 +83,15 @@ export default function ActivityLine({
   /** Stopp was clicked locally and the core has not confirmed yet. */
   stopping: boolean;
   onStop?: () => void;
+  /** The answer ended with an `error` event: forces the failed presentation (never "Antwort fertig"). */
+  errorText?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const running = live && track.outcome === "live";
+  const failedByError = Boolean(errorText) && track.outcome !== "cancelled";
+  const running = live && track.outcome === "live" && !failedByError;
   const elapsed = useElapsed(track.startedAt, running);
-  const summary = summarizeActivity(track);
+  const base = summarizeActivity(track);
+  const summary = failedByError && base.outcome !== "failed" ? { ...base, text: errorText as string, outcome: "failed" as const } : base;
 
   let text = summary.text;
   if (running && stopping) text = "Wird gestoppt …";

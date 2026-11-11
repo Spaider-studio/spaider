@@ -1,4 +1,5 @@
 import ChatArea from "../components/chat/ChatArea";
+import ConsentDialog from "../components/chat/ConsentDialog";
 import SettingsDialog from "../components/settings/SettingsDialog";
 import Sidebar from "../components/Sidebar";
 import TasksArea from "../components/tasks/TasksArea";
@@ -11,6 +12,7 @@ export default function MainScreen() {
       <Sidebar />
       {mainView === "tasks" ? <TasksArea /> : <ChatArea />}
       <SettingsDialog />
+      <ConsentDialog />
     </div>
   );
 }

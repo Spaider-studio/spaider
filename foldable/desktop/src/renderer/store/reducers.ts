@@ -87,15 +87,18 @@ export function applyChatEvent(messages: Message[], event: ChatEvent): Message[]
       return next;
     }
     case "error": {
+      // The error ends the answer; partial text (if any) stays and is marked.
       const idx = findStreaming(messages);
       if (idx === -1) return messages;
       const next = messages.slice();
-      next[idx] = { ...next[idx], status: "error", error: event.data.detail };
+      const info = { ...event.data, partial_text: event.data.partial_text ?? next[idx].content.length > 0 };
+      next[idx] = { ...next[idx], status: "error", error: event.data.detail, error_info: info };
       return next;
     }
     case "status":
     case "thinking":
     case "activity":
+    case "sharing":
       // Status text, thinking text and activity live outside the message list.
       return messages;
     default:

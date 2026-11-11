@@ -25,6 +25,7 @@
 import http from "node:http";
 import { randomUUID } from "node:crypto";
 import { registerLiveAgent } from "./live-agent.mjs";
+import { registerModelHub } from "./modelhub.mjs";
 
 const args = process.argv.slice(2);
 const argValue = (name, fallback) => {
@@ -477,7 +478,7 @@ function pendingFor(conversationId) {
   return state.postprocessQueue.filter((q) => q.conversationId === conversationId).length + (state.postprocessRunning?.conversationId === conversationId ? 1 : 0);
 }
 function convView(conv) {
-  return { ...conv, postprocessing_pending: pendingFor(conv.id) };
+  return { ...conv, project_id: conv.project_id ?? "default", binding: conv.binding ?? null, postprocessing_pending: pendingFor(conv.id) };
 }
 
 // ---------------------------------------------------------------------------
@@ -706,7 +707,9 @@ function startGeneration(conversationId, content, res, live = null) {
   const list = state.messages.get(conversationId);
   const model = state.installed.get(state.activeChat);
   const userMessage = { id: randomUUID(), conversation_id: conversationId, role: "user", content, created_at: now(), status: "complete", model_id: null, sources: [], error: null, usage: null, timings: null };
-  const assistant = { id: randomUUID(), conversation_id: conversationId, role: "assistant", content: "", created_at: now(), status: "streaming", model_id: state.activeChat, sources: [], error: null, usage: null, timings: null };
+  const pol = hub.decide(conv);
+  const viaConnection = pol.binding.kind === "connection";
+  const assistant = { id: randomUUID(), conversation_id: conversationId, role: "assistant", content: "", created_at: now(), status: "streaming", model_id: viaConnection ? null : state.activeChat, sources: [], error: null, usage: null, timings: null, connection_id: pol.connection?.id ?? null, provider_model: viaConnection ? pol.binding.provider_model_id : null };
   list.push(userMessage, assistant);
   if (!conv.title || conv.title === "Neues Gespräch") conv.title = content.slice(0, 48);
   conv.message_count = list.length;
@@ -714,7 +717,7 @@ function startGeneration(conversationId, content, res, live = null) {
   conv.last_model_id = state.activeChat;
 
   sseStart(res);
-  sseSend(res, "message", { user_message: userMessage, assistant_message: assistant });
+  sseSend(res, "message", { user_message: userMessage, assistant_message: assistant, binding: pol.binding, project: pol.project });
   const gen = { conversationId, stopped: false, closed: false };
   state.generation = gen;
   broadcastScheduler();
@@ -765,23 +768,50 @@ function startGeneration(conversationId, content, res, live = null) {
     }, 80);
   };
 
-  const fail = (detail) => {
+  // v1.3: every error carries code/retryable/next_action_de (+ consent fields); never followed by `done`.
+  const fail = (detail, code = "generation_failed", extra = {}, phase = "generating") => {
     assistant.status = "error";
     assistant.error = detail;
     assistant.timings = { ...timings, total_ms: Date.now() - started };
     state.generation = null;
-    act("generating", "failed", `Fehlgeschlagen: ${detail}`, { counters: { tokens: i } });
+    act(phase, "failed", `Fehlgeschlagen: ${detail}`, { counters: { tokens: i } });
     if (!gen.closed) {
-      sseSend(res, "error", { detail, code: "runtime_error" });
+      sseSend(res, "error", {
+        detail,
+        code,
+        retryable: extra.retryable ?? true,
+        retry_after_s: extra.retry_after_s ?? null,
+        needs_consent: Boolean(extra.needs_consent),
+        connection_id: pol.connection?.id ?? null,
+        project_id: pol.project?.id ?? null,
+        partial_text: assistant.content.length > 0,
+        next_action_de: hub.NEXT_ACTION_DE[code] ?? hub.NEXT_ACTION_DE.generation_failed,
+      });
       res.end();
     }
     broadcastScheduler();
   };
+  const emptyCase = /^leer$/i.test(content.trim());
+  if (viaConnection && !pol.decision.allowed) {
+    // Policy blocks the connection (consent_required / local_only / denied / disabled): error, no generation.
+    setTimeout(() => fail(pol.decision.reason_de, pol.decision.code, { needs_consent: pol.decision.needs_consent, retryable: true }, "queued"), 30);
+    return;
+  }
+  if (viaConnection) {
+    setTimeout(() => {
+      if (!gen.closed) sseSend(res, "sharing", hub.sharingPreview(conv, list));
+    }, 15);
+  }
 
   const generate = () => {
     generationStartedAt = Date.now();
     act("generating", "started", "Antwort wird geschrieben");
     if (!gen.closed) sseSend(res, "status", { phase: "generating", message_de: "Antwort wird erzeugt …" });
+    if (emptyCase) {
+      // An empty answer ends with `error` (empty_answer), never with `done`.
+      setTimeout(() => fail("Das Modell hat eine leere Antwort geliefert.", "empty_answer", { retryable: true }), 120);
+      return;
+    }
     let t = 0;
     const tick = () => {
       if (gen.stopped) return finish("stopped");
@@ -886,7 +916,7 @@ function startGeneration(conversationId, content, res, live = null) {
 function cors(req, res) {
   res.setHeader("Access-Control-Allow-Origin", req.headers.origin ?? "*");
   res.setHeader("Access-Control-Allow-Headers", "X-SpAIder-Token, Content-Type");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS");
   res.setHeader("Access-Control-Max-Age", "600");
 }
 function json(res, status, body) {
@@ -938,6 +968,9 @@ const routes = [];
 const route = (method, pattern, handler) => routes.push({ method, pattern, handler });
 
 // health / setup / system
+// v1.3 (0.4): providers, connections, credentials, projects, bindings, model library
+const hub = registerModelHub({ route, json, error, state, now, offline: OFFLINE });
+
 route("GET", /^\/api\/health$/, (ctx) => json(ctx.res, 200, { status: "ok", version: "0.3.0-mock", app_root: "D:\\SpAIder", data_dir: "D:\\SpAIder\\data" }));
 route("GET", /^\/api\/setup\/status$/, (ctx) =>
   json(ctx.res, 200, {
@@ -1268,7 +1301,7 @@ route("GET", /^\/api\/models\/jobs\/([^/]+)\/events$/, (ctx) => {
 const convList = () => [...state.conversations.values()].sort((a, b) => b.updated_at.localeCompare(a.updated_at)).map(convView);
 route("GET", /^\/api\/conversations$/, (ctx) => json(ctx.res, 200, { conversations: convList() }));
 route("POST", /^\/api\/conversations$/, (ctx) => {
-  const conv = { id: randomUUID(), title: ctx.body?.title || "Neues Gespräch", created_at: now(), updated_at: now(), message_count: 0, last_model_id: null };
+  const conv = { id: randomUUID(), title: ctx.body?.title || "Neues Gespräch", created_at: now(), updated_at: now(), message_count: 0, last_model_id: null, project_id: "default", binding: null };
   state.conversations.set(conv.id, conv);
   state.messages.set(conv.id, []);
   json(ctx.res, 201, convView(conv));
@@ -1424,7 +1457,7 @@ const server = http.createServer(async (req, res) => {
   }
   const url = new URL(req.url, `http://127.0.0.1:${PORT}`);
   if (req.headers["x-spaider-token"] !== TOKEN) return error(res, 401, "Zugriff verweigert.", "unauthorized");
-  const raw = ["POST", "PATCH"].includes(req.method) ? await readBody(req) : Buffer.alloc(0);
+  const raw = ["POST", "PATCH", "PUT"].includes(req.method) ? await readBody(req) : Buffer.alloc(0);
   let body = null;
   if ((req.headers["content-type"] ?? "").includes("application/json") && raw.length) {
     try {
