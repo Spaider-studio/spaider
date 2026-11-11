@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "model": null,
+  "catalog_id": "qwen3-4b-q4_k_m",
+  "mode": "simple",
+  "started_at": "2026-11-11T23:19:02Z",
+  "repeat": 3,
+  "task_timeout_s": 240,
+  "seed": 7,
+  "runs": [],
+  "host": {
+    "desktop_interactive": true
+  },
+  "code": "9a1f414"
+}
