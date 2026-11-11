@@ -328,3 +328,43 @@ async def set_project(conversation_id: str, body: dict, ctx: AppContext = Depend
     except NotFound:
         raise ApiError(404, "not_found", "Projekt nicht gefunden.")
     return {"conversation": ctx.conversations.set_project(conversation_id, pid)}
+
+
+# ---- Sign in with ChatGPT (optional; never started unattended) -------------------------
+def _siwc_conn(ctx: AppContext, conn_id: str):
+    conn = ctx.connections.get(conn_id)
+    if conn is None:
+        raise ApiError(404, "not_found", "Verbindung nicht gefunden.")
+    if conn.auth_method != "oauth_siwc":
+        raise ApiError(409, "unsupported", "Diese Verbindung nutzt keine ChatGPT-Anmeldung.")
+    return conn
+
+
+@router.get("/connections/{conn_id}/siwc/status")
+async def siwc_status(conn_id: str, ctx: AppContext = Depends(get_ctx)):
+    return ctx.siwc.status(_siwc_conn(ctx, conn_id))
+
+
+@router.post("/connections/{conn_id}/siwc/start")
+async def siwc_start(conn_id: str, ctx: AppContext = Depends(get_ctx)):
+    conn = _siwc_conn(ctx, conn_id)
+    try:
+        started = await ctx.siwc.start_login(conn)
+    except GenerationError as exc:
+        raise ApiError(409, exc.code, exc.message_de)
+    return {**started, "status": ctx.siwc.status(conn)}
+
+
+@router.post("/connections/{conn_id}/siwc/cancel")
+async def siwc_cancel(conn_id: str, ctx: AppContext = Depends(get_ctx)):
+    conn = _siwc_conn(ctx, conn_id)
+    cancelled = await ctx.siwc.cancel(conn.id)
+    return {"ok": True, "cancelled": cancelled, "status": ctx.siwc.status(ctx.connections.get(conn.id))}
+
+
+@router.post("/connections/{conn_id}/siwc/logout")
+async def siwc_logout(conn_id: str, ctx: AppContext = Depends(get_ctx)):
+    conn = _siwc_conn(ctx, conn_id)
+    out = await ctx.siwc.logout(conn)
+    await ctx.providers.drop(conn.id)
+    return {**out, "status": ctx.siwc.status(ctx.connections.get(conn.id))}

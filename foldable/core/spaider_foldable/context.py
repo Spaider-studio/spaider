@@ -46,6 +46,7 @@ from .providers.connections import ConnectionStore
 from .providers.credentials import CredentialStore
 from .providers.presets import load_presets
 from .providers.registry import LocalRuntimeAdapter, ProviderRegistry
+from .providers.siwc import SiwcService
 from .scheduler import LLMScheduler
 from .store.conversations import ConversationStore
 from .store.documents import DocumentStore
@@ -96,6 +97,8 @@ class AppContext:
         self.local_adapter = LocalRuntimeAdapter(lambda: self.inference.chat.client, self._active_reasoning_toggle)
         self.providers = ProviderRegistry(self.presets, self.connections, self.credentials, local_adapter=self.local_adapter)
         self.connectors = ConnectorService(self)
+        self.siwc = SiwcService(self.credentials, self.connections, host_id=current_host_id())
+        self.providers.set_siwc_token_provider(self.siwc.access_token)
         self.chat = ChatService(
             self.conversations,
             self.retriever,
@@ -583,6 +586,7 @@ class AppContext:
             await self.jobs.shutdown()
             await self.inference.stop_all()
             await self.providers.close_all()
+            await self.siwc.aclose()
             self.credentials.lock_all()
         finally:
             self.db.close()

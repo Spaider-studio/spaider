@@ -301,7 +301,10 @@ def bridge_command() -> tuple[str, list[str]]:
     """Executable + leading arguments that start this core in bridge mode."""
     if getattr(sys, "frozen", False):
         return str(Path(sys.executable).resolve()), []
-    return str(Path(sys.executable).resolve()), ["-m", "spaider_foldable"]
+    # dev checkout: make the command independent of the client's working directory
+    core_dir = str(Path(__file__).resolve().parents[2])
+    boot = f"import sys; sys.path.insert(0, {core_dir!r}); from spaider_foldable.__main__ import main; sys.exit(main())"
+    return str(Path(sys.executable).resolve()), ["-c", boot]
 
 
 def _q(s: str) -> str:

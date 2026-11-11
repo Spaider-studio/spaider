@@ -34,6 +34,7 @@ class Recorded:
     path: str
     headers: dict
     body: Optional[dict]
+    query: str = ""
 
 
 class FakeProvider:
@@ -63,7 +64,7 @@ class FakeProvider:
                     body = json.loads(raw.decode("utf-8")) if raw else None
                 except ValueError:
                     body = {"_raw": raw.decode("utf-8", errors="replace")}
-                rec = Recorded(method, self.path.split("?")[0], {k.lower(): v for k, v in self.headers.items()}, body)
+                rec = Recorded(method, self.path.split("?")[0], {k.lower(): v for k, v in self.headers.items()}, body, self.path.partition("?")[2])
                 fake.requests.append(rec)
                 scripted = fake.routes.get((method, rec.path))
                 if scripted is None:

@@ -55,6 +55,38 @@ async def list_connectors(ctx: AppContext = Depends(get_ctx)):
     }
 
 
+@router.get("/connectors/chatgpt-tunnel/status")
+async def chatgpt_tunnel_status(ctx: AppContext = Depends(get_ctx)):
+    """ChatGPT (Apps/Connectors) cannot start a local stdio process; it needs a Secure MCP
+    Tunnel. Only the status and the preparation steps are reported here - nothing is
+    published and no tunnel is created unattended."""
+    import shutil
+
+    tunnel = shutil.which("tunnel-client") or shutil.which("tunnel-client.exe")
+    core_json = ctx.paths.host_dir / "core.json"
+    return {
+        "state": "prepared",
+        "state_de": "Vorbereitet (nicht verbunden)",
+        "tunnel_client_found": bool(tunnel),
+        "tunnel_client_path": tunnel,
+        "core_running": core_json.exists(),
+        "requirements_de": [
+            "ChatGPT-Workspace/Organisation mit Zugriff auf die Plattform-Tunnel-Einstellungen",
+            "Tunnel-ID und Runtime-API-Key (Tunnels Read+Use) aus den Plattform-Einstellungen",
+            "tunnel-client (Download aus den Tunnel-Einstellungen oder github.com/openai/tunnel-client)",
+            "Ein SpAIder-Connector mit passenden Rechten (siehe „Verbindungen“ → „Gedächtnis-Clients“)",
+        ],
+        "steps_de": [
+            "In SpAIder einen Connector vom Typ „ChatGPT (Tunnel)“ anlegen; die Brücke als MCP-Befehl notieren.",
+            "tunnel-client init --profile spaider --tunnel-id <ID> --mcp-command \"<Brückenbefehl>\" ausführen (Runtime-Key wird abgefragt).",
+            "tunnel-client doctor und anschließend tunnel-client run starten; SpAIder muss laufen.",
+            "In ChatGPT den Connector über die Plattform-Tunnel-Einstellungen dem Workspace zuordnen (nicht öffentlich veröffentlichen).",
+        ],
+        "limits_de": "Limits laut Dokumentation: 600 Anfragen/Minute, 10 MiB je Anfrage, 120 s Zeitlimit. Keine öffentliche Plugin-Verteilung.",
+        "docs_url": "https://platform.openai.com/docs/mcp",
+    }
+
+
 @router.post("/connectors", status_code=201)
 async def create_connector(body: ConnectorBody, ctx: AppContext = Depends(get_ctx)):
     try:

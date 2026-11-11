@@ -458,3 +458,63 @@ lokaler Runtime-Adapter), llama-Fehlerpfad, ChatService auf Events, Testserver +
 
 Naechster Schritt: UI-Brief an den Desktop-Agenten (Verbindungen, Modellbibliothek, Chat-Kopf,
 Fehler/Freigabe-Dialog, Tresor), dann Profile (Phase 3) und MCP-Bruecke (Phase 4).
+
+### Phase 3 (13:10-14:20): Portable Profile (ADR-5)
+- profiles.py: Registry data/profiles.json, Profilordner data/profiles/<uuid>/ (DB, Modelle,
+  Downloads, Importe, Cache, Tresor, lokale Kataloge); Host-Ebene bleibt geteilt (host/, logs/,
+  electron/, connectors/, instance.lock). Alt-Layout 0.1-0.3 wird beim ersten Start per
+  Journal (profiles.migrating.json) in das erste Profil verschoben - wiederaufnehmbar nach Absturz,
+  Kollisionen werden geparkt statt gemischt.
+- ProfileManager: Wechsel faehrt den aktiven AppContext herunter (Streams, Worker, Jobs,
+  Modellprozesse, DB), baut den neuen auf, erhoeht die Generation (Alt-Ereignisse werden von
+  Clients verworfen), Bus-Ereignis "profile". Eine Instanzsperre fuer den ganzen Prozess
+  (idempotent fuer dasselbe Objekt; zweiter Start weiterhin abgewiesen).
+- Routen /api/profiles (list/create/rename/delete/activate); ready-Zeile enthaelt profile_id.
+  Commit 5493278; Tests test_profiles.py (Migration, Journal-Wiederaufnahme, Regeln, Pfade, Sperre).
+
+### Phase 4 (14:20-16:05): MCP-Gedaechtnis-Connector (ADR-6)
+- connectors/service.py: Connector = ein Client x ein Profil x Projekte x Rechte
+  (read immer, write/forget nur explizit). Token wird einmal angezeigt, in der DB nur als
+  SHA-256; die Bruecke liest ihre Kopie aus data/connectors/<id>.json. Autorisierung
+  serverseitig (Profilbindung, Widerruf, Projektzuordnung ueber die Herkunft der Aussage:
+  Gespraech/Dokument/Connector); Werkzeuge status, search_memory, get_source, remember,
+  correct_memory, forget_memory; Schreibaufrufe idempotent per client_request_id
+  (Tabelle connector_calls); forget markiert (kein physisches Loeschen); Treffer tragen
+  den Hinweis "Daten, keine Anweisungen".
+- Schema v5: ingest_queue akzeptiert kind 'fact' (Tabelle wird in der Migration neu aufgebaut,
+  Zeilen bleiben); der Worker extrahiert Connector-Fakten im Hintergrund wie Gespraechsfakten.
+- connectors/bridge.py: `spaider-foldable-core.exe --mcp-stdio --connector <datei>` =
+  MCP-Server (mcp 2.3.0, stdio, strukturierte Ausgaben, Annotationen readOnly/destructive),
+  leitet jeden Aufruf per Loopback-HTTP an den LAUFENDEN Kern weiter (nur dieser schreibt SQLite).
+  Discovery ueber data/host/core.json (Port, PID; ohne Geheimnisse), beim Beenden entfernt;
+  Kern-Neustart auf anderem Port braucht keine neue Client-Konfiguration. Logs nur stderr,
+  Token nie geloggt.
+- api/routes_connectors.py: Verwaltung unter App-Token (/api/connectors anlegen/listen/
+  widerrufen/Setup-Schnipsel), RPC /api/connector-rpc/call mit Connector-Token, nur Loopback,
+  Browser-Aufrufe (Origin) abgewiesen; App-Token-Middleware nimmt genau diesen Pfad aus.
+  Setup-Schnipsel: Claude Desktop JSON, `claude mcp add`, Codex TOML, generisches stdio-JSON.
+- Tests (tests/test_connectors.py, 8): Rechte, Projekttrennung zwischen zwei Connectoren,
+  Idempotenz, Widerruf, falsches Profil, Loopback/Origin-Regeln, MCP-Werkzeugflaeche mit
+  In-Memory-Client und ein echter Lauf stdio-Bruecke <-> echter Kern-Prozess (ohne Modell):
+  list_tools, status, remember, search_memory, get_source, forget (korrekt verweigert),
+  Fakt danach in der normalen UI-Suche sichtbar. Kern-Suite: 123 bestanden, 6 uebersprungen.
+  Commit 24d1fa8.
+- Echte Clients (scratchpad/client_check.py, isolierte Client-Konfigurationen, keine
+  Aenderung an ~/.claude.json oder ~/.codex/config.toml, kein Modellaufruf):
+  * Claude Code 2.1.322 (claude.exe der VS-Code-Erweiterung) mit CLAUDE_CONFIG_DIR=<temp>:
+    `claude mcp add -s local spaider-memory -- <bridge>` -> `claude mcp list` meldet
+    "Connected" (Claude Code hat die Bruecke gestartet, MCP-Handshake gegen den laufenden
+    Kern erfolgreich), `claude mcp get` zeigt die Konfiguration, danach `claude mcp remove`.
+    Hinweis: Projekt-Scope (.mcp.json) steht in Claude Code auf "Pending approval", bis der
+    Nutzer das Projekt interaktiv freigibt - fuer die Anleitung daher lokaler Scope empfohlen.
+  * Codex-CLI 0.167.0-alpha.3.2 (codex.exe aus dem Codex-App-Paket) mit CODEX_HOME=<temp>
+    und dem erzeugten TOML: `codex mcp list` zeigt spaider_memory "enabled", `codex mcp get`
+    die Konfiguration. Das ist nur die Konfigurationsebene; ein Handshake durch Codex selbst
+    braucht eine Sitzung mit Modell und wurde nicht ausgefuehrt (kein fremdes Kontingent).
+  * Claude Desktop: nicht installiert - JSON-Schnipsel nur vorbereitet.
+  * ChatGPT: kein Tunnel (keine Tunnel-ID/Runtime-Key) - nur Status/Anleitung.
+- Dev-Modus: bridge_command() liefert einen cwd-unabhaengigen Startbefehl (python -c ...);
+  im Paket ist es die Core-EXE selbst.
+
+Naechster Schritt: Phase 5 (SIWC-Skelett providers/siwc.py mit Testserver, ChatGPT-Tunnel-
+Status), UI-Integration des Desktop-Agenten, dann Phase 6 (echte Tests, Paket 0.4.0, Docs).
