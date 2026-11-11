@@ -1,0 +1,165 @@
+{
+ "zip": "C:\\Users\\<Nutzer>\\spaider-foldable\\repo-agent\\foldable\\build\\out\\SpAIder-Foldable-0.5.0-win-x64.zip",
+ "checks": {
+  "zip_has_no_weights_or_data": {
+   "ok": true,
+   "detail": "8935 entries"
+  },
+  "layout": {
+   "ok": true,
+   "detail": "C:\\Users\\<Nutzer>\\spaider-foldable\\measure\\agentv2\\pkg05\\Päck age ü\\SpAIder-Foldable-0.5.0-win-x64\\SpAIder"
+  },
+  "core_version_0.5.0": {
+   "ok": true,
+   "detail": "0.5.0"
+  },
+  "packaged_core_ready": {
+   "ok": true,
+   "detail": "port=51403 8.8s"
+  },
+  "health": {
+   "ok": true,
+   "detail": "{\"status\": \"ok\", \"version\": \"0.5.0\", \"app_root\": \"C:\\\\Users\\\\<Nutzer>\\\\spaider-foldable\\\\measure\\\\agentv2\\\\pkg05\\\\P\\u00e4c"
+  },
+  "setup_needs_model": {
+   "ok": true,
+   "detail": "needs_model"
+  },
+  "health_version_0.5.0": {
+   "ok": true,
+   "detail": "{'version': '0.5.0', 'profile_id': '06c38038-4f8c-4527-a18f-9a4e99f25597'}"
+  },
+  "providers_13_presets": {
+   "ok": true,
+   "detail": "['llama_local', 'openai_compatible', 'ollama', 'lmstudio', 'openai', 'openai_siwc', 'anthropic', 'gemini', 'deepseek', 'zai', 'mistral', 'openrouter', 'huggingface']"
+  },
+  "data_dir_profiles_layout": {
+   "ok": true,
+   "detail": "['connectors', 'host', 'instance.lock', 'logs', 'profiles', 'profiles.json', 'tmp']"
+  },
+  "execution_core_v1.5": {
+   "ok": true,
+   "detail": "{'version': '1.5', 'workflows': 0, 'host_id': '4785575201e4e4887c7b9e9b75f349ac'}"
+  },
+  "capabilities_native_tool_calls_field": {
+   "ok": true,
+   "detail": "{'id': None, 'vision_input': False, 'image_grounding': 'none', 'tool_call_format': 'none', 'native_tool_calls': 'untested', 'structured_output': True}"
+  },
+  "tools_registered_no_shell": {
+   "ok": true,
+   "detail": "26"
+  },
+  "task_without_model_409": {
+   "ok": true,
+   "detail": "{\"detail\":\"Es ist kein Chatmodell aktiv.\",\"code\":\"no_model\"}"
+  },
+  "probe_without_model_409": {
+   "ok": true,
+   "detail": "409"
+  },
+  "workflows_empty": {
+   "ok": true,
+   "detail": ""
+  },
+  "workflow_404": {
+   "ok": true,
+   "detail": ""
+  },
+  "bindings_put_get_delete": {
+   "ok": true,
+   "detail": "4785575201e4e4887c7b9e9b75f349ac"
+  },
+  "stop_lock_fast": {
+   "ok": true,
+   "detail": "{'stopped_tasks': 0, 'stopped_live': 0, 'ended_sessions': 0, 'released_keys': 0, 'stopped_teach': 0, 'lock_ms': 0.2}"
+  },
+  "teach_rejects_unscoped_window": {
+   "ok": true,
+   "detail": "422"
+  },
+  "schema_v6_tables": {
+   "ok": true,
+   "detail": "user_version=6 db=C:\\Users\\<Nutzer>\\spaider-foldable\\measure\\agentv2\\pkg05\\Päck age ü\\SpAIder-Foldable-0.5.0-win-x64\\SpAIder\\data\\profiles\\06c38038-4f8c-4527-a18f-9a4e99f25597\\spaider.db"
+  },
+  "credentials_status": {
+   "ok": true,
+   "detail": "{'host_available': True, 'vault': {'exists': False, 'unlocked': False, 'path': 'C:\\\\Users\\\\<Nutzer>\\\\spaider-foldable\\\\measure\\\\agentv2\\\\pkg05\\\\Päck age ü\\\\SpAIder-Foldable-0.5.0-win-x64\\\\SpAIder\\\\data\\\\profiles\\\\06c38038-4f8c-4527-a18f-9a4e99f25597\\\\vault.json', 'kdf': None}, 'session_items': 0}"
+  },
+  "vault_create": {
+   "ok": true,
+   "detail": "{\"host_available\":true,\"vault\":{\"exists\":true,\"unlocked\":true,\"path\":\"C:\\\\Users\\\\<Nutzer>\\\\spaider-foldable\\\\measure\\\\agen"
+  },
+  "vault_lock_unlock": {
+   "ok": true,
+   "detail": "lock=200 wrong=401 ok=200"
+  },
+  "siwc_connection_created": {
+   "ok": true,
+   "detail": "{\"connection\":{\"id\":\"conn_6daa7bbfb7cf\",\"profile_id\":\"06c38038-4f8c-4527-a18f-9a4e99f25597\",\"provider\":\"openai_siwc\",\"protocol\":\"responses\",\"name\":\"ChatGPT\",\"ba"
+  },
+  "siwc_status_needs_setup": {
+   "ok": true,
+   "detail": "Einrichtung erforderlich"
+  },
+  "cloud_planner_needs_consent": {
+   "ok": true,
+   "detail": "{\"detail\":\"Für diese Verbindung und dieses Projekt liegt keine Freigabe vor (Einstellungen → Verbind"
+  },
+  "tunnel_status_prepared": {
+   "ok": true,
+   "detail": "Vorbereitet (nicht verbunden)"
+  },
+  "discover_route": {
+   "ok": true,
+   "detail": "200"
+  },
+  "connector_created": {
+   "ok": true,
+   "detail": "{\"connector\":{\"id\":\"mcp_148ae730f3\",\"name\":\"Paket-Check\",\"client_kind\":\"claude_code\",\"profile_id\":\"06c38038-4f8c-4527-a1"
+  },
+  "bridge_command_is_packaged_exe": {
+   "ok": true,
+   "detail": "['C:\\\\Users\\\\<Nutzer>\\\\spaider-foldable\\\\measure\\\\agentv2\\\\pkg05\\\\Päck age ü\\\\SpAIder-Foldable-0.5.0-win-x64\\\\SpAIder\\\\resources\\\\core\\\\spaider-foldable-core.exe', '--mcp-stdio', '--connector', 'C:\\\\Users\\\\<Nutzer>\\\\spaider-foldable\\\\measure\\\\agentv2\\\\pkg05\\\\Päck age ü\\\\SpAIder-Foldable-0.5.0-win-x64\\\\SpAIder\\\\data\\\\connectors\\\\mcp_148ae730f3.json']"
+  },
+  "packaged_bridge_tools_no_computer_control": {
+   "ok": true,
+   "detail": "['correct_memory', 'forget_memory', 'get_source', 'remember', 'search_memory', 'status']"
+  },
+  "packaged_bridge_status": {
+   "ok": true,
+   "detail": "{'core_version': '0.5.0', 'rights': ['read', 'write']}"
+  },
+  "packaged_bridge_remember_search": {
+   "ok": true,
+   "detail": "hits=1"
+  },
+  "packaged_profile_isolation": {
+   "ok": true,
+   "detail": "gen=2 results=0"
+  },
+  "execution_core_after_profile_switch": {
+   "ok": true,
+   "detail": ""
+  },
+  "no_secrets_in_log": {
+   "ok": true,
+   "detail": "log=2846 chars"
+  },
+  "core_json_removed": {
+   "ok": true,
+   "detail": ""
+  }
+ },
+ "timings": {
+  "unzip_s": 26.9,
+  "packaged_core_ready_s": 8.8,
+  "stop_roundtrip_ms": 0.0,
+  "discover_s": 1.97,
+  "packaged_bridge_roundtrip_s": 5.61,
+  "packaged_profile_switch_s": 0.08
+ },
+ "summary": {
+  "passed": 37,
+  "failed": 0
+ }
+}

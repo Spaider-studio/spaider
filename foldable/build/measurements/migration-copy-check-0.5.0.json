@@ -1,0 +1,77 @@
+{
+ "source": "C:\\Users\\<Nutzer>\\spaider-foldable\\repo\\foldable\\build\\out\\SpAIder-Foldable-0.3.0-win-x64\\SpAIder\\data",
+ "checks": {
+  "source_exists": {
+   "ok": true,
+   "detail": "C:\\Users\\<Nutzer>\\spaider-foldable\\repo\\foldable\\build\\out\\SpAIder-Foldable-0.3.0-win-x64\\SpAIder\\data\\spaider.db"
+  },
+  "core_ready_on_copy": {
+   "ok": true,
+   "detail": "39.5s"
+  },
+  "version_0.5.0": {
+   "ok": false,
+   "detail": "None"
+  },
+  "memory_visible": {
+   "ok": true,
+   "detail": "{'facts': 1, 'entities': 0, 'relations': 0, 'superseded': 0, 'documents': 0, 'notes': 0}"
+  },
+  "recipes_migrated_to_candidates": {
+   "ok": true,
+   "detail": "0 workflows (recipes before: 0)"
+  },
+  "tasks_listed": {
+   "ok": true,
+   "detail": "0"
+  },
+  "execution_core": {
+   "ok": true,
+   "detail": ""
+  },
+  "user_version_6": {
+   "ok": true,
+   "detail": "6"
+  },
+  "counters_unchanged": {
+   "ok": true,
+   "detail": "{'conversations': (1, 1), 'messages': (8, 8), 'nodes': (1, 1), 'edges': (0, 0)}"
+  },
+  "recipes_kept": {
+   "ok": true,
+   "detail": "0"
+  },
+  "quick_check_ok": {
+   "ok": true,
+   "detail": "ok"
+  },
+  "source_untouched": {
+   "ok": true,
+   "detail": "mtime unchanged"
+  }
+ },
+ "before": {
+  "conversations": 1,
+  "messages": 8,
+  "nodes": 1,
+  "edges": 0,
+  "user_version": 3,
+  "recipes": 0
+ },
+ "ready_s": 39.5,
+ "after": {
+  "conversations": 1,
+  "messages": 8,
+  "nodes": 1,
+  "edges": 0,
+  "user_version": 6,
+  "recipes": 0,
+  "workflows": 0,
+  "quick_check": "ok",
+  "db": "C:\\Users\\<Nutzer>\\spaider-foldable\\measure\\agentv2\\migration-copy\\SpAIder Bestand ü\\data\\profiles\\e3a7a5cd-0c81-4327-af7d-08d7d11f6d8e\\spaider.db"
+ },
+ "summary": {
+  "passed": 11,
+  "failed": 1
+ }
+}

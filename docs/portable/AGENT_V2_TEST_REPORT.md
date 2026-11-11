@@ -114,7 +114,19 @@ Profil-Umzug und Hardwareerkennung; gepackt siehe Abschnitt 7).
 
 ## 7. Paket (echt)
 
-PLATZHALTER_PAKET
+`SpAIder-Foldable-0.5.0-win-x64.zip`, 402 215 665 Bytes, SHA-256
+`2504f7d37d27996c6e235b042a17bd3881afb1d12a30bdb652df65f7ab37d3da`, Build-Commit `dd9de11`
+(Code-Stand identisch mit 39ae82b; Manifest `BUILD_MANIFEST_0.5.0.json`). Kein Modell, keine
+Nutzerdaten, kein Browserprofil, keine Schlüssel im ZIP (geprüft: 8 935 Einträge).
+
+| Prüfung | Datei | Ergebnis |
+|---|---|---|
+| `verify_package.py` (frisch entpackt, Kern aus dem Paket, Health/Setup/Runtime) | Konsole | bestanden |
+| erweiterte Paketprüfung `package_check_05.py` (Pfad mit Leerzeichen/Umlaut, PATH nur `C:\Windows`) | `package_check_0.5.0.json` | **37/37**: Version 0.5.0, 13 Presets, Profil-Layout, Ausführungskern 1.5 (Eingabesperre aktiv, 26 Werkzeuge, keine Shell), Aufgabe/Probe ohne Modell → 409, Abläufe leer, Bindungen anlegen/lesen/löschen, Stopp `lock_ms` 0,2, Beibringen außerhalb des Umfangs → 422, Schema v6 in frischem Profil, Tresor anlegen/sperren/falsches Passwort/entsperren, SIWC-Status „Einrichtung erforderlich“, Cloud-Planer ohne Freigabe → 409, Tunnel-Status, Entdecken (live), Connector + MCP-Brücke **aus dem Paket** (nur Gedächtniswerkzeuge, keine Computersteuerung), Profilwechsel-Isolation, keine Geheimnisse im Log, `core.json` entfernt; gepackter Kern bereit in 21,7 s |
+| Desktop-Paket | `npm run package` | Electron 45.2.1, 0.5.0 |
+
+Nicht geprüft am Paket: Agentenaufgabe mit Modell aus dem Paket (die Messreihe lief gegen den
+Entwicklungskern mit demselben Code; der 0.3-Paketvolltest mit Modell wurde nicht wiederholt).
 
 ## 8. Leistungsziele
 
