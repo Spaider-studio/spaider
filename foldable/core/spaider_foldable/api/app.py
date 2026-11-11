@@ -22,6 +22,7 @@ from .routes_documents import router as documents_router
 from .routes_live import router as live_router
 from .routes_memory import router as memory_router
 from .routes_models import router as models_router
+from .routes_providers import router as providers_router
 from .routes_system import router as system_router
 
 logger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ ALLOWED_ORIGINS = ["null", "http://localhost:5173", "http://127.0.0.1:5173"]
 
 
 def create_app(ctx: AppContext, token: str) -> FastAPI:
-    app = FastAPI(title="SpAIder Foldable Core", version="0.1.0", docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(title="SpAIder Foldable Core", version="0.4.0", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.ctx = ctx
 
     app.add_middleware(
@@ -83,4 +84,5 @@ def create_app(ctx: AppContext, token: str) -> FastAPI:
     app.include_router(activity_router, prefix="/api")
     app.include_router(live_router, prefix="/api")
     app.include_router(agent_router, prefix="/api")
+    app.include_router(providers_router, prefix="/api")
     return app

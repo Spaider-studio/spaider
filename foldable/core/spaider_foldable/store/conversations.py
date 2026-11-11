@@ -16,7 +16,16 @@ def _conv(row, count: int, pending: int = 0) -> dict:
         "message_count": count,
         "last_model_id": row["last_model_id"],
         "postprocessing_pending": pending,
+        "project_id": _col(row, "project_id") or "default",
+        "binding": json.loads(_col(row, "binding_json") or "null"),
     }
+
+
+def _col(row, name: str):
+    try:
+        return row[name]
+    except (IndexError, KeyError):
+        return None
 
 
 _PENDING_SQL = (
@@ -38,6 +47,8 @@ def _msg(row) -> dict:
         "error": row["error"],
         "usage": json.loads(row["usage_json"]) if row["usage_json"] else None,
         "timings": json.loads(row["timings_json"]) if row["timings_json"] else None,
+        "connection_id": _col(row, "connection_id"),
+        "provider_model": _col(row, "provider_model"),
     }
 
 
@@ -85,6 +96,17 @@ class ConversationStore:
             (utcnow(), model_id, cid),
         )
 
+    def set_binding(self, cid: str, binding: Optional[dict]) -> dict:
+        """What this conversation answers with (None = embedded runtime)."""
+        self.get(cid)
+        self.db.execute("UPDATE conversations SET binding_json = ?, updated_at = ? WHERE id = ?", (json.dumps(binding) if binding else None, utcnow(), cid))
+        return self.get(cid)
+
+    def set_project(self, cid: str, project_id: str) -> dict:
+        self.get(cid)
+        self.db.execute("UPDATE conversations SET project_id = ?, updated_at = ? WHERE id = ?", (project_id, utcnow(), cid))
+        return self.get(cid)
+
     def delete(self, cid: str) -> None:
         self.get(cid)
         with self.db.transaction() as conn:
@@ -103,7 +125,15 @@ class ConversationStore:
         return _msg(row)
 
     def add_message(
-        self, cid: str, role: str, content: str, *, status: str = "complete", model_id: Optional[str] = None
+        self,
+        cid: str,
+        role: str,
+        content: str,
+        *,
+        status: str = "complete",
+        model_id: Optional[str] = None,
+        connection_id: Optional[str] = None,
+        provider_model: Optional[str] = None,
     ) -> dict:
         mid = new_id()
         now = utcnow()
@@ -112,8 +142,8 @@ class ConversationStore:
                 "SELECT COALESCE(MAX(seq), 0) + 1 FROM messages WHERE conversation_id = ?", (cid,)
             ).fetchone()[0]
             conn.execute(
-                "INSERT INTO messages(id, conversation_id, seq, role, content, status, model_id, created_at) VALUES (?,?,?,?,?,?,?,?)",  # noqa: E501
-                (mid, cid, seq, role, content, status, model_id, now),
+                "INSERT INTO messages(id, conversation_id, seq, role, content, status, model_id, created_at, connection_id, provider_model) VALUES (?,?,?,?,?,?,?,?,?,?)",  # noqa: E501
+                (mid, cid, seq, role, content, status, model_id, now, connection_id, provider_model),
             )
             conn.execute("UPDATE conversations SET updated_at = ? WHERE id = ?", (now, cid))
         return self.get_message(mid)

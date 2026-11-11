@@ -73,6 +73,19 @@ class PortablePaths:
     def electron_dir(self) -> Path:
         return self.data_dir / "electron"
 
+    @property
+    def host_dir(self) -> Path:
+        """Machine-specific, non-portable state (host-bound credentials, connector setup)."""
+        return self.data_dir / "host"
+
+    @property
+    def vault_path(self) -> Path:
+        return self.data_dir / "vault.json"
+
+    @property
+    def connectors_dir(self) -> Path:
+        return self.data_dir / "connectors"
+
     # ---- construction ---------------------------------------------------
     @classmethod
     def from_app_root(cls, app_root: str | os.PathLike[str]) -> "PortablePaths":
@@ -93,6 +106,8 @@ class PortablePaths:
             self.logs_dir,
             self.cache_dir,
             self.tmp_dir,
+            self.host_dir,
+            self.connectors_dir,
         ):
             d.mkdir(parents=True, exist_ok=True)
         # tmp is scratch only: wipe leftovers from a previous crashed run.

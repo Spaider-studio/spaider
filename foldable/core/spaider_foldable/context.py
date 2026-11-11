@@ -41,10 +41,15 @@ from .models.catalog import load_catalog
 from .models.jobs import JobManager
 from .models.registry import ModelRegistry
 from .paths import PortablePaths
+from .providers.connections import ConnectionStore
+from .providers.credentials import CredentialStore
+from .providers.presets import load_presets
+from .providers.registry import LocalRuntimeAdapter, ProviderRegistry
 from .scheduler import LLMScheduler
 from .store.conversations import ConversationStore
 from .store.documents import DocumentStore
 from .store.notes import NoteStore
+from .store.projects import ProjectStore
 from .store.settings import SettingsStore, UserSettings
 
 logger = logging.getLogger(__name__)
@@ -80,6 +85,14 @@ class AppContext:
         self.retriever = MemoryRetriever(self.db, self.store, self.embeddings)
         self.scheduler = LLMScheduler()
         self.bus = ActivityBus()
+        # 0.4: provider-neutral generation layer
+        self.profile_id = getattr(paths, "profile_id", "") or ""
+        self.projects = ProjectStore(self.db)
+        self.presets = load_presets(paths.data_dir / "providers.local.json")
+        self.credentials = CredentialStore(paths.host_dir / "credentials.json", paths.vault_path)
+        self.connections = ConnectionStore(self.db, self.profile_id)
+        self.local_adapter = LocalRuntimeAdapter(lambda: self.inference.chat.client, self._active_reasoning_toggle)
+        self.providers = ProviderRegistry(self.presets, self.connections, self.credentials, local_adapter=self.local_adapter)
         self.chat = ChatService(
             self.conversations,
             self.retriever,
@@ -90,6 +103,9 @@ class AppContext:
             self.bus,
             self.store,
             capabilities_for=self.capabilities_for,
+            registry=self.providers,
+            projects=self.projects,
+            local_adapter=self.local_adapter,
         )
         self.uia = UiaProvider()
         self.live = LiveManager(
@@ -558,6 +574,8 @@ class AppContext:
             await self.worker.stop()
             await self.jobs.shutdown()
             await self.inference.stop_all()
+            await self.providers.close_all()
+            self.credentials.lock_all()
         finally:
             self.db.close()
             self.lock.release()

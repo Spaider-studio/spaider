@@ -10,12 +10,13 @@ from __future__ import annotations
 import sqlite3
 from importlib import resources
 
-CURRENT_VERSION = 3
+CURRENT_VERSION = 4
 
 MIGRATIONS: list[tuple[int, str, str]] = [
     (1, "initial schema", "schema_v1.sql"),
     (2, "raw facts, profiles, dynamic catalog", "schema_v2.sql"),
     (3, "agent tasks, action journal, recipes", "schema_v3.sql"),
+    (4, "projects, provider connections, capability profiles, consents, memory connectors", "schema_v4.sql"),
 ]
 
 
