@@ -557,3 +557,24 @@ Status), UI-Integration des Desktop-Agenten, dann Phase 6 (echte Tests, Paket 0.
   Qwen -> Gemma 4 E2B -> Qwen, T5 eigener OpenAI-kompatibler Server (zweiter llama-server mit
   --api-key: vier Stufen, falscher Schluessel, Chat ueber die Verbindung, Gedaechtnis sichtbar),
   T9 Bruecke mit echtem Gedaechtnis (SDK-Client), T7/T8 Profilwechsel. Zahlen im Testbericht.
+
+### Phase 6 Ergebnis (17:10-19:00)
+- Echte Laeufe (measure/modelhub/real_modelhub_*.json): Lauf 1 20/23 (zwei Pfadfehler im Skript,
+  Probe ohne gewaehltes Modell -> Rueckfall auf erstes gelistetes Modell eingebaut), Lauf 2 18/20
+  (Probe lieferte bei Qwen3-Denkmodus nur Denktext -> eigene Meldung; 0,6B-Antwortqualitaet),
+  Lauf 3 20/20. Eigener Server mit --reasoning-budget 0 fuer eine repraesentative Probe.
+- 0.3-Regression mit Qwen3-0.6B auf dem 0.4-Kern: offline, activity, live, gpu_fallback bestanden;
+  e2e im dritten Anlauf komplett (Anlauf 1: Testannahme data/spaider.db -> Profilordner,
+  Test angepasst; Anlauf 2: Dokument-Antwort des 0,6B-Modells).
+- Paket 0.4.0: PyInstaller (mcp/jwt/cryptography gesammelt), @electron/packager (Electron-Binary
+  aus dem Hauptcheckout in den Worktree kopiert), assemble_portable 0.4.0 (CPU + Vulkan-Runtime).
+  verify_package: erste Fassung scheiterte nur an /system/info.data_dir (meldete den Profilordner)
+  -> Kern meldet jetzt den Wurzel-Datenordner plus profile_dir/profile_id, Neubau.
+  Erweiterte Paketpruefung (scratchpad/package_check_04.py, Pfad mit Leerzeichen/Umlauten, PATH
+  ohne Entwicklerwerkzeuge): 23/23 - Version, 13 Presets, Profil-Layout, Tresor anlegen/sperren/
+  falsches Passwort/entsperren, SIWC-Status "Einrichtung erforderlich", Tunnel-Status, Entdecken
+  (live), Connector + Bruecke AUS DEM PAKET per SDK-Client (Werkzeuge, status, remember, search),
+  Fakt in der Kernsuche, Profilwechsel-Isolation, keine Geheimnisse im Log, core.json entfernt.
+- Endstand ZIP: SpAIder-Foldable-0.4.0-win-x64.zip, 398 543 196 Bytes, SHA-256 220fe4d28c3dbc046acf4473969069709ab326ebdbc5170aab6257dcb8804eab,
+  BUILD_MANIFEST_0.4.0.json daneben. Kern-Suite 129 bestanden / 6 uebersprungen, Desktop 104 Tests.
+- Bundle: backup/spaider-foldable-modelhub-final-20261111.bundle (verifiziert, alle Branches/Tags des Worktrees). Push-Versuch: genau ein `git push origin feature/spaider-foldable-modelhub-connectors` -> vom Server abgewiesen ("refusing to allow an OAuth App to create or update workflow .github/workflows/ci.yml without workflow scope"); kein weiterer Versuch, keine Auth-Aenderung. Freigabe durch Musa: gh auth refresh -h github.com -s workflow, dann Push (INTEGRATION_HANDOFF.md).
