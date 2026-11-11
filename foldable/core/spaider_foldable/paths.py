@@ -25,6 +25,7 @@ import os
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional
 
 
 class PortablePathError(ValueError):
@@ -35,15 +36,26 @@ class PortablePathError(ValueError):
 class PortablePaths:
     app_root: Path
     data_dir: Path
+    root_data_dir: Optional[Path] = None  # host-level ``data/`` when data_dir is a profile folder
+    profile_id: str = ""
 
     # ---- derived -------------------------------------------------------
+    @property
+    def shared_dir(self) -> Path:
+        """Locations shared by all profiles (lock, logs, electron, host-bound state)."""
+        return self.root_data_dir or self.data_dir
+
+    def for_profile(self, profile_id: str) -> "PortablePaths":
+        root = self.root_data_dir or self.data_dir
+        return PortablePaths(app_root=self.app_root, data_dir=root / "profiles" / profile_id, root_data_dir=root, profile_id=profile_id)
+
     @property
     def db_path(self) -> Path:
         return self.data_dir / "spaider.db"
 
     @property
     def lock_path(self) -> Path:
-        return self.data_dir / "instance.lock"
+        return self.shared_dir / "instance.lock"
 
     @property
     def models_dir(self) -> Path:
@@ -59,7 +71,7 @@ class PortablePaths:
 
     @property
     def logs_dir(self) -> Path:
-        return self.data_dir / "logs"
+        return self.shared_dir / "logs"
 
     @property
     def cache_dir(self) -> Path:
@@ -71,12 +83,12 @@ class PortablePaths:
 
     @property
     def electron_dir(self) -> Path:
-        return self.data_dir / "electron"
+        return self.shared_dir / "electron"
 
     @property
     def host_dir(self) -> Path:
         """Machine-specific, non-portable state (host-bound credentials, connector setup)."""
-        return self.data_dir / "host"
+        return self.shared_dir / "host"
 
     @property
     def vault_path(self) -> Path:
@@ -84,7 +96,7 @@ class PortablePaths:
 
     @property
     def connectors_dir(self) -> Path:
-        return self.data_dir / "connectors"
+        return self.shared_dir / "connectors"
 
     # ---- construction ---------------------------------------------------
     @classmethod

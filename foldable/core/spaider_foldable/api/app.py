@@ -22,6 +22,7 @@ from .routes_documents import router as documents_router
 from .routes_live import router as live_router
 from .routes_memory import router as memory_router
 from .routes_models import router as models_router
+from .routes_profiles import router as profiles_router
 from .routes_providers import router as providers_router
 from .routes_system import router as system_router
 
@@ -85,4 +86,5 @@ def create_app(ctx: AppContext, token: str) -> FastAPI:
     app.include_router(live_router, prefix="/api")
     app.include_router(agent_router, prefix="/api")
     app.include_router(providers_router, prefix="/api")
+    app.include_router(profiles_router, prefix="/api")
     return app

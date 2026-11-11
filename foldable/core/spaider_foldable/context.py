@@ -62,6 +62,7 @@ class AppContext:
         runtime_dirs: dict[str, Path] | Path,
         *,
         on_exit: Optional[Callable[[], None]] = None,
+        lock: Optional[InstanceLock] = None,
     ):
         if isinstance(runtime_dirs, (str, Path)):
             runtime_dirs = {"cpu": Path(runtime_dirs)}
@@ -69,7 +70,7 @@ class AppContext:
         self.runtime_dirs = {k: Path(v) for k, v in runtime_dirs.items()}
         self.runtime_dir = self.runtime_dirs.get("cpu") or next(iter(self.runtime_dirs.values()))
         self.on_exit = on_exit
-        self.lock = InstanceLock(paths.lock_path)
+        self.lock = lock or InstanceLock(paths.lock_path)  # shared across profile contexts
         self.db = Database(paths.db_path)
         self.catalog = load_catalog(local_path=paths.data_dir / "catalog.local.json")
         self.registry = ModelRegistry(self.db, paths)
@@ -556,7 +557,9 @@ class AppContext:
         if self._shutdown_task is None:
             self._shutdown_task = asyncio.create_task(self.shutdown(), name="shutdown")
 
-    async def shutdown(self) -> None:
+    async def shutdown(self, *, keep_process: bool = False) -> None:
+        """Orderly stop. ``keep_process=True`` (profile switch) stops everything of this
+        context but keeps the instance lock and does not end the process."""
         try:
             self.agent.cancel_all()
             self.live.end_all()
@@ -567,7 +570,7 @@ class AppContext:
         if self.shutting_down:
             return
         self.shutting_down = True
-        logger.info("shutdown requested")
+        logger.info("shutdown requested%s", " (profile switch)" if keep_process else "")
         try:
             self.scheduler.pause()
             await self.chat.stop_all()
@@ -581,9 +584,10 @@ class AppContext:
             self.credentials.lock_all()
         finally:
             self.db.close()
-            self.lock.release()
+            if not keep_process:
+                self.lock.release()
             logger.info("shutdown complete")
-            if self.on_exit:
+            if self.on_exit and not keep_process:
                 self.on_exit()
 
     # ---- status helpers -------------------------------------------------------

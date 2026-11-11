@@ -67,6 +67,8 @@ class InstanceLock:
             return None
 
     def acquire(self) -> None:
+        if self._held:
+            return  # already ours (the lock object is shared across profile contexts)
         info = {
             "pid": os.getpid(),
             "hostname": socket.gethostname(),

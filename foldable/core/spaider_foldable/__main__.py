@@ -120,9 +120,11 @@ def main(argv: list[str] | None = None) -> int:
         from .observe.uia import configure_comtypes_cache
 
         configure_comtypes_cache(paths.data_dir / "cache")
-        ctx = AppContext(paths, runtime_dirs, on_exit=on_exit)
+        from .profiles import ProfileManager  # noqa: E402
+
+        manager = ProfileManager(paths, runtime_dirs, lambda pp, lock: AppContext(pp, runtime_dirs, on_exit=on_exit, lock=lock), on_exit=on_exit)
         try:
-            await loop.run_in_executor(None, ctx.startup_sync)
+            await loop.run_in_executor(None, manager.start_sync)
         except AlreadyRunningError as exc:
             print(json.dumps({"event": "error", "code": "already_running", "detail": str(exc)}), flush=True)
             exit_code["code"] = 3
@@ -132,8 +134,11 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"event": "error", "code": "startup_failed", "detail": str(exc)}), flush=True)
             exit_code["code"] = 4
             return
-        await ctx.startup_async()
+        ctx = manager.ctx
+        await manager.start_async()
         app = create_app(ctx, token)
+        app.state.manager = manager
+        manager.app = app
         port = args.port or free_port()
         config = uvicorn.Config(app, host="127.0.0.1", port=port, log_config=None, access_log=False, lifespan="off")
         server = uvicorn.Server(config)
@@ -144,13 +149,13 @@ def main(argv: list[str] | None = None) -> int:
         if task.done():
             log.error("server failed to start")
             exit_code["code"] = 5
-            await ctx.shutdown()
+            await manager.ctx.shutdown()
             return
-        print(json.dumps({"event": "ready", "port": port}), flush=True)
+        print(json.dumps({"event": "ready", "port": port, "profile_id": manager.active_id}), flush=True)
         log.info("API ready on 127.0.0.1:%d", port)
 
         def _signal_handler(*_):
-            ctx.request_shutdown()
+            manager.ctx.request_shutdown()
 
         for sig in (signal.SIGINT, signal.SIGTERM):
             try:
@@ -163,8 +168,8 @@ def main(argv: list[str] | None = None) -> int:
             except (ValueError, OSError):
                 pass
         await task
-        if not ctx.shutting_down:
-            await ctx.shutdown()
+        if not manager.ctx.shutting_down:
+            await manager.ctx.shutdown()
 
     try:
         asyncio.run(serve())
