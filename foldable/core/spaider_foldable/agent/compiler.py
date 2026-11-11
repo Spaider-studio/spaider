@@ -310,14 +310,16 @@ class WorkflowCompiler:
         text_wo_params = re.sub(r"\{[a-z][a-z0-9_]*\}", " ", text)
         words = _content_words(text_wo_params) - goal_words
         values = _content_values(text_wo_params) - goal_words
-        if len(words) < 2 and not values:
+        if not words and not values:
             return []
         hits: list[int] = []
         for src, data_text in read_texts.items():
             if src >= idx:
                 continue
-            # two shared content words, or a single shared value (date, amount, e-mail, path)
-            if len(words & _content_words(data_text)) >= 2 or (values & _content_values(data_text)):
+            # any content word or value (date, amount, e-mail, path) that also occurs in data read
+            # earlier marks the step as data-derived; an unnecessary model call is cheaper than
+            # replaying stale content (seen with a one-word status copied from a page)
+            if (words & _content_words(data_text)) or (values & _content_values(data_text)):
                 hits.append(src)
         return hits
 
