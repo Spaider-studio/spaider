@@ -27,6 +27,7 @@ from .routes_models import router as models_router
 from .routes_profiles import router as profiles_router
 from .routes_providers import router as providers_router
 from .routes_system import router as system_router
+from .routes_teach import router as teach_router
 
 logger = logging.getLogger(__name__)
 
@@ -93,4 +94,5 @@ def create_app(ctx: AppContext, token: str) -> FastAPI:
     app.include_router(profiles_router, prefix="/api")
     app.include_router(connectors_router, prefix="/api")
     app.include_router(connector_rpc_router, prefix="/api")
+    app.include_router(teach_router, prefix="/api")
     return app

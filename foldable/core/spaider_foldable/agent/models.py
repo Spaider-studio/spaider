@@ -57,9 +57,13 @@ class CreateTaskBody(BaseModel):
     conversation_id: Optional[str] = None
     live_session_id: Optional[str] = None
     recipe_id: Optional[str] = None
+    workflow_id: Optional[str] = None
+    project_id: Optional[str] = None
+    connection_id: Optional[str] = None  # planner through a provider connection (needs consent)
     scopes: Scopes = Field(default_factory=Scopes)
     budget: Optional[Budget] = None
     parameters: Optional[dict[str, Any]] = None
+    success_criteria: Optional[list[dict[str, Any]]] = None  # explicit user criteria (SuccessCriterion dicts)
 
 
 class AnswerBody(BaseModel):
@@ -71,6 +75,42 @@ class AnswerBody(BaseModel):
 class SaveRecipeBody(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     parameters: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class RunWorkflowBody(BaseModel):
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    scopes: Optional[Scopes] = None  # defaults to the workflow's recorded scope on this host
+    budget: Optional[Budget] = None
+    project_id: Optional[str] = None
+    connection_id: Optional[str] = None
+    mode: Optional[Literal["auto", "replan", "simple"]] = "auto"  # replan = planner only; simple = 0.3-style verbatim replay (A/B arms)
+
+
+class WorkflowPatchBody(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=120)
+    parameters: Optional[list[dict[str, Any]]] = None
+    known_limits_de: Optional[list[str]] = None
+    steps: Optional[list[dict[str, Any]]] = None
+    status: Optional[Literal["candidate", "demoted", "retired"]] = None
+
+
+class BindingBody(BaseModel):
+    role: str = Field(min_length=1, max_length=80)
+    kind: Literal["dir", "file", "app", "window", "url", "account", "model"]
+    target: str = Field(min_length=1, max_length=600)
+
+
+class TeachStartBody(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    source: Literal["browser", "window"]
+    url: Optional[str] = Field(default=None, max_length=2000)
+    source_id: Optional[str] = Field(default=None, max_length=60)
+    scopes: Scopes = Field(default_factory=Scopes)
+
+
+class TeachFinishBody(BaseModel):
+    parameters: list[dict[str, Any]] = Field(default_factory=list)
+    checks: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class Artifact(BaseModel):
@@ -87,6 +127,8 @@ class TaskResult(BaseModel):
     verified: bool = False
     verified_by: Optional[str] = None
     timings: dict[str, int] = Field(default_factory=dict)  # observe_ms / wait_ms / planning_ms / executing_ms (sums)
+    outcome: Optional[Literal["fulfilled", "not_fulfilled", "unclear"]] = None
+    evidence_paths: list[str] = Field(default_factory=list)
 
 
 class PendingQuestion(BaseModel):
@@ -94,6 +136,7 @@ class PendingQuestion(BaseModel):
     text_de: str
     kind: Literal["approval", "input"]
     action: Optional[dict[str, Any]] = None
+    binding: Optional[dict[str, Any]] = None  # {"role", "kind", "hint"}: the answer is a target on this host
 
 
 class ActionResult(BaseModel):
@@ -109,6 +152,8 @@ class Action(BaseModel):
     action_id: str
     task_id: str
     seq: int
+    call_id: Optional[str] = None
+    origin: Literal["planner", "workflow", "repair", "teach", "verifier"] = "planner"
     tool: str
     arguments: dict[str, Any]
     state: ActionState
@@ -144,6 +189,14 @@ class Task(BaseModel):
     llm_calls: int = 0
     host_bound: bool = True
     last_error: Optional[str] = None
+    # 0.5
+    workflow_id: Optional[str] = None
+    project_id: Optional[str] = None
+    connection_id: Optional[str] = None
+    success_criteria: list[dict[str, Any]] = Field(default_factory=list)
+    outcome: Optional[Literal["fulfilled", "not_fulfilled", "unclear"]] = None
+    outcome_report: Optional[dict[str, Any]] = None
+    reuse: Optional[dict[str, Any]] = None  # ReusePlan + run id when a workflow was used
 
 
 class RecipeStep(BaseModel):

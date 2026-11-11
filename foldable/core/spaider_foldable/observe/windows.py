@@ -371,6 +371,26 @@ def refresh_window(src: WindowSource) -> Optional[WindowSource]:
     return describe_window(src.hwnd)
 
 
+class _LASTINPUTINFO(ctypes.Structure):
+    _fields_ = [("cbSize", wintypes.UINT), ("dwTime", wintypes.DWORD)]
+
+
+def last_input_age_ms() -> Optional[int]:
+    """Milliseconds since the last keyboard/mouse input of the interactive session
+    (GetLastInputInfo); None when not on Windows or unavailable."""
+    if not IS_WIN:
+        return None
+    try:
+        info = _LASTINPUTINFO()
+        info.cbSize = ctypes.sizeof(_LASTINPUTINFO)
+        if not user32.GetLastInputInfo(ctypes.byref(info)):
+            return None
+        tick = kernel32.GetTickCount() & 0xFFFFFFFF
+        return int((tick - info.dwTime) & 0xFFFFFFFF)
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def desktop_interactive() -> bool:
     """False on the secure desktop / lock screen / no input desktop (no capture or input then)."""
     if not IS_WIN:

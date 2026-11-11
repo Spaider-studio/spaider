@@ -113,7 +113,7 @@ class Harness:
         reg.set_state("active_chat_model_id", model["id"])
         db.close()
         env = dict(os.environ, SPAIDER_FOLDABLE_TOKEN=TOKEN, SPAIDER_FOLDABLE_RUNTIME_DIR=RUNTIME, PYTHONIOENCODING="utf-8")
-        env.setdefault("SPAIDER_FOLDABLE_BROWSER_DIR", os.path.expanduser(r"~\spaider-foldable\dev-approwser"))
+        env.setdefault("SPAIDER_FOLDABLE_BROWSER_DIR", os.path.expanduser(r"~\spaider-foldable\dev-app\browser"))
         self.proc = subprocess.Popen([PY, "-m", "spaider_foldable", "--app-root", str(self.root)], cwd=str(CORE), env=env, stdout=subprocess.PIPE, stderr=open(self.tmp / "core-stderr.log", "w", encoding="utf-8"), text=True, encoding="utf-8")
         port = None
         for line in self.proc.stdout:

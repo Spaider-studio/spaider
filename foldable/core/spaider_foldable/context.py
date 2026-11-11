@@ -26,9 +26,17 @@ from .memory.embedding_local import LocalEmbeddingService
 from .memory.ingest import IngestQueue, IngestWorker, MemoryIngestor
 from .memory.retrieve import MemoryRetriever
 from .memory.store import LocalMemoryStore
+from .agent.bindings import BindingResolver
 from .agent.broker import Broker
+from .agent.compiler import WorkflowCompiler
+from .agent.deps import DependencyStore
+from .agent.inputguard import InputGuard
 from .agent.loop import AgentManager
+from .agent.planner import Planner
 from .agent.store import TaskStore
+from .agent.teach import TeachManager
+from .agent.verifier import OutcomeVerifier
+from .agent.workflows import WorkflowStore
 from .agent.tools import files as files_tools
 from .agent.tools import browser as browser_tools
 from .agent.tools import memory as memory_tools
@@ -122,10 +130,20 @@ class AppContext:
             max_side=lambda: self.settings.load().live_image_max_side,
         )
         self.agent_snapshots = {}
-        self.tasks = TaskStore(self.db, current_host_id())
+        host_id = current_host_id()
+        self.tasks = TaskStore(self.db, host_id)
         self.broker = Broker()
         files_tools.register(self.broker, parse_document=self._parse_document_file)
         memory_tools.register(self.broker, retriever=self.retriever)
+        # 0.5: execution core - dependencies, bindings, workflows, verifier, planner, input guard
+        self.deps = DependencyStore(self.db, host_id)
+        self.binding_resolver = BindingResolver(self.db, host_id)
+        self.workflows = WorkflowStore(self.db, self.deps, host_id)
+        self.input_guard = InputGuard(enabled=os.environ.get("SPAIDER_FOLDABLE_INPUT_GUARD", "1") != "0")
+        self.verifier = OutcomeVerifier(self.broker)
+        self.workflow_compiler = WorkflowCompiler(tool_infos=lambda: [{"name": t.name, "schema": t.schema} for t in self.broker.all_tools()], find_facts=self._find_facts, host_id=host_id)
+        self.store.on_superseded = self._on_facts_superseded
+        self.planner = Planner(scheduler=self.scheduler, get_client=lambda: self.inference.chat.client, reasoning_toggle=self._active_reasoning_toggle, adapter_for_task=self._adapter_for_task)
         self.agent = AgentManager(
             store=self.tasks,
             broker=self.broker,
@@ -135,7 +153,18 @@ class AppContext:
             observe_sources=self._observe_for_agent,
             settings_loader=self.settings.load,
             reasoning_toggle=self._active_reasoning_toggle,
+            planner=self.planner,
+            workflows=self.workflows,
+            deps=self.deps,
+            bindings=self.binding_resolver,
+            verifier=self.verifier,
+            window_hints=self.window_hints,
+            list_windows=self.list_windows,
+            desktop_ok=self._desktop_ok,
+            data_dir_ok=lambda: self.paths.data_dir.exists(),
+            input_guard=self.input_guard,
         )
+        self.teach = TeachManager(self)
         windows_tools.register(
             self.broker,
             uia=self.uia,
@@ -143,6 +172,7 @@ class AppContext:
             get_snapshot=lambda tid, sid: self.agent_snapshots.get((tid, sid)),
             resolve_source=self.live.resolve_source,
             remember_names=self.agent.remember_element_names,
+            input_guard=self.input_guard,
         )
         self.grounding = vision_tools.GroundingCalibrator()
         vision_tools.register(
@@ -199,6 +229,12 @@ class AppContext:
         interrupted = self.tasks.mark_interrupted_after_crash()
         if interrupted:
             logger.info("agent: %d task(s) marked interrupted after restart", len(interrupted))
+        try:
+            migrated = self.workflows.migrate_recipes(self.tasks.list_recipes())
+            if migrated:
+                logger.info("agent: %d recipe(s) migrated to candidate workflows", migrated)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("agent: recipe migration skipped: %s", exc)
         self._load_dynamic_catalog()
         self.chat.recover_after_crash()
         prefs = self.settings.load()
@@ -369,6 +405,73 @@ class AppContext:
         return opts, n_layers
 
     # ---- agent ---------------------------------------------------------------------
+    def _find_facts(self, text: str) -> list[dict]:
+        try:
+            return [{"id": n.id, "description": n.description or ""} for n in self.store.fulltext_nodes(text, limit=5) if getattr(n, "type", "") == "FACT"]
+        except Exception:  # noqa: BLE001
+            return []
+
+    def _on_facts_superseded(self, ids: list[str], by: Optional[str]) -> None:
+        affected = self.deps.invalidate_facts(ids, by=by, reason="Fakt ersetzt" if by else "Fakt vergessen")
+        if affected:
+            self.bus.publish("workflows", {"stale": affected, "facts": ids, "by": by})
+
+    async def _adapter_for_task(self, task):
+        """Provider adapter for a task bound to a connection (native tool calls); None = local grammar path."""
+        if not task.connection_id:
+            return None
+        conn = self.connections.get(task.connection_id)
+        if conn is None or not conn.enabled:
+            return None
+        project = self.projects.get_or_default(task.project_id)
+        if conn.execution != "local" and (project.get("local_only") or self.connections.consent(conn.id, project["id"]) is None):
+            return None
+        adapter = await self.providers.adapter_for(conn)
+        try:
+            adapter.default_model = conn.default_model
+        except Exception:  # noqa: BLE001
+            pass
+        return adapter
+
+    def window_hints(self, source_ids: list[str]) -> dict:
+        out = {}
+        for sid in source_ids or []:
+            try:
+                src = self.live.resolve_source(sid)
+                out[sid] = {"process": getattr(src, "process", ""), "title": getattr(src, "title", "")}
+            except Exception:  # noqa: BLE001
+                continue
+        return out
+
+    def list_windows(self) -> list:
+        try:
+            from .observe import windows as W
+
+            return W.list_windows()
+        except Exception:  # noqa: BLE001
+            return []
+
+    def _desktop_ok(self) -> bool:
+        from .observe import windows as W
+
+        return W.desktop_interactive()
+
+    def check_dependencies(self, workflow, bindings: dict, params: Optional[dict] = None):
+        from .agent.loop import _resolve_dep_path, _tool_hash
+
+        fills = {**{p.name: str(p.example or "") for p in workflow.parameters}, **{k: str(v) for k, v in (params or {}).items()}, **bindings}
+        bindings = fills
+        tool_hashes = {t.name: _tool_hash(t) for t in self.broker.all_tools()}
+        allowed = {p.lower() for p in (workflow.scope.windows.allowed_processes if workflow.scope.windows else [])}
+        return self.deps.check(
+            workflow.dependencies,
+            resolve_path=lambda key: _resolve_dep_path(key, bindings),
+            tool_hashes=tool_hashes,
+            app_available=lambda exe: exe.lower() in allowed,
+            binding_present=lambda role: role in bindings,
+            workflow_status=self.workflows.status_of,
+        )
+
     def _active_reasoning_toggle(self):
         mid = self.inference.chat.model_id
         caps = self.capabilities_for(mid) if mid else None
@@ -453,7 +556,16 @@ class AppContext:
                 "vision_input": bool(caps.get("vision_input")),
                 "image_grounding": caps.get("image_grounding", "none"),
                 "tool_call_format": caps.get("tool_call_format", "none"),
+                "native_tool_calls": caps.get("native_tool_calls", "untested"),
                 "structured_output": bool(caps.get("structured_output", True)),
+            },
+            "execution_core": {
+                "version": "1.5",
+                "workflows": len(self.workflows.list()),
+                "stale_workflows": len(self.deps.stale_workflows()),
+                "input_guard": {"enabled": self.input_guard.enabled, "paused_by_user": self.input_guard.paused_by_user, "user_idle_ms": self.input_guard.user_input_age_ms()},
+                "host_id": self.binding_resolver.host_id,
+                "teach": self.teach.status() if getattr(self, "teach", None) is not None else None,
             },
             "browser": self.browser.status() if self.browser is not None else {"installed": False, "version": None, "path": None},
             "windows_automation": {"available": uia_available(), "reason_de": "" if uia_available() else "UI Automation (pywinauto) nicht verfügbar."},
@@ -568,6 +680,8 @@ class AppContext:
         try:
             self.agent.cancel_all()
             self.live.end_all()
+            if getattr(self, "teach", None) is not None:
+                await self.teach.stop_all()
             if self.browser is not None:
                 await self.browser.close()
         except Exception:  # noqa: BLE001

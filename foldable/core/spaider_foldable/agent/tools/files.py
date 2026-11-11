@@ -46,10 +46,17 @@ class FileTools:
         self.parse_document = parse_document  # callable(path) -> text (pdf/docx), optional
 
     def _roots(self, ctx: ToolContext) -> list[Path]:
+        """Readable roots: the granted folders plus the write folder (reading back own output
+        is part of verification)."""
         fs = ctx.scopes.files
-        if not fs or not fs.roots:
+        if not fs or not (fs.roots or fs.write_dir):
             raise ToolError("scope", "Keine Ordner freigegeben.")
-        return [_canon(r) for r in fs.roots]
+        roots = [_canon(r) for r in fs.roots]
+        if fs.write_dir:
+            wd = _canon(fs.write_dir)
+            if wd not in roots:
+                roots.append(wd)
+        return roots
 
     def _resolve_read(self, ctx: ToolContext, p: str) -> Path:
         roots = self._roots(ctx)

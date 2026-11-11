@@ -69,5 +69,6 @@ def test_agent_capabilities_and_task_refusal_without_model(client):
     r = client.post("/api/agent/tasks", json={"goal": "Lies alles", "scopes": {"files": {"roots": ["C:/"], "write_dir": None}}})
     assert r.status_code == 409 and r.json()["code"] == "no_model"
     assert client.get("/api/agent/tasks").json()["tasks"] == []
-    assert client.post("/api/agent/stop").json() == {"stopped_tasks": 0, "stopped_live": 0}
+    stop = client.post("/api/agent/stop").json()
+    assert stop["stopped_tasks"] == 0 and stop["stopped_live"] == 0 and "released_keys" in stop
     assert client.get("/api/agent/recipes").json()["recipes"] == []

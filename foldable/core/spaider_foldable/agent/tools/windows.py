@@ -27,7 +27,8 @@ LAUNCHABLE = {"notepad": ["notepad.exe"], "rechner": ["calc.exe"], "explorer": [
 
 
 class WindowsTools:
-    def __init__(self, uia: UiaProvider, take_snapshot, get_snapshot, resolve_source, remember_names):
+    def __init__(self, uia: UiaProvider, take_snapshot, get_snapshot, resolve_source, remember_names, input_guard=None):
+        self.input_guard = input_guard  # agent.inputguard.InputGuard (one per desktop) or None
         self.uia = uia
         self.take_snapshot = take_snapshot  # (task_id, source) -> Snapshot (thread-safe callable)
         self.get_snapshot = get_snapshot  # (task_id, source_id) -> Snapshot | None
@@ -54,7 +55,35 @@ class WindowsTools:
                 raise ToolError("minimized", "Fenster ist minimiert; bitte zuerst windows.focus.")
             if W.window_is_elevated_or_protected(src):
                 raise ToolError("uipi", "Fenster gehört zu einem geschützten/erhöhten Prozess; Eingaben sind nicht möglich.")
+            self._guard_check(ctx)
         return src
+
+    def _guard(self, ctx: ToolContext):
+        return (ctx.extras or {}).get("input_guard") or self.input_guard
+
+    def _guard_check(self, ctx: ToolContext) -> None:
+        """Pause instead of fighting the user: recent input that is not ours refuses the action."""
+        guard = self._guard(ctx)
+        if guard is None:
+            return
+        from ..inputguard import UserActive
+
+        try:
+            guard.check_user_idle()
+        except UserActive as exc:
+            raise ToolError("user_active", f"Nutzereingabe vor {exc.idle_ms} ms erkannt; Steuerung pausiert.")
+
+    async def _inject(self, ctx: ToolContext, fn, *, duration_s: float = 1.0):
+        """Run an input-injecting function under the desktop input lock."""
+        guard = self._guard(ctx)
+        if guard is None:
+            return await asyncio.to_thread(fn)
+        async with guard.lock:
+            guard.mark_own_input(duration_s)
+            try:
+                return await asyncio.to_thread(fn)
+            finally:
+                guard.extend_own_input(0.4)
 
     async def _fresh(self, ctx: ToolContext, src: W.WindowSource):
         snap = await asyncio.to_thread(self.take_snapshot, ctx.task_id, src)
@@ -123,7 +152,7 @@ class WindowsTools:
                 wrapper.click_input()
                 return "click"
 
-        method = await asyncio.to_thread(_do)
+        method = await self._inject(ctx, _do, duration_s=1.0)
         await asyncio.sleep(0.25)
         after = await self._fresh(ctx, src)
         return ToolOutcome(
@@ -152,7 +181,7 @@ class WindowsTools:
                 wrapper.type_keys(text, with_spaces=True, with_newlines=True, with_tabs=True, set_foreground=True)
                 return "type_keys"
 
-        method = await asyncio.to_thread(_do)
+        method = await self._inject(ctx, _do, duration_s=2.0 + len(text) * 0.02)
         await asyncio.sleep(0.2)
         after = await self._fresh(ctx, src)
         el_after = next((e for e in after.tree.elements if e.path == el.path), None)
@@ -185,9 +214,12 @@ class WindowsTools:
 
             keyboard.send_keys(text, with_spaces=True, with_newlines=True, with_tabs=True, pause=0.01)
 
-        await asyncio.to_thread(_do)
+        await self._inject(ctx, _do, duration_s=1.0 + len(text) * 0.03)
         await asyncio.sleep(0.2)
+        lost = self._guard(ctx).unexpected_foreground(src.hwnd) if self._guard(ctx) is not None else None
         after = await self._fresh(ctx, src)
+        if lost:
+            return ToolOutcome(ok=False, summary_de=f"Eingabe gesendet, aber der Vordergrund wechselte zu „{lost[:50]}“; Steuerung pausiert.", data={"structure_after": after.context_text(max_elements=30, max_chars=1500)}, snapshot_id=after.snapshot_id, error="focus_lost")
         return ToolOutcome(ok=True, summary_de=f"{len(text)} Zeichen eingegeben", data={"structure_after": after.context_text(max_elements=30, max_chars=1500)}, snapshot_id=after.snapshot_id, verified=False)
 
     async def send_keys(self, args: dict, ctx: ToolContext) -> ToolOutcome:
@@ -209,7 +241,7 @@ class WindowsTools:
 
             keyboard.send_keys(keys, pause=0.02)
 
-        await asyncio.to_thread(_do)
+        await self._inject(ctx, _do, duration_s=1.0)
         await asyncio.sleep(0.4)
         after = await self._fresh(ctx, src)
         # a dialog (e.g. "Speichern unter") may have appeared: report the foreground window
@@ -243,7 +275,7 @@ class WindowsTools:
 
         before = await self._fresh(ctx, fresh)
         before_text = before.context_text(max_elements=30, max_chars=1500)
-        await asyncio.to_thread(_do)
+        await self._inject(ctx, _do, duration_s=0.8)
         await asyncio.sleep(0.3)
         after = await self._fresh(ctx, fresh)
         after_text = after.context_text(max_elements=30, max_chars=1500)
@@ -275,8 +307,8 @@ class WindowsTools:
         return ToolOutcome(ok=True, summary_de=f"{exe} gestartet: „{found.title[:50]}“ ({found.id})", data={"source_id": found.id, "title": found.title, "process": found.process}, evidence={"source_id": found.id}, verified=True)
 
 
-def register(broker: Broker, *, uia: UiaProvider, take_snapshot, get_snapshot, resolve_source, remember_names) -> None:
-    wt = WindowsTools(uia, take_snapshot, get_snapshot, resolve_source, remember_names)
+def register(broker: Broker, *, uia: UiaProvider, take_snapshot, get_snapshot, resolve_source, remember_names, input_guard=None) -> None:
+    wt = WindowsTools(uia, take_snapshot, get_snapshot, resolve_source, remember_names, input_guard=input_guard)
     sid = {"type": "string", "maxLength": 60}
     eid = {"type": "string", "maxLength": 20}
     from ...observe.uia import available as uia_available

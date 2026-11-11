@@ -249,6 +249,8 @@ class ConnectorService:
             if node is not None and node.get("type") == "FACT" and not node.get("superseded") and self._allowed(grant, {"kind": node.get("origin_kind"), "id": node.get("origin_id")}):
                 self.db.execute("UPDATE nodes SET superseded = 1, superseded_by = ?, updated_at = ? WHERE id = ? AND superseded = 0", (fid, _now(), old))
                 replaced.append(old)
+        if replaced:
+            self.ctx.store._notify_superseded(fid, replaced)
         self.ctx.ingest_queue.enqueue("fact", fid, fact_id=fid)
         self._notify(grant, "correct_memory", fid)
         return {"stored": True, "source_id": fid, "project_id": project, "superseded_ids": replaced, "note_de": "Korrektur gespeichert; ältere widersprechende Aussagen sind als ersetzt markiert, soweit erkannt."}
@@ -269,6 +271,7 @@ class ConnectorService:
         with self.db.transaction() as conn:
             conn.execute("UPDATE nodes SET superseded = 1, processing = 'forgotten', updated_at = ? WHERE id = ?", (now, sid))
             conn.execute("UPDATE edges SET superseded = 1 WHERE (source_id = ? OR target_id = ?) AND superseded = 0", (sid, sid))
+        self.ctx.store._notify_superseded(None, [sid])
         self._notify(grant, "forget_memory", sid)
         return {"forgotten": True, "source_id": sid, "note_de": "Die Aussage ist als vergessen markiert und wird nicht mehr abgerufen (kein physisches Löschen der Datenbankzeile)."}
 
