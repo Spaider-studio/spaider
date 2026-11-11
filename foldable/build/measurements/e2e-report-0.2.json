@@ -37,7 +37,7 @@
     "switch_failure": {
       "state": "failed",
       "error": {
-        "detail": "Das Modell konnte nicht gestartet werden: llama-server (chat) hat sich beendet (Exit-Code 1).\n0.00.615.030 I srv  init_listene: The UI is disabled\n0.00.615.041 I srv  init_listene: Use --ui/--no-ui (or deprecated --webui/--no-webui) to enable/disable\n0.00.631.001 I srv    load_model: loading model 'C:\\Users\\mucbay\\AppData\\Local\\Temp\\PYTEST~1\\PYTEST~2\\TEST_R~1\\SPAIDE~1\\SpAIder\\data\\models\\kaputt\\KAPUTT~1.GGU'\n0.00.639.337 E llama_model_load: error loading model: error loading model hyperparameters: key not found in model: qwen3.block_count\n0.00.639.345 E llama_model_load_from_file_impl: failed to load model\n0.00.639.407 E common_fit_params: encountered an error while trying to fit params to free device memory: failed to load model\n0.00.640.056 E llama_model_load: error loading model: error loading model hyperparameters: key not found in model: qwen3.block_count\n0.00.640.061 E llama_model_load_from_file_impl: failed to load model\n0.00.640.063 E cmn  common_init_: failed to load model 'C:\\Users\\mucbay\\AppData\\Local\\Temp\\PYTEST~1\\PYTEST~2\\TEST_R~1\\SPAIDE~1\\SpAIder\\data\\models\\kaputt\\KAPUTT~1.GGU'\n0.00.640.084 E srv    load_model: failed to load model, 'C:\\Users\\mucbay\\AppData\\Local\\Temp\\PYTEST~1\\PYTEST~2\\TEST_R~1\\SPAIDE~1\\SpAIder\\data\\models\\kaputt\\KAPUTT~1.GGU'\n0.00.640.090 I srv    operator(): operator(): cleaning up before exit...\n0.00.641.052 E srv  server_run_i: exiting due to model loading error Das vorherige Modell „Qwen3 0.6B (Q8_0)“ ist wieder aktiv.",
+        "detail": "Das Modell konnte nicht gestartet werden: llama-server (chat) hat sich beendet (Exit-Code 1).\n0.00.615.030 I srv  init_listene: The UI is disabled\n0.00.615.041 I srv  init_listene: Use --ui/--no-ui (or deprecated --webui/--no-webui) to enable/disable\n0.00.631.001 I srv    load_model: loading model 'C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\PYTEST~1\\PYTEST~2\\TEST_R~1\\SPAIDE~1\\SpAIder\\data\\models\\kaputt\\KAPUTT~1.GGU'\n0.00.639.337 E llama_model_load: error loading model: error loading model hyperparameters: key not found in model: qwen3.block_count\n0.00.639.345 E llama_model_load_from_file_impl: failed to load model\n0.00.639.407 E common_fit_params: encountered an error while trying to fit params to free device memory: failed to load model\n0.00.640.056 E llama_model_load: error loading model: error loading model hyperparameters: key not found in model: qwen3.block_count\n0.00.640.061 E llama_model_load_from_file_impl: failed to load model\n0.00.640.063 E cmn  common_init_: failed to load model 'C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\PYTEST~1\\PYTEST~2\\TEST_R~1\\SPAIDE~1\\SpAIder\\data\\models\\kaputt\\KAPUTT~1.GGU'\n0.00.640.084 E srv    load_model: failed to load model, 'C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\PYTEST~1\\PYTEST~2\\TEST_R~1\\SPAIDE~1\\SpAIder\\data\\models\\kaputt\\KAPUTT~1.GGU'\n0.00.640.090 I srv    operator(): operator(): cleaning up before exit...\n0.00.641.052 E srv  server_run_i: exiting due to model loading error Das vorherige Modell „Qwen3 0.6B (Q8_0)“ ist wieder aktiv.",
         "code": "runtime_start_failed"
       },
       "phases": [
@@ -114,13 +114,13 @@
       ]
     },
     "move": {
-      "from": "C:\\Users\\mucbay\\AppData\\Local\\Temp\\pytest-of-mucbay\\pytest-54\\test_real_end_to_end0\\SpAIder Töst Ü\\SpAIder",
+      "from": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\pytest-of-<Nutzer>\\pytest-54\\test_real_end_to_end0\\SpAIder Töst Ü\\SpAIder",
       "to": "Z:\\SpAIder Foldable",
       "subst_drive": "Z"
     },
     "after_move": {
       "answer": "Mein Projekt heißt Orion, und der Projektleiter leitet es.",
-      "data_dir": "C:\\Users\\mucbay\\AppData\\Local\\Temp\\pytest-of-mucbay\\pytest-54\\test_real_end_to_end0\\Neuer Ort é ß\\SpAIder Foldable\\data"
+      "data_dir": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\pytest-of-<Nutzer>\\pytest-54\\test_real_end_to_end0\\Neuer Ort é ß\\SpAIder Foldable\\data"
     }
   },
   "measurements": {

@@ -15,7 +15,7 @@ import type { AppPaths } from "./paths";
 
 export type StatusListener = (s: BackendStatus) => void;
 
-const DEV_VENV_PYTHON = "C:\\Users\\mucbay\\spaider-foldable\\.venv\\Scripts\\python.exe";
+const DEV_VENV_PYTHON = process.env.SPAIDER_FOLDABLE_DEV_PYTHON ?? ""; // dev checkout only: venv python; empty -> "python" on PATH
 const STDERR_TAIL_LINES = 40;
 const SHUTDOWN_REQUEST_TIMEOUT_MS = 5000;
 const SHUTDOWN_EXIT_TIMEOUT_MS = 20000;
@@ -197,7 +197,7 @@ export class CoreManager {
       cwd = path.dirname(exe);
       runtimeDir = path.join(process.resourcesPath, "runtime", "llama");
     } else {
-      command = fs.existsSync(DEV_VENV_PYTHON) ? DEV_VENV_PYTHON : "python";
+      command = DEV_VENV_PYTHON && fs.existsSync(DEV_VENV_PYTHON) ? DEV_VENV_PYTHON : "python";
       args = ["-m", "spaider_foldable", "--app-root", this.paths.appRoot];
       cwd = path.resolve(__dirname, "..", "..", "..", "core");
       runtimeDir = process.env.SPAIDER_FOLDABLE_RUNTIME_DIR;

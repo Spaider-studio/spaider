@@ -21,7 +21,7 @@
      "reason_de": "Alle Schichten auf Intel(R) Arc(TM) 140V GPU (16GB) (geschätzt 5.6 GB von 17.2 GB frei).",
      "mmproj_offload": true,
      "image_max_tokens": null,
-     "mmproj": "C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-633z5o3b\\SpAIder\\data\\models\\qwen3-vl-4b-instruct-q4_k_m\\mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf"
+     "mmproj": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-633z5o3b\\SpAIder\\data\\models\\qwen3-vl-4b-instruct-q4_k_m\\mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf"
     }
    },
    "embedding": {
@@ -40,7 +40,7 @@
  "normal": [
   {
    "id": "B1",
-   "goal": "Öffne im eigenen Browser file:///C:/Users/mucbay/AppData/Local/Temp/spaider-matrix-633z5o3b/B1-0/web/seite.html und fülle das Formular aus der Datei C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-633z5o3b\\B1-0\\quelle.txt (Projektname, Budget als Zahl, Priorität), klicke „Als Entwurf speichern“ und prüfe die Bestätigung „Entwurf gespeichert“.",
+   "goal": "Öffne im eigenen Browser file:///C:/Users/<Nutzer>/AppData/Local/Temp/spaider-matrix-633z5o3b/B1-0/web/seite.html und fülle das Formular aus der Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-633z5o3b\\B1-0\\quelle.txt (Projektname, Budget als Zahl, Priorität), klicke „Als Entwurf speichern“ und prüfe die Bestätigung „Entwurf gespeichert“.",
    "success": false,
    "false_success_claim": true,
    "state": "completed",
@@ -103,7 +103,7 @@
   },
   {
    "id": "B1",
-   "goal": "Öffne im eigenen Browser file:///C:/Users/mucbay/AppData/Local/Temp/spaider-matrix-633z5o3b/B1-1/web/seite.html und fülle das Formular aus der Datei C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-633z5o3b\\B1-1\\quelle.txt (Projektname, Budget als Zahl, Priorität), klicke „Als Entwurf speichern“ und prüfe die Bestätigung „Entwurf gespeichert“.",
+   "goal": "Öffne im eigenen Browser file:///C:/Users/<Nutzer>/AppData/Local/Temp/spaider-matrix-633z5o3b/B1-1/web/seite.html und fülle das Formular aus der Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-633z5o3b\\B1-1\\quelle.txt (Projektname, Budget als Zahl, Priorität), klicke „Als Entwurf speichern“ und prüfe die Bestätigung „Entwurf gespeichert“.",
    "success": true,
    "false_success_claim": false,
    "state": "completed",
@@ -166,7 +166,7 @@
   },
   {
    "id": "B1",
-   "goal": "Öffne im eigenen Browser file:///C:/Users/mucbay/AppData/Local/Temp/spaider-matrix-633z5o3b/B1-2/web/seite.html und fülle das Formular aus der Datei C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-633z5o3b\\B1-2\\quelle.txt (Projektname, Budget als Zahl, Priorität), klicke „Als Entwurf speichern“ und prüfe die Bestätigung „Entwurf gespeichert“.",
+   "goal": "Öffne im eigenen Browser file:///C:/Users/<Nutzer>/AppData/Local/Temp/spaider-matrix-633z5o3b/B1-2/web/seite.html und fülle das Formular aus der Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-633z5o3b\\B1-2\\quelle.txt (Projektname, Budget als Zahl, Priorität), klicke „Als Entwurf speichern“ und prüfe die Bestätigung „Entwurf gespeichert“.",
    "success": true,
    "false_success_claim": false,
    "state": "completed",
@@ -231,7 +231,7 @@
  "recipe": [
   {
    "id": "B1",
-   "goal": "Öffne im eigenen Browser file:///C:/Users/mucbay/AppData/Local/Temp/spaider-matrix-633z5o3b/B1-10/web/seite.html und fülle das Formular aus der Datei C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-633z5o3b\\B1-10\\quelle.txt (Projektname, Budget als Zahl, Priorität), klicke „Als Entwurf speichern“ und prüfe die Bestätigung „Entwurf gespeichert“.",
+   "goal": "Öffne im eigenen Browser file:///C:/Users/<Nutzer>/AppData/Local/Temp/spaider-matrix-633z5o3b/B1-10/web/seite.html und fülle das Formular aus der Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-633z5o3b\\B1-10\\quelle.txt (Projektname, Budget als Zahl, Priorität), klicke „Als Entwurf speichern“ und prüfe die Bestätigung „Entwurf gespeichert“.",
    "success": true,
    "false_success_claim": false,
    "state": "completed",
@@ -307,7 +307,7 @@
   },
   {
    "id": "B1",
-   "goal": "Öffne im eigenen Browser file:///C:/Users/mucbay/AppData/Local/Temp/spaider-matrix-633z5o3b/B1-11/web/seite.html und fülle das Formular aus der Datei C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-633z5o3b\\B1-11\\quelle.txt (Projektname, Budget als Zahl, Priorität), klicke „Als Entwurf speichern“ und prüfe die Bestätigung „Entwurf gespeichert“.",
+   "goal": "Öffne im eigenen Browser file:///C:/Users/<Nutzer>/AppData/Local/Temp/spaider-matrix-633z5o3b/B1-11/web/seite.html und fülle das Formular aus der Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-633z5o3b\\B1-11\\quelle.txt (Projektname, Budget als Zahl, Priorität), klicke „Als Entwurf speichern“ und prüfe die Bestätigung „Entwurf gespeichert“.",
    "success": true,
    "false_success_claim": false,
    "state": "completed",
@@ -383,7 +383,7 @@
   },
   {
    "id": "B1",
-   "goal": "Öffne im eigenen Browser file:///C:/Users/mucbay/AppData/Local/Temp/spaider-matrix-633z5o3b/B1-12/web/seite.html und fülle das Formular aus der Datei C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-633z5o3b\\B1-12\\quelle.txt (Projektname, Budget als Zahl, Priorität), klicke „Als Entwurf speichern“ und prüfe die Bestätigung „Entwurf gespeichert“.",
+   "goal": "Öffne im eigenen Browser file:///C:/Users/<Nutzer>/AppData/Local/Temp/spaider-matrix-633z5o3b/B1-12/web/seite.html und fülle das Formular aus der Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-633z5o3b\\B1-12\\quelle.txt (Projektname, Budget als Zahl, Priorität), klicke „Als Entwurf speichern“ und prüfe die Bestätigung „Entwurf gespeichert“.",
    "success": true,
    "false_success_claim": false,
    "state": "completed",
@@ -465,7 +465,7 @@
    [
     "files.read",
     {
-     "path": "C:/Users/mucbay/AppData/Local/Temp/spaider-matrix-633z5o3b/B1-1/quelle.txt",
+     "path": "C:/Users/<Nutzer>/AppData/Local/Temp/spaider-matrix-633z5o3b/B1-1/quelle.txt",
      "offset": 0,
      "max_chars": 10000
     }

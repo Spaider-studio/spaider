@@ -1,7 +1,7 @@
 {
   "label": "after-qwen3-4b-cpu",
-  "model": "C:\\Users\\mucbay\\spaider-foldable\\measure\\Qwen3-4B-Q4_K_M.gguf",
-  "runtime": "C:\\Users\\mucbay\\spaider-foldable\\repo\\foldable\\build\\runtime\\llama",
+  "model": "C:\\Users\\<Nutzer>\\spaider-foldable\\measure\\Qwen3-4B-Q4_K_M.gguf",
+  "runtime": "C:\\Users\\<Nutzer>\\spaider-foldable\\repo\\foldable\\build\\runtime\\llama",
   "gpu_layers": null,
   "threads": null,
   "started_at": "2026-11-02 13:26:16",

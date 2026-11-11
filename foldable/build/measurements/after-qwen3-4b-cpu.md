@@ -1,7 +1,7 @@
 # Messung after-qwen3-4b-cpu
 
-Modell: `C:\Users\mucbay\spaider-foldable\measure\Qwen3-4B-Q4_K_M.gguf`  
-Runtime: `C:\Users\mucbay\spaider-foldable\repo\foldable\build\runtime\llama` gpu_layers=None threads=None  
+Modell: `C:\Users\<Nutzer>\spaider-foldable\measure\Qwen3-4B-Q4_K_M.gguf`  
+Runtime: `C:\Users\<Nutzer>\spaider-foldable\repo\foldable\build\runtime\llama` gpu_layers=None threads=None  
 Zeit: 2026-11-02 13:26:16
 
 ## Direkt (llama-server), Laden 4.66 s

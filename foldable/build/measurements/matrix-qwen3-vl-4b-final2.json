@@ -7,7 +7,7 @@
   "runs": [
     {
       "id": "W1",
-      "goal": "Im Fenster „SpAIder Testanwendung W1-0-467“ (source_id win:1316038:36068): Trage in „Name“ den Text „Samir Probe“ und in „Notizen“ den Text „Kickoff 06.09.2026“ ein, klicke „Speichern“ und prüfe die Datei C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-j9tb_kha\\W1-0\\ausgabe.txt.",
+      "goal": "Im Fenster „SpAIder Testanwendung W1-0-467“ (source_id win:1316038:36068): Trage in „Name“ den Text „Samir Probe“ und in „Notizen“ den Text „Kickoff 06.09.2026“ ein, klicke „Speichern“ und prüfe die Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-j9tb_kha\\W1-0\\ausgabe.txt.",
       "success": true,
       "false_success_claim": false,
       "state": "completed",
@@ -20,7 +20,7 @@
       "rejected": 0,
       "check": {
         "ok": true,
-        "file": "C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-j9tb_kha\\W1-0\\ausgabe.txt",
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-j9tb_kha\\W1-0\\ausgabe.txt",
         "exists": true,
         "missing": []
       },
@@ -63,7 +63,7 @@
     },
     {
       "id": "W1",
-      "goal": "Im Fenster „SpAIder Testanwendung W1-1-193“ (source_id win:1447452:35056): Trage in „Name“ den Text „Mara Muster“ und in „Notizen“ den Text „Kickoff 13.08.2026“ ein, klicke „Speichern“ und prüfe die Datei C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-j9tb_kha\\W1-1\\ausgabe.txt.",
+      "goal": "Im Fenster „SpAIder Testanwendung W1-1-193“ (source_id win:1447452:35056): Trage in „Name“ den Text „Mara Muster“ und in „Notizen“ den Text „Kickoff 13.08.2026“ ein, klicke „Speichern“ und prüfe die Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-j9tb_kha\\W1-1\\ausgabe.txt.",
       "success": true,
       "false_success_claim": false,
       "state": "completed",
@@ -76,7 +76,7 @@
       "rejected": 0,
       "check": {
         "ok": true,
-        "file": "C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-j9tb_kha\\W1-1\\ausgabe.txt",
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-j9tb_kha\\W1-1\\ausgabe.txt",
         "exists": true,
         "missing": []
       },
@@ -119,7 +119,7 @@
     },
     {
       "id": "W1",
-      "goal": "Im Fenster „SpAIder Testanwendung W1-2-855“ (source_id win:7933752:22588): Trage in „Name“ den Text „Jonas Beispiel“ und in „Notizen“ den Text „Kickoff 11.01.2026“ ein, klicke „Speichern“ und prüfe die Datei C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-j9tb_kha\\W1-2\\ausgabe.txt.",
+      "goal": "Im Fenster „SpAIder Testanwendung W1-2-855“ (source_id win:7933752:22588): Trage in „Name“ den Text „Jonas Beispiel“ und in „Notizen“ den Text „Kickoff 11.01.2026“ ein, klicke „Speichern“ und prüfe die Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-j9tb_kha\\W1-2\\ausgabe.txt.",
       "success": true,
       "false_success_claim": false,
       "state": "completed",
@@ -132,7 +132,7 @@
       "rejected": 0,
       "check": {
         "ok": true,
-        "file": "C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-j9tb_kha\\W1-2\\ausgabe.txt",
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-j9tb_kha\\W1-2\\ausgabe.txt",
         "exists": true,
         "missing": []
       },
@@ -319,7 +319,7 @@
     "reason_de": "Alle Schichten auf Intel(R) Arc(TM) 140V GPU (16GB) (geschätzt 5.6 GB von 17.2 GB frei).",
     "mmproj_offload": true,
     "image_max_tokens": null,
-    "mmproj": "C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-j9tb_kha\\SpAIder\\data\\models\\qwen3-vl-4b-instruct-q4_k_m\\mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf"
+    "mmproj": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-j9tb_kha\\SpAIder\\data\\models\\qwen3-vl-4b-instruct-q4_k_m\\mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf"
   },
   "capabilities": {
     "id": "qwen3-vl-4b-instruct-q4_k_m",

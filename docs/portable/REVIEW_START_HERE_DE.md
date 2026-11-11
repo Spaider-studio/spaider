@@ -180,7 +180,7 @@ Keine privaten Inhalte in Screenshots oder Logs für den PR; die Logs liegen unt
 | Gebaut am | 2026-11-04, Kern 12:48 (PyInstaller, Python 3.12), Launcher 12:41 (Electron 45.2.1), ZIP 12:52 |
 | Runtime | llama.cpp b12032, CPU x64 + Vulkan x64 (SHA-256 gepinnt in `foldable/build/fetch_runtime.py`) |
 | Browserpaket | nicht im ZIP; Chrome for Testing 156.0.8078.4 (207 073 013 Bytes) wird bei Bedarf in `data/browser/` geladen |
-| Fundort | Release `foldable-review-0.3.0-cd50a04` im privaten Repository (Prerelease) – **erst nach dem Push**; bis dahin lokal unter `C:/Users/mucbay/spaider-foldable/repo-review/foldable/build/out/` |
+| Fundort | Release `foldable-review-0.3.0-cd50a04` im privaten Repository (Prerelease) – **erst nach dem Push**; bis dahin lokal unter `C:/Users/<Nutzer>/spaider-foldable/repo-review/foldable/build/out/` |
 | Manifest / Prüfsummen | `foldable/build/measurements/review-build-cd50a04.md`, `review-build-cd50a04-SHA256SUMS.txt` |
 
 Kennzeichnung: **Review-Build**, Vorschau, nicht für den Produktivbetrieb. Das

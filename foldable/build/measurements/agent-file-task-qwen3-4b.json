@@ -55,7 +55,7 @@
       "artifacts": [
         {
           "kind": "file",
-          "path": "C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-agent-v0vcmodp\\Ausgabe\\nordlicht-kurzbericht.md",
+          "path": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-agent-v0vcmodp\\Ausgabe\\nordlicht-kurzbericht.md",
           "url": null,
           "label": "nordlicht-kurzbericht.md"
         }

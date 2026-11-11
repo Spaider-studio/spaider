@@ -11,7 +11,7 @@ Fortlaufendes Arbeitsprotokoll. Neueste Einträge unten. Zeiten in lokaler Zeit 
   (angelegt 2026-11-02, privat, kein Fork, Owner Useebay, GitHub Actions auf
   Repository-Ebene deaktiviert, Dependabot-Konfiguration nur auf der Sandbox-`main`
   entfernt).
-- Getrennter Checkout: `C:\Users\mucbay\spaider-foldable\repo` (frischer Clone mit
+- Getrennter Checkout: `C:\Users\<Nutzer>\spaider-foldable\repo` (frischer Clone mit
   voller Historie). `origin` = privates Repo, `upstream` = Original mit deaktivierter
   Push-URL (`DISABLED_READ_ONLY`).
 - Branches: `main` = Basis + Sandbox-Commit (`SANDBOX.md`, Dependabot entfernt).
@@ -66,7 +66,7 @@ Fortlaufendes Arbeitsprotokoll. Neueste Einträge unten. Zeiten in lokaler Zeit 
   Lösung durch Musa: einmalig `gh auth refresh -h github.com -s workflow` ausführen
   (Browser-Login), danach `git push -u origin main feature/spaider-foldable-v1
   foldable-base-73762b3`. Bis dahin: lokale Commits und Git-Bundles unter
-  `C:\Users\mucbay\spaider-foldable\backup\`. Push wird bei jedem Meilenstein erneut
+  `C:\Users\<Nutzer>\spaider-foldable\backup\`. Push wird bei jedem Meilenstein erneut
   versucht.
 
 ## Schritte
@@ -400,7 +400,7 @@ Offen fuer Musa: gh auth refresh -s workflow, dann push; erster Nutzertest laut 
 - Bestandsaufnahme: Arbeitsbaum sauber bei f281d78; upstream/main unveraendert bei 73762b3;
   privates Repo leer; Token ohne workflow-Scope (gist, read:org, repo); gemeinsames Repo oeffentlich.
   -> Review-Weg B/C: lokaler Integrationsbranch feature/spaider-foldable-review (Worktree
-  C:/Users/mucbay/spaider-foldable/repo-review) auf review/spaider-base-73762b3; Push/PR/Release
+  C:/Users/<Nutzer>/spaider-foldable/repo-review) auf review/spaider-base-73762b3; Push/PR/Release
   erst nach `gh auth refresh -s workflow` (Befehle in INTEGRATION_HANDOFF.md).
 - Diff seit Basis: nur foldable/, docs/portable/, .gitignore; keine .github-Aenderungen; der
   Sandbox-Commit 8f20d3a des privaten main ist nicht Teil des Branches.
@@ -425,7 +425,7 @@ Offen fuer Musa: gh auth refresh -s workflow, dann push; erster Nutzertest laut 
 
 ### Phase 0 (10:00-10:45): Bestand, Sicherung, Quellen, Fehlerbefund
 - Neuester Stand = Review-Branch 84f59c4 (Code f281d78). Neuer Branch
-  feature/spaider-foldable-modelhub-connectors im Worktree C:/Users/mucbay/spaider-foldable/repo-modelhub;
+  feature/spaider-foldable-modelhub-connectors im Worktree C:/Users/<Nutzer>/spaider-foldable/repo-modelhub;
   Bundle backup/spaider-foldable-pre-modelhub-20261111.bundle (verifiziert) vor Aenderungen.
 - upstream/main ist jetzt 126ef75 (v0.5.0); Foldable bleibt auf Basis 73762b3 (Integrationsnotiz).
 - Privates Repo weiterhin leer, Token ohne workflow-Scope -> am Ende genau ein Pushversuch.

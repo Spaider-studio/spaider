@@ -1,6 +1,6 @@
 {
   "core_start_s": 4.42,
-  "exe": "C:\\Users\\mucbay\\spaider-foldable\\repo\\foldable\\build\\out\\SpAIder-Foldable-0.2.0-win-x64\\SpAIder\\resources\\core\\spaider-foldable-core.exe",
+  "exe": "C:\\Users\\<Nutzer>\\spaider-foldable\\repo\\foldable\\build\\out\\SpAIder-Foldable-0.2.0-win-x64\\SpAIder\\resources\\core\\spaider-foldable-core.exe",
   "model_ready_s": 5.08,
   "runtime": {
     "state": "ready",

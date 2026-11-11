@@ -10,7 +10,7 @@
     "reason_de": "Alle Schichten auf Intel(R) Arc(TM) 140V GPU (16GB) (geschätzt 5.6 GB von 17.2 GB frei).",
     "mmproj_offload": true,
     "image_max_tokens": null,
-    "mmproj": "C:\\Users\\mucbay\\AppData\\Local\\Temp\\pytest-of-mucbay\\pytest-71\\test_live_question_with_vision0\\Live ä\\SpAIder\\data\\models\\qwen3-vl-4b-instruct-q4_k_m\\mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf"
+    "mmproj": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\pytest-of-<Nutzer>\\pytest-71\\test_live_question_with_vision0\\Live ä\\SpAIder\\data\\models\\qwen3-vl-4b-instruct-q4_k_m\\mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf"
   },
   "capabilities": {
     "id": "qwen3-vl-4b-instruct-q4_k_m",

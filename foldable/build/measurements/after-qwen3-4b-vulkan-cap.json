@@ -1,7 +1,7 @@
 {
   "label": "after-qwen3-4b-vulkan-cap",
-  "model": "C:\\Users\\mucbay\\spaider-foldable\\measure\\Qwen3-4B-Q4_K_M.gguf",
-  "runtime": "C:\\Users\\mucbay\\spaider-foldable\\repo\\foldable\\build\\runtime\\llama-vulkan",
+  "model": "C:\\Users\\<Nutzer>\\spaider-foldable\\measure\\Qwen3-4B-Q4_K_M.gguf",
+  "runtime": "C:\\Users\\<Nutzer>\\spaider-foldable\\repo\\foldable\\build\\runtime\\llama-vulkan",
   "gpu_layers": 999,
   "threads": null,
   "started_at": "2026-11-02 15:02:23",

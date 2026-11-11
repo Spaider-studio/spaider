@@ -10,7 +10,7 @@ Laufzeit llama.cpp b12032 (CPU + Vulkan). Einstufung je Zeile:
 - **blockiert** – durch Vorgabe (0 € Cloud, keine fremden Konten, kein unbeaufsichtigter OAuth) oder Umgebung nicht möglich
 - **nicht ausgeführt** – aus Zeit-/Ressourcengründen
 
-Rohdaten: `C:\Users\mucbay\spaider-foldable\measure\modelhub\` (drei Läufe
+Rohdaten: `C:\Users\<Nutzer>\spaider-foldable\measure\modelhub\` (drei Läufe
 `real_modelhub_*.json/.log`, `package_check_0.4.0.json`, `real_regression_0.4.json`),
 Kern-Suite `pytest tests` (**129 bestanden, 6 übersprungen** ohne Modell),
 Desktop `npm test` (**104 Tests**).

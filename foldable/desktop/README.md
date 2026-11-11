@@ -16,7 +16,7 @@ Aufgaben-Panel (Agent).
 
 - Node 24 und npm 11 (keine nativen Module, kein Compiler nötig; Electron und
   TypeScript laden fertige Binärdateien).
-- Im Bash-Tool: `export PATH="/c/Users/mucbay/AppData/Roaming/fnm/node-versions/v24.21.0/installation:$PATH"`
+- Im Bash-Tool: `export PATH="/c/Users/<Nutzer>/AppData/Roaming/fnm/node-versions/v24.21.0/installation:$PATH"`
   und `unset ELECTRON_RUN_AS_NODE` (sonst startet Electron als reines Node).
 - `npm install` (lädt Electron 45 von GitHub in den npm-Cache).
 

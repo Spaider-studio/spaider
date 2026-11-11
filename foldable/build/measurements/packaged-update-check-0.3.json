@@ -1,5 +1,5 @@
 {
- "package": "C:\\Users\\mucbay\\spaider-foldable\\repo\\foldable\\build\\out\\SpAIder-Foldable-0.3.0-win-x64\\SpAIder",
+ "package": "C:\\Users\\<Nutzer>\\spaider-foldable\\repo\\foldable\\build\\out\\SpAIder-Foldable-0.3.0-win-x64\\SpAIder",
  "app_root": "S:\\SpAIder Bestand ü",
  "subst_drive": true,
  "before": {
@@ -16,7 +16,7 @@
  "core_start_s": 2.84,
  "health": {
   "version": "0.3.0",
-  "app_root_seen": "C:\\Users\\mucbay\\spaider-foldable\\measure\\update-test-0.3-pkg\\SpAIder Bestand ü"
+  "app_root_seen": "C:\\Users\\<Nutzer>\\spaider-foldable\\measure\\update-test-0.3-pkg\\SpAIder Bestand ü"
  },
  "runtime": {
   "state": "ready",

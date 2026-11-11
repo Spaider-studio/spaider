@@ -7,7 +7,7 @@
   "runs": [
     {
       "id": "W3",
-      "goal": "Im Fenster „SpAIder Testanwendung W3-0-912“ (source_id win:4199082:36572): Klicke „Leeren“ und prüfe mit windows.read, dass der Status „Geleert“ anzeigt; schreibe den gelesenen Status nach C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-l5y5rlct\\W3-0\\Ausgabe/status.txt.",
+      "goal": "Im Fenster „SpAIder Testanwendung W3-0-912“ (source_id win:4199082:36572): Klicke „Leeren“ und prüfe mit windows.read, dass der Status „Geleert“ anzeigt; schreibe den gelesenen Status nach C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-l5y5rlct\\W3-0\\Ausgabe/status.txt.",
       "success": true,
       "false_success_claim": false,
       "state": "completed",
@@ -20,7 +20,7 @@
       "rejected": 0,
       "check": {
         "ok": true,
-        "file": "C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-l5y5rlct\\W3-0\\Ausgabe\\status.txt",
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-l5y5rlct\\W3-0\\Ausgabe\\status.txt",
         "exists": true,
         "missing": []
       },
@@ -48,7 +48,7 @@
     },
     {
       "id": "W3",
-      "goal": "Im Fenster „SpAIder Testanwendung W3-1-563“ (source_id win:23532286:6132): Klicke „Leeren“ und prüfe mit windows.read, dass der Status „Geleert“ anzeigt; schreibe den gelesenen Status nach C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-l5y5rlct\\W3-1\\Ausgabe/status.txt.",
+      "goal": "Im Fenster „SpAIder Testanwendung W3-1-563“ (source_id win:23532286:6132): Klicke „Leeren“ und prüfe mit windows.read, dass der Status „Geleert“ anzeigt; schreibe den gelesenen Status nach C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-l5y5rlct\\W3-1\\Ausgabe/status.txt.",
       "success": true,
       "false_success_claim": false,
       "state": "completed",
@@ -61,7 +61,7 @@
       "rejected": 0,
       "check": {
         "ok": true,
-        "file": "C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-l5y5rlct\\W3-1\\Ausgabe\\status.txt",
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-l5y5rlct\\W3-1\\Ausgabe\\status.txt",
         "exists": true,
         "missing": []
       },
@@ -89,7 +89,7 @@
     },
     {
       "id": "W3",
-      "goal": "Im Fenster „SpAIder Testanwendung W3-2-714“ (source_id win:22811458:5988): Klicke „Leeren“ und prüfe mit windows.read, dass der Status „Geleert“ anzeigt; schreibe den gelesenen Status nach C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-l5y5rlct\\W3-2\\Ausgabe/status.txt.",
+      "goal": "Im Fenster „SpAIder Testanwendung W3-2-714“ (source_id win:22811458:5988): Klicke „Leeren“ und prüfe mit windows.read, dass der Status „Geleert“ anzeigt; schreibe den gelesenen Status nach C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-l5y5rlct\\W3-2\\Ausgabe/status.txt.",
       "success": true,
       "false_success_claim": false,
       "state": "completed",
@@ -102,7 +102,7 @@
       "rejected": 0,
       "check": {
         "ok": true,
-        "file": "C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-l5y5rlct\\W3-2\\Ausgabe\\status.txt",
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-l5y5rlct\\W3-2\\Ausgabe\\status.txt",
         "exists": true,
         "missing": []
       },
@@ -638,7 +638,7 @@
     "reason_de": "Alle Schichten auf Intel(R) Arc(TM) 140V GPU (16GB) (geschätzt 5.6 GB von 17.2 GB frei).",
     "mmproj_offload": true,
     "image_max_tokens": null,
-    "mmproj": "C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-matrix-l5y5rlct\\SpAIder\\data\\models\\qwen3-vl-4b-instruct-q4_k_m\\mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf"
+    "mmproj": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-l5y5rlct\\SpAIder\\data\\models\\qwen3-vl-4b-instruct-q4_k_m\\mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf"
   },
   "capabilities": {
     "id": "qwen3-vl-4b-instruct-q4_k_m",

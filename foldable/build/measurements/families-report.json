@@ -179,6 +179,6 @@
       "failed_queue_items": 0
     }
   },
-  "runtime_dir": "C:\\Users\\mucbay\\spaider-foldable\\repo\\foldable\\build\\runtime\\llama",
+  "runtime_dir": "C:\\Users\\<Nutzer>\\spaider-foldable\\repo\\foldable\\build\\runtime\\llama",
   "backend_env": "vulkan"
 }

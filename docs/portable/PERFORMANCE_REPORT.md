@@ -125,7 +125,7 @@ Token/s, nicht die Wartezeiten (die entstehen im belegten Server-Slot).
 
 ### CPU (Commit ccfbf9d, `after-qwen3-4b-cpu`, 13:26–14:24, 3 Wiederholungen)
 
-Quelle: `C:/Users/mucbay/spaider-foldable/measure/results/after-qwen3-4b-cpu.json`
+Quelle: `C:/Users/<Nutzer>/spaider-foldable/measure/results/after-qwen3-4b-cpu.json`
 (Kopie der Zusammenfassung in `foldable/build/measurements/after-qwen3-4b-cpu.md`).
 Backend per `SPAIDER_FOLDABLE_BACKEND=cpu` erzwungen, sonst Standardeinstellungen.
 

@@ -11,7 +11,7 @@
     "browser": {
       "installed": true,
       "version": null,
-      "path": "C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-frozen-3we54h62\\SpAIder\\data\\browser\\chromium-1248\\chrome-win64\\chrome.exe",
+      "path": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-frozen-3we54h62\\SpAIder\\data\\browser\\chromium-1248\\chrome-win64\\chrome.exe",
       "playwright": true,
       "reason_de": null
     },
@@ -25,7 +25,7 @@
   "browser_endpoint": {
     "installed": true,
     "version": null,
-    "path": "C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-frozen-3we54h62\\SpAIder\\data\\browser\\chromium-1248\\chrome-win64\\chrome.exe",
+    "path": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-frozen-3we54h62\\SpAIder\\data\\browser\\chromium-1248\\chrome-win64\\chrome.exe",
     "playwright": true,
     "reason_de": null,
     "package": {
@@ -49,5 +49,5 @@
   },
   "comtypes_cache": [],
   "exit_code": 0,
-  "stderr_tail": "repo\\\\foldable\\\\build\\\\dist\\\\spaider-foldable-core\\\\_internal\\\\comtypes\\\\gen\\\\__init__.py'>\n2026-11-04 00:45:55,224 INFO comtypes.client._code_cache: Using writeable comtypes cache directory: 'C:\\Users\\mucbay\\AppData\\Local\\Temp\\comtypes_cache\\spaider-foldable-core-312'\n2026-11-04 00:45:55,303 INFO spaider_foldable.db.connection: Applied schema migrations: [1, 2, 3]\n2026-11-04 00:45:55,306 INFO spaider_foldable.context: SpAIder Foldable core 0.2.0, data dir C:\\Users\\mucbay\\AppData\\Local\\Temp\\spaider-frozen-3we54h62\\SpAIder\\data, runtimes ['cpu', 'vulkan']\n2026-11-04 00:45:55,682 INFO uvicorn.error: Started server process [35708]\n2026-11-04 00:45:55,685 INFO uvicorn.error: Uvicorn running on http://127.0.0.1:62653 (Press CTRL+C to quit)\n2026-11-04 00:45:55,774 INFO spaider_foldable.main: API ready on 127.0.0.1:62653\npywinauto\\__init__.py:71: UserWarning: Apply externally defined coinit_flags: 0\n2026-11-04 00:45:56,507 INFO spaider_foldable.context: hardware: Intel(R) Core(TM) Ultra 7 268V, 32 GB RAM, GPUs ['Intel(R) Arc(TM) 140V GPU (16GB)']\n2026-11-04 00:45:56,628 INFO spaider_foldable.observe.uia: uia warm-up done in 1328 ms\n2026-11-04 00:45:56,749 INFO spaider_foldable.context: shutdown requested\n2026-11-04 00:45:56,754 INFO spaider_foldable.context: shutdown complete\n2026-11-04 00:45:56,831 INFO uvicorn.error: Shutting down\n2026-11-04 00:45:56,940 INFO uvicorn.error: Finished server process [35708]\n2026-11-04 00:45:56,942 INFO spaider_foldable.main: core exited with code 0\n"
+  "stderr_tail": "repo\\\\foldable\\\\build\\\\dist\\\\spaider-foldable-core\\\\_internal\\\\comtypes\\\\gen\\\\__init__.py'>\n2026-11-04 00:45:55,224 INFO comtypes.client._code_cache: Using writeable comtypes cache directory: 'C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\comtypes_cache\\spaider-foldable-core-312'\n2026-11-04 00:45:55,303 INFO spaider_foldable.db.connection: Applied schema migrations: [1, 2, 3]\n2026-11-04 00:45:55,306 INFO spaider_foldable.context: SpAIder Foldable core 0.2.0, data dir C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-frozen-3we54h62\\SpAIder\\data, runtimes ['cpu', 'vulkan']\n2026-11-04 00:45:55,682 INFO uvicorn.error: Started server process [35708]\n2026-11-04 00:45:55,685 INFO uvicorn.error: Uvicorn running on http://127.0.0.1:62653 (Press CTRL+C to quit)\n2026-11-04 00:45:55,774 INFO spaider_foldable.main: API ready on 127.0.0.1:62653\npywinauto\\__init__.py:71: UserWarning: Apply externally defined coinit_flags: 0\n2026-11-04 00:45:56,507 INFO spaider_foldable.context: hardware: Intel(R) Core(TM) Ultra 7 268V, 32 GB RAM, GPUs ['Intel(R) Arc(TM) 140V GPU (16GB)']\n2026-11-04 00:45:56,628 INFO spaider_foldable.observe.uia: uia warm-up done in 1328 ms\n2026-11-04 00:45:56,749 INFO spaider_foldable.context: shutdown requested\n2026-11-04 00:45:56,754 INFO spaider_foldable.context: shutdown complete\n2026-11-04 00:45:56,831 INFO uvicorn.error: Shutting down\n2026-11-04 00:45:56,940 INFO uvicorn.error: Finished server process [35708]\n2026-11-04 00:45:56,942 INFO spaider_foldable.main: core exited with code 0\n"
 }

@@ -90,13 +90,13 @@ nicht `workflow`. GitHub lehnt Pushes von Commits ab, die
 einmalig `gh auth refresh -h github.com -s workflow`, danach
 
 ```bash
-cd C:\Users\mucbay\spaider-foldable\repo
+cd C:\Users\<Nutzer>\spaider-foldable\repo
 git push -u origin main
 git push origin foldable-base-73762b3
 git push -u origin feature/spaider-foldable-v1
 ```
 
-Bis dahin liegen Git-Bundles unter `C:\Users\mucbay\spaider-foldable\backup\`
+Bis dahin liegen Git-Bundles unter `C:\Users\<Nutzer>\spaider-foldable\backup\`
 (`git bundle verify <datei>`, `git clone <datei> -b feature/spaider-foldable-v1`).
 
 ---
@@ -118,7 +118,7 @@ Bis dahin liegen Git-Bundles unter `C:\Users\mucbay\spaider-foldable\backup\`
 - Messdaten in Git: `foldable/build/measurements/*.json` enthalten nur Zeiten,
   Zähler und synthetische Testsätze (keine Nutzerinhalte). Die Rohdaten des
   abgebrochenen Baseline-Laufs liegen außerhalb des Repos
-  (`C:/Users/mucbay/spaider-foldable/measure/results`).
+  (`C:/Users/<Nutzer>/spaider-foldable/measure/results`).
 - Integrationsweg unverändert (Fetch des privaten Repos, Merge/Cherry-pick,
   PR-Entwurf in `PR_DRAFT.md`). Für den 0.2-Stand den Branch
   `feature/spaider-foldable-performance-models` verwenden; er enthält V1.
@@ -204,7 +204,7 @@ sandbox“, der **nicht** übernommen wird). Diff gegenüber der Basis: ausschli
 
 ```powershell
 gh auth refresh -h github.com -s workflow        # einmalig, interaktiv, nur von Musa
-cd C:\Users\mucbay\spaider-foldable\repo-review
+cd C:\Users\<Nutzer>\spaider-foldable\repo-review
 git push origin review/spaider-base-73762b3       # Basis zuerst
 git push origin feature/spaider-foldable-review   # Integrationsbranch
 git push origin foldable-review-0.3.0-cd50a04       # Review-Tag (nie --all / --mirror)
@@ -247,7 +247,7 @@ Das Repository dafür nicht öffentlich schalten.
 | | Wert |
 |---|---|
 | Basis | `feature/spaider-foldable-review` @ `84f59c4` (= 0.3.0 + Review-Dokumente), Ausgangscommit weiterhin `73762b3` |
-| Worktree | `C:\Users\mucbay\spaider-foldable\repo-modelhub` |
+| Worktree | `C:\Users\<Nutzer>\spaider-foldable\repo-modelhub` |
 | Bundle vor den Änderungen | `backup/spaider-foldable-pre-modelhub-20261111.bundle` (verifiziert) |
 | Ziel-Repo | nur `Useebay/spaider-foldable-private` (privat); kein Push nach `Spaider-studio/spaider` |
 

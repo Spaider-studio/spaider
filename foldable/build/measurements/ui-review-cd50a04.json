@@ -11,8 +11,8 @@
         "core_version": "0.3.0",
         "core_port": "http://127.0.0.1:60406",
         "launcher": [
-          "starting (packaged=true) appRoot=C:\\Users\\mucbay\\spaider-foldable\\measure\\ui-review\\SpAIder-Foldable-0.3.0-review-cd50a04-win-x64\\SpAIder",
-          "spawning core: C:\\Users\\mucbay\\spaider-foldable\\measure\\ui-review\\SpAIder-Foldable-0.3.0-review-cd50a04-win-x64\\SpAIder\\resources\\core\\spaider-foldable-core.exe --app-root C:\\Users\\mucbay\\spaider-foldable\\measure\\ui-review\\SpAIder-Foldable-0.3.0-review-cd50a04-win-x64\\SpAIder (cwd C:\\Users\\mucbay\\spaider-foldable\\measure\\ui-review\\SpAIder-Foldable-0.3.0-review-cd50a04-win-x64\\SpAIder\\resources\\core)",
+          "starting (packaged=true) appRoot=C:\\Users\\<Nutzer>\\spaider-foldable\\measure\\ui-review\\SpAIder-Foldable-0.3.0-review-cd50a04-win-x64\\SpAIder",
+          "spawning core: C:\\Users\\<Nutzer>\\spaider-foldable\\measure\\ui-review\\SpAIder-Foldable-0.3.0-review-cd50a04-win-x64\\SpAIder\\resources\\core\\spaider-foldable-core.exe --app-root C:\\Users\\<Nutzer>\\spaider-foldable\\measure\\ui-review\\SpAIder-Foldable-0.3.0-review-cd50a04-win-x64\\SpAIder (cwd C:\\Users\\<Nutzer>\\spaider-foldable\\measure\\ui-review\\SpAIder-Foldable-0.3.0-review-cd50a04-win-x64\\SpAIder\\resources\\core)",
           "backend status: starting - SpAIder-Kern wird gestartet …",
           "backend status: ready",
           "hotkeys registered: overlay=- stop=- errors=2",
@@ -56,7 +56,7 @@
         "runtime_line": "INFO spaider_foldable.inference.manager: runtime chat ready on port 56534 via vulkan (5.4s) Alle Schichten auf Intel(R) Arc(TM) 140V GPU (16GB) (geschätzt 5.6 GB von 17.2 GB frei).\r",
         "vulkan": true,
         "launcher": [
-          "spawning core: C:\\Users\\mucbay\\spaider-foldable\\measure\\ui-review\\SpAIder-Foldable-0.3.0-review-cd50a04-win-x64\\SpAIder\\resources\\core\\spaider-foldable-core.exe --app-root C:\\Users\\mucbay\\spaider-foldable\\measure\\ui-review\\SpAIder-Foldable-0.3.0-review-cd50a04-win-x64\\SpAIder (cwd C:\\Users\\mucbay\\spaider-foldable\\measure\\ui-review\\SpAIder-Foldable-0.3.0-review-cd50a04-win-x64\\SpAIder\\resources\\core)",
+          "spawning core: C:\\Users\\<Nutzer>\\spaider-foldable\\measure\\ui-review\\SpAIder-Foldable-0.3.0-review-cd50a04-win-x64\\SpAIder\\resources\\core\\spaider-foldable-core.exe --app-root C:\\Users\\<Nutzer>\\spaider-foldable\\measure\\ui-review\\SpAIder-Foldable-0.3.0-review-cd50a04-win-x64\\SpAIder (cwd C:\\Users\\<Nutzer>\\spaider-foldable\\measure\\ui-review\\SpAIder-Foldable-0.3.0-review-cd50a04-win-x64\\SpAIder\\resources\\core)",
           "hotkeys registered: overlay=Control+Alt+F9 stop=Control+Alt+F10 errors=0"
         ],
         "pass": true
@@ -311,7 +311,7 @@
           "wall_ms": 23424,
           "final_state": "completed",
           "meta": "AbgeschlossenSchritt 3/20· 3 Modellaufrufe· Dateien (1)· an diesen Rechner gebunden",
-          "result": "ErgebnisgeprüftZusammenfassung der notizen.txt in zusammenfassung.md geschrieben und verifiziert.zusammenfassung.mdC:\\Users\\mucbay\\spaider-foldable\\measure\\ui-review\\task\\out\\zusammenfassung.md",
+          "result": "ErgebnisgeprüftZusammenfassung der notizen.txt in zusammenfassung.md geschrieben und verifiziert.zusammenfassung.mdC:\\Users\\<Nutzer>\\spaider-foldable\\measure\\ui-review\\task\\out\\zusammenfassung.md",
           "actions": 2,
           "timeline": [
             {
@@ -348,9 +348,9 @@
             "scopes": {
               "files": {
                 "roots": [
-                  "C:\\Users\\mucbay\\spaider-foldable\\measure\\ui-review\\task"
+                  "C:\\Users\\<Nutzer>\\spaider-foldable\\measure\\ui-review\\task"
                 ],
-                "write_dir": "C:\\Users\\mucbay\\spaider-foldable\\measure\\ui-review\\task\\out"
+                "write_dir": "C:\\Users\\<Nutzer>\\spaider-foldable\\measure\\ui-review\\task\\out"
               },
               "browser": null,
               "windows": null,
@@ -363,7 +363,7 @@
               "artifacts": [
                 {
                   "kind": "file",
-                  "path": "C:\\Users\\mucbay\\spaider-foldable\\measure\\ui-review\\task\\out\\zusammenfassung.md",
+                  "path": "C:\\Users\\<Nutzer>\\spaider-foldable\\measure\\ui-review\\task\\out\\zusammenfassung.md",
                   "url": null,
                   "label": "zusammenfassung.md"
                 }

@@ -1,7 +1,7 @@
 # Messung after-qwen3-4b-vulkan
 
-Modell: `C:\Users\mucbay\spaider-foldable\measure\Qwen3-4B-Q4_K_M.gguf`  
-Runtime: `C:\Users\mucbay\spaider-foldable\repo\foldable\build\runtime\llama-vulkan` gpu_layers=999 threads=None  
+Modell: `C:\Users\<Nutzer>\spaider-foldable\measure\Qwen3-4B-Q4_K_M.gguf`  
+Runtime: `C:\Users\<Nutzer>\spaider-foldable\repo\foldable\build\runtime\llama-vulkan` gpu_layers=999 threads=None  
 Zeit: 2026-11-02 14:25:25
 
 ## Direkt (llama-server), Laden 4.17 s

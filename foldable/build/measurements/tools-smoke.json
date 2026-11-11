@@ -47,7 +47,7 @@
     "scope_check": "rejected: Dieses Fenster ist nicht Teil des freigegebenen Umfangs."
   },
   "browser": {
-    "chrome": "C:\\Users\\mucbay\\spaider-foldable\\dev-app\\browser\\chromium-1248\\chrome-win64\\chrome.exe",
+    "chrome": "C:\\Users\\<Nutzer>\\spaider-foldable\\dev-app\\browser\\chromium-1248\\chrome-win64\\chrome.exe",
     "open": {
       "ok": true,
       "summary": "Seite geöffnet: Testformular (200)",
