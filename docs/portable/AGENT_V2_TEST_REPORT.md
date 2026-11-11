@@ -26,7 +26,7 @@ Wiederverwendung“.
 
 ## 2. Unit- und Integrationstests (skriptiert, ohne Modell)
 
-`cd foldable/core && pytest tests` → **PLATZHALTER_PYTEST** (plus 6 übersprungene Echtläufe ohne Umgebungsvariablen). Desktop: `npm test` → PLATZHALTER_VITEST, `npm run typecheck`, `npm run lint` grün.
+`cd foldable/core && pytest tests` → **156 bestanden, 7 übersprungen** (die übersprungenen sind Echtläufe, die `SPAIDER_FOLDABLE_REAL_TESTS=1` bzw. den Chromium-Ordner brauchen; mit `SPAIDER_FOLDABLE_BROWSER_DIR` läuft zusätzlich der echte Browser-Recorder-Test). Desktop: `npm test` → **123 bestanden (14 Dateien)**, `npm run typecheck` und `npm run lint` ohne Befund.
 
 Neu in 0.5 (`tests/test_agent_v2.py`, `tests/test_agent_v2_api.py`):
 
@@ -102,7 +102,15 @@ PLATZHALTER_DEMO
 
 ## 6. Migration an Bestandsdaten (echt, Kopie)
 
-PLATZHALTER_MIGRATION
+`migration-copy-check-0.5.0.json`: konsistente Kopie (SQLite-Backup-API, Quelle nur lesend
+geöffnet, mtime der Quelle unverändert) des Datenordners der 0.3.0-Installation des Entwicklers
+(1 Gespräch, 8 Nachrichten, 1 Knoten, 0 Kanten, 0 Rezepte, `user_version` 3) in einen Ordner mit
+Leerzeichen/Umlaut; Start des 0.5-Entwicklungskerns ohne Modell: Schema 3 → 6 (inkl. 0.4-Profil-
+Layout `data/profiles/<id>/`), Zähler unverändert, `quick_check ok`, Gedächtnis sichtbar (1 Fakt),
+0 Abläufe (keine Rezepte vorhanden), Ausführungskern 1.5 gemeldet. Die Rezept-Übernahme selbst ist
+mit `test_schema_v6_migrates_v5_database_with_recipes` und `test_recipes_are_migrated_to_candidate_workflows`
+belegt (synthetische v5-Datenbank). Kernstart auf der Kopie 39,5 s (Entwicklungskern mit
+Profil-Umzug und Hardwareerkennung; gepackt siehe Abschnitt 7).
 
 ## 7. Paket (echt)
 

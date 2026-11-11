@@ -765,3 +765,36 @@ def test_goal_literals_are_only_required_when_they_name_content(tmp_path):
     assert [c.kind for c in crit] == ["file_exists"]
     crit = derive_criteria("Schreibe nach " + str(out / "mail_entwurf.txt") + " einen Mailentwurf (kein Versand) mit „An: <E-Mail der Projektleitung>“ und Betreff „Bericht Atlas“.", scopes, None)
     assert [(c.kind, c.expect) for c in crit] == [("file_exists", []), ("file_contains", ["An:"]), ("file_contains", ["Bericht Atlas"])]
+
+
+@pytest.mark.asyncio
+async def test_values_copied_from_read_data_make_the_step_derived(db, tmp_path):
+    """A write whose content only shares numbers/dates (no two words) with the file it read is
+    still data-derived; replaying it verbatim would copy stale values (regression: F8/F10 false reuse)."""
+    root = tmp_path / "Projekt Atlas"
+    root.mkdir()
+    (root / "rechnung.txt").write_text("Rechnung RE-7A2F\nBetrag: 1250,00 EUR\nFällig am 04.03.2026\n", encoding="utf-8")
+    out = tmp_path / "Ausgabe"
+    out.mkdir()
+    client = _ScriptedClient([
+        {"thought": "", "decision": "action", "action": {"tool": "files.read", "arguments": {"path": str(root / "rechnung.txt")}}, "expected_effect": ""},
+        {"thought": "", "decision": "action", "action": {"tool": "files.write", "arguments": {"path": "zahlung.txt", "content": "Betrag: 1250,00 EUR\nFällig am 04.03.2026\n"}}, "expected_effect": ""},
+        {"thought": "", "decision": "done", "done": {"ok": True, "summary": "fertig", "verified_by": "files.write"}},
+    ])
+    mgr, store, broker, deps, wfs, binder, compiler = _stack(db, client)
+    task = store.create(goal="Lies rechnung.txt und schreibe Betrag und Fälligkeitsdatum als zwei Zeilen nach " + str(out / "zahlung.txt"), scopes=Scopes(files=FilesScope(roots=[str(root)], write_dir=str(out))), max_steps=10, max_seconds=60, conversation_id=None, live_session_id=None, recipe_id=None, parameters=None)
+    mgr.start(task)
+    t = await _wait(store, task.id)
+    assert t.state == "completed"
+    wf = compiler.compile(t, store.actions(task.id), name="Zahlung", parameters=[], action_data=mgr.action_data(task.id))
+    write = wf.steps[1]
+    assert write.tool == "files.write" and write.derive is True and write.derive_from == [0]
+    # a reuse run with new file data must ask the model for the content (one call), not replay the old values
+    wfs.save(wf)
+    (root / "rechnung.txt").write_text("Rechnung RE-9B11\nBetrag: 980,00 EUR\nFällig am 17.08.2026\n", encoding="utf-8")
+    (out / "zahlung.txt").unlink()
+    client.decisions = [{"thought": "ableiten", "decision": "action", "action": {"tool": "files.write", "arguments": {"path": "zahlung.txt", "content": "Betrag: 980,00 EUR\nFällig am 17.08.2026\n"}}, "expected_effect": ""}]
+    t2 = store.create(goal=wf.purpose_de, scopes=Scopes(files=FilesScope(roots=[str(root)], write_dir=str(out))), max_steps=10, max_seconds=60, conversation_id=None, live_session_id=None, recipe_id=None, parameters={}, workflow_id=wf.id)
+    mgr.start(t2)
+    r2 = await _wait(store, t2.id)
+    assert r2.state == "completed" and r2.llm_calls == 1 and "17.08.2026" in (out / "zahlung.txt").read_text(encoding="utf-8")

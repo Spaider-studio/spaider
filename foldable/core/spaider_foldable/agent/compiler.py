@@ -35,6 +35,8 @@ from .models import Action, Scopes, Task
 READ_TOOLS = {"files.read", "files.list", "files.search", "memory.search", "browser.read", "browser.snapshot", "browser.wait_for_text", "windows.read", "windows.inspect", "vision.describe", "vision.locate"}
 UI_ELEMENT_TOOLS = {"browser.click", "browser.fill", "browser.select", "browser.press", "windows.invoke", "windows.set_value", "windows.read"}
 _WORD_RE = re.compile(r"[A-Za-zÄÖÜäöüß][\wÄÖÜäöüß\-]{3,}")
+# values that identify data rather than wording: numbers (amounts, dates, codes), e-mails, paths
+_VALUE_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|[A-Za-z]:[\\/][^\s\"'<>|]+|\d[\d.,:/-]*\d|\d")
 _STOP = {"dass", "eine", "einer", "eines", "nicht", "oder", "auch", "sind", "wird", "werden", "wurde", "haben", "nach", "über", "unter", "beim", "zum", "zur", "mit", "ohne", "sowie", "diese", "dieser", "dieses", "sehr", "kann", "soll", "muss", "bitte", "datei", "ordner", "schreibe", "lies", "text", "inhalt", "wert", "status", "zeile", "zeilen", "markdown", "tabelle"}
 
 
@@ -76,6 +78,17 @@ def _content_words(text: str) -> set[str]:
     return {w.lower() for w in _WORD_RE.findall(text or "") if w.lower() not in _STOP}
 
 
+def _content_values(text: str) -> set[str]:
+    """Numbers, dates, amounts, codes, e-mail addresses and paths - a single one of these copied
+    from read data makes an argument data-derived."""
+    out = set()
+    for v in _VALUE_RE.findall(text or ""):
+        v = v.strip(".,:;")
+        if len(v) >= 2 and not (v.isdigit() and len(v) <= 1):
+            out.add(v.lower())
+    return out
+
+
 class WorkflowCompiler:
     def __init__(self, *, tool_infos: Callable[[], list[dict]], find_facts: Optional[Callable[[str], list[dict]]] = None, host_id: str = ""):
         self.tool_infos = tool_infos  # [] of {"name", "schema"} for the contract hash
@@ -104,7 +117,7 @@ class WorkflowCompiler:
         done = [a for a in actions if a.state == "done"]
         roles, role_subs = self._roles(task.scopes, done, window_hints)
         param_subs = [(str(p["value"]), "{" + p["name"] + "}") for p in parameters if p.get("name") and p.get("value") not in (None, "")]
-        goal_words = _content_words(task.goal) | {str(p.get("value", "")).lower() for p in parameters}
+        goal_words = _content_words(task.goal) | _content_values(task.goal) | {str(p.get("value", "")).lower() for p in parameters}
         steps: list[WorkflowStep] = []
         deps: list[Dependency] = []
         read_texts: dict[int, str] = {}  # step index -> data text read by that step
@@ -296,14 +309,15 @@ class WorkflowCompiler:
         text = str(tmpl.get(field) or "")
         text_wo_params = re.sub(r"\{[a-z][a-z0-9_]*\}", " ", text)
         words = _content_words(text_wo_params) - goal_words
-        if len(words) < 2:
+        values = _content_values(text_wo_params) - goal_words
+        if len(words) < 2 and not values:
             return []
         hits: list[int] = []
         for src, data_text in read_texts.items():
             if src >= idx:
                 continue
-            dw = _content_words(data_text)
-            if len(words & dw) >= 2:
+            # two shared content words, or a single shared value (date, amount, e-mail, path)
+            if len(words & _content_words(data_text)) >= 2 or (values & _content_values(data_text)):
                 hits.append(src)
         return hits
 
