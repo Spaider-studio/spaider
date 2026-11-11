@@ -86,3 +86,57 @@ Siehe `KNOWN_LIMITATIONS.md` (Abschnitt Modellbibliothek/Anbieter) und `MODELHUB
 Cloud-Adapter sind gegen Testserver geprüft, nicht live; SIWC und Tunnel bleiben
 „Einrichtung erforderlich“; Profile teilen keine Modelle; Gemini nur über die
 Kompatibilitätsschicht.
+
+
+## Umsetzungsstand 0.4.0 (2026-11-11)
+
+Ergänzungen zu den ADRs nach der Implementierung; Abweichungen sind markiert.
+
+### ADR-5 Profile – umgesetzt
+`profiles.py`: Registry `data/profiles.json`, Profilordner, wiederaufnehmbare
+Migration des 0.3-Layouts per Journal, `ProfileManager.switch()` baut den
+AppContext neu (Generation++, Bus-Ereignis `profile`). Host-Ebene geteilt:
+`host/` (DPAPI-Schlüssel, `core.json`), `logs/`, `electron/`, `connectors/`,
+`instance.lock`. Gemessene Wechselzeit siehe Testbericht.
+
+### ADR-6 Gedächtnis-Connectoren – umgesetzt mit zwei Präzisierungen
+- Projektzuordnung einer Erinnerung erfolgt über ihre **Herkunft**: Gespräch →
+  `conversations.project_id`, Dokument → `documents.project_id`, Connector →
+  `origin_id = "<connector>/<projekt>"`. Entitäten erben die Herkunft des Fakts.
+- Von Connectoren geschriebene Rohfakten werden mit `ingest_queue.kind = 'fact'`
+  (Schema v5) im Hintergrund extrahiert – derselbe Pfad wie Gesprächsfakten, keine
+  zweite Gedächtnis-Implementierung.
+- Brücke und Kern: Der Kern bleibt der einzige SQLite-Schreiber; die Brücke ist
+  ein dünner Prozess ohne Datenbankzugriff. Discovery über `host/core.json`.
+- Abweichung: Ein optionaler HTTP-Transport (`generic_http`) ist als Client-Typ
+  vorgesehen, aber nicht implementiert (nur stdio); siehe KNOWN_LIMITATIONS.
+
+### ADR-7 Datenfreigabe – Ergänzung „Nur lokal“-Abruf
+Die Entscheidung `policy.decide()` blockiert Gespräche in „Nur lokal“-Projekten.
+Zusätzlich filtert der Abruf (`MemoryRetriever.retrieve(origin_allowed=…)`) bei
+Bindung an eine Verbindung mit `execution ≠ local` **vor** dem Zusammenbau des
+Kontexts alle Knoten, Fakten und Historienzeilen, deren Herkunft in einem
+„Nur lokal“-Projekt liegt. Kanarien-Test: `tests/test_cloud_isolation.py`.
+
+### ADR-8 ChatGPT-Anmeldung – Skelett umgesetzt, nicht gegen OpenAI geprüft
+`providers/siwc.py`: PKCE/State/Nonce, Loopback-Empfänger, dynamische
+Registrierung per Parameter, Token-Austausch mit `resource`, ID-Token-Prüfung
+über JWKS (PyJWT + cryptography), host-gebundene Token (DPAPI, sonst Sitzung),
+serialisierter Refresh mit Rotation, `invalid_grant` → erneute Anmeldung,
+Logout mit Revocation. Annahme: Die ausgestellte Client-ID kommt als `client_id`
+in der Token-Antwort oder als `aud` des ID-Tokens.
+
+### Sicherheitsgrenzen (Kurzfassung)
+| Grenze | Mechanismus |
+|---|---|
+| App-API | App-Token (Header), nur 127.0.0.1 |
+| Connector-RPC | Connector-Token (SHA-256 in DB), nur Loopback, `Origin` → 403, Rechte serverseitig |
+| Schlüssel | DPAPI / Argon2id+AES-GCM / Sitzung; nie in Logs, Argumenten, URLs |
+| Cloud-Versand | Projektregel + Zustimmung + Herkunftsfilter; Vorschau mit Zählern |
+| Externe Links | Launcher-Allowlist (Hugging Face, llama.cpp, Anbieter-Dokumentation) |
+| Downloads | gepinnte Revision, SHA-256, kein `trust_remote_code`, kein Pickle |
+
+### Noch offen (siehe KNOWN_LIMITATIONS.md)
+HTTP-Transport für Connectoren; ChatGPT-Tunnel; echte Prüfung von SIWC und
+aller Cloud-Presets mit Konten; Vektorindex für Connector-Suche nur, wenn ein
+Embedding-Modell aktiv ist.

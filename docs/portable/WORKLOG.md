@@ -518,3 +518,42 @@ Fehler/Freigabe-Dialog, Tresor), dann Profile (Phase 3) und MCP-Bruecke (Phase 4
 
 Naechster Schritt: Phase 5 (SIWC-Skelett providers/siwc.py mit Testserver, ChatGPT-Tunnel-
 Status), UI-Integration des Desktop-Agenten, dann Phase 6 (echte Tests, Paket 0.4.0, Docs).
+
+### Phase 5 (16:05-17:10): ChatGPT-Anmeldung (Skelett), Tunnel-Status, UI-Integration
+- providers/siwc.py: PKCE S256 + state/nonce, Loopback-Empfaenger 127.0.0.1:<port>/auth/callback,
+  dynamische Registrierung (client_id=dynamic_agent_client, agent_name_hint, ext_agent_host_id),
+  Token-Austausch mit resource, ID-Token-Pruefung gegen JWKS (Issuer/Audience/Nonce; PyJWT +
+  cryptography), Token host-gebunden (DPAPI) oder nur Sitzung - nie im portablen Tresor,
+  serialisierter Refresh mit Rotation, invalid_grant -> "erneut anmelden" (kein stiller
+  API-Key-Rueckfall), Logout mit Revocation. Nie unbeaufsichtigt: der Kern oeffnet keinen
+  Browser und bestaetigt nichts. Routen /connections/{id}/siwc/{status,start,cancel,logout}.
+  Tests: lokaler Fake-Issuer mit RSA-signierten ID-Tokens (voller Ablauf, Verweigerung,
+  falscher state, fremder Schluessel, HTTPS-Pflicht). Gegen auth.openai.com nichts ausgefuehrt.
+- /connectors/chatgpt-tunnel/status: nur Status/Schritte (tunnel-client nicht gefunden, keine
+  Tunnel-ID); nichts veroeffentlicht. Commit 3c49b57.
+- Desktop-UI (Subagent, von mir verifiziert: typecheck/lint/104 Tests/Build): Verbindungen
+  (Schluesselspeicher/Tresor, 13 Anbieterkarten gleichwertig, Formular, vier Teststufen,
+  Modelle mit Faehigkeits-Chips, Freigaben), Modelle in vier Bereichen (Entdecken mit
+  Paginierung/Filtern/Offline-Banner, Repo-Detail mit Varianten/Projektor/Modellkarte),
+  Chat-Kopf mit Bindung, Freigabedialog, Fehlerzustand mit naechstem Schritt und
+  "Erneut senden", Teiltext als unvollstaendig markiert. Commit f3335ad.
+- Vertragsnachzuege aus den UI-Hinweisen: resolve nimmt den gewaehlten Projektor an,
+  last_test hat eine feste Form (AccessCheck mit "at"), Fehler bei Freigabeblockaden tragen eine
+  Zaehler-Schaetzung, verbindungsgebundene Chats brauchen kein lokales Modell, Launcher-Allowlist
+  fuer Anbieter-Dokumentationslinks. Commit 2affef0.
+- Sicherheitsluecke geschlossen, bevor sie eine wurde: Erinnerungen aus "Nur lokal"-Projekten
+  wurden vom profilweiten Abruf auch fuer Cloud-gebundene Gespraeche geliefert. Jetzt filtert
+  der Abruf nach Herkunft (Gespraech/Dokument/Connector -> Projekt), Kanarien-Test
+  tests/test_cloud_isolation.py (CANARY-7731 erscheint in keiner Anfrage an den Fake-Cloud-Server,
+  Fakt aus dem offenen Projekt schon). Kern-Suite: 128 bestanden, 6 uebersprungen.
+- Dokumente: CONNECT_MEMORY_CLIENTS_DE, CONNECT_PROVIDERS_DE, CONNECT_CHATGPT_DE,
+  PROVIDER_ADAPTER_GUIDE, MODELHUB_QUICKSTART_DE; API_CONTRACT Addendum v1.4;
+  MODELHUB_ARCHITECTURE Umsetzungsstand.
+
+### Phase 6 (17:10-): echte Tests, Paket, Uebergabe
+- scratchpad/real_modelhub.py gegen den Dev-Kern mit echter Laufzeit (Ergebnisse in
+  measure/modelhub/): T3 echter Download Qwen3-0.6B-Q8_0 aus dem eingebetteten Katalog
+  (gepinnte Revision, SHA-256), T1 lokaler Chat ueber die Event-Schicht + Stopp, T17 Wissen
+  Qwen -> Gemma 4 E2B -> Qwen, T5 eigener OpenAI-kompatibler Server (zweiter llama-server mit
+  --api-key: vier Stufen, falscher Schluessel, Chat ueber die Verbindung, Gedaechtnis sichtbar),
+  T9 Bruecke mit echtem Gedaechtnis (SDK-Client), T7/T8 Profilwechsel. Zahlen im Testbericht.

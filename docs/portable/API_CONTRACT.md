@@ -330,3 +330,35 @@ Alle Routen unter `/api`, Token-Header wie bisher. Secrets erscheinen in keiner 
 - `GET /models/repo/{author}/{name}` → `{"repo","revision","author","publisher_status","gated","license","base_model","tags","last_modified","variants":[{"key","quantization","kind":"weights"|"projector"|"auxiliary","files":[{"path","size","sha256","split_index","split_total"}],"bytes","parts","needs_projector":bool,"projector_options":[key],"fit":"ok"|"tight"|"too_large"|null,"fit_note_de"}],"total_gguf_bytes","installed":bool,"cached_at","offline"}`
 - `GET /models/card/{author}/{name}?revision=` → `{"repo","excerpt"(Markdown ohne HTML, ≤ 6000 Zeichen),"front_matter":{"license","base_model","pipeline_tag",…},"truncated","url","cached_at","offline"}`
 - Bestehende Routen `search`, `resolve`, `download`, `import`, `activate` bleiben; `resolve`/`download` arbeiten weiter mit exakter Revision und gewählter Datei (+ Projektor als Manifest).
+
+
+## Addendum v1.4 (0.4.0): Gedächtnis-Connectoren, ChatGPT-Anmeldung, Ergänzungen
+
+### Gedächtnis-Connectoren (MCP)
+
+- `GET /connectors` → `{"connectors":[Connector],"client_kinds":[…],"tools":[…],"bridge":{"command","leading_args":[…],"discovery_file","discovery_present":bool}}`
+- `POST /connectors` `{"name","client_kind":"claude_desktop"|"claude_code"|"codex"|"chatgpt_desktop"|"generic_stdio"|"generic_http","projects":[id],"rights":["read","write"?,"forget"?]}` → `201 {"connector":Connector,"token_once":string,"setup":Setup}` – der Token erscheint genau einmal; `Connector = {"id","name","client_kind","profile_id","projects","rights","created_at","last_used_at","revoked","file"}`
+- `GET /connectors/{id}/setup` → `{"connector","setup"}`; `Setup = {"bridge_command":[exe,…args],"claude_desktop_json","claude_desktop_config_path","claude_code_cmd","claude_code_project_json","codex_toml","codex_config_path","generic_stdio_json","note_de"}`
+- `DELETE /connectors/{id}` → `{"ok":true,"connectors":[…]}` (Widerruf; Connector-Datei wird gelöscht)
+- `GET /connectors/chatgpt-tunnel/status` → `{"state":"prepared","state_de","tunnel_client_found":bool,"tunnel_client_path","core_running":bool,"requirements_de":[…],"steps_de":[…],"limits_de","docs_url"}`
+- `POST /connector-rpc/call` (**ohne** App-Token; Header `X-SpAIder-Connector: <token>`; nur Loopback; Anfragen mit `Origin`-Header werden mit 403 abgewiesen) `{"tool":"status"|"search_memory"|"get_source"|"remember"|"correct_memory"|"forget_memory","args":{…},"client_request_id"?:string}` → `{"ok":true,"connector_id","tool","result":{…}}`; Fehler `401 unauthorized`, `403 revoked|wrong_profile|forbidden`, `404 unknown_tool|not_found`, `422 invalid`. Schreibwerkzeuge mit `client_request_id` liefern bei Wiederholung dasselbe Ergebnis plus `"idempotent_replay":true`.
+- Discovery-Datei `data/host/core.json` `{"port","pid","version","profile_id"}` wird beim `ready` geschrieben und beim Beenden entfernt.
+- Bridge-Modus: `spaider-foldable-core.exe --mcp-stdio --connector <data/connectors/<id>.json>` (MCP stdio, Werkzeuge mit `structuredContent`).
+- Aktivitäts-Ereignis `connector` `{"connector_id","name","tool","source_id"}` bei Schreib-/Vergessen-Aufrufen.
+
+### ChatGPT-Anmeldung (Sign in with ChatGPT; Verbindungen mit `auth_method:"oauth_siwc"`)
+
+- `GET /connections/{id}/siwc/status` → `{"connection_id","state":"needs_setup"|"pending"|"signed_in","state_de","account_label","storage":"host"|"session"|"none","expires_at","client_id_issued":bool,"scope","last_error","pending_port","note_de"}`
+- `POST /connections/{id}/siwc/start` → `{"authorize_url","state","port","expires_at","note_de","status":Status}` – die UI öffnet `authorize_url` im Systembrowser; der Kern bestätigt nichts selbst
+- `POST /connections/{id}/siwc/cancel` → `{"ok","cancelled","status"}`
+- `POST /connections/{id}/siwc/logout` → `{"ok","revoked":bool,"status"}` (Revocation beim Issuer, Token gelöscht, Adapter verworfen)
+- 409 `unsupported` für Verbindungen ohne `oauth_siwc`; 409 `bad_request`, wenn der Issuer nicht über HTTPS erreichbar ist
+
+### Ergänzungen zu v1.3
+
+- `POST /models/resolve` body zusätzlich `"projector"?:string` (mmproj-Datei desselben Repositorys); der Katalogeintrag erhält sie als `files[].kind = "mmproj"`
+- `Connection.last_test` = `AccessCheck` `{"at":iso,"server_reached","access_ok","model_listed","answer_ok","models":[id],"message_de","error","latency_ms","details"}`
+- Chat `event: error` zusätzlich `"sharing": {"history_messages","system_prompt","memory_chars":null,"sources":null,"images","estimate":true} | null` bei `consent_required`/`local_only`/`denied` (Schätzung vor dem Prompt-Aufbau)
+- `POST /conversations/{id}/messages` verlangt ein laufendes lokales Modell nur noch für Gespräche mit Bindung `local`; verbindungsgebundene Gespräche laufen ohne lokales Modell
+- Abruf aus dem Gedächtnis für Gespräche mit Bindung an eine Verbindung mit `execution ≠ local` schließt Erinnerungen aus Projekten mit `local_only` aus (Herkunft Gespräch/Dokument/Connector)
+- Schema v5: `ingest_queue.kind` zusätzlich `fact`

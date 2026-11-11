@@ -240,3 +240,45 @@ Weder Merge noch Auto-Merge noch Veröffentlichung ohne gemeinsame Entscheidung.
 **Zugriff für den Mitgründer:** Falls er das private Repository noch nicht sieht: Repository →
 Settings → Collaborators → „Add people“ (Leserecht genügt für PR, Diff und Prerelease-Assets).
 Das Repository dafür nicht öffentlich schalten.
+
+
+## Stand 0.4.0 (2026-11-11): Branch `feature/spaider-foldable-modelhub-connectors`
+
+| | Wert |
+|---|---|
+| Basis | `feature/spaider-foldable-review` @ `84f59c4` (= 0.3.0 + Review-Dokumente), Ausgangscommit weiterhin `73762b3` |
+| Worktree | `C:\Users\mucbay\spaider-foldable\repo-modelhub` |
+| Bundle vor den Änderungen | `backup/spaider-foldable-pre-modelhub-20261111.bundle` (verifiziert) |
+| Ziel-Repo | nur `Useebay/spaider-foldable-private` (privat); kein Push nach `Spaider-studio/spaider` |
+
+### Neue und geänderte Bereiche (nur unter `foldable/` und `docs/portable/`)
+
+- `foldable/core/spaider_foldable/providers/` – Event-Schicht, drei Wire-Adapter, Presets,
+  Registry, Verbindungen/Freigaben/Policy, Schlüsselspeicher (DPAPI, Tresor, Sitzung), SIWC.
+- `foldable/core/spaider_foldable/connectors/` – Connector-Dienst (Rechte, Werkzeuge) und
+  stdio-MCP-Brücke (`--mcp-stdio`).
+- `profiles.py`, `paths.py`, `lock.py`, `__main__.py` – Profile, Discovery-Datei, Bridge-Modus.
+- `models/discover.py` – Hugging-Face-Suche/Repo-Detail/Modellkarte; `api/routes_*` – Vertrag
+  v1.3/v1.4; `db/schema_v4.sql`, `schema_v5.sql` (Migrationen 4 und 5).
+- `chat/service.py`, `memory/retrieve.py` – Events, Bindung, Freigabe, Herkunftsfilter.
+- `foldable/desktop/` – Verbindungen, Modellbibliothek (vier Bereiche), Bindung, Freigabedialog,
+  Fehlerzustände; Mock-Server v1.3.
+- Neue Abhängigkeiten (Kern): `mcp==2.3.0`, `PyJWT==2.15.1`, `cryptography==50.0.2`
+  (in `pyproject.toml` und in der PyInstaller-Spec gesammelt).
+
+### Drift zum öffentlichen Upstream
+
+`Spaider-studio/spaider` `main` steht inzwischen auf `126ef75` (v0.5.0). Diese Arbeit
+basiert weiterhin auf `73762b3` (v0.4.0 des Backends). Vor einer Integration:
+Upstream-Diff `73762b3..126ef75` auf Änderungen an `backend/app/models/schemas.py`,
+`backend/app/services/*` (werden als Bibliothek importiert) prüfen; die Foldable-Dateien
+berühren keine Upstream-Dateien außer `.gitignore`. Das MCP-SDK des Upstreams (falls
+vorhanden) und `mcp==2.3.0` müssen auf dieselbe Hauptversion gebracht werden.
+
+### Spätere Integration (nicht ausgeführt)
+
+1. Review-Branch gegen `review/spaider-base-73762b3` (siehe `REVIEW_START_HERE_DE.md`).
+2. Rebase auf aktuellen Upstream, Tests (`pytest tests` im Kern; `npm test`, `npm run build`
+   im Desktop), Paketbau (`foldable/build/*`), Vergleichslauf des Testberichts.
+3. Erst dann Pull Request gegen das gemeinsame Repository; Veröffentlichungen (Releases,
+  Plugins, Tunnel) bleiben eine Entscheidung der Gründer.

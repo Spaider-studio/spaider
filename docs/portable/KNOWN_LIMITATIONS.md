@@ -254,3 +254,74 @@ kann. Offene Fehler stehen am Ende.
   kleinen Wrapper-Cache unter `%TEMP%\comtypes_cache\spaider-foldable-core-312`
   an; der Agentenbrowser schreibt sein Profil nur in `data/browser/profile`.
 
+
+
+## 0.4.0 (2026-11-11): Modellbibliothek, Anbieter, Gedächtnis-Connectoren
+
+Ergänzt die Liste oben; frühere Einträge gelten weiter, soweit nicht genannt.
+
+### Anbieter und Verbindungen
+- **Kein Cloud-Anbieter wurde mit einem echten Konto aufgerufen** (Vorgabe 0 €
+  Cloud-Ausgaben, keine fremden Kontingente). Alle Cloud-Presets (OpenAI,
+  Anthropic, Gemini, DeepSeek, Z.ai, Mistral, OpenRouter, Hugging Face) sind nur
+  gegen lokale Testserver mit dem dokumentierten Wire-Format geprüft. Ob ein
+  Anbieter heute genau so antwortet, zeigt erst der Verbindungstest mit Ihrem
+  Schlüssel. Echte Läufe: eingebettetes llama.cpp und ein eigener
+  OpenAI-kompatibler Server (zweiter llama-server).
+- Ollama und LM Studio waren nicht installiert; die Presets sind nur per
+  Testserver geprüft.
+- Gemini läuft über die OpenAI-Kompatibilitätsschicht (laut Google „Beta“); die
+  native Gemini-API ist nicht angebunden.
+- Werkzeugaufrufe (Tool-Calls) von Cloud-Modellen werden als Ereignis
+  durchgereicht, aber im Chat nicht ausgeführt; der Agent nutzt weiter nur das
+  lokale Modell.
+- Bilder: Verbindungen melden `vision` als „gemeldet“; verifiziert ist nur das
+  lokale Bildmodell (0.3). Die Live-Bildschirmhilfe sendet Bilder nur an lokale
+  Modelle.
+- „Zugang geprüft“ ist bei Presets ohne kostenlosen Prüfweg `null`.
+
+### ChatGPT
+- Sign in with ChatGPT ist ein Skelett, das gegen einen lokalen Fake-Issuer
+  geprüft ist, **nicht** gegen `auth.openai.com`. Ob SpAIder Foldable die
+  dynamische Registrierung erhält und welches Feld die ausgestellte Client-ID
+  trägt, ist eine Annahme aus der Dokumentation. Status bleibt „Einrichtung
+  erforderlich“, bis ein Nutzer die Anmeldung im Browser abschließt.
+- ChatGPT-Tunnel: nur Status und Anleitung; kein Tunnel, keine Veröffentlichung.
+
+### Gedächtnis-Connectoren
+- Nur stdio-Transport. Der Client-Typ `generic_http` existiert als Kennzeichnung,
+  ein HTTP-Transport ist nicht implementiert.
+- Claude Desktop war nicht installiert (Schnipsel laut Dokumentation); Codex
+  wurde nur auf Konfigurationsebene geprüft (`codex mcp list`), Claude Code
+  real (`claude mcp list` → Connected). Kein Client wurde mit Modellnutzung
+  betrieben.
+- Die Connector-Suche ist lexikalisch, solange kein Embedding-Modell aktiv ist
+  (dann hybrid). Entitäten können nicht vergessen werden, nur Aussagen.
+- Die Pfade in den Schnipseln sind absolut; nach einem Umzug (Laufwerksbuchstabe)
+  müssen sie neu erzeugt werden.
+- `forget_memory` markiert, löscht aber nicht physisch (Wiederherstellung ist
+  nicht vorgesehen; ein echtes Löschen gibt es nur über „Gedächtnis zurücksetzen“).
+
+### Profile und Portabilität
+- Profilwechsel beendet laufende Antworten, Hintergrundaufgaben und das geladene
+  Modell; das Modell des Zielprofils muss neu geladen werden (Zeit siehe
+  Testbericht).
+- Schlüssel „Dieser Rechner“ (DPAPI) sind nach Umzug nicht lesbar – gewollt. Der
+  portable Tresor wurde mit Argon2id 64 MiB/3 Iterationen gebaut (Entsperren
+  ca. 0,2–0,5 s auf dem Testrechner).
+
+### Modellbibliothek
+- Die Live-Suche fragt Hugging Face (`/api/models`) an; offline zeigt sie den
+  zuletzt geladenen Stand. Gated Repositorys werden angezeigt, aber nicht
+  geladen (kein Token-Gate automatisch akzeptiert).
+- Ausführung wird beim „Prüfen“ nur nach GGUF-Header beurteilt; „läuft hier“
+  weiß man erst nach dem ersten Laden.
+- Der 27B-Fall des gemeldeten Leerantwort-Fehlers (Vulkan-Speicher) wurde aus
+  den Logs reproduziert und per Vertragstest abgedeckt; ein erneuter Lauf mit
+  dem 17,7-GB-Modell war auf dem Testrechner (6 GB frei) nicht möglich. Der
+  Rückfall „nächster Start auf CPU“ ist implementiert, aber nur per Test
+  verifiziert.
+
+### Paket
+- Elektron-Binärdatei fehlte im Worktree (postinstall); der Build lädt sie bei
+  Bedarf nach. Paket nicht signiert (wie zuvor).

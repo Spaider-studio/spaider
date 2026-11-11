@@ -275,3 +275,30 @@ async def test_anthropic_thinking_delta_is_reasoning_and_empty_answer(fake):
     ev = await collect(AnthropicMessagesAdapter(cfg(fake)), REQ)
     assert any(e.kind == "reasoning_delta" and e.reasoning == "hmm" for e in ev)
     assert ev[-1].kind == "error" and ev[-1].error.code == "empty_answer"
+
+
+# ---- access check: four separate stages ------------------------------------------------
+async def test_access_check_stages_and_probe_fallback(fake):
+    fake.on("GET", "/v1/models", Scripted(200, "application/json", json.dumps({"data": [{"id": "m1"}, {"id": "m2"}]}).encode()))
+    fake.on("POST", "/v1/chat/completions", Scripted(chunks=[sse(cc_chunk("OK"), cc_chunk(finish="stop"))]))
+    a = ChatCompletionsAdapter(cfg(fake))
+    r = await a.check_access(allow_generation=False)
+    assert (r.server_reached, r.access_ok, r.model_listed, r.answer_ok) == (True, True, True, None)
+    r = await a.check_access(probe_model="nope", allow_generation=False)
+    assert r.model_listed is False and r.answer_ok is None
+    # probe without a chosen model: the first listed model is used and reported
+    r = await a.check_access(allow_generation=True)
+    assert r.answer_ok is True and r.details["probe_model"] == "m1" and r.details["probe_answer"] == "OK" and r.at
+    assert fake.requests[-1].body["model"] == "m1"
+    await a.aclose()
+    # wrong key: server reached, access refused, no probe
+    fake.on("GET", "/v1/models", Scripted(401, "application/json", b'{"error":{"message":"bad key"}}'))
+    b = ChatCompletionsAdapter(cfg(fake, api_key="wrong"))
+    r = await b.check_access(allow_generation=True)
+    assert r.server_reached is True and r.access_ok is False and r.answer_ok is None and r.error["code"] == "unauthorized"
+    await b.aclose()
+    # server down: nothing reached
+    down = ChatCompletionsAdapter(cfg(fake, base_url="http://127.0.0.1:9/v1", timeout_connect_s=1.0))
+    r = await down.check_access(allow_generation=True)
+    assert r.server_reached is False and r.access_ok is None and r.error["code"] in ("network", "timeout")
+    await down.aclose()

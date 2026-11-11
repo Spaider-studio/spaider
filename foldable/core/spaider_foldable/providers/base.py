@@ -190,6 +190,9 @@ class ProviderAdapter(ABC):
             res.latency_ms = int((time.monotonic() - t0) * 1000)
             return res
         res.latency_ms = int((time.monotonic() - t0) * 1000)
+        if allow_generation and not probe_model and models:
+            probe_model = models[0].id  # no default model chosen yet: probe the first listed one
+            res.details["probe_model"] = probe_model
         if allow_generation and probe_model:
             res.answer_ok = False
             try:
