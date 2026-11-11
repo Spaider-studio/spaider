@@ -1,7 +1,7 @@
 {
   "name": "spaider-foldable-desktop",
   "productName": "SpAIder",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "SpAIder Foldable - portable, vollständig lokale Chat-App (Electron-Shell und React-Oberfläche)",
   "license": "AGPL-3.0-only",
   "private": true,

@@ -137,3 +137,51 @@ Modellkarten bleiben Herstellerangaben; „ausgeführt“ heißt hier: auf diese
 Rechner über den App-Pfad (Kern + API) mit synthetischen Daten geprüft. Ein
 erfolgreicher GGUF-Start beweist keine Agentenleistung; die Aufgabenmatrix
 (`AGENT_LIVE_TEST_REPORT.md`) zeigt Erfolge je Aufgabe und Modell.
+
+
+## Stand 0.4.0 (2026-11-11): Modellbibliothek, Familien, Anbieter
+
+Ergänzt die Tabellen oben (Laufzeit weiterhin llama.cpp **b12032**, CPU + Vulkan).
+
+### Echt ausgeführt in 0.4 (auf dem Entwicklungsrechner, Intel Arc 140V über Vulkan)
+
+| Modell | Quelle | Weg | Ergebnis |
+|---|---|---|---|
+| `Qwen/Qwen3-0.6B-GGUF` Q8_0 (639 MB) | eingebetteter Katalog, gepinnte Revision `23749fe…`, SHA-256 geprüft | echter Download (325 s bei ~5 MB/s), Aktivierung 2,0–2,7 s, Chat, Stopp, Gedächtnis-Extraktion | läuft; Antwortqualität bei 0,6B schwach (Prompt-Echo), Pipeline korrekt |
+| `gemma-4-E2B-it` Q4_0 (2,84 GB, lokale Datei) | GGUF-Import (Kopie 5,2 s) | Aktivierung 4,8–6,8 s, Chat mit Gedächtnis, Extraktion | läuft; Antworten korrekt („Mein Lieblingstier ist der Fennek und ich wohne in Bremen.“) |
+| Qwen3-0.6B über **eigenen** llama-server (`--api-key`) als Verbindung „Eigener Server“ | zweiter Prozess, CPU | vier Teststufen, falscher Schlüssel, Chat über die Verbindung, Gedächtnis sichtbar | läuft; Hinweis: Denkmodus von Qwen3 wird über einen generischen Server nicht abgeschaltet (`--reasoning-budget 0` serverseitig) |
+
+Wissen ist modellunabhängig: Fakten aus Gesprächen mit Qwen3 wurden von Gemma 4
+abgerufen und umgekehrt (`MODELHUB_TEST_REPORT.md`, T17).
+
+### Entdecken (Hugging Face) – live geprüft am 2026-11-11
+
+`GET /api/models/discover` (Suche, Autor, Aufgabe, Sortierung, nur GGUF, Cursor-
+Paginierung), `/repo/{autor}/{name}` (Varianten mit Teilen und Projektoren),
+`/card/{autor}/{name}` (bereinigte Modellkarte ≤ 6000 Zeichen). Stichproben:
+`qwen3` (paginiert), `GLM` (zai-org als offizieller Herausgeber), `deepseek`,
+`gemma` (gated „manual“ sichtbar), `mistral`, Nicht-GGUF-Suche. Kein
+hartkodierter Familienfilter; die Eignung wird je Datei aus dem GGUF-Header
+beurteilt (Architektur in `supported_architectures.json`, Chat-Vorlage,
+Projektor erkannt).
+
+### Familien laut Katalog/Header (nicht alle ausgeführt)
+
+Wie zuvor: Qwen3/3.8, Gemma, GLM, DeepSeek, Mistral, Llama werden nach
+Architekturliste des Builds erkannt. **Ausgeführt** in 0.2–0.4: Qwen3 0.6B/4B,
+Qwen3-VL 4B (0.3), Gemma 4 E2B (0.4). Alles andere: nur Metadaten.
+
+### Speicherfehler auf der GPU
+
+Meldet llama-server im Stream `ErrorOutOfDeviceMemory`, endet der Chat mit
+`out_of_memory` (Text: „Beim nächsten Laden dieses Modells wird die CPU
+verwendet“); der nächste Start dieses Modells plant CPU statt Teil-Offload.
+Reproduziert aus den Logs der Nutzerinstanz (Qwen3.8-27B, 36 % Offload) und per
+Vertragstest; ein Wiederholungslauf mit dem 17,7-GB-Modell war auf dem
+Testrechner nicht möglich (siehe KNOWN_LIMITATIONS).
+
+### Anbieter
+
+Protokolle und Prüfstand je Preset: `CONNECT_PROVIDERS_DE.md`. Fähigkeiten von
+Verbindungsmodellen werden als „gemeldet/verifiziert/unbekannt“ geführt
+(`capability_profiles`); „verifiziert“ nur nach einer echten Probe-Antwort.

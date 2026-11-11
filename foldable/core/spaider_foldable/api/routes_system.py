@@ -21,7 +21,9 @@ async def health(ctx: AppContext = Depends(get_ctx)):
         "status": "ok",
         "version": __version__,
         "app_root": str(ctx.paths.app_root),
-        "data_dir": str(ctx.paths.data_dir),
+        "data_dir": str(ctx.paths.shared_dir),
+        "profile_dir": str(ctx.paths.data_dir),
+        "profile_id": ctx.profile_id,
     }
 
 
@@ -46,7 +48,9 @@ async def system_info(ctx: AppContext = Depends(get_ctx)):
     data.update(
         {
             "app_root": str(ctx.paths.app_root),
-            "data_dir": str(ctx.paths.data_dir),
+            "data_dir": str(ctx.paths.shared_dir),
+            "profile_dir": str(ctx.paths.data_dir),
+            "profile_id": ctx.profile_id,
             "usage": usage,
             "runtime": ctx.runtime_info(),
         }

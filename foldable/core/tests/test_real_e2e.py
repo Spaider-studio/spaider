@@ -415,7 +415,8 @@ def test_real_end_to_end(tmp_path):
 
             # ---- case 9: traversal / security
             assert c.get("/documents/../../etc").status_code in (404, 422)
-            assert c.post("/models/import", json={"path": str(paths.db_path)}).json()["job"]["id"]
+            not_gguf = next(iter(paths.data_dir.glob("profiles/*/spaider.db")), paths.data_dir / "profiles.json")  # 0.4: db lives inside the profile
+            assert c.post("/models/import", json={"path": str(not_gguf)}).json()["job"]["id"]
             r = c.post("/conversations/" + conv_b["id"] + "/messages", json={"content": "x" * 200001})
             assert r.status_code == 422
         REPORT["measurements"]["shutdown_2_s"] = core.shutdown()

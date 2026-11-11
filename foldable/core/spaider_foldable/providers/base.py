@@ -197,16 +197,27 @@ class ProviderAdapter(ABC):
             res.answer_ok = False
             try:
                 text = ""
-                async for ev in self.generate(GenerationRequest(messages=[{"role": "user", "content": "Antworte nur mit OK."}], model=probe_model, max_tokens=8, temperature=0.0, timeout_s=60.0)):
+                reasoning_chars = 0
+                async for ev in self.generate(GenerationRequest(messages=[{"role": "user", "content": "Antworte nur mit OK."}], model=probe_model, max_tokens=128, temperature=0.0, timeout_s=90.0)):
                     if ev.kind == "text_delta":
                         text += ev.text
+                    elif ev.kind == "reasoning_delta":
+                        reasoning_chars += len(ev.text or "")
                     elif ev.kind == "error":
+                        if ev.error and ev.error.code == "empty_answer" and reasoning_chars:
+                            break  # reasoning-only: reported below with a specific hint
                         res.error = ev.error.to_dict() if ev.error else {"code": "unknown"}
                         res.message_de += " Probe-Antwort fehlgeschlagen: " + (ev.error.message_de if ev.error else "")
                         return res
                 res.answer_ok = bool(text.strip())
                 res.details["probe_answer"] = text.strip()[:80]
-                res.message_de += " Probe-Antwort erhalten." if res.answer_ok else " Probe-Antwort war leer."
+                if res.answer_ok:
+                    res.message_de += " Probe-Antwort erhalten."
+                elif reasoning_chars:
+                    res.details["probe_reasoning_chars"] = reasoning_chars
+                    res.message_de += " Probe lieferte nur Denktext, keinen Antworttext (Reasoning-Modell: Denkmodus auf dem Server begrenzen, z. B. llama.cpp --reasoning-budget 0, oder ein anderes Modell wählen)."
+                else:
+                    res.message_de += " Probe-Antwort war leer."
             except GenerationError as exc:
                 res.error = exc.to_dict()
                 res.message_de += " Probe-Antwort fehlgeschlagen: " + exc.message_de
