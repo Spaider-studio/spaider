@@ -122,6 +122,95 @@ async def search(q: str = "", limit: int = 20, ctx: AppContext = Depends(get_ctx
 _SAFE_FILE = re.compile(r"^[\w][\w .+()/-]{0,200}\.gguf$", re.IGNORECASE)
 
 
+# ---- 0.4: discover (paginated hub search), repository detail with variants, model card ------
+from ..models import discover as discover_mod  # noqa: E402
+
+
+def _cached(ctx: AppContext, key: str):
+    row = ctx.db.query_one("SELECT value_json, fetched_at FROM catalog_cache WHERE key = ?", (key,))
+    return (json.loads(row["value_json"]), row["fetched_at"]) if row else (None, None)
+
+
+def _cache_put(ctx: AppContext, key: str, value) -> str:
+    now = hub.now_iso()
+    ctx.db.execute(
+        "INSERT INTO catalog_cache(key, value_json, fetched_at) VALUES (?,?,?) "
+        "ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, fetched_at = excluded.fetched_at",
+        (key, json.dumps(value, ensure_ascii=False), now),
+    )
+    return now
+
+
+@router.get("/discover")
+async def discover(q: str = "", author: str = "", task: str = "any", gguf_only: bool = True, sort: str = "downloads", limit: int = 20, cursor: str = "", ctx: AppContext = Depends(get_ctx)):
+    """„Alle Modelle entdecken“: live hub search with pagination; cached page per query, offline-aware."""
+    key = f"discover:{q.strip().lower()}|{author.strip().lower()}|{task}|{int(gguf_only)}|{sort}|{limit}|{cursor}"
+    cached, cached_at = _cached(ctx, key)
+    try:
+        page = await asyncio.to_thread(discover_mod.discover, query=q, author=author, task=task, gguf_only=gguf_only, sort=sort, limit=limit, cursor=cursor or None)
+    except hub.HubError as exc:
+        if cached:
+            return {**cached, "cached_at": cached_at, "offline": True, "detail": exc.detail}
+        if exc.code == "rate_limited":
+            raise ApiError(429, exc.code, exc.detail)
+        return {"items": [], "next_cursor": None, "cached_at": None, "offline": True, "detail": exc.detail}
+    except Exception as exc:  # noqa: BLE001  (no network)
+        if cached:
+            return {**cached, "cached_at": cached_at, "offline": True}
+        return {"items": [], "next_cursor": None, "cached_at": None, "offline": True, "detail": str(exc)[:120]}
+    value = {"items": page.items, "next_cursor": page.next_cursor, "query": page.query, "tasks": discover_mod.TASKS, "sorts": list(discover_mod.SORTS)}
+    now = _cache_put(ctx, key, value)
+    return {**value, "cached_at": now, "offline": False}
+
+
+@router.get("/repo/{author}/{name}")
+async def repo_detail(author: str, name: str, ctx: AppContext = Depends(get_ctx)):
+    repo = f"{author}/{name}"
+    key = f"repo:{repo}"
+    cached, cached_at = _cached(ctx, key)
+    try:
+        detail = await asyncio.to_thread(discover_mod.repo_detail, repo)
+    except hub.HubError as exc:
+        if cached:
+            return {**cached, "cached_at": cached_at, "offline": True, "detail": exc.detail}
+        raise ApiError(exc.status, exc.code, exc.detail, requires_account=exc.code == "gated")
+    except Exception as exc:  # noqa: BLE001
+        if cached:
+            return {**cached, "cached_at": cached_at, "offline": True}
+        raise ApiError(503, "offline", f"Hugging Face ist nicht erreichbar: {str(exc)[:120]}")
+    installed = {m.get("repo"): m for m in ctx.registry.list() if m.get("repo")} if hasattr(ctx.registry, "list") else {}
+    for v in detail["variants"]:
+        v["fit"] = None
+        if v["kind"] == "weights" and ctx._hardware is not None:
+            ram = ctx._hardware.ram_total_bytes
+            v["fit"] = "too_large" if v["bytes"] > ram * 0.85 else ("tight" if v["bytes"] > ram * 0.55 else "ok")
+            v["fit_note_de"] = "Schätzung nur aus der Dateigröße gegen den Arbeitsspeicher; der Katalogeintrag rechnet genauer (Kontext, KV-Cache)."
+    detail["installed"] = detail["repo"] in installed
+    detail["cached_at"] = _cache_put(ctx, key, detail)
+    detail["offline"] = False
+    return detail
+
+
+@router.get("/card/{author}/{name}")
+async def model_card(author: str, name: str, revision: str = "main", ctx: AppContext = Depends(get_ctx)):
+    repo = f"{author}/{name}"
+    key = f"card:{repo}:{revision}"
+    cached, cached_at = _cached(ctx, key)
+    try:
+        card = await asyncio.to_thread(discover_mod.model_card, repo, revision)
+    except hub.HubError as exc:
+        if cached:
+            return {**cached, "cached_at": cached_at, "offline": True}
+        raise ApiError(exc.status, exc.code, exc.detail)
+    except Exception as exc:  # noqa: BLE001
+        if cached:
+            return {**cached, "cached_at": cached_at, "offline": True}
+        raise ApiError(503, "offline", f"Hugging Face ist nicht erreichbar: {str(exc)[:120]}")
+    card["cached_at"] = _cache_put(ctx, key, card)
+    card["offline"] = False
+    return card
+
+
 @router.post("/resolve")
 async def resolve(body: ResolveBody, ctx: AppContext = Depends(get_ctx)):
     try:

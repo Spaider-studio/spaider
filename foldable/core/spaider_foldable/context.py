@@ -346,8 +346,11 @@ class AppContext:
             hw,
             weights_bytes=int(model.get("size_bytes") or 0),
             kv_bytes=kv,
-            gpu_failed_before=bool(hw and hw.best_gpu and hw.best_gpu.backend in self.inference.gpu_failures),
+            gpu_failed_before=bool(hw and hw.best_gpu and hw.best_gpu.backend in self.inference.gpu_failures)
+            or model.get("id") in self.inference.oom_models,
         )
+        if model.get("id") in self.inference.oom_models and opts.backend == "cpu":
+            opts.reason_de = "Dieses Modell ist beim letzten Lauf auf der GPU am Speicher gescheitert; es wird auf der CPU ausgeführt."
         if forced and forced != "cpu" and forced in self.runtime_dirs:
             opts.backend = forced
             opts.gpu_layers = opts.gpu_layers or 999

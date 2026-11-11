@@ -292,3 +292,41 @@ Ids sind opak (`live_…`, `task_…`, `act_…`, `snap_…`, `rcp_…`).
 - `registerHotkeys(cfg: {overlay: string, stop: string}): Promise<{overlay: boolean, stop: boolean, errors: string[]}>` – Konflikte (Registrierung schlägt fehl) werden gemeldet, nicht verschluckt.
 - `setTrayMode(enabled: boolean): Promise<void>` – Schließen des Hauptfensters minimiert in den Tray statt zu beenden; kein Autostart.
 - Overlay-Fenster: eigenes BrowserWindow (frameless, alwaysOnTop, `setContentProtection(true)` → nicht in Aufnahmen), lädt denselben Renderer mit `#/overlay`. Es nutzt dieselbe API (Token über `getBackend()`).
+
+
+## Addendum v1.3 (0.4): Anbieter, Verbindungen, Schlüssel, Projekte, Modellbibliothek
+
+Alle Routen unter `/api`, Token-Header wie bisher. Secrets erscheinen in keiner Antwort.
+
+### Anbieter und Verbindungen
+- `GET /providers` → `{"providers":[Preset],"credential_store":{"host_available":bool,"vault":{"exists","unlocked","path","kdf"},"session_items":int}}`
+  - `Preset` = `{"id","name","protocol":"llama_local"|"chat_completions"|"responses"|"anthropic_messages","base_url","base_url_editable":bool,"auth_methods":["none"|"api_key"|"oauth_siwc"],"execution":"local"|"lan"|"cloud"|"unknown","capabilities":{"text","vision","tools","structured_output","streaming","reasoning":"declared"|"verified"|"unknown"|"no","notes_de"},"key_url","docs_url","subscription_note_de","data_note_de","free_access_check":bool,"connections":[id]}`
+- `GET /connections` → `{"connections":[Connection]}`; `Connection` = `{"id","provider","protocol","name","base_url","auth_method","has_credential":bool,"credential_storage":"host"|"vault"|"session"|"none","account_label","workspace","execution","data_sharing":"allow"|"ask"|"deny","default_model","extra":{},"enabled":bool,"last_test":{…}|null,"created_at","updated_at"}` (nie Schlüsselinhalte)
+- `POST /connections` body `{"provider","name","base_url"?,"auth_method","api_key"?,"credential_storage":"host"|"vault"|"session","execution"?,"data_sharing","default_model"?,"extra"?,"account_label"?}` → `201 {"connection":Connection}`; 422 `invalid_auth` (Methode nicht vorgesehen), 422 `invalid` (feste Basis-URL eines Presets geändert), 409 `locked` (Tresor gesperrt), 409 `unsupported` (kein DPAPI)
+- `PATCH /connections/{id}` (gleiche Felder, alle optional; neuer `api_key` ersetzt den alten) → `{"connection":Connection}`
+- `DELETE /connections/{id}` → `{"ok":true}` (löscht auch Schlüssel, Fähigkeitsprofile, Freigaben)
+- `POST /connections/{id}/test` body `{"probe_model"?:string,"allow_generation":bool}` → `{"result":{"server_reached":bool,"access_ok":bool|null,"model_listed":bool|null,"answer_ok":bool|null,"models":[id],"message_de","error":{"code","message_de","status","retryable","retry_after_s"}|null,"latency_ms","details":{}},"connection":Connection}` – vier getrennte Stufen; `answer_ok` nur bei `allow_generation` (kann Kosten verursachen)
+- `GET /connections/{id}/models` → `{"models":[{"id","display_name","owned_by","context_length","capabilities":CapabilityProfile|null,"declared":{…}}]}`; Fehler 502 (`network`/`timeout`/`server_error`) oder 409 (`unauthorized`/`credential` …)
+  - `CapabilityProfile` = `{"scope","model","text","vision","tools","structured_output","streaming","reasoning","context_length","parameters":{},"notes_de","checked_at"}` mit Werten `declared`|`verified`|`unknown`|`no`
+
+### Schlüsselspeicher
+- `GET /credentials/status`; `POST /credentials/vault/create` `{"password"}`; `POST /credentials/vault/unlock` `{"password"}` → Status + `{"items","unlock_ms"}` (401 `wrong_password`, 409 `vault_corrupt`); `POST /credentials/vault/lock`; `POST /credentials/vault/change-password` `{"password","new_password"}`
+- Host-gebundene Schlüssel (DPAPI) sind auf einem anderen Rechner nicht lesbar (Fehler `host_bound` beim Verbindungstest/Chat); der portable Tresor verschlüsselt nur Schlüssel, nicht Datenbank/Dokumente/Modelle.
+
+### Projekte und Freigaben
+- `GET /projects` → `{"projects":[{"id","name","local_only":bool,"conversations":int,"documents":int,…}],"consents":[{"connection_id","project_id","scope","granted_at"}]}`
+- `POST /projects` `{"name","local_only"}`; `PATCH /projects/{id}` `{"name"?,"local_only"?}`; `DELETE /projects/{id}` (Standardprojekt `default` nicht löschbar; Gespräche/Dokumente wandern nach `default`)
+- `POST /consents` `{"connection_id","project_id","scope":"chat"}` → `{"consent":…}` (409 `local_only`); `DELETE /consents/{connection_id}/{project_id}`
+- `PUT /conversations/{id}/project` `{"project_id"}`
+
+### Gesprächsbindung
+- `GET /conversations/{id}/binding` → `{"binding":{"kind":"local"|"connection","connection_id","provider_model_id","local_model_id"},"project":{…},"policy":{"allowed":bool,"reason_de","needs_consent":bool,"code":"ok"|"local_only"|"denied"|"consent_required"|"disabled"|"unknown_connection"},"connection":Connection|null}`
+- `PUT /conversations/{id}/binding` `{"kind","connection_id"?,"provider_model_id"?}` → dasselbe Objekt
+- Chat-Stream (`POST /conversations/{id}/messages`) zusätzlich: `event: message` trägt `binding` und `project`; `event: sharing` (nur bei Verbindung) `{"connection_id","connection_name","execution","project_id","history_messages","system_prompt","memory_chars","sources","images"}` vor dem Senden; `event: error` trägt `{"detail","code","retryable","retry_after_s","needs_consent","connection_id","project_id","partial_text","next_action_de"}`. Fehlercodes u. a. `consent_required`, `local_only`, `denied`, `empty_answer`, `out_of_memory`, `rate_limited`, `unauthorized`, `forbidden`, `network`, `timeout`, `credential`, `runtime_not_ready`, `no_model`. Eine leere Antwort endet immer mit `error`, nie mit `done`.
+- `Message` trägt zusätzlich `connection_id` und `provider_model`; `Conversation` trägt `project_id` und `binding`.
+
+### Modellbibliothek
+- `GET /models/discover?q=&author=&task=any|text-generation|image-text-to-text&gguf_only=true&sort=downloads|likes|updated|trending&limit=20&cursor=` → `{"items":[{"repo","author","name","publisher_status","likes","downloads","updated","gguf":bool,"gated":false|"auto"|"manual","private","pipeline_tag","library","family_hints":[],"status":"unverified"}],"next_cursor":string|null,"query":{…},"tasks":{…},"sorts":[…],"cached_at","offline":bool,"detail"?}` (bei Netzfehlern die zuletzt gecachte Seite mit `offline:true`; 429 `rate_limited`)
+- `GET /models/repo/{author}/{name}` → `{"repo","revision","author","publisher_status","gated","license","base_model","tags","last_modified","variants":[{"key","quantization","kind":"weights"|"projector"|"auxiliary","files":[{"path","size","sha256","split_index","split_total"}],"bytes","parts","needs_projector":bool,"projector_options":[key],"fit":"ok"|"tight"|"too_large"|null,"fit_note_de"}],"total_gguf_bytes","installed":bool,"cached_at","offline"}`
+- `GET /models/card/{author}/{name}?revision=` → `{"repo","excerpt"(Markdown ohne HTML, ≤ 6000 Zeichen),"front_matter":{"license","base_model","pipeline_tag",…},"truncated","url","cached_at","offline"}`
+- Bestehende Routen `search`, `resolve`, `download`, `import`, `activate` bleiben; `resolve`/`download` arbeiten weiter mit exakter Revision und gewählter Datei (+ Projektor als Manifest).

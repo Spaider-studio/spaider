@@ -504,6 +504,10 @@ class ChatService:
             status = "error"
             error = exc.message_de[:500]
             error_code = exc.code
+            if exc.code == "out_of_memory" and binding.kind == "local" and slot.model_id:
+                # remember for this model: the next (re)start plans CPU instead of partial GPU offload
+                self.inference.oom_models.add(slot.model_id)
+                error += " Beim nächsten Laden dieses Modells wird die CPU verwendet (Einstellungen → Modelle → erneut aktivieren)."
             tracker.fail("failed", f"Fehlgeschlagen: {exc.message_de[:120]}")
             for s in flush():
                 yield s

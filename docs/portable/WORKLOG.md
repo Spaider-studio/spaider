@@ -439,3 +439,22 @@ Offen fuer Musa: gh auth refresh -s workflow, dann push; erster Nutzertest laut 
 
 Naechster Schritt: Phase 1 - providers/ (Events, Adapter chat_completions/responses/anthropic,
 lokaler Runtime-Adapter), llama-Fehlerpfad, ChatService auf Events, Testserver + Vertragstests.
+
+### Phase 1 (10:45-12:10): Provider-Schicht, Fehlerpfad, Schema v4
+- providers/ (Events, SSE-Reader, Adapter chat_completions/responses/anthropic_messages, Presets,
+  Registry, LocalRuntimeAdapter), credentials (DPAPI + Tresor), connections/policy/projects,
+  ChatService auf Events (leere Antwort/Stream-Fehler -> error mit next_action_de), Routen
+  /providers /connections /credentials /projects /consents /conversations/{id}/binding.
+  Commit 4f0176d; 110 Kern-Tests gruen (37 neue, davon Protokoll-Vertragstests gegen lokale
+  Testserver fuer alle drei Wire-Protokolle: 401/403/429/5xx, JSON statt SSE, fragmentierter
+  Stream, Tool-only, Reasoning-only, Abbruch, Verbindungsabbruch, unbekannte Events).
+- OOM-Merker: nach ErrorOutOfDeviceMemory plant der naechste Start des Modells CPU.
+
+### Phase 2 (12:10-): Katalog
+- models/discover.py + Routen /models/discover, /models/repo/{a}/{n}, /models/card/{a}/{n}:
+  Live-Check gegen den Hub: qwen3 (paginiert), GLM (zai-org offiziell), deepseek, gemma (gated
+  "manual" sichtbar), mistral, Nicht-GGUF-Suche; Varianten mit Projektor-Zuordnung; Modellkarte.
+- API_CONTRACT.md Addendum v1.3.
+
+Naechster Schritt: UI-Brief an den Desktop-Agenten (Verbindungen, Modellbibliothek, Chat-Kopf,
+Fehler/Freigabe-Dialog, Tresor), dann Profile (Phase 3) und MCP-Bruecke (Phase 4).

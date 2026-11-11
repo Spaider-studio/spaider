@@ -62,6 +62,7 @@ class InferenceManager:
         self.threads: Optional[int] = None
         self.context_tokens = 8192
         self.gpu_failures: set[str] = set()  # backend names that failed to start on this machine
+        self.oom_models: set[str] = set()  # model ids that ran out of GPU memory during generation (next start: CPU)
         self.on_state: Optional[Callable[[str, dict], None]] = None
 
     @property
