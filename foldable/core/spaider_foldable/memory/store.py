@@ -257,6 +257,23 @@ class LocalMemoryStore:
         )
         return [self._row_to_node(r) for r in rows]
 
+    async def resolver_candidates(self, agent_id: str, labels: list[str], per_label: int = 25) -> list[Node]:
+        """Upstream 0.5.0 resolver contract: existing non-FACT nodes that could match
+        any of ``labels``. Small local graphs return the full list (same behaviour as
+        before: fuzzy matching over everything); larger graphs use the FTS index per
+        label so the cost follows the batch, not the graph."""
+        total = self.db.scalar(
+            "SELECT count(*) FROM nodes WHERE agent_id = ? AND type <> 'FACT' AND superseded = 0", (agent_id,)
+        ) or 0
+        if total <= 2000:
+            return await self.list_nodes_for_resolver(agent_id)
+        out: dict[str, Node] = {}
+        for label in dict.fromkeys(labels):
+            for n in self.fulltext_nodes(label, limit=per_label * 8):
+                if n.type != "FACT" and n.id not in out:
+                    out[n.id] = n
+        return list(out.values())
+
     async def vector_search(
         self, embedding: list[float], agent_id: str, top_k: int = 8, *, include_facts: bool = True
     ) -> list[Node]:
