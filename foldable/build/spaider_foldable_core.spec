@@ -75,7 +75,7 @@ a = Analysis(
     hookspath=[],
     runtime_hooks=[],
     excludes=["tkinter", "matplotlib", "PIL.ImageTk", "pytest", "IPython", "jupyter", "notebook", "torch", "transformers",
-              "aiokafka", "asyncpg", "sqlalchemy", "clickhouse_connect", "pandas", "trafilatura", "docx"],
+              "aiokafka", "asyncpg", "clickhouse_connect", "pandas", "trafilatura", "docx"],  # sqlalchemy: imported by backend 0.5.0 services
     noarchive=False,
     optimize=0,
 )
