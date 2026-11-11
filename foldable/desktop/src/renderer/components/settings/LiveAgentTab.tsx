@@ -14,7 +14,60 @@ import { isTerminalJob } from "../../api/types";
 import { formatBytes } from "../../lib/format";
 import { useAppStore } from "../../store/useAppStore";
 import JobProgress from "../models/JobProgress";
-import { Badge, Button, Field, inputClass, SectionTitle, Toggle } from "../ui";
+import { Badge, Button, Field, inputClass, KeyValue, SectionTitle, Toggle } from "../ui";
+
+/** v1.5: read-only facts about the execution core (AgentCapabilities.execution_core). */
+function ExecutionCoreSection() {
+  const client = useAppStore((s) => s.client);
+  const capabilities = useAppStore((s) => s.agentCapabilities);
+  const loadAgentCapabilities = useAppStore((s) => s.loadAgentCapabilities);
+
+  useEffect(() => {
+    if (client && !capabilities) void loadAgentCapabilities();
+  }, [client, capabilities, loadAgentCapabilities]);
+
+  const core = capabilities?.execution_core ?? null;
+  return (
+    <section data-testid="execution-core">
+      <SectionTitle
+        action={
+          <Button size="sm" variant="ghost" onClick={() => void loadAgentCapabilities()} aria-label="Ausführungskern neu laden" icon={<RefreshCw className="w-3.5 h-3.5" />} />
+        }
+      >
+        Ausführungskern
+      </SectionTitle>
+      <div className="panel px-4">
+        {!capabilities ? (
+          <div className="py-3 text-xs text-text-secondary">Wird geladen …</div>
+        ) : !core ? (
+          <div className="py-3 text-xs text-text-secondary">Dieser Kern meldet keinen Ausführungskern (älter als Vertrag 1.5).</div>
+        ) : (
+          <div className="py-1">
+            <KeyValue label="Version" value={core.version} mono />
+            <KeyValue label="Abläufe gesamt" value={String(core.workflows)} />
+            <KeyValue
+              label="Abläufe mit geänderten Abhängigkeiten"
+              value={core.stale_workflows > 0 ? <span className="text-amber-300">{core.stale_workflows}</span> : "0"}
+            />
+            <KeyValue
+              label="Eingabesperre"
+              value={
+                <span className="inline-flex items-center gap-1.5 flex-wrap justify-end">
+                  <Badge tone={core.input_guard.enabled ? "green" : "yellow"}>{core.input_guard.enabled ? "aktiv" : "aus"}</Badge>
+                  {core.input_guard.paused_by_user > 0 && <span>{core.input_guard.paused_by_user}× vom Nutzer unterbrochen</span>}
+                  {typeof core.input_guard.user_idle_ms === "number" && <span>Nutzer inaktiv seit {Math.round(core.input_guard.user_idle_ms / 1000)} s</span>}
+                </span>
+              }
+            />
+            <KeyValue label="Rechner-Kennung" value={core.host_id.length > 12 ? `${core.host_id.slice(0, 12)}…` : core.host_id} mono />
+            <KeyValue label="Modell-Werkzeugaufrufe" value={capabilities.model?.native_tool_calls === "verified" ? "nativ geprüft" : capabilities.model?.native_tool_calls === "failed" ? "nativ fehlgeschlagen (JSON-Schema)" : "nativ ungeprüft"} />
+            {core.teach && core.teach.active > 0 && <KeyValue label="Laufende Aufnahmen" value={String(core.teach.active)} />}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
 
 /** Settings row for the on-demand browser package (GET /api/agent/browser). */
 function BrowserRow() {
@@ -239,6 +292,8 @@ export default function LiveAgentTab() {
           </Field>
         </div>
       </section>
+
+      <ExecutionCoreSection />
     </div>
   );
 }

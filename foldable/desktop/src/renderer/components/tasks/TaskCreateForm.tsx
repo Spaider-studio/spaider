@@ -4,15 +4,42 @@
  * external effects default off) + budget from the settings. Scopes come
  * exclusively from this form; nothing is started without "Starten".
  */
-import { AlertTriangle, FolderPlus, Plus, RefreshCw, X } from "lucide-react";
+import { AlertTriangle, FolderOpen, FolderPlus, Plus, RefreshCw, X } from "lucide-react";
 import { useEffect, useState, type KeyboardEvent } from "react";
 import { cn } from "@/lib/utils";
-import type { LiveSources } from "../../api/types";
+import type { LiveSources, WorkflowParameter } from "../../api/types";
 import { errorMessage } from "../../api/client";
 import { selectableSources } from "../../store/overlay";
-import { validateDraft } from "../../store/tasks";
+import { BINDING_KIND_LABEL, validateDraft } from "../../store/tasks";
 import { useAppStore } from "../../store/useAppStore";
-import { Button, Field, inputClass, SectionTitle, Toggle } from "../ui";
+import { Badge, Button, Field, inputClass, SectionTitle, Toggle } from "../ui";
+
+/** One input per workflow parameter: number / date / path (with folder picker) / text, example as placeholder. */
+function ParameterInput({ param, value, onChange }: { param: WorkflowParameter; value: string; onChange: (v: string) => void }) {
+  const type = param.kind === "number" ? "number" : param.kind === "date" ? "date" : "text";
+  const pick = async () => {
+    const folder = await window.spaider.pickFolder();
+    if (folder) onChange(folder);
+  };
+  return (
+    <Field label={`${param.name}${param.required ? " *" : ""}`} description={param.description_de || undefined} className="gap-6">
+      <div className="flex items-center gap-1.5">
+        <input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={param.example || undefined}
+          aria-label={param.name}
+          required={param.required}
+          className={cn(inputClass, "w-64 py-1.5 text-xs", param.kind === "path" && "font-mono")}
+          data-testid="workflow-parameter"
+          data-parameter={param.name}
+        />
+        {param.kind === "path" && <Button size="sm" variant="ghost" onClick={() => void pick()} aria-label={`Ordner für ${param.name} wählen`} icon={<FolderOpen className="w-3.5 h-3.5" />} />}
+      </div>
+    </Field>
+  );
+}
 
 function Chip({ text, onRemove, label }: { text: string; onRemove: () => void; label: string }) {
   return (
@@ -34,7 +61,7 @@ export default function TaskCreateForm() {
   const submitTask = useAppStore((s) => s.submitTask);
   const submitting = useAppStore((s) => s.taskSubmitting);
   const capabilities = useAppStore((s) => s.agentCapabilities);
-  const recipes = useAppStore((s) => s.recipes);
+  const workflow = useAppStore((s) => (s.taskDraft.workflow_id ? (s.workflows.find((w) => w.id === s.taskDraft.workflow_id) ?? null) : null));
   const browserStatus = useAppStore((s) => s.browserStatus);
   const loadBrowserStatus = useAppStore((s) => s.loadBrowserStatus);
   const openSettings = useAppStore((s) => s.openSettings);
@@ -67,9 +94,9 @@ export default function TaskCreateForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft.windowsEnabled, client]);
 
-  const problem = validateDraft(draft);
-  const recipe = draft.recipe_id ? recipes.find((r) => r.id === draft.recipe_id) : null;
+  const problem = validateDraft(draft, workflow);
   const { windows, screens } = selectableSources(sources);
+  const setParameter = (name: string, value: string) => setDraft({ workflowParameters: { ...draft.workflowParameters, [name]: value } });
 
   const addFolder = async () => {
     const folder = await window.spaider.pickFolder();
@@ -110,27 +137,63 @@ export default function TaskCreateForm() {
     >
       <section>
         <SectionTitle>Ziel</SectionTitle>
-        {recipe && (
+        {workflow ? (
+          <div className="panel px-4 py-3" data-testid="task-form-workflow" data-workflow-id={workflow.id}>
+            <div className="flex items-center gap-2 text-xs text-text-secondary flex-wrap">
+              Ablauf: <span className="text-text-primary font-medium">{workflow.name}</span>
+              <Badge tone="blue">v{workflow.version}</Badge>
+              <button type="button" onClick={() => setDraft({ workflow_id: null, workflowParameters: {}, replan: false })} className="underline underline-offset-2 hover:text-text-primary">
+                entfernen
+              </button>
+            </div>
+            <p className="mt-1 text-sm text-text-secondary">{workflow.purpose_de}</p>
+            {workflow.bindings.length > 0 && (
+              <p className="mt-1 text-[11px] text-text-secondary">
+                Benötigte Zuordnungen auf diesem Rechner: {workflow.bindings.map((b) => `${b.role} (${BINDING_KIND_LABEL[b.kind] ?? b.kind})`).join(", ")} – fehlende werden beim Start erfragt.
+              </p>
+            )}
+          </div>
+        ) : draft.recipe_id ? (
           <div className="mb-2 flex items-center gap-2 text-xs text-text-secondary" data-testid="task-form-recipe">
-            Ablauf: <span className="text-text-primary">{recipe.name}</span>
+            Ablauf (0.3): <span className="text-text-primary font-mono">{draft.recipe_id}</span>
             <button type="button" onClick={() => setDraft({ recipe_id: null })} className="underline underline-offset-2 hover:text-text-primary">
               entfernen
             </button>
           </div>
+        ) : null}
+        {!workflow && (
+          <textarea
+            value={draft.goal}
+            onChange={(e) => setDraft({ goal: e.target.value })}
+            rows={3}
+            placeholder="Was soll erledigt werden? Beschreibe das Ziel und das erwartete Ergebnis."
+            aria-label="Ziel"
+            className={cn(inputClass, "resize-y min-h-[72px]")}
+            data-testid="task-goal"
+          />
         )}
-        <textarea
-          value={draft.goal}
-          onChange={(e) => setDraft({ goal: e.target.value })}
-          rows={3}
-          placeholder="Was soll erledigt werden? Beschreibe das Ziel und das erwartete Ergebnis."
-          aria-label="Ziel"
-          className={cn(inputClass, "resize-y min-h-[72px]")}
-          data-testid="task-goal"
-        />
         {draft.live_session_id && (
           <div className="mt-1 text-[11px] text-text-secondary">Verknüpft mit der laufenden Live-Sitzung.</div>
         )}
       </section>
+
+      {workflow && (
+        <section data-testid="task-form-parameters">
+          <SectionTitle>Parameter</SectionTitle>
+          <div className="panel px-4 divide-y divide-border">
+            {workflow.parameters.length === 0 && <div className="py-3 text-xs text-text-secondary">Dieser Ablauf hat keine Parameter.</div>}
+            {workflow.parameters.map((p) => (
+              <ParameterInput key={p.name} param={p} value={draft.workflowParameters[p.name] ?? ""} onChange={(v) => setParameter(p.name, v)} />
+            ))}
+            <Toggle
+              label="Ohne Wiederverwendung (Vergleichslauf)"
+              description="Der Ablauf wird komplett neu geplant statt wiederverwendet – zum Vergleich der Ergebnisse."
+              checked={draft.replan}
+              onChange={(v) => setDraft({ replan: v })}
+            />
+          </div>
+        </section>
+      )}
 
       <section>
         <SectionTitle>Zugriffe</SectionTitle>

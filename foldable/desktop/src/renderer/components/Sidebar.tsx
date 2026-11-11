@@ -41,7 +41,7 @@ export default function Sidebar() {
   const selectedTaskId = useAppStore((s) => s.selectedTaskId);
   const selectTask = useAppStore((s) => s.selectTask);
   const openTaskForm = useAppStore((s) => s.openTaskForm);
-  const showRecipes = useAppStore((s) => s.showRecipes);
+  const showWorkflows = useAppStore((s) => s.showWorkflows);
   const cancelTask = useAppStore((s) => s.cancelTask);
   const pauseTask = useAppStore((s) => s.pauseTask);
   const resumeTask = useAppStore((s) => s.resumeTask);
@@ -135,13 +135,13 @@ export default function Sidebar() {
             </button>
             <button
               type="button"
-              onClick={showRecipes}
+              onClick={showWorkflows}
               title="Abläufe"
               className={cn(
                 "flex items-center justify-center gap-2 rounded-lg border border-border bg-bg-tertiary hover:bg-[#22222e] hover:border-[#3A3A45] text-sm transition-colors",
                 collapsed ? "p-2.5" : "px-3 py-2",
               )}
-              data-testid="sidebar-recipes"
+              data-testid="sidebar-workflows"
             >
               <BookOpen className="w-4 h-4 text-accent-purple flex-shrink-0" />
             </button>

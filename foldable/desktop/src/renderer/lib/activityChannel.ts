@@ -5,7 +5,7 @@
  * or fails. A connection that stayed open for a while resets the backoff.
  */
 import type { ApiClient } from "../api/client";
-import type { ActivityEvent, LiveSession, RuntimeEvent, SchedulerEvent, StopEvent, Task } from "../api/types";
+import type { ActivityEvent, LiveSession, RuntimeEvent, SchedulerEvent, StopEvent, Task, TeachEvent, WorkflowsEvent } from "../api/types";
 
 export type ChannelState = "connecting" | "connected" | "reconnecting" | "closed";
 
@@ -19,6 +19,10 @@ export interface ActivityChannelHandlers {
   onTask?: (task: Task) => void;
   /** v1.2: global stop (hotkey / api) */
   onStop?: (ev: StopEvent) => void;
+  /** v1.5: teach session changed */
+  onTeach?: (ev: TeachEvent) => void;
+  /** v1.5: workflow dependencies changed */
+  onWorkflows?: (ev: WorkflowsEvent) => void;
   onState?: (state: ChannelState, attempt: number) => void;
 }
 
@@ -79,6 +83,8 @@ export function startActivityChannel(
             onLive: handlers.onLive,
             onTask: handlers.onTask,
             onStop: handlers.onStop,
+            onTeach: handlers.onTeach,
+            onWorkflows: handlers.onWorkflows,
           },
           signal,
         );

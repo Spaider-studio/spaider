@@ -1,27 +1,51 @@
 import { describe, expect, it } from "vitest";
-import type { Action, ActivityEvent, Task, TaskState } from "../src/renderer/api/types";
+import type { Action, ActivityEvent, StepEvent, Task, TaskState, TeachSession, Workflow } from "../src/renderer/api/types";
 import {
   ACTION_STATE_LABEL,
+  appendStep,
   applyTaskStreamEvent,
+  BINDING_KIND_LABEL,
   canCancel,
+  canCompileWorkflow,
   canPause,
   canResume,
   canSaveRecipe,
+  coerceParameterValue,
   compactArguments,
+  countNewSteps,
+  DEPENDENCY_KIND_LABEL,
+  dependencySummary,
   draftFromScopes,
+  draftFromWorkflow,
   draftToRequest,
+  draftToRunRequest,
   emptyDraft,
   emptyFeed,
   evidencePath,
+  formatCoverage,
+  isStaleWorkflow,
   isTerminalTaskState,
+  missingWorkflowParameters,
+  OUTCOME_LABEL,
+  OUTCOME_TONE,
   reduceTaskActivity,
+  REUSE_MODE_LABEL,
   scopeSummary,
   sortTasksNewestFirst,
+  sortWorkflows,
+  STEP_KIND_LABEL,
+  stepCountText,
+  suggestParameterName,
   TASK_STATE_LABEL,
   TASK_STATE_TONE,
+  teachValues,
   upsertAction,
   upsertTask,
+  upsertWorkflow,
   validateDraft,
+  WORKFLOW_ORIGIN_LABEL,
+  WORKFLOW_STATUS_LABEL,
+  WORKFLOW_STATUS_TONE,
 } from "../src/renderer/store/tasks";
 
 const ALL_STATES: TaskState[] = [
@@ -59,6 +83,13 @@ const task = (id: string, state: TaskState, extra: Partial<Task> = {}): Task => 
   llm_calls: 0,
   host_bound: false,
   last_error: null,
+  workflow_id: null,
+  project_id: null,
+  connection_id: null,
+  success_criteria: [],
+  outcome: null,
+  outcome_report: null,
+  reuse: null,
   ...extra,
 });
 
@@ -76,8 +107,55 @@ const action = (seq: number, state: Action["state"], extra: Partial<Action> = {}
   finished_at: null,
   duration_ms: null,
   result: null,
+  call_id: null,
+  origin: "planner",
   ...extra,
 });
+
+const workflow = (id: string, extra: Partial<Workflow> = {}): Workflow => ({
+  id,
+  version: 1,
+  name: `Ablauf ${id}`,
+  purpose_de: "Protokoll zusammenfassen",
+  status: "candidate",
+  parameters: [
+    { name: "zielordner", description_de: "Ordner", example: "C:\\out", kind: "path", required: true },
+    { name: "anzahl", description_de: "Wie viele", example: "3", kind: "number", required: false },
+    { name: "stichtag", description_de: "Datum", example: "2026-11-11", kind: "date", required: false },
+  ],
+  preconditions: [],
+  bindings: [],
+  steps: [
+    { index: 0, tool: "windows.read", arguments_template: {}, target: null, read_set: [], write_set: [], preconditions: [], postconditions: [], side_effect: "none", depends_on: [], derive: false, derive_from: [], check_de: "" },
+    { index: 1, tool: "files.write", arguments_template: {}, target: null, read_set: [], write_set: [], preconditions: [], postconditions: [], side_effect: "local", depends_on: [], derive: true, derive_from: [0], check_de: "" },
+  ],
+  checks: [],
+  dependencies: [],
+  scope: { files: { roots: ["C:\\a"], write_dir: "C:\\a\\out" }, browser: null, windows: { source_ids: [], allowed_processes: ["notepad.exe"] }, memory: true, external_effects: false },
+  origin: {},
+  tool_contract_hash: "abc",
+  model_hint: null,
+  known_limits_de: [],
+  created_at: "2026-11-10T10:00:00Z",
+  updated_at: "2026-11-10T10:00:00Z",
+  last_verified_at: null,
+  stats: {
+    success_runs: 0,
+    failed_runs: 0,
+    distinct_param_sets: 0,
+    negative_checked: false,
+    last_verified_at: null,
+    last_failed_at: null,
+    origin_kind: "compiled",
+    dependencies: { total: 0, valid: 0, invalid: 0, by_kind: {}, inferred: 0 },
+  },
+  requires: { tools: ["windows.read", "files.write"], apps: ["notepad.exe"], vision: false },
+  derived_steps: [1],
+  external_effects: false,
+  ...extra,
+});
+
+const step = (kind: StepEvent["kind"], message_de: string, at = "2026-11-11T10:00:00Z", extra: Partial<StepEvent> = {}): StepEvent => ({ kind, message_de, at, ...extra });
 
 describe("task state labels", () => {
   it("has a German label and a tone for every TaskState", () => {
@@ -140,7 +218,7 @@ describe("task transitions and buttons", () => {
     r = applyTaskStreamEvent(r.feed, { type: "token", data: { text: "zuerst." } });
     feed = r.feed;
     expect(feed.notes).toBe("Ich lese zuerst.");
-    const q = { id: "q1", text_de: "Darf ich?", kind: "approval" as const, action: action(2, "proposed") };
+    const q = { id: "q1", text_de: "Darf ich?", kind: "approval" as const, action: action(2, "proposed"), binding: null };
     r = applyTaskStreamEvent(feed, { type: "question", data: q });
     feed = r.feed;
     expect(feed.question?.id).toBe("q1");
@@ -262,5 +340,195 @@ describe("agent activity in the task feed", () => {
     const feed = emptyFeed();
     const broken = applyTaskStreamEvent(feed, { type: "activity", data: { seq: "x" } as unknown as ActivityEvent }).feed;
     expect(broken).toBe(feed);
+  });
+});
+
+// ----- v1.5 (0.5): execution core ---------------------------------------------------------
+
+describe("step events (Tatsächliche Schritte)", () => {
+  it("appends step events to the feed in arrival order and ignores malformed ones", () => {
+    let feed = emptyFeed();
+    expect(feed.steps).toEqual([]);
+    feed = applyTaskStreamEvent(feed, { type: "step", data: step("read", "Datei gelesen: x.txt", "2026-11-11T10:00:00Z") }).feed;
+    feed = applyTaskStreamEvent(feed, { type: "step", data: step("verify", "Ergebnis geprüft: erfüllt", "2026-11-11T10:00:05Z", { ok: true, status: "fulfilled" }) }).feed;
+    expect(feed.steps.map((s) => s.kind)).toEqual(["read", "verify"]);
+    expect(feed.steps[1].ok).toBe(true);
+    const broken = applyTaskStreamEvent(feed, { type: "step", data: { kind: "read" } as unknown as StepEvent }).feed;
+    expect(broken).toBe(feed);
+    // other feed fields untouched
+    expect(feed.actions).toEqual([]);
+    expect(feed.notes).toBe("");
+  });
+
+  it("de-duplicates replayed steps by at + message_de after a reconnect", () => {
+    const a = step("read", "Datei gelesen: x.txt", "2026-11-11T10:00:00Z");
+    const b = step("write", "Datei geschrieben: y.md", "2026-11-11T10:00:01Z");
+    let steps = appendStep(appendStep([], a), b);
+    expect(steps).toHaveLength(2);
+    steps = appendStep(steps, { ...a, ok: true });
+    expect(steps).toHaveLength(2);
+    // same text at a different time is a new step
+    steps = appendStep(steps, step("read", "Datei gelesen: x.txt", "2026-11-11T10:00:09Z"));
+    expect(steps).toHaveLength(3);
+    let feed = emptyFeed();
+    for (const s of [a, b, a, b]) feed = applyTaskStreamEvent(feed, { type: "step", data: s }).feed;
+    expect(feed.steps).toHaveLength(2);
+  });
+
+  it("labels every step kind in German", () => {
+    for (const k of ["read", "write", "check", "verify", "skip", "repair", "repaired", "replan", "gate", "derive", "pause"] as const) {
+      expect(STEP_KIND_LABEL[k]).toBeTruthy();
+      expect(STEP_KIND_LABEL[k]).not.toBe(k);
+    }
+  });
+});
+
+describe("v1.5 labels", () => {
+  it("labels outcomes, reuse modes, workflow status and origin in German", () => {
+    expect(OUTCOME_LABEL).toEqual({ fulfilled: "erfüllt", not_fulfilled: "nicht erfüllt", unclear: "ungeklärt" });
+    expect(OUTCOME_TONE.fulfilled).toBe("green");
+    expect(OUTCOME_TONE.not_fulfilled).toBe("red");
+    expect(REUSE_MODE_LABEL).toEqual({ reuse: "wiederverwendet", repair: "repariert", replan: "neu geplant", replan_forced: "ohne Wiederverwendung" });
+    expect(WORKFLOW_STATUS_LABEL).toEqual({ candidate: "Kandidat", verified: "geprüft", demoted: "zurückgestuft", retired: "stillgelegt" });
+    expect(WORKFLOW_STATUS_TONE.verified).toBe("green");
+    expect(WORKFLOW_ORIGIN_LABEL).toEqual({ compiled: "aus Aufgabe", taught: "beigebracht", migrated: "aus 0.3-Rezept" });
+    for (const k of ["fact", "file", "binding", "app", "tool_contract", "model", "workflow"] as const) expect(DEPENDENCY_KIND_LABEL[k]).toBeTruthy();
+    for (const k of ["dir", "file", "app", "window", "url", "account", "model"] as const) expect(BINDING_KIND_LABEL[k]).toBeTruthy();
+  });
+
+  it("summarises dependencies, coverage and step counts", () => {
+    expect(dependencySummary({ total: 6, valid: 3, invalid: 1, by_kind: {}, inferred: 2 })).toBe("3 gültig · 1 ungültig · 2 vermutet");
+    expect(dependencySummary({ total: 2, valid: 2, invalid: 0, by_kind: {}, inferred: 0 })).toBe("2 gültig");
+    expect(dependencySummary({ total: 0, valid: 0, invalid: 0, by_kind: {}, inferred: 0 })).toBe("keine Abhängigkeiten");
+    expect(dependencySummary(null)).toBe("keine Abhängigkeiten");
+    expect(formatCoverage(0.853)).toBe("85 %");
+    expect(formatCoverage(1)).toBe("100 %");
+    expect(formatCoverage(null)).toBe("–");
+    expect(stepCountText(workflow("w"))).toBe("2 Schritte (1 abgeleitet)");
+    expect(stepCountText(workflow("w", { derived_steps: [], steps: workflow("w").steps.slice(0, 1) }))).toBe("1 Schritt");
+    expect(countNewSteps(2)).toBe(2);
+    expect(countNewSteps([{}, {}, {}])).toBe(3);
+    expect(countNewSteps(undefined)).toBe(0);
+  });
+
+  it("flags stale workflows and sorts usable ones first", () => {
+    const fresh = workflow("a");
+    const stale = workflow("b", { stats: { ...fresh.stats, dependencies: { total: 3, valid: 2, invalid: 1, by_kind: { file: 3 }, inferred: 0 } } });
+    expect(isStaleWorkflow(fresh)).toBe(false);
+    expect(isStaleWorkflow(stale)).toBe(true);
+    const sorted = sortWorkflows([workflow("r", { status: "retired", name: "A" }), workflow("c", { status: "candidate", name: "Z" }), workflow("v", { status: "verified", name: "M" }), workflow("c2", { status: "candidate", name: "B" })]);
+    expect(sorted.map((w) => w.id)).toEqual(["v", "c2", "c", "r"]);
+    const upserted = upsertWorkflow(sorted, { ...fresh, id: "c", status: "verified", name: "Z" });
+    expect(upserted.find((w) => w.id === "c")?.status).toBe("verified");
+    expect(upserted).toHaveLength(4);
+    expect(upsertWorkflow(sorted, workflow("new"))).toHaveLength(5);
+  });
+
+  it("allows compiling only completed, successful, not-unfulfilled tasks", () => {
+    const ok = { ok: true, summary_de: "", artifacts: [], verified: true, outcome: "fulfilled" as const, evidence_paths: [], verified_by: "verifier" };
+    expect(canCompileWorkflow(task("a", "completed", { result: ok }))).toBe(true);
+    expect(canCompileWorkflow(task("a", "completed", { result: ok, outcome: "unclear" }))).toBe(true);
+    expect(canCompileWorkflow(task("a", "completed", { result: ok, outcome: "not_fulfilled" }))).toBe(false);
+    expect(canCompileWorkflow(task("a", "completed", { result: { ...ok, ok: false } }))).toBe(false);
+    expect(canCompileWorkflow(task("a", "completed"))).toBe(false);
+    expect(canCompileWorkflow(task("a", "failed", { result: ok }))).toBe(false);
+  });
+});
+
+describe("workflow draft (POST /workflows/{id}/run)", () => {
+  it("prefills the draft from a workflow with scope, goal and empty parameters", () => {
+    const w = workflow("w1");
+    const d = draftFromWorkflow(emptyDraft({ max_steps: 7 }), w);
+    expect(d.workflow_id).toBe("w1");
+    expect(d.goal).toBe("Protokoll zusammenfassen");
+    expect(d.recipe_id).toBeNull();
+    expect(d.filesEnabled).toBe(true);
+    expect(d.fileRoots).toEqual(["C:\\a"]);
+    expect(d.windowsEnabled).toBe(true);
+    expect(d.allowedProcesses).toEqual(["notepad.exe"]);
+    expect(d.workflowParameters).toEqual({ zielordner: "", anzahl: "", stichtag: "" });
+    expect(d.replan).toBe(false);
+    expect(d.max_steps).toBe(7);
+  });
+
+  it("requires the required parameters and validates numbers", () => {
+    const w = workflow("w1");
+    const d = draftFromWorkflow(emptyDraft(), w);
+    expect(missingWorkflowParameters(w, d.workflowParameters)).toEqual(["zielordner"]);
+    expect(validateDraft(d, w)).toMatch(/zielordner/);
+    const filled = { ...d, workflowParameters: { ...d.workflowParameters, zielordner: "C:\\out" } };
+    expect(validateDraft(filled, w)).toBeNull();
+    expect(validateDraft({ ...filled, workflowParameters: { ...filled.workflowParameters, anzahl: "drei" } }, w)).toMatch(/anzahl/);
+    // without a workflow the goal is still required
+    expect(validateDraft({ ...emptyDraft(), workflow_id: null }, null)).toMatch(/Ziel/);
+    // a workflow run does not need a goal text
+    expect(validateDraft({ ...filled, goal: "" }, w)).toBeNull();
+  });
+
+  it("builds the run request with typed parameters, scopes, budget and the replan mode", () => {
+    const w = workflow("w1");
+    const d = { ...draftFromWorkflow(emptyDraft(), w), workflowParameters: { zielordner: " C:\\out ", anzahl: "3,5", stichtag: "" }, replan: true };
+    const req = draftToRunRequest(d, w);
+    expect(req.parameters).toEqual({ zielordner: "C:\\out", anzahl: 3.5 });
+    expect(req.mode).toBe("replan");
+    expect(req.budget).toEqual({ max_steps: 20, max_seconds: 600 });
+    expect(req.scopes?.files).toEqual({ roots: ["C:\\a"], write_dir: "C:\\a\\out" });
+    expect(draftToRunRequest({ ...d, replan: false }, w).mode).toBe("auto");
+    expect(coerceParameterValue("number", "12")).toBe(12);
+    expect(coerceParameterValue("number", "x")).toBe("x");
+    expect(coerceParameterValue("date", " 2026-11-11 ")).toBe("2026-11-11");
+    // the plain task request carries the workflow id as well
+    expect(draftToRequest(d).workflow_id).toBe("w1");
+  });
+});
+
+describe("teach helpers", () => {
+  const session = (steps: TeachSession["steps"]): TeachSession => ({
+    id: "teach_1",
+    name: "Demo",
+    source: "browser",
+    url: "https://example.test/form",
+    source_id: null,
+    state: "recording",
+    steps,
+    created_at: "2026-11-11T10:00:00Z",
+    finished_at: null,
+    events: [],
+    workflow_id: null,
+    note_de: "",
+    scopes: { files: null, browser: { enabled: true, allowed_origins: null }, windows: null, memory: false, external_effects: false },
+  });
+  const tstep = (tool: string, args: Record<string, unknown>, target: string | null = null): TeachSession["steps"][number] => ({
+    tool,
+    arguments: args,
+    check_de: "",
+    evidence: null,
+    target: target ? { role: "edit", name: target } : null,
+    at: "2026-11-11T10:00:01Z",
+  });
+
+  it("extracts typed / chosen values as parameter candidates", () => {
+    const s = session([
+      tstep("browser.navigate", { url: "https://example.test" }),
+      tstep("browser.fill", { selector: "#name", text: "Müller GmbH" }, "Firmenname"),
+      tstep("browser.click", { selector: "#next" }, "Weiter"),
+      tstep("browser.select", { selector: "#land", option: "DE" }, "Land"),
+      tstep("windows.set_value", { element: "Betrag", value: "42,00" }, "Betrag"),
+      tstep("browser.fill", { selector: "#empty", text: "   " }),
+    ]);
+    const values = teachValues(s);
+    expect(values.map((v) => [v.step, v.key, v.value, v.target])).toEqual([
+      [1, "text", "Müller GmbH", "Firmenname"],
+      [3, "option", "DE", "Land"],
+      [4, "value", "42,00", "Betrag"],
+    ]);
+    expect(teachValues(null)).toEqual([]);
+  });
+
+  it("suggests parameter names from element labels", () => {
+    expect(suggestParameterName("E-Mail Adresse", "wert_1")).toBe("e_mail_adresse");
+    expect(suggestParameterName("Straße / Nr.", "wert_2")).toBe("strasse_nr");
+    expect(suggestParameterName(null, "wert_3")).toBe("wert_3");
+    expect(suggestParameterName("###", "wert_4")).toBe("wert_4");
   });
 });

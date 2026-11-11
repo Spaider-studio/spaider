@@ -8,8 +8,8 @@ import { Pause, Play, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Task } from "../../api/types";
 import { truncate } from "../../lib/format";
-import { canCancel, canPause, canResume, type TaskFeed } from "../../store/tasks";
-import { IconButton } from "../ui";
+import { canCancel, canPause, canResume, OUTCOME_LABEL, OUTCOME_TONE, type TaskFeed } from "../../store/tasks";
+import { Badge, IconButton } from "../ui";
 import TaskStateBadge from "./TaskStateBadge";
 
 export function lastActionText(feed: TaskFeed | undefined): string | null {
@@ -41,6 +41,7 @@ export default function TasksSidebarList({
       {tasks.map((t) => {
         const active = t.id === selectedId;
         const last = lastActionText(feeds[t.id]);
+        const outcome = t.outcome ?? t.result?.outcome ?? null;
         return (
           <li
             key={t.id}
@@ -58,6 +59,11 @@ export default function TasksSidebarList({
               </div>
               <div className="mt-1 flex items-center gap-1.5 flex-wrap">
                 <TaskStateBadge state={t.state} />
+                {outcome && (
+                  <span data-testid="task-outcome" data-outcome={outcome}>
+                    <Badge tone={OUTCOME_TONE[outcome] ?? "neutral"}>{OUTCOME_LABEL[outcome] ?? outcome}</Badge>
+                  </span>
+                )}
                 <span className="text-[10px] text-text-secondary tabular-nums" data-testid="task-steps">
                   Schritt {t.step}/{t.max_steps}
                 </span>
