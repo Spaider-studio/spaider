@@ -420,3 +420,22 @@ Offen fuer Musa: gh auth refresh -s workflow, dann push; erster Nutzertest laut 
 - UI-Test des Review-Builds (gepackt, eigener App-Ordner): alle Pruefungen bestanden; Aufgaben
   per API mit Formular-Scopes angelegt (Ordnerdialog nicht automatisierbar). Tag
   foldable-review-0.3.0-cd50a04 auf dem Build-Commit; Push/PR/Release warten auf den workflow-Scope.
+
+## Modellbibliothek, Anbieter-Anbindung, portables Gedaechtnis (2026-11-11, Masterprompt)
+
+### Phase 0 (10:00-10:45): Bestand, Sicherung, Quellen, Fehlerbefund
+- Neuester Stand = Review-Branch 84f59c4 (Code f281d78). Neuer Branch
+  feature/spaider-foldable-modelhub-connectors im Worktree C:/Users/mucbay/spaider-foldable/repo-modelhub;
+  Bundle backup/spaider-foldable-pre-modelhub-20261111.bundle (verifiziert) vor Aenderungen.
+- upstream/main ist jetzt 126ef75 (v0.5.0); Foldable bleibt auf Basis 73762b3 (Integrationsnotiz).
+- Privates Repo weiterhin leer, Token ohne workflow-Scope -> am Ende genau ein Pushversuch.
+- Gemeldeter Leerantwort-Fehler reproduziert aus den Logs der Nutzerinstanz: Qwen3.8-27B mit 36 %
+  GPU-Offload -> llama-server ErrorOutOfDeviceMemory als SSE-Fehlerobjekt, vom Client ignoriert ->
+  "Antwort fertig" ohne Text. Fix in Phase 1 (Fehler-Event + GPU-Rueckfall).
+- Recherche in docs/portable/MODELHUB_RESEARCH.md (Abrufdatum 2026-11-11), ADR in
+  MODELHUB_ARCHITECTURE.md. mcp 2.3.0 installiert (API MCPServer/Client, Protokoll 2026-07-28).
+- Installierte Clients: Claude Code VS-Code-Erweiterung 2.1.322 (claude.exe), Codex-App 26.1103
+  (~/.codex/config.toml, nicht veraendert), kein Claude Desktop, kein Ollama/LM Studio.
+
+Naechster Schritt: Phase 1 - providers/ (Events, Adapter chat_completions/responses/anthropic,
+lokaler Runtime-Adapter), llama-Fehlerpfad, ChatService auf Events, Testserver + Vertragstests.
