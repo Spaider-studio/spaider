@@ -1,0 +1,812 @@
+{
+  "label": "after-qwen3-4b-cpu",
+  "model": "C:\\Users\\<Nutzer>\\spaider-foldable\\measure\\Qwen3-4B-Q4_K_M.gguf",
+  "runtime": "C:\\Users\\<Nutzer>\\spaider-foldable\\repo\\foldable\\build\\runtime\\llama",
+  "gpu_layers": null,
+  "threads": null,
+  "started_at": "2026-11-02 13:26:16",
+  "reps": 3,
+  "host": {
+    "cpu_count": 8,
+    "ram_total_mb": 32326
+  },
+  "direct": {
+    "load_s": 4.66,
+    "samples": [
+      {
+        "mode": "direct",
+        "kind": "short",
+        "cold": true,
+        "ttft_s": 6.11,
+        "wall_s": 9.829,
+        "tps": 11.05,
+        "prompt_tps": 73.93,
+        "prompt_tokens": 450,
+        "completion_tokens": 42,
+        "chars": 148,
+        "proc": {
+          "41804": {
+            "name": "llama-server.exe",
+            "cpu_s": 43.91,
+            "peak_rss_mb": 5355.1
+          }
+        }
+      },
+      {
+        "mode": "direct",
+        "kind": "short",
+        "cold": false,
+        "ttft_s": 0.093,
+        "wall_s": 3.718,
+        "tps": 11.29,
+        "prompt_tps": 12.25,
+        "prompt_tokens": 450,
+        "completion_tokens": 42,
+        "chars": 148,
+        "proc": {
+          "41804": {
+            "name": "llama-server.exe",
+            "cpu_s": 15.22,
+            "peak_rss_mb": 5355.2
+          }
+        }
+      },
+      {
+        "mode": "direct",
+        "kind": "short",
+        "cold": false,
+        "ttft_s": 0.094,
+        "wall_s": 4.688,
+        "tps": 8.91,
+        "prompt_tps": 11.36,
+        "prompt_tokens": 450,
+        "completion_tokens": 42,
+        "chars": 148,
+        "proc": {
+          "41804": {
+            "name": "llama-server.exe",
+            "cpu_s": 13.53,
+            "peak_rss_mb": 5355.2
+          }
+        }
+      },
+      {
+        "mode": "direct",
+        "kind": "short",
+        "cold": false,
+        "ttft_s": 0.109,
+        "wall_s": 4.047,
+        "tps": 10.38,
+        "prompt_tps": 10.46,
+        "prompt_tokens": 450,
+        "completion_tokens": 42,
+        "chars": 148,
+        "proc": {
+          "41804": {
+            "name": "llama-server.exe",
+            "cpu_s": 13.98,
+            "peak_rss_mb": 5355.2
+          }
+        }
+      },
+      {
+        "mode": "direct",
+        "kind": "long",
+        "cold": true,
+        "ttft_s": 17.14,
+        "wall_s": 32.359,
+        "tps": 7.17,
+        "prompt_tps": 50.6,
+        "prompt_tokens": 1291,
+        "completion_tokens": 110,
+        "chars": 369,
+        "proc": {
+          "41804": {
+            "name": "llama-server.exe",
+            "cpu_s": 113.88,
+            "peak_rss_mb": 5367.1
+          }
+        }
+      },
+      {
+        "mode": "direct",
+        "kind": "long",
+        "cold": false,
+        "ttft_s": 0.125,
+        "wall_s": 11.313,
+        "tps": 9.74,
+        "prompt_tps": 8.87,
+        "prompt_tokens": 1291,
+        "completion_tokens": 110,
+        "chars": 369,
+        "proc": {
+          "41804": {
+            "name": "llama-server.exe",
+            "cpu_s": 42.16,
+            "peak_rss_mb": 5367.1
+          }
+        }
+      },
+      {
+        "mode": "direct",
+        "kind": "long",
+        "cold": false,
+        "ttft_s": 0.093,
+        "wall_s": 11.562,
+        "tps": 9.51,
+        "prompt_tps": 11.26,
+        "prompt_tokens": 1291,
+        "completion_tokens": 110,
+        "chars": 369,
+        "proc": {
+          "41804": {
+            "name": "llama-server.exe",
+            "cpu_s": 41.16,
+            "peak_rss_mb": 5367.1
+          }
+        }
+      },
+      {
+        "mode": "direct",
+        "kind": "long",
+        "cold": false,
+        "ttft_s": 0.125,
+        "wall_s": 9.328,
+        "tps": 11.84,
+        "prompt_tps": 9.25,
+        "prompt_tokens": 1291,
+        "completion_tokens": 110,
+        "chars": 369,
+        "proc": {
+          "41804": {
+            "name": "llama-server.exe",
+            "cpu_s": 43.89,
+            "peak_rss_mb": 5367.1
+          }
+        }
+      }
+    ],
+    "runtime_info": "0.02.857.342 I cmn          init: llama threadpool init, n_threads = 8"
+  },
+  "app": {
+    "samples": [
+      {
+        "marks": {
+          "status_retrieving": 0.016,
+          "sources": 0.016,
+          "sources_n": 0,
+          "status_generating": 0.016,
+          "first_token": 6.703,
+          "status_memorizing": 11.813,
+          "done": 11.813
+        },
+        "chars": 178,
+        "tokens_seen": 56,
+        "wall_s": 11.813,
+        "usage": {
+          "prompt_tokens": 494,
+          "completion_tokens": 57,
+          "time_to_first_token_ms": 6687,
+          "tokens_per_second": 10.94,
+          "prompt_tokens_per_second": 74.0,
+          "prompt_cached_tokens": 0,
+          "finish_reason": "stop"
+        },
+        "status": "complete",
+        "proc": {
+          "34196": {
+            "name": "python.exe",
+            "cpu_s": 0.0,
+            "peak_rss_mb": 4.3
+          },
+          "45760": {
+            "name": "llama-server.exe",
+            "cpu_s": 53.59,
+            "peak_rss_mb": 5362.1
+          }
+        },
+        "mode": "app",
+        "kind": "short",
+        "cold": true,
+        "memory": "empty"
+      },
+      {
+        "marks": {
+          "status_retrieving": 0.016,
+          "sources": 0.016,
+          "sources_n": 1,
+          "status_generating": 0.016,
+          "first_token": 17.391,
+          "status_memorizing": 26.359,
+          "done": 26.359
+        },
+        "chars": 355,
+        "tokens_seen": 99,
+        "wall_s": 26.359,
+        "usage": {
+          "prompt_tokens": 1488,
+          "completion_tokens": 100,
+          "time_to_first_token_ms": 17375,
+          "tokens_per_second": 11.06,
+          "prompt_tokens_per_second": 61.38,
+          "prompt_cached_tokens": 424,
+          "finish_reason": "stop"
+        },
+        "status": "complete",
+        "proc": {
+          "34196": {
+            "name": "python.exe",
+            "cpu_s": 0.0,
+            "peak_rss_mb": 4.3
+          },
+          "45760": {
+            "name": "llama-server.exe",
+            "cpu_s": 135.25,
+            "peak_rss_mb": 5443.8
+          }
+        },
+        "mode": "app",
+        "kind": "long",
+        "cold": true,
+        "memory": "empty"
+      },
+      {
+        "marks": {
+          "status_retrieving": 0.016,
+          "sources": 0.016,
+          "sources_n": 2,
+          "status_generating": 0.016,
+          "first_token": 5.922,
+          "status_memorizing": 8.875,
+          "done": 8.875
+        },
+        "chars": 98,
+        "tokens_seen": 28,
+        "wall_s": 8.875,
+        "usage": {
+          "prompt_tokens": 1694,
+          "completion_tokens": 29,
+          "time_to_first_token_ms": 5906,
+          "tokens_per_second": 9.5,
+          "prompt_tokens_per_second": 55.78,
+          "prompt_cached_tokens": 1370,
+          "finish_reason": "stop"
+        },
+        "status": "complete",
+        "proc": {
+          "34196": {
+            "name": "python.exe",
+            "cpu_s": 0.0,
+            "peak_rss_mb": 4.3
+          },
+          "45760": {
+            "name": "llama-server.exe",
+            "cpu_s": 41.33,
+            "peak_rss_mb": 6752.9
+          }
+        },
+        "mode": "app",
+        "kind": "fact",
+        "cold": false,
+        "memory": "filling"
+      },
+      {
+        "marks": {
+          "status_retrieving": 0.0,
+          "sources": 0.0,
+          "sources_n": 1,
+          "status_generating": 0.0,
+          "first_token": 5.234,
+          "status_memorizing": 8.906,
+          "done": 8.906
+        },
+        "chars": 99,
+        "tokens_seen": 37,
+        "wall_s": 8.906,
+        "usage": {
+          "prompt_tokens": 1754,
+          "completion_tokens": 38,
+          "time_to_first_token_ms": 5233,
+          "tokens_per_second": 10.08,
+          "prompt_tokens_per_second": 53.94,
+          "prompt_cached_tokens": 1474,
+          "finish_reason": "stop"
+        },
+        "status": "complete",
+        "proc": {
+          "34196": {
+            "name": "python.exe",
+            "cpu_s": 0.0,
+            "peak_rss_mb": 4.3
+          },
+          "45760": {
+            "name": "llama-server.exe",
+            "cpu_s": 41.22,
+            "peak_rss_mb": 6712.3
+          }
+        },
+        "mode": "app",
+        "kind": "fact",
+        "cold": false,
+        "memory": "filling"
+      },
+      {
+        "marks": {
+          "status_retrieving": 0.0,
+          "sources": 0.0,
+          "sources_n": 4,
+          "status_generating": 0.0,
+          "first_token": 8.187,
+          "status_memorizing": 11.843,
+          "done": 11.843
+        },
+        "chars": 162,
+        "tokens_seen": 49,
+        "wall_s": 11.843,
+        "usage": {
+          "prompt_tokens": 2093,
+          "completion_tokens": 50,
+          "time_to_first_token_ms": 8186,
+          "tokens_per_second": 13.43,
+          "prompt_tokens_per_second": 68.02,
+          "prompt_cached_tokens": 1540,
+          "finish_reason": "stop"
+        },
+        "status": "complete",
+        "proc": {
+          "34196": {
+            "name": "python.exe",
+            "cpu_s": 0.0,
+            "peak_rss_mb": 4.3
+          },
+          "45760": {
+            "name": "llama-server.exe",
+            "cpu_s": 82.98,
+            "peak_rss_mb": 6502.5
+          }
+        },
+        "mode": "app",
+        "kind": "fact",
+        "cold": false,
+        "memory": "filling"
+      },
+      {
+        "marks": {
+          "status_retrieving": 0.0,
+          "sources": 0.0,
+          "sources_n": 2,
+          "status_generating": 0.0,
+          "first_token": 10.281,
+          "status_memorizing": 18.047,
+          "done": 18.047
+        },
+        "chars": 250,
+        "tokens_seen": 76,
+        "wall_s": 18.047,
+        "usage": {
+          "prompt_tokens": 921,
+          "completion_tokens": 77,
+          "time_to_first_token_ms": 10281,
+          "tokens_per_second": 9.78,
+          "prompt_tokens_per_second": 89.76,
+          "prompt_cached_tokens": 1,
+          "finish_reason": "stop"
+        },
+        "status": "complete",
+        "proc": {
+          "34196": {
+            "name": "python.exe",
+            "cpu_s": 0.0,
+            "peak_rss_mb": 4.3
+          },
+          "45760": {
+            "name": "llama-server.exe",
+            "cpu_s": 95.17,
+            "peak_rss_mb": 6547.0
+          }
+        },
+        "mode": "app",
+        "kind": "short",
+        "cold": false,
+        "memory": "populated",
+        "rep": 0
+      },
+      {
+        "marks": {
+          "status_retrieving": 0.016,
+          "sources": 0.016,
+          "sources_n": 3,
+          "status_generating": 0.016,
+          "first_token": 8.391,
+          "status_memorizing": 14.969,
+          "done": 14.969
+        },
+        "chars": 250,
+        "tokens_seen": 76,
+        "wall_s": 14.969,
+        "usage": {
+          "prompt_tokens": 1037,
+          "completion_tokens": 77,
+          "time_to_first_token_ms": 8375,
+          "tokens_per_second": 11.57,
+          "prompt_tokens_per_second": 73.55,
+          "prompt_cached_tokens": 424,
+          "finish_reason": "stop"
+        },
+        "status": "complete",
+        "proc": {
+          "34196": {
+            "name": "python.exe",
+            "cpu_s": 0.0,
+            "peak_rss_mb": 4.3
+          },
+          "45760": {
+            "name": "llama-server.exe",
+            "cpu_s": 78.06,
+            "peak_rss_mb": 6582.1
+          }
+        },
+        "mode": "app",
+        "kind": "short",
+        "cold": false,
+        "memory": "populated",
+        "rep": 1
+      },
+      {
+        "marks": {
+          "status_retrieving": 0.0,
+          "sources": 0.0,
+          "sources_n": 4,
+          "status_generating": 0.0,
+          "first_token": 10.781,
+          "status_memorizing": 19.171,
+          "done": 19.171
+        },
+        "chars": 250,
+        "tokens_seen": 76,
+        "wall_s": 19.171,
+        "usage": {
+          "prompt_tokens": 1202,
+          "completion_tokens": 77,
+          "time_to_first_token_ms": 10781,
+          "tokens_per_second": 9.06,
+          "prompt_tokens_per_second": 62.9,
+          "prompt_cached_tokens": 527,
+          "finish_reason": "stop"
+        },
+        "status": "complete",
+        "proc": {
+          "34196": {
+            "name": "python.exe",
+            "cpu_s": 0.0,
+            "peak_rss_mb": 4.3
+          },
+          "45760": {
+            "name": "llama-server.exe",
+            "cpu_s": 81.14,
+            "peak_rss_mb": 6598.5
+          }
+        },
+        "mode": "app",
+        "kind": "short",
+        "cold": false,
+        "memory": "populated",
+        "rep": 2
+      },
+      {
+        "marks": {
+          "status_retrieving": 0.0,
+          "sources": 0.016,
+          "sources_n": 3,
+          "status_generating": 0.016,
+          "first_token": 28.078,
+          "status_memorizing": 44.516,
+          "done": 44.516
+        },
+        "chars": 498,
+        "tokens_seen": 139,
+        "wall_s": 44.516,
+        "usage": {
+          "prompt_tokens": 2235,
+          "completion_tokens": 140,
+          "time_to_first_token_ms": 28062,
+          "tokens_per_second": 8.46,
+          "prompt_tokens_per_second": 57.29,
+          "prompt_cached_tokens": 630,
+          "finish_reason": "stop"
+        },
+        "status": "complete",
+        "proc": {
+          "34196": {
+            "name": "python.exe",
+            "cpu_s": 0.0,
+            "peak_rss_mb": 4.3
+          },
+          "45760": {
+            "name": "llama-server.exe",
+            "cpu_s": 215.33,
+            "peak_rss_mb": 6621.7
+          }
+        },
+        "mode": "app",
+        "kind": "long",
+        "cold": false,
+        "memory": "populated",
+        "rep": 0
+      },
+      {
+        "marks": {
+          "status_retrieving": 0.0,
+          "sources": 0.0,
+          "sources_n": 4,
+          "status_generating": 0.0,
+          "first_token": 37.563,
+          "status_memorizing": 56.75,
+          "done": 56.75
+        },
+        "chars": 498,
+        "tokens_seen": 139,
+        "wall_s": 56.766,
+        "usage": {
+          "prompt_tokens": 3510,
+          "completion_tokens": 140,
+          "time_to_first_token_ms": 37563,
+          "tokens_per_second": 7.24,
+          "prompt_tokens_per_second": 51.16,
+          "prompt_cached_tokens": 1596,
+          "finish_reason": "stop"
+        },
+        "status": "complete",
+        "proc": {
+          "34196": {
+            "name": "python.exe",
+            "cpu_s": 0.0,
+            "peak_rss_mb": 4.3
+          },
+          "45760": {
+            "name": "llama-server.exe",
+            "cpu_s": 301.88,
+            "peak_rss_mb": 7556.7
+          }
+        },
+        "mode": "app",
+        "kind": "long",
+        "cold": false,
+        "memory": "populated",
+        "rep": 1
+      },
+      {
+        "marks": {
+          "status_retrieving": 0.0,
+          "sources": 0.016,
+          "sources_n": 5,
+          "status_generating": 0.016,
+          "first_token": 36.141,
+          "status_memorizing": 53.875,
+          "done": 53.875
+        },
+        "chars": 498,
+        "tokens_seen": 139,
+        "wall_s": 53.875,
+        "usage": {
+          "prompt_tokens": 4675,
+          "completion_tokens": 140,
+          "time_to_first_token_ms": 36125,
+          "tokens_per_second": 7.84,
+          "prompt_tokens_per_second": 57.53,
+          "prompt_cached_tokens": 2603,
+          "finish_reason": "stop"
+        },
+        "status": "complete",
+        "proc": {
+          "34196": {
+            "name": "python.exe",
+            "cpu_s": 0.0,
+            "peak_rss_mb": 4.1
+          },
+          "45760": {
+            "name": "llama-server.exe",
+            "cpu_s": 393.72,
+            "peak_rss_mb": 7690.6
+          }
+        },
+        "mode": "app",
+        "kind": "long",
+        "cold": false,
+        "memory": "populated",
+        "rep": 2
+      },
+      {
+        "marks": {
+          "status_retrieving": 0.0,
+          "sources": 0.0,
+          "sources_n": 11,
+          "status_generating": 0.0,
+          "first_token": 29.406,
+          "done": 33.734
+        },
+        "chars": 95,
+        "tokens_seen": 32,
+        "wall_s": 33.734,
+        "usage": {
+          "prompt_tokens": 5222,
+          "completion_tokens": 33,
+          "time_to_first_token_ms": 29406,
+          "tokens_per_second": 7.4,
+          "prompt_tokens_per_second": 54.96,
+          "prompt_cached_tokens": 3610,
+          "finish_reason": "stop"
+        },
+        "status": "complete",
+        "proc": {
+          "34196": {
+            "name": "python.exe",
+            "cpu_s": 0.0,
+            "peak_rss_mb": 4.1
+          },
+          "45760": {
+            "name": "llama-server.exe",
+            "cpu_s": 252.11,
+            "peak_rss_mb": 9010.6
+          }
+        },
+        "mode": "app",
+        "kind": "recall",
+        "cold": false,
+        "memory": "populated",
+        "rep": 0
+      },
+      {
+        "marks": {
+          "status_retrieving": 0.0,
+          "sources": 0.0,
+          "sources_n": 11,
+          "status_generating": 0.0,
+          "first_token": 29.0,
+          "done": 33.406
+        },
+        "chars": 95,
+        "tokens_seen": 32,
+        "wall_s": 33.406,
+        "usage": {
+          "prompt_tokens": 5281,
+          "completion_tokens": 33,
+          "time_to_first_token_ms": 29000,
+          "tokens_per_second": 7.27,
+          "prompt_tokens_per_second": 52.69,
+          "prompt_cached_tokens": 3754,
+          "finish_reason": "stop"
+        },
+        "status": "complete",
+        "proc": {
+          "34196": {
+            "name": "python.exe",
+            "cpu_s": 0.0,
+            "peak_rss_mb": 4.1
+          },
+          "45760": {
+            "name": "llama-server.exe",
+            "cpu_s": 253.39,
+            "peak_rss_mb": 8382.0
+          }
+        },
+        "mode": "app",
+        "kind": "recall",
+        "cold": false,
+        "memory": "populated",
+        "rep": 1
+      },
+      {
+        "marks": {
+          "status_retrieving": 0.0,
+          "sources": 0.0,
+          "sources_n": 11,
+          "status_generating": 0.0,
+          "first_token": 29.969,
+          "done": 34.406
+        },
+        "chars": 95,
+        "tokens_seen": 32,
+        "wall_s": 34.406,
+        "usage": {
+          "prompt_tokens": 5340,
+          "completion_tokens": 33,
+          "time_to_first_token_ms": 29952,
+          "tokens_per_second": 7.21,
+          "prompt_tokens_per_second": 50.99,
+          "prompt_cached_tokens": 3813,
+          "finish_reason": "stop"
+        },
+        "status": "complete",
+        "proc": {
+          "34196": {
+            "name": "python.exe",
+            "cpu_s": 0.0,
+            "peak_rss_mb": 4.1
+          },
+          "45760": {
+            "name": "llama-server.exe",
+            "cpu_s": 259.8,
+            "peak_rss_mb": 8385.6
+          }
+        },
+        "mode": "app",
+        "kind": "recall",
+        "cold": false,
+        "memory": "populated",
+        "rep": 2
+      },
+      {
+        "marks": {
+          "status_retrieving": 0.0,
+          "sources": 0.0,
+          "sources_n": 0,
+          "status_generating": 0.016,
+          "first_token": 2.985,
+          "status_memorizing": 3.547,
+          "done": 3.547
+        },
+        "chars": 15,
+        "tokens_seen": 5,
+        "wall_s": 3.547,
+        "usage": {
+          "prompt_tokens": 0,
+          "completion_tokens": 0,
+          "time_to_first_token_ms": 2969,
+          "tokens_per_second": 0.0,
+          "prompt_tokens_per_second": 0.0,
+          "prompt_cached_tokens": 0,
+          "finish_reason": null
+        },
+        "status": "stopped",
+        "proc": {
+          "34196": {
+            "name": "python.exe",
+            "cpu_s": 0.0,
+            "peak_rss_mb": 4.1
+          },
+          "45760": {
+            "name": "llama-server.exe",
+            "cpu_s": 26.58,
+            "peak_rss_mb": 8385.7
+          }
+        },
+        "stop_to_done_s": 0.109,
+        "stop_to_cpu_idle_s": 0.359,
+        "mode": "app",
+        "kind": "stop",
+        "cold": false,
+        "memory": "populated"
+      }
+    ],
+    "core_start_s": 6.27,
+    "model_ready_s": 4.03,
+    "runtime_status": {
+      "state": "ready",
+      "model_id": "qwen3-4b-q4_k_m",
+      "error": null,
+      "port": 53514,
+      "startup_seconds": 3.38,
+      "backend": "cpu",
+      "options": {
+        "backend": "cpu",
+        "device": null,
+        "gpu_layers": null,
+        "threads": 8,
+        "threads_batch": 8,
+        "prio": 0,
+        "reason_de": "CPU per Umgebungsvariable SPAIDER_FOLDABLE_BACKEND erzwungen."
+      }
+    },
+    "ingest_drain_after_short_s": 17.11,
+    "ingest_drain_after_long_s": 758.2,
+    "ingest_drain_facts_s": [
+      34.11,
+      62.19,
+      36.11
+    ],
+    "ui_responsiveness_probe_ms": null,
+    "shutdown_s": 1.89,
+    "llama_after_shutdown": []
+  }
+}

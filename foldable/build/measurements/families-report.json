@@ -1,0 +1,184 @@
+{
+  "models": {
+    "Llama-3.2-1B-Instruct-Q4_K_M.gguf.part": {
+      "file": "Llama-3.2-1B-Instruct-Q4_K_M.gguf.part",
+      "size_bytes": 807694464,
+      "model_id": "llama-3.2-1b-instruct-q4_k_m",
+      "name": "Llama 3.2 1B Instruct",
+      "architecture": "llama",
+      "context_length": 131072,
+      "family": "Llama",
+      "type": "chat",
+      "chat_template": true,
+      "reasoning_toggle": null,
+      "system_role": true,
+      "verification": {
+        "status": "unverified",
+        "date": "2026-11-02T11:46:14.353Z",
+        "scope": "lokaler Import (nur Header geprüft)"
+      },
+      "runtime": {
+        "state": "ready",
+        "model_id": "llama-3.2-1b-instruct-q4_k_m",
+        "error": null,
+        "port": 55408,
+        "startup_seconds": 4.61,
+        "backend": "vulkan",
+        "options": {
+          "backend": "vulkan",
+          "device": "Vulkan0",
+          "gpu_layers": 999,
+          "threads": 8,
+          "threads_batch": 8,
+          "prio": 0,
+          "reason_de": "Alle Schichten auf Intel(R) Arc(TM) 140V GPU (16GB) (geschätzt 2.1 GB von 17.2 GB frei)."
+        }
+      },
+      "turn1": {
+        "first_token_s": null,
+        "timings": {
+          "memory_search_ms": 0,
+          "prompt_build_ms": 407,
+          "prompt_processing_ms": 1765,
+          "generating_ms": 843,
+          "total_ms": 3030,
+          "first_token_ms": 1765
+        },
+        "text": "Der Nutzer schreibt eine Nachricht und ich habe den Text abgeleitet. Ich werde nun eine Antwort erstellen, basierend auf dem gespeicherten Wissen.\n\nNäheres zu L",
+        "thinking_events": 0
+      },
+      "immediate_question": {
+        "first_token_s": null,
+        "timings": {
+          "memory_search_ms": 0,
+          "prompt_build_ms": 438,
+          "prompt_processing_ms": 452,
+          "generating_ms": 47,
+          "total_ms": 954,
+          "first_token_ms": 452
+        },
+        "answer": "Lena Beispiel",
+        "answer_names_new_lead": false,
+        "answer_names_old_lead": true,
+        "pending_sources_seen": 2,
+        "preemptions": 0
+      },
+      "stop_to_done_s": 0.516,
+      "calibrate": {
+        "state": "done",
+        "message_de": "Gemessen: 71.17 Token/s, erstes Token nach 656 ms (vulkan)."
+      },
+      "measured": {
+        "backend": "vulkan",
+        "tokens_per_second": 71.17,
+        "time_to_first_token_ms": 656,
+        "prompt_tokens_per_second": 1046.03,
+        "load_seconds": 4.61,
+        "threads": 8,
+        "gpu_layers": 999,
+        "measured_at": "2026-11-02T11:46:29Z",
+        "fingerprint": "d5c9be4a263cd1fe",
+        "kind": "calibration"
+      },
+      "memory_overview_after_drain": {
+        "facts": 4,
+        "entities": 7,
+        "pending_ingest": 0
+      },
+      "shutdown_s": 2.44,
+      "raw_facts_left": 0,
+      "failed_queue_items": 0
+    },
+    "Ministral-3-3B-Instruct-2512-Q4_K_M.gguf.part": {
+      "file": "Ministral-3-3B-Instruct-2512-Q4_K_M.gguf.part",
+      "size_bytes": 2147023008,
+      "model_id": "ministral-3-3b-instruct-2512-q4_k_m",
+      "name": "ministral-3B-Instruct-2512",
+      "architecture": "mistral3",
+      "context_length": 262144,
+      "family": "Mistral",
+      "type": "chat",
+      "chat_template": true,
+      "reasoning_toggle": null,
+      "system_role": true,
+      "verification": {
+        "status": "unverified",
+        "date": "2026-11-02T11:47:28.273Z",
+        "scope": "lokaler Import (nur Header geprüft)"
+      },
+      "runtime": {
+        "state": "ready",
+        "model_id": "ministral-3-3b-instruct-2512-q4_k_m",
+        "error": null,
+        "port": 56929,
+        "startup_seconds": 5.88,
+        "backend": "vulkan",
+        "options": {
+          "backend": "vulkan",
+          "device": "Vulkan0",
+          "gpu_layers": 999,
+          "threads": 8,
+          "threads_batch": 8,
+          "prio": 0,
+          "reason_de": "Alle Schichten auf Intel(R) Arc(TM) 140V GPU (16GB) (geschätzt 4.8 GB von 17.2 GB frei)."
+        }
+      },
+      "turn1": {
+        "first_token_s": null,
+        "timings": {
+          "memory_search_ms": 0,
+          "prompt_build_ms": 391,
+          "prompt_processing_ms": 1061,
+          "generating_ms": 2141,
+          "total_ms": 3593,
+          "first_token_ms": 1061
+        },
+        "text": "Lena Beispiel ist laut der aktuellen Information aus deinem vorherigen Hinweis die Projektleiterin des **Polarstern**-Projekts. *(gespeichert [heute])*\n\nFalls e",
+        "thinking_events": 0
+      },
+      "immediate_question": {
+        "first_token_s": null,
+        "timings": {
+          "memory_search_ms": 0,
+          "prompt_build_ms": 406,
+          "prompt_processing_ms": 593,
+          "generating_ms": 141,
+          "total_ms": 1157,
+          "first_token_ms": 593
+        },
+        "answer": "Mara Muster",
+        "answer_names_new_lead": true,
+        "answer_names_old_lead": false,
+        "pending_sources_seen": 2,
+        "preemptions": 0
+      },
+      "stop_to_done_s": 0.547,
+      "calibrate": {
+        "state": "done",
+        "message_de": "Gemessen: 28.54 Token/s, erstes Token nach 891 ms (vulkan)."
+      },
+      "measured": {
+        "backend": "vulkan",
+        "tokens_per_second": 28.54,
+        "time_to_first_token_ms": 891,
+        "prompt_tokens_per_second": 282.72,
+        "load_seconds": 5.88,
+        "threads": 8,
+        "gpu_layers": 999,
+        "measured_at": "2026-11-02T11:47:50Z",
+        "fingerprint": "d5c9be4a263cd1fe",
+        "kind": "calibration"
+      },
+      "memory_overview_after_drain": {
+        "facts": 2,
+        "entities": 3,
+        "pending_ingest": 0
+      },
+      "shutdown_s": 2.67,
+      "raw_facts_left": 0,
+      "failed_queue_items": 0
+    }
+  },
+  "runtime_dir": "C:\\Users\\<Nutzer>\\spaider-foldable\\repo\\foldable\\build\\runtime\\llama",
+  "backend_env": "vulkan"
+}

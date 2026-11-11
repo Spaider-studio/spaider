@@ -1,0 +1,129 @@
+{
+ "zip": "C:\\Users\\<Nutzer>\\spaider-foldable\\repo-review\\foldable\\build\\out\\SpAIder-Foldable-0.3.0-review-cd50a04-win-x64.zip",
+ "zip_bytes": 395922585,
+ "started_at": "2026-11-04T11:53:13Z",
+ "steps": [
+  {
+   "files": 8642,
+   "gguf_in_zip": [],
+   "data_dir_in_zip": false,
+   "build_info": "version 0.3.0-review-cd50a04 | commit cd50a042046acee034e74383087851b58acd04f0",
+   "licenses": [
+    "Electron-LICENSE",
+    "Electron-LICENSES.chromium.html",
+    "LICENSE-LLVM-OpenMP",
+    "LICENSE-SpAIder-AGPL-3.0.txt",
+    "LICENSE-llama.cpp",
+    "RUNTIME_VERSION.txt"
+   ],
+   "name": "extract"
+  },
+  {
+   "id": "qwen3-vl-4b-instruct-q4_k_m",
+   "mmproj": true,
+   "name": "model_installed"
+  },
+  {
+   "seconds": 19.8,
+   "port": 60259,
+   "version": "0.3.0",
+   "model_state": "ready",
+   "backend": "vulkan",
+   "error": null,
+   "name": "core_ready"
+  },
+  {
+   "runs": [
+    {
+     "ttft_s": 1.14,
+     "total_s": 1.8,
+     "done": null
+    },
+    {
+     "ttft_s": 0.56,
+     "total_s": 0.81,
+     "done": null
+    },
+    {
+     "ttft_s": 0.64,
+     "total_s": 0.81,
+     "done": null
+    }
+   ],
+   "ttft_median_s": 0.64,
+   "name": "chat"
+  },
+  {
+   "remember": null,
+   "correction": null,
+   "ingest_wait_s": [
+    36.2,
+    35.1
+   ],
+   "facts": 3,
+   "answer": "Der Projektleiter von Atlas ist Priya Nair.",
+   "ok": true,
+   "name": "memory_before_restart"
+  },
+  {
+   "first_exit": 0,
+   "restart_ready_s": 13.1,
+   "backend": "vulkan",
+   "answer": "Der Projektleiter von Atlas ist Priya Nair.  \n*(laut Dokument vom 2026-11-04, aktualisiert von „Korrektur“)*",
+   "ok": true,
+   "name": "memory_after_restart"
+  },
+  {
+   "sources": {
+    "windows": 7,
+    "screens": 3
+   },
+   "self_excluded": true,
+   "snapshot_quality": "ok",
+   "preview": true,
+   "structure_question": {
+    "ttft_s": 0.56,
+    "total_s": 7.2,
+    "done": null
+   },
+   "image_question": {
+    "ttft_s": 9.55,
+    "total_s": 12.81,
+    "done": null
+   },
+   "vision_available": true,
+   "sessions_after": 0,
+   "name": "live"
+  },
+  {
+   "state": "completed",
+   "ok": true,
+   "verified": true,
+   "llm_calls": 3,
+   "step_count": 3,
+   "wall_s": 45.2,
+   "output_ok": true,
+   "name": "agent_file_task"
+  },
+  {
+   "state": "cancelled",
+   "cancel_to_terminal_s": 3.01,
+   "output_absent": true,
+   "actions_total": 0,
+   "tasks_running": [],
+   "name": "agent_cancel"
+  },
+  {
+   "exit_code": 0,
+   "leftover_pids": [],
+   "lock_removed": true,
+   "name": "shutdown"
+  }
+ ],
+ "netstat": {
+  "samples": 65,
+  "external": [],
+  "external_count": 0
+ },
+ "finished_at": "2026-11-04T11:56:53Z"
+}

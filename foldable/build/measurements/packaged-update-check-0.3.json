@@ -1,0 +1,66 @@
+{
+ "package": "C:\\Users\\<Nutzer>\\spaider-foldable\\repo\\foldable\\build\\out\\SpAIder-Foldable-0.3.0-win-x64\\SpAIder",
+ "app_root": "S:\\SpAIder Bestand ü",
+ "subst_drive": true,
+ "before": {
+  "conversations": 5,
+  "messages": 32,
+  "nodes": 25,
+  "edges": 22,
+  "documents": 0,
+  "notes": 0,
+  "models": 1,
+  "ingest_queue": 13,
+  "user_version": 1
+ },
+ "core_start_s": 2.84,
+ "health": {
+  "version": "0.3.0",
+  "app_root_seen": "C:\\Users\\<Nutzer>\\spaider-foldable\\measure\\update-test-0.3-pkg\\SpAIder Bestand ü"
+ },
+ "runtime": {
+  "state": "ready",
+  "model": "qwen3-4b-q4_k_m",
+  "backend": "vulkan",
+  "error": null
+ },
+ "setup": "ready",
+ "memory_overview": {
+  "facts": 16,
+  "entities": 11,
+  "conversations": 5,
+  "messages": 32,
+  "pending_ingest": 0
+ },
+ "tasks": 0,
+ "capabilities_model": {
+  "id": "qwen3-4b-q4_k_m",
+  "vision_input": false,
+  "image_grounding": "none",
+  "tool_call_format": "json_schema",
+  "structured_output": true
+ },
+ "sources": {
+  "windows": 14,
+  "screens": 3
+ },
+ "exit_code": 0,
+ "after": {
+  "conversations": 5,
+  "messages": 32,
+  "nodes": 29,
+  "edges": 22,
+  "documents": 0,
+  "notes": 0,
+  "models": 1,
+  "ingest_queue": 13,
+  "agent_tasks": 0,
+  "agent_actions": 0,
+  "agent_recipes": 0,
+  "user_version": 3,
+  "quick_check": "ok"
+ },
+ "original_untouched_user_version": 1,
+ "lock_removed": true,
+ "date": "2026-11-04T02:02:48Z"
+}

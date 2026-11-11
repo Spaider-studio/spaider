@@ -1,0 +1,809 @@
+{
+  "model": "gemma-4-e2b-it-q4_0-vision",
+  "catalog_id": "gemma-4-e2b-it-q4_0-vision",
+  "started_at": "2026-11-04T01:49:33Z",
+  "repeat": 2,
+  "task_timeout_s": 180,
+  "runs": [
+    {
+      "id": "F1",
+      "goal": "Lies die Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\F1-0\\Projekt Seeadler/notizen.txt und schreibe nach C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\F1-0\\Ausgabe eine Datei kickoff.md, die nur das Kickoff-Datum und die Projektleitung enthält. Prüfe, dass die Datei existiert.",
+      "success": true,
+      "false_success_claim": false,
+      "state": "completed",
+      "steps": 6,
+      "llm_calls": 6,
+      "wall_s": 43.5,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\F1-0\\Ausgabe\\kickoff.md",
+        "exists": true,
+        "missing": []
+      },
+      "summary": "Die Datei 'notizen.txt' wurde gelesen und die Datei 'kickoff.md' wurde erfolgreich in den Ordner 'C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\F1-0\\Ausgabe' geschrieben.",
+      "timings": {
+        "observe_ms": 0,
+        "wait_ms": 0,
+        "planning_ms": 43451,
+        "executing_ms": 46
+      },
+      "actions": [
+        [
+          1,
+          "files.read",
+          "done"
+        ],
+        [
+          2,
+          "files.read",
+          "done"
+        ],
+        [
+          3,
+          "files.read",
+          "done"
+        ],
+        [
+          4,
+          "files.write",
+          "done"
+        ]
+      ],
+      "group": "files_memory",
+      "repeat": 0
+    },
+    {
+      "id": "F1",
+      "goal": "Lies die Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\F1-1\\Projekt Nordlicht/notizen.txt und schreibe nach C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\F1-1\\Ausgabe eine Datei kickoff.md, die nur das Kickoff-Datum und die Projektleitung enthält. Prüfe, dass die Datei existiert.",
+      "success": true,
+      "false_success_claim": false,
+      "state": "completed",
+      "steps": 4,
+      "llm_calls": 4,
+      "wall_s": 29.1,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\F1-1\\Ausgabe\\kickoff.md",
+        "exists": true,
+        "missing": []
+      },
+      "summary": "Die Datei 'notizen.txt' wurde gelesen und die Datei 'kickoff.md' wurde erfolgreich mit dem Kickoff-Datum (06.06.2026) und der Projektleitung (Mara Muster) erstellt und gespeichert.",
+      "timings": {
+        "observe_ms": 0,
+        "wait_ms": 0,
+        "planning_ms": 29029,
+        "executing_ms": 14
+      },
+      "actions": [
+        [
+          1,
+          "files.read",
+          "done"
+        ],
+        [
+          2,
+          "files.write",
+          "done"
+        ]
+      ],
+      "group": "files_memory",
+      "repeat": 1
+    },
+    {
+      "id": "F3",
+      "goal": "Erstelle aus C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\F3-0\\Projekt Seeadler/team.csv die Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\F3-0\\Ausgabe/team.md mit einer Markdown-Tabelle (Name, Rolle) und der Teamgröße als Satz darunter.",
+      "success": true,
+      "false_success_claim": false,
+      "state": "completed",
+      "steps": 5,
+      "llm_calls": 7,
+      "wall_s": 44.3,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\F3-0\\Ausgabe\\team.md",
+        "exists": true,
+        "missing": []
+      },
+      "summary": "Markdown-Datei 'team.md' wurde erfolgreich erstellt und enthält die Namen und Rollen aus der CSV-Datei sowie die Teamgröße.",
+      "timings": {
+        "observe_ms": 0,
+        "wait_ms": 0,
+        "planning_ms": 44309,
+        "executing_ms": 14
+      },
+      "actions": [
+        [
+          1,
+          "files.read",
+          "done"
+        ],
+        [
+          2,
+          "files.write",
+          "done"
+        ]
+      ],
+      "group": "files_memory",
+      "repeat": 0
+    },
+    {
+      "id": "F3",
+      "goal": "Erstelle aus C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\F3-1\\Projekt Nordlicht/team.csv die Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\F3-1\\Ausgabe/team.md mit einer Markdown-Tabelle (Name, Rolle) und der Teamgröße als Satz darunter.",
+      "success": true,
+      "false_success_claim": false,
+      "state": "completed",
+      "steps": 5,
+      "llm_calls": 5,
+      "wall_s": 34.7,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\F3-1\\Ausgabe\\team.md",
+        "exists": true,
+        "missing": []
+      },
+      "summary": "Markdown-Datei 'team.md' wurde erfolgreich erstellt und enthält die Teaminformationen aus 'team.csv'.",
+      "timings": {
+        "observe_ms": 0,
+        "wait_ms": 0,
+        "planning_ms": 34653,
+        "executing_ms": 15
+      },
+      "actions": [
+        [
+          1,
+          "files.read",
+          "done"
+        ],
+        [
+          2,
+          "files.write",
+          "done"
+        ]
+      ],
+      "group": "files_memory",
+      "repeat": 1
+    },
+    {
+      "id": "B1",
+      "goal": "Öffne im eigenen Browser file:///C:/Users/<Nutzer>/AppData/Local/Temp/spaider-matrix-ov7kopdw/B1-0/web/seite.html und fülle das Formular aus der Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\B1-0\\quelle.txt (Projektname, Budget als Zahl, Priorität), klicke „Als Entwurf speichern“ und prüfe die Bestätigung „Entwurf gespeichert“.",
+      "success": true,
+      "false_success_claim": false,
+      "state": "completed",
+      "steps": 9,
+      "llm_calls": 9,
+      "wall_s": 55.4,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "expected": "Entwurf gespeichert: Morgenrot | 62750 | hoch"
+      },
+      "summary": "Formular erfolgreich ausgefüllt, gespeichert und Bestätigung geprüft. Projektname: Morgenrot, Budget: 62750, Priorität: hoch.",
+      "timings": {
+        "observe_ms": 48,
+        "wait_ms": 0,
+        "planning_ms": 53681,
+        "executing_ms": 1591
+      },
+      "actions": [
+        [
+          1,
+          "files.read",
+          "done"
+        ],
+        [
+          2,
+          "browser.open",
+          "done"
+        ],
+        [
+          3,
+          "browser.fill",
+          "done"
+        ],
+        [
+          4,
+          "browser.fill",
+          "done"
+        ],
+        [
+          5,
+          "browser.select",
+          "done"
+        ],
+        [
+          6,
+          "browser.click",
+          "done"
+        ]
+      ],
+      "group": "browser",
+      "repeat": 0
+    },
+    {
+      "id": "B1",
+      "goal": "Öffne im eigenen Browser file:///C:/Users/<Nutzer>/AppData/Local/Temp/spaider-matrix-ov7kopdw/B1-1/web/seite.html und fülle das Formular aus der Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\B1-1\\quelle.txt (Projektname, Budget als Zahl, Priorität), klicke „Als Entwurf speichern“ und prüfe die Bestätigung „Entwurf gespeichert“.",
+      "success": true,
+      "false_success_claim": false,
+      "state": "completed",
+      "steps": 9,
+      "llm_calls": 9,
+      "wall_s": 50.6,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "expected": "Entwurf gespeichert: Morgenrot | 48500 | hoch"
+      },
+      "summary": "Formular erfolgreich ausgefüllt, gespeichert und Bestätigung 'Entwurf gespeichert' geprüft.",
+      "timings": {
+        "observe_ms": 46,
+        "wait_ms": 0,
+        "planning_ms": 50292,
+        "executing_ms": 277
+      },
+      "actions": [
+        [
+          1,
+          "browser.open",
+          "done"
+        ],
+        [
+          2,
+          "files.read",
+          "done"
+        ],
+        [
+          3,
+          "browser.fill",
+          "done"
+        ],
+        [
+          4,
+          "browser.fill",
+          "done"
+        ],
+        [
+          5,
+          "browser.select",
+          "done"
+        ],
+        [
+          6,
+          "browser.click",
+          "done"
+        ],
+        [
+          7,
+          "browser.wait_for_text",
+          "done"
+        ]
+      ],
+      "group": "browser",
+      "repeat": 1
+    },
+    {
+      "id": "B3",
+      "goal": "Öffne im eigenen Browser file:///C:/Users/<Nutzer>/AppData/Local/Temp/spaider-matrix-ov7kopdw/B3-0/web/seite.html, klicke auf den Link „Details zu Polarstern“ und schreibe die Überschrift der Zielseite nach C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\B3-0\\Ausgabe/details.txt.",
+      "success": true,
+      "false_success_claim": false,
+      "state": "completed",
+      "steps": 6,
+      "llm_calls": 6,
+      "wall_s": 34.9,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\B3-0\\Ausgabe\\details.txt",
+        "exists": true,
+        "missing": []
+      },
+      "summary": "Überschrift der Zielseite 'Details Polarstern' wurde erfolgreich in 'C:/Users/<Nutzer>/AppData/Local/Temp/spaider-matrix-ov7kopdw/B3-0/Ausgabe/details.txt' geschrieben.",
+      "timings": {
+        "observe_ms": 0,
+        "wait_ms": 0,
+        "planning_ms": 34496,
+        "executing_ms": 342
+      },
+      "actions": [
+        [
+          1,
+          "browser.open",
+          "done"
+        ],
+        [
+          2,
+          "browser.click",
+          "done"
+        ],
+        [
+          3,
+          "browser.read",
+          "done"
+        ],
+        [
+          4,
+          "files.write",
+          "done"
+        ]
+      ],
+      "group": "browser",
+      "repeat": 0
+    },
+    {
+      "id": "B3",
+      "goal": "Öffne im eigenen Browser file:///C:/Users/<Nutzer>/AppData/Local/Temp/spaider-matrix-ov7kopdw/B3-1/web/seite.html, klicke auf den Link „Details zu Seeadler“ und schreibe die Überschrift der Zielseite nach C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\B3-1\\Ausgabe/details.txt.",
+      "success": true,
+      "false_success_claim": false,
+      "state": "completed",
+      "steps": 4,
+      "llm_calls": 4,
+      "wall_s": 22.1,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\B3-1\\Ausgabe\\details.txt",
+        "exists": true,
+        "missing": []
+      },
+      "summary": "Die Überschrift der Zielseite 'Details Seeadler' wurde erfolgreich in 'C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\B3-1\\Ausgabe/details.txt' geschrieben.",
+      "timings": {
+        "observe_ms": 16,
+        "wait_ms": 0,
+        "planning_ms": 21651,
+        "executing_ms": 343
+      },
+      "actions": [
+        [
+          1,
+          "browser.open",
+          "done"
+        ],
+        [
+          2,
+          "browser.click",
+          "done"
+        ],
+        [
+          3,
+          "files.write",
+          "done"
+        ]
+      ],
+      "group": "browser",
+      "repeat": 1
+    },
+    {
+      "id": "W1",
+      "goal": "Im Fenster „SpAIder Testanwendung W1-0-767“ (source_id win:3147338:44692): Trage in „Name“ den Text „Lena Test“ und in „Notizen“ den Text „Kickoff 04.12.2026“ ein, klicke „Speichern“ und prüfe die Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\W1-0\\ausgabe.txt.",
+      "success": false,
+      "false_success_claim": false,
+      "state": "failed",
+      "steps": 4,
+      "llm_calls": 4,
+      "wall_s": 35.3,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [
+        "windows.set_value"
+      ],
+      "rejected": 0,
+      "check": {
+        "ok": false,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\W1-0\\ausgabe.txt",
+        "exists": false,
+        "missing": [
+          "Lena Test",
+          "04.12.2026"
+        ]
+      },
+      "summary": "",
+      "timings": {
+        "observe_ms": 421,
+        "wait_ms": 0,
+        "planning_ms": 33951,
+        "executing_ms": 967
+      },
+      "actions": [
+        [
+          1,
+          "windows.set_value",
+          "failed",
+          "Text eingegeben (value_pattern); Rücklesen nicht möglich"
+        ],
+        [
+          2,
+          "windows.set_value",
+          "done"
+        ]
+      ],
+      "group": "windows",
+      "repeat": 0
+    },
+    {
+      "id": "W1",
+      "goal": "Im Fenster „SpAIder Testanwendung W1-1-580“ (source_id win:2822018:32320): Trage in „Name“ den Text „Samir Probe“ und in „Notizen“ den Text „Kickoff 08.08.2026“ ein, klicke „Speichern“ und prüfe die Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\W1-1\\ausgabe.txt.",
+      "success": false,
+      "false_success_claim": false,
+      "state": "failed",
+      "steps": 6,
+      "llm_calls": 6,
+      "wall_s": 53.1,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\W1-1\\ausgabe.txt",
+        "exists": true,
+        "missing": []
+      },
+      "summary": "Das Modell stellte wiederholt leere Rückfragen statt zu handeln.",
+      "timings": {
+        "observe_ms": 640,
+        "wait_ms": 0,
+        "planning_ms": 51119,
+        "executing_ms": 1265
+      },
+      "actions": [
+        [
+          1,
+          "windows.set_value",
+          "done"
+        ],
+        [
+          2,
+          "windows.set_value",
+          "done"
+        ],
+        [
+          3,
+          "windows.invoke",
+          "done"
+        ]
+      ],
+      "group": "windows",
+      "repeat": 1
+    },
+    {
+      "id": "W2",
+      "goal": "Im Fenster „SpAIder Testanwendung W2-0-429“ (source_id win:463544:43372): Lies den Inhalt des Feldes „Notizen“ und schreibe ihn nach C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\W2-0\\Ausgabe/gelesen.txt.",
+      "success": false,
+      "false_success_claim": false,
+      "state": "failed",
+      "steps": 9,
+      "llm_calls": 10,
+      "wall_s": 90.9,
+      "questions": 1,
+      "interventions": [
+        "Ich habe den Inhalt des Feldes 'Notizen' im Fenster 'SpAIder Testanwendung W2-0-429' gelesen. Der Inhalt lautet: 'Liefer"
+      ],
+      "failed_tools": [
+        "files.write"
+      ],
+      "rejected": 0,
+      "check": {
+        "ok": false,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\W2-0\\Ausgabe\\gelesen.txt",
+        "exists": true,
+        "missing": [
+          "Lieferung verschoben auf 09.08.2026"
+        ]
+      },
+      "summary": "files.write ist dreimal mit denselben Argumenten gescheitert: Datei existiert bereits: gelesen.txt. Für Änderungen mode=\"overwrite\" mit if_sha256 des gelesenen Stands verwenden.",
+      "timings": {
+        "observe_ms": 750,
+        "wait_ms": 0,
+        "planning_ms": 89921,
+        "executing_ms": 106
+      },
+      "actions": [
+        [
+          1,
+          "files.write",
+          "done"
+        ],
+        [
+          2,
+          "files.write",
+          "failed",
+          "exists"
+        ],
+        [
+          3,
+          "windows.read",
+          "done"
+        ],
+        [
+          4,
+          "files.write",
+          "failed",
+          "exists"
+        ],
+        [
+          5,
+          "files.write",
+          "failed",
+          "conflict"
+        ],
+        [
+          6,
+          "files.write",
+          "failed",
+          "exists"
+        ],
+        [
+          7,
+          "files.write",
+          "failed",
+          "exists"
+        ]
+      ],
+      "group": "windows",
+      "repeat": 0
+    },
+    {
+      "id": "W2",
+      "goal": "Im Fenster „SpAIder Testanwendung W2-1-911“ (source_id win:725904:33056): Lies den Inhalt des Feldes „Notizen“ und schreibe ihn nach C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\W2-1\\Ausgabe/gelesen.txt.",
+      "success": true,
+      "false_success_claim": false,
+      "state": "completed",
+      "steps": 6,
+      "llm_calls": 6,
+      "wall_s": 50.0,
+      "questions": 1,
+      "interventions": [
+        "Möchten Sie, dass ich den Inhalt des Feldes 'Notizen' aus dem Fenster 'SpAIder Testanwendung W2-1-911' lese und ihn in d"
+      ],
+      "failed_tools": [],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\W2-1\\Ausgabe\\gelesen.txt",
+        "exists": true,
+        "missing": []
+      },
+      "summary": "Inhalt des Feldes 'Notizen' aus dem Fenster 'SpAIder Testanwendung W2-1-911' wurde erfolgreich gelesen und in 'C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\W2-1\\Ausgabe/gelesen.txt' gesc",
+      "timings": {
+        "observe_ms": 561,
+        "wait_ms": 0,
+        "planning_ms": 49281,
+        "executing_ms": 108
+      },
+      "actions": [
+        [
+          1,
+          "windows.read",
+          "done"
+        ],
+        [
+          2,
+          "files.write",
+          "done"
+        ]
+      ],
+      "group": "windows",
+      "repeat": 1
+    },
+    {
+      "id": "V1",
+      "goal": "Beschreibe mit vision.describe, was im Fenster „SpAIder Testanwendung V1-0-758“ (source_id win:1511574:1912) im Feld „Notizen“ steht, und schreibe die Antwort nach C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\V1-0\\Ausgabe/bild.txt.",
+      "success": true,
+      "false_success_claim": false,
+      "state": "completed",
+      "steps": 4,
+      "llm_calls": 4,
+      "wall_s": 30.1,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\V1-0\\Ausgabe\\bild.txt",
+        "exists": true,
+        "missing": []
+      },
+      "summary": "Inhalt des Feldes 'Notizen' wurde beschrieben und in bild.txt geschrieben.",
+      "timings": {
+        "observe_ms": 373,
+        "wait_ms": 0,
+        "planning_ms": 28294,
+        "executing_ms": 1391
+      },
+      "actions": [
+        [
+          1,
+          "vision.describe",
+          "done"
+        ],
+        [
+          2,
+          "files.write",
+          "done"
+        ]
+      ],
+      "group": "visual",
+      "repeat": 0
+    },
+    {
+      "id": "V1",
+      "goal": "Beschreibe mit vision.describe, was im Fenster „SpAIder Testanwendung V1-1-755“ (source_id win:4133600:20212) im Feld „Notizen“ steht, und schreibe die Antwort nach C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\V1-1\\Ausgabe/bild.txt.",
+      "success": true,
+      "false_success_claim": false,
+      "state": "completed",
+      "steps": 3,
+      "llm_calls": 3,
+      "wall_s": 24.8,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\V1-1\\Ausgabe\\bild.txt",
+        "exists": true,
+        "missing": []
+      },
+      "summary": "Inhalt des Feldes 'Notizen' wurde erfolgreich beschrieben und in die Datei geschrieben.",
+      "timings": {
+        "observe_ms": 279,
+        "wait_ms": 0,
+        "planning_ms": 23141,
+        "executing_ms": 1326
+      },
+      "actions": [
+        [
+          1,
+          "vision.describe",
+          "done"
+        ],
+        [
+          2,
+          "files.write",
+          "done"
+        ]
+      ],
+      "group": "visual",
+      "repeat": 1
+    },
+    {
+      "id": "V4",
+      "goal": "Im Fenster „SpAIder Bildfenster V4-0-874“ (source_id win:988024:27052) wird eine Fehlermeldung angezeigt. Lies sie mit vision.describe und schreibe den Fehlercode nach C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\V4-0\\Ausgabe/fehler.txt.",
+      "success": true,
+      "false_success_claim": false,
+      "state": "completed",
+      "steps": 4,
+      "llm_calls": 4,
+      "wall_s": 31.8,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\V4-0\\Ausgabe\\fehler.txt",
+        "exists": true,
+        "missing": []
+      },
+      "summary": "Der Fehlercode 0xC33F wurde erfolgreich in die Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\V4-0\\Ausgabe\\fehler.txt geschrieben. Dies erfüllt die Anforderung, den Fehlercode zu spe",
+      "timings": {
+        "observe_ms": 312,
+        "wait_ms": 0,
+        "planning_ms": 29731,
+        "executing_ms": 1718
+      },
+      "actions": [
+        [
+          1,
+          "vision.describe",
+          "done"
+        ],
+        [
+          2,
+          "files.write",
+          "done"
+        ]
+      ],
+      "group": "visual",
+      "repeat": 0
+    },
+    {
+      "id": "V4",
+      "goal": "Im Fenster „SpAIder Bildfenster V4-1-814“ (source_id win:1053584:40680) wird eine Fehlermeldung angezeigt. Lies sie mit vision.describe und schreibe den Fehlercode nach C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\V4-1\\Ausgabe/fehler.txt.",
+      "success": true,
+      "false_success_claim": false,
+      "state": "completed",
+      "steps": 5,
+      "llm_calls": 5,
+      "wall_s": 39.5,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\V4-1\\Ausgabe\\fehler.txt",
+        "exists": true,
+        "missing": []
+      },
+      "summary": "Fehlercode 0x9492 wurde erfolgreich in die Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\V4-1\\Ausgabe\\fehler.txt geschrieben.",
+      "timings": {
+        "observe_ms": 355,
+        "wait_ms": 0,
+        "planning_ms": 37390,
+        "executing_ms": 1750
+      },
+      "actions": [
+        [
+          1,
+          "vision.describe",
+          "done"
+        ],
+        [
+          2,
+          "files.write",
+          "done"
+        ]
+      ],
+      "group": "visual",
+      "repeat": 1
+    }
+  ],
+  "host": {
+    "desktop_interactive": true
+  },
+  "runtime": {
+    "backend": "vulkan",
+    "device": "Vulkan0",
+    "gpu_layers": 999,
+    "threads": 8,
+    "threads_batch": 8,
+    "prio": 0,
+    "reason_de": "Alle Schichten auf Intel(R) Arc(TM) 140V GPU (16GB) (geschätzt 4.7 GB von 17.2 GB frei).",
+    "mmproj_offload": true,
+    "image_max_tokens": null,
+    "mmproj": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-ov7kopdw\\SpAIder\\data\\models\\gemma-4-e2b-it-q4_0-vision\\mmproj-gemma-4-E2B-it-Q8_0.gguf"
+  },
+  "capabilities": {
+    "id": "gemma-4-e2b-it-q4_0-vision",
+    "vision_input": true,
+    "image_grounding": "untested",
+    "tool_call_format": "json_schema",
+    "structured_output": true
+  },
+  "summary": {
+    "success": 13,
+    "total": 16,
+    "false_success_claims": 0,
+    "questions": 2,
+    "median_wall_s": 39.5
+  }
+}

@@ -1,0 +1,2046 @@
+{
+  "started_at": "2026-11-04T01:24:35.299Z",
+  "core_port": 50506,
+  "cycles": [
+    {
+      "cycle": 1,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 57,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 39,
+      "session_id": "live_fb537d052d",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 93,
+      "sessions_after_esc": [
+        "live_fb537d052d"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 1.7,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 51.7,
+      "hotkey_to_painted_ms": 89.3,
+      "show_to_painted_ms": 56.8,
+      "foreground_ms": 29.5
+    },
+    {
+      "cycle": 2,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 54,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 62.6,
+      "session_id": "live_8ade8ea80c",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 61,
+      "sessions_after_esc": [
+        "live_8ade8ea80c"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 1.2,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 49.6,
+      "hotkey_to_painted_ms": 54.9,
+      "show_to_painted_ms": 24.5,
+      "foreground_ms": 28.9
+    },
+    {
+      "cycle": 3,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 54,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 35.2,
+      "session_id": "live_5208eba95c",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 62,
+      "sessions_after_esc": [
+        "live_5208eba95c"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 1.2,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 51.5,
+      "hotkey_to_painted_ms": 55.4,
+      "show_to_painted_ms": 25.9,
+      "foreground_ms": 27.2
+    },
+    {
+      "cycle": 4,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 44,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 42.7,
+      "session_id": "live_61815e7277",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 108,
+      "sessions_after_esc": [
+        "live_61815e7277"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 1.1,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 43.3,
+      "hotkey_to_painted_ms": 45.9,
+      "show_to_painted_ms": 19,
+      "foreground_ms": 25.7
+    },
+    {
+      "cycle": 5,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 43,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 31.9,
+      "session_id": "live_436995fec4",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 62,
+      "sessions_after_esc": [
+        "live_436995fec4"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 1.1,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 41.7,
+      "hotkey_to_painted_ms": 51.8,
+      "show_to_painted_ms": 26,
+      "foreground_ms": 24.5
+    },
+    {
+      "cycle": 6,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 47,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 26.5,
+      "session_id": "live_8d19f09e3e",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 61,
+      "sessions_after_esc": [
+        "live_8d19f09e3e"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 1.1,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 44,
+      "hotkey_to_painted_ms": 51.6,
+      "show_to_painted_ms": 25.6,
+      "foreground_ms": 24.8
+    },
+    {
+      "cycle": 7,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 46,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 23.4,
+      "session_id": "live_31f82031a4",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 64,
+      "sessions_after_esc": [
+        "live_31f82031a4"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 2,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 43.7,
+      "hotkey_to_painted_ms": 52.7,
+      "show_to_painted_ms": 27.6,
+      "foreground_ms": 23.7
+    },
+    {
+      "cycle": 8,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 84,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 57.6,
+      "session_id": "live_bb4730a721",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 109,
+      "sessions_after_esc": [
+        "live_bb4730a721"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 1.8,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 80.6,
+      "hotkey_to_painted_ms": 88.5,
+      "show_to_painted_ms": 35.9,
+      "foreground_ms": 51.1
+    },
+    {
+      "cycle": 9,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 56,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 33.9,
+      "session_id": "live_926087b63d",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 62,
+      "sessions_after_esc": [
+        "live_926087b63d"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 2.8,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 53,
+      "hotkey_to_painted_ms": 55.5,
+      "show_to_painted_ms": 24.9,
+      "foreground_ms": 29.1
+    },
+    {
+      "cycle": 10,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 62,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 24.9,
+      "session_id": "live_5cafe90c18",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 62,
+      "sessions_after_esc": [
+        "live_5cafe90c18"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 1,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 58.5,
+      "hotkey_to_painted_ms": 64,
+      "show_to_painted_ms": 36.8,
+      "foreground_ms": 26
+    },
+    {
+      "cycle": 11,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 45,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 32.1,
+      "session_id": "live_20421543fd",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 61,
+      "sessions_after_esc": [
+        "live_20421543fd"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 3.3,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 44.1,
+      "hotkey_to_painted_ms": 49.5,
+      "show_to_painted_ms": 21.1,
+      "foreground_ms": 27.2
+    },
+    {
+      "cycle": 12,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 47,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 46.8,
+      "session_id": "live_44c1bcded6",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 62,
+      "sessions_after_esc": [
+        "live_44c1bcded6"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 2.2,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 43.5,
+      "hotkey_to_painted_ms": 52.3,
+      "show_to_painted_ms": 25.4,
+      "foreground_ms": 25.7
+    },
+    {
+      "cycle": 13,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 60,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 45,
+      "session_id": "live_c8323462f7",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 60,
+      "sessions_after_esc": [
+        "live_c8323462f7"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 1.5,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 56.4,
+      "hotkey_to_painted_ms": 64.7,
+      "show_to_painted_ms": 30.7,
+      "foreground_ms": 32.7
+    },
+    {
+      "cycle": 14,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 50,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 33.7,
+      "session_id": "live_5ee276c950",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 62,
+      "sessions_after_esc": [
+        "live_5ee276c950"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 1.3,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 47.8,
+      "hotkey_to_painted_ms": 51.7,
+      "show_to_painted_ms": 19.1,
+      "foreground_ms": 31.4
+    },
+    {
+      "cycle": 15,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 47,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 23.8,
+      "session_id": "live_c4a407743e",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 61,
+      "sessions_after_esc": [
+        "live_c4a407743e"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 3.2,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 43.2,
+      "hotkey_to_painted_ms": 50.8,
+      "show_to_painted_ms": 26.6,
+      "foreground_ms": 22.8
+    },
+    {
+      "cycle": 16,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 52,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 34.5,
+      "session_id": "live_06b84b40b0",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 77,
+      "sessions_after_esc": [
+        "live_06b84b40b0"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 2.1,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 47.6,
+      "hotkey_to_painted_ms": 53.6,
+      "show_to_painted_ms": 23.7,
+      "foreground_ms": 28.5
+    },
+    {
+      "cycle": 17,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 71,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 44.4,
+      "session_id": "live_df8193bfb3",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 62,
+      "sessions_after_esc": [
+        "live_df8193bfb3"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 1.2,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 70.3,
+      "hotkey_to_painted_ms": 75.8,
+      "show_to_painted_ms": 36.5,
+      "foreground_ms": 37.9
+    },
+    {
+      "cycle": 18,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 58,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 35.5,
+      "session_id": "live_fc6a0528f0",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 62,
+      "sessions_after_esc": [
+        "live_fc6a0528f0"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 1.3,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 54.4,
+      "hotkey_to_painted_ms": 59.7,
+      "show_to_painted_ms": 28.2,
+      "foreground_ms": 30.3
+    },
+    {
+      "cycle": 19,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 44,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 26.9,
+      "session_id": "live_8e53ecd02e",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 64,
+      "sessions_after_esc": [
+        "live_8e53ecd02e"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 1.5,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 43.2,
+      "hotkey_to_painted_ms": 51.5,
+      "show_to_painted_ms": 27.4,
+      "foreground_ms": 23.1
+    },
+    {
+      "cycle": 20,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 45,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 27.1,
+      "session_id": "live_10bfa97039",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 61,
+      "sessions_after_esc": [
+        "live_10bfa97039"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 1.8,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 42.7,
+      "hotkey_to_painted_ms": 51.7,
+      "show_to_painted_ms": 27.2,
+      "foreground_ms": 23.1
+    },
+    {
+      "cycle": 21,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 58,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 35.9,
+      "session_id": "live_1e468adb44",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 109,
+      "sessions_after_esc": [
+        "live_1e468adb44"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 1,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 53.6,
+      "hotkey_to_painted_ms": 57.1,
+      "show_to_painted_ms": 26.3,
+      "foreground_ms": 29.2
+    },
+    {
+      "cycle": 22,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 53,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 44.9,
+      "session_id": "live_1b562f4f92",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 62,
+      "sessions_after_esc": [
+        "live_1b562f4f92"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 1.4,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 52.1,
+      "hotkey_to_painted_ms": 57,
+      "show_to_painted_ms": 27.7,
+      "foreground_ms": 27.8
+    },
+    {
+      "cycle": 23,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 57,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 41.2,
+      "session_id": "live_d9fed3faf7",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 61,
+      "sessions_after_esc": [
+        "live_d9fed3faf7"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 1.2,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 55.2,
+      "hotkey_to_painted_ms": 58.7,
+      "show_to_painted_ms": 23.7,
+      "foreground_ms": 33.7
+    },
+    {
+      "cycle": 24,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 48,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 26,
+      "session_id": "live_efaba20bae",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 61,
+      "sessions_after_esc": [
+        "live_efaba20bae"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 1.1,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 46,
+      "hotkey_to_painted_ms": 51.2,
+      "show_to_painted_ms": 21.6,
+      "foreground_ms": 28.1
+    },
+    {
+      "cycle": 25,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 60,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 47.1,
+      "session_id": "live_2fc0e69aed",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 62,
+      "sessions_after_esc": [
+        "live_2fc0e69aed"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 1.6,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 57.1,
+      "hotkey_to_painted_ms": 65.7,
+      "show_to_painted_ms": 32.1,
+      "foreground_ms": 32.6
+    },
+    {
+      "cycle": 26,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 57,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 36.1,
+      "session_id": "live_b42deee8a7",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 92,
+      "sessions_after_esc": [
+        "live_b42deee8a7"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 1.2,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 52.7,
+      "hotkey_to_painted_ms": 59,
+      "show_to_painted_ms": 26.9,
+      "foreground_ms": 30.7
+    },
+    {
+      "cycle": 27,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 61,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 41.3,
+      "session_id": "live_0f7df9f248",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 61,
+      "sessions_after_esc": [
+        "live_0f7df9f248"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 3,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 59.1,
+      "hotkey_to_painted_ms": 68.2,
+      "show_to_painted_ms": 30.5,
+      "foreground_ms": 36.3
+    },
+    {
+      "cycle": 28,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 47,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 35.6,
+      "session_id": "live_ed4c0ce53c",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 61,
+      "sessions_after_esc": [
+        "live_ed4c0ce53c"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 1.2,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 43.8,
+      "hotkey_to_painted_ms": 52.8,
+      "show_to_painted_ms": 25.2,
+      "foreground_ms": 26.4
+    },
+    {
+      "cycle": 29,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 45,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 25.4,
+      "session_id": "live_48df9480d1",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 60,
+      "sessions_after_esc": [
+        "live_48df9480d1"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 1.7,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 41.2,
+      "hotkey_to_painted_ms": 49.6,
+      "show_to_painted_ms": 26.3,
+      "foreground_ms": 22.2
+    },
+    {
+      "cycle": 30,
+      "fg_ok": true,
+      "os_keydown_to_show_ms": 41,
+      "picker_open": false,
+      "hint_pending": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe",
+      "source_id": "win:202214:4828",
+      "session_create_status": 201,
+      "session_create_ms": 24.5,
+      "session_id": "live_961c8d1e8b",
+      "esc_hidden": true,
+      "esc_to_hidden_ms": 62,
+      "sessions_after_esc": [
+        "live_961c8d1e8b"
+      ],
+      "session_delete_status": 200,
+      "session_delete_ms": 1.8,
+      "sessions_after_delete": [],
+      "sessions_empty": true,
+      "hotkey_to_show_ms": 40,
+      "hotkey_to_painted_ms": 44.8,
+      "show_to_painted_ms": 20.7,
+      "foreground_ms": 23
+    }
+  ],
+  "resources": [
+    {
+      "label": "before cycle 1",
+      "at": "2026-11-04T01:24:36.806Z",
+      "windows": 2,
+      "overlay_windows": 1,
+      "hotkeys_registered": {
+        "overlay": true,
+        "stop": true
+      },
+      "main_process": {
+        "memory": {
+          "residentSet": 110200,
+          "private": 42868,
+          "shared": 804
+        },
+        "heap": {
+          "totalHeapSize": 8960,
+          "totalHeapSizeExecutable": 768,
+          "totalPhysicalSize": 8960,
+          "totalAvailableSize": 4287673,
+          "usedHeapSize": 6726,
+          "heapSizeLimit": 4292608,
+          "mallocedMemory": 218,
+          "peakMallocedMemory": 9130,
+          "doesZapGarbage": false
+        },
+        "ipcMain_on_listeners": {
+          "error": 1,
+          "spaider:overlay-painted": 1,
+          "spaider:active-conversations": 1
+        },
+        "ipcMain_on_total": 3,
+        "ipcMain_invoke_handlers": 18,
+        "app_listeners": {
+          "quit": 1,
+          "window-all-closed": 2,
+          "before-quit": 1,
+          "second-instance": 1,
+          "will-quit": 1
+        },
+        "app_listeners_total": 6,
+        "overlay_window_listeners": {
+          "blur": 1,
+          "focus": 1,
+          "close": 2,
+          "closed": 1,
+          "page-title-updated": 1,
+          "show": 2,
+          "move": 1,
+          "resize": 1
+        },
+        "overlay_webcontents_listeners": {
+          "-will-add-new-contents": 1,
+          "-add-new-contents": 1,
+          "-run-dialog": 1,
+          "-cancel-dialogs": 1,
+          "newListener": 1,
+          "removeListener": 1,
+          "unresponsive": 1,
+          "responsive": 1,
+          "destroyed": 1,
+          "will-attach-webview": 1,
+          "before-input-event": 1
+        },
+        "main_window_listeners": {
+          "blur": 1,
+          "focus": 1,
+          "close": 2,
+          "closed": 2,
+          "resize": 1,
+          "move": 1,
+          "maximize": 1,
+          "unmaximize": 1
+        },
+        "main_webcontents_listeners": {
+          "-will-add-new-contents": 1,
+          "-add-new-contents": 1,
+          "-run-dialog": 1,
+          "-cancel-dialogs": 1,
+          "newListener": 1,
+          "removeListener": 1,
+          "unresponsive": 1,
+          "responsive": 1,
+          "destroyed": 1,
+          "will-navigate": 1,
+          "will-attach-webview": 1,
+          "before-input-event": 1
+        }
+      },
+      "electron": [
+        {
+          "pid": 15456,
+          "type": "Browser",
+          "name": "electron",
+          "ws_kb": 109140,
+          "private_kb": 43320,
+          "handles": 1056,
+          "gdi": 42,
+          "user": 64,
+          "ws": 112390144,
+          "private": 43753472,
+          "threads": 51
+        },
+        {
+          "pid": 42748,
+          "type": "GPU",
+          "name": "electron",
+          "ws_kb": 143436,
+          "private_kb": 98044,
+          "handles": 499,
+          "gdi": 6,
+          "user": 13,
+          "ws": 146886656,
+          "private": 100405248,
+          "threads": 27
+        },
+        {
+          "pid": 32584,
+          "type": "Utility",
+          "name": "electron",
+          "ws_kb": 49820,
+          "private_kb": 12208,
+          "handles": 382,
+          "gdi": 0,
+          "user": 4,
+          "ws": 51015680,
+          "private": 12500992,
+          "threads": 24
+        },
+        {
+          "pid": 37128,
+          "type": "Tab",
+          "name": "electron",
+          "ws_kb": 92988,
+          "private_kb": 41032,
+          "handles": 291,
+          "gdi": 0,
+          "user": 0,
+          "ws": 95252480,
+          "private": 42049536,
+          "threads": 14
+        },
+        {
+          "pid": 20328,
+          "type": "Tab",
+          "name": "electron",
+          "ws_kb": 87672,
+          "private_kb": 35964,
+          "handles": 278,
+          "gdi": 0,
+          "user": 0,
+          "ws": 89776128,
+          "private": 36827136,
+          "threads": 12
+        }
+      ],
+      "core": [
+        {
+          "pid": 23768,
+          "name": "python",
+          "handles": 70,
+          "gdi": 0,
+          "user": 0,
+          "ws": 4521984,
+          "private": 774144,
+          "threads": 1
+        },
+        {
+          "pid": 39024,
+          "name": "python",
+          "handles": 590,
+          "gdi": 0,
+          "user": 5,
+          "ws": 266158080,
+          "private": 471834624,
+          "threads": 17
+        },
+        {
+          "pid": 37828,
+          "name": "llama-server",
+          "handles": 227,
+          "gdi": 0,
+          "user": 1,
+          "ws": 1935015936,
+          "private": 5453885440,
+          "threads": 12
+        }
+      ],
+      "renderer_overlay": {
+        "dom_nodes": 63,
+        "js_heap_used": 10000000,
+        "js_heap_total": 10000000
+      },
+      "renderer_main": {
+        "dom_nodes": 156,
+        "js_heap_used": 10000000,
+        "js_heap_total": 10000000
+      }
+    },
+    {
+      "label": "after cycle 10",
+      "at": "2026-11-04T01:24:56.624Z",
+      "windows": 2,
+      "overlay_windows": 1,
+      "hotkeys_registered": {
+        "overlay": true,
+        "stop": true
+      },
+      "main_process": {
+        "memory": {
+          "residentSet": 115512,
+          "private": 46604,
+          "shared": 804
+        },
+        "heap": {
+          "totalHeapSize": 9984,
+          "totalHeapSizeExecutable": 1280,
+          "totalPhysicalSize": 9984,
+          "totalAvailableSize": 4285562,
+          "usedHeapSize": 7556,
+          "heapSizeLimit": 4292608,
+          "mallocedMemory": 218,
+          "peakMallocedMemory": 9187,
+          "doesZapGarbage": false
+        },
+        "ipcMain_on_listeners": {
+          "error": 1,
+          "spaider:overlay-painted": 1,
+          "spaider:active-conversations": 1
+        },
+        "ipcMain_on_total": 3,
+        "ipcMain_invoke_handlers": 18,
+        "app_listeners": {
+          "quit": 1,
+          "window-all-closed": 2,
+          "before-quit": 1,
+          "second-instance": 1,
+          "will-quit": 1
+        },
+        "app_listeners_total": 6,
+        "overlay_window_listeners": {
+          "blur": 1,
+          "focus": 1,
+          "close": 2,
+          "closed": 1,
+          "page-title-updated": 1,
+          "show": 2,
+          "move": 1,
+          "resize": 1
+        },
+        "overlay_webcontents_listeners": {
+          "-will-add-new-contents": 1,
+          "-add-new-contents": 1,
+          "-run-dialog": 1,
+          "-cancel-dialogs": 1,
+          "newListener": 1,
+          "removeListener": 1,
+          "unresponsive": 1,
+          "responsive": 1,
+          "destroyed": 1,
+          "will-attach-webview": 1,
+          "before-input-event": 1
+        },
+        "main_window_listeners": {
+          "blur": 1,
+          "focus": 1,
+          "close": 2,
+          "closed": 2,
+          "resize": 1,
+          "move": 1,
+          "maximize": 1,
+          "unmaximize": 1
+        },
+        "main_webcontents_listeners": {
+          "-will-add-new-contents": 1,
+          "-add-new-contents": 1,
+          "-run-dialog": 1,
+          "-cancel-dialogs": 1,
+          "newListener": 1,
+          "removeListener": 1,
+          "unresponsive": 1,
+          "responsive": 1,
+          "destroyed": 1,
+          "will-navigate": 1,
+          "will-attach-webview": 1,
+          "before-input-event": 1
+        }
+      },
+      "electron": [
+        {
+          "pid": 15456,
+          "type": "Browser",
+          "name": "electron",
+          "ws_kb": 115500,
+          "private_kb": 46596,
+          "handles": 1055,
+          "gdi": 42,
+          "user": 65,
+          "ws": 118272000,
+          "private": 47714304,
+          "threads": 51
+        },
+        {
+          "pid": 42748,
+          "type": "GPU",
+          "name": "electron",
+          "ws_kb": 144852,
+          "private_kb": 98232,
+          "handles": 489,
+          "gdi": 8,
+          "user": 13,
+          "ws": 148328448,
+          "private": 100589568,
+          "threads": 28
+        },
+        {
+          "pid": 32584,
+          "type": "Utility",
+          "name": "electron",
+          "ws_kb": 50240,
+          "private_kb": 12236,
+          "handles": 373,
+          "gdi": 0,
+          "user": 4,
+          "ws": 51445760,
+          "private": 12529664,
+          "threads": 24
+        },
+        {
+          "pid": 37128,
+          "type": "Tab",
+          "name": "electron",
+          "ws_kb": 92088,
+          "private_kb": 39244,
+          "handles": 288,
+          "gdi": 0,
+          "user": 0,
+          "ws": 94298112,
+          "private": 40185856,
+          "threads": 14
+        },
+        {
+          "pid": 20328,
+          "type": "Tab",
+          "name": "electron",
+          "ws_kb": 92948,
+          "private_kb": 37588,
+          "handles": 286,
+          "gdi": 0,
+          "user": 0,
+          "ws": 95178752,
+          "private": 38490112,
+          "threads": 14
+        }
+      ],
+      "core": [
+        {
+          "pid": 23768,
+          "name": "python",
+          "handles": 70,
+          "gdi": 0,
+          "user": 0,
+          "ws": 4521984,
+          "private": 774144,
+          "threads": 1
+        },
+        {
+          "pid": 39024,
+          "name": "python",
+          "handles": 576,
+          "gdi": 0,
+          "user": 5,
+          "ws": 266240000,
+          "private": 471736320,
+          "threads": 15
+        },
+        {
+          "pid": 37828,
+          "name": "llama-server",
+          "handles": 227,
+          "gdi": 0,
+          "user": 1,
+          "ws": 1917808640,
+          "private": 5453885440,
+          "threads": 12
+        }
+      ],
+      "renderer_overlay": {
+        "dom_nodes": 63,
+        "js_heap_used": 10000000,
+        "js_heap_total": 10000000
+      },
+      "renderer_main": {
+        "dom_nodes": 156,
+        "js_heap_used": 10000000,
+        "js_heap_total": 10000000
+      }
+    },
+    {
+      "label": "after cycle 20",
+      "at": "2026-11-04T01:25:17.052Z",
+      "windows": 2,
+      "overlay_windows": 1,
+      "hotkeys_registered": {
+        "overlay": true,
+        "stop": true
+      },
+      "main_process": {
+        "memory": {
+          "residentSet": 113952,
+          "private": 43480,
+          "shared": 804
+        },
+        "heap": {
+          "totalHeapSize": 7936,
+          "totalHeapSizeExecutable": 1280,
+          "totalPhysicalSize": 7936,
+          "totalAvailableSize": 4287381,
+          "usedHeapSize": 7012,
+          "heapSizeLimit": 4292608,
+          "mallocedMemory": 146,
+          "peakMallocedMemory": 9580,
+          "doesZapGarbage": false
+        },
+        "ipcMain_on_listeners": {
+          "error": 1,
+          "spaider:overlay-painted": 1,
+          "spaider:active-conversations": 1
+        },
+        "ipcMain_on_total": 3,
+        "ipcMain_invoke_handlers": 18,
+        "app_listeners": {
+          "quit": 1,
+          "window-all-closed": 2,
+          "before-quit": 1,
+          "second-instance": 1,
+          "will-quit": 1
+        },
+        "app_listeners_total": 6,
+        "overlay_window_listeners": {
+          "blur": 1,
+          "focus": 1,
+          "close": 2,
+          "closed": 1,
+          "page-title-updated": 1,
+          "show": 2,
+          "move": 1,
+          "resize": 1
+        },
+        "overlay_webcontents_listeners": {
+          "-will-add-new-contents": 1,
+          "-add-new-contents": 1,
+          "-run-dialog": 1,
+          "-cancel-dialogs": 1,
+          "newListener": 1,
+          "removeListener": 1,
+          "unresponsive": 1,
+          "responsive": 1,
+          "destroyed": 1,
+          "will-attach-webview": 1,
+          "before-input-event": 1
+        },
+        "main_window_listeners": {
+          "blur": 1,
+          "focus": 1,
+          "close": 2,
+          "closed": 2,
+          "resize": 1,
+          "move": 1,
+          "maximize": 1,
+          "unmaximize": 1
+        },
+        "main_webcontents_listeners": {
+          "-will-add-new-contents": 1,
+          "-add-new-contents": 1,
+          "-run-dialog": 1,
+          "-cancel-dialogs": 1,
+          "newListener": 1,
+          "removeListener": 1,
+          "unresponsive": 1,
+          "responsive": 1,
+          "destroyed": 1,
+          "will-navigate": 1,
+          "will-attach-webview": 1,
+          "before-input-event": 1
+        }
+      },
+      "electron": [
+        {
+          "pid": 15456,
+          "type": "Browser",
+          "name": "electron",
+          "ws_kb": 113824,
+          "private_kb": 43452,
+          "handles": 1055,
+          "gdi": 33,
+          "user": 62,
+          "ws": 116609024,
+          "private": 44515328,
+          "threads": 50
+        },
+        {
+          "pid": 42748,
+          "type": "GPU",
+          "name": "electron",
+          "ws_kb": 144768,
+          "private_kb": 98100,
+          "handles": 489,
+          "gdi": 8,
+          "user": 13,
+          "ws": 148242432,
+          "private": 100454400,
+          "threads": 29
+        },
+        {
+          "pid": 32584,
+          "type": "Utility",
+          "name": "electron",
+          "ws_kb": 50332,
+          "private_kb": 12432,
+          "handles": 371,
+          "gdi": 0,
+          "user": 4,
+          "ws": 51539968,
+          "private": 12730368,
+          "threads": 24
+        },
+        {
+          "pid": 37128,
+          "type": "Tab",
+          "name": "electron",
+          "ws_kb": 92700,
+          "private_kb": 37756,
+          "handles": 298,
+          "gdi": 0,
+          "user": 0,
+          "ws": 94924800,
+          "private": 38662144,
+          "threads": 16
+        },
+        {
+          "pid": 20328,
+          "type": "Tab",
+          "name": "electron",
+          "ws_kb": 92932,
+          "private_kb": 35992,
+          "handles": 296,
+          "gdi": 0,
+          "user": 0,
+          "ws": 95162368,
+          "private": 36855808,
+          "threads": 16
+        }
+      ],
+      "core": [
+        {
+          "pid": 23768,
+          "name": "python",
+          "handles": 70,
+          "gdi": 0,
+          "user": 0,
+          "ws": 4521984,
+          "private": 774144,
+          "threads": 1
+        },
+        {
+          "pid": 39024,
+          "name": "python",
+          "handles": 576,
+          "gdi": 0,
+          "user": 5,
+          "ws": 266244096,
+          "private": 471736320,
+          "threads": 15
+        },
+        {
+          "pid": 37828,
+          "name": "llama-server",
+          "handles": 227,
+          "gdi": 0,
+          "user": 1,
+          "ws": 1783590912,
+          "private": 5453885440,
+          "threads": 12
+        }
+      ],
+      "renderer_overlay": {
+        "dom_nodes": 63,
+        "js_heap_used": 10000000,
+        "js_heap_total": 10000000
+      },
+      "renderer_main": {
+        "dom_nodes": 156,
+        "js_heap_used": 10000000,
+        "js_heap_total": 10000000
+      }
+    },
+    {
+      "label": "after cycle 30",
+      "at": "2026-11-04T01:25:37.608Z",
+      "windows": 2,
+      "overlay_windows": 1,
+      "hotkeys_registered": {
+        "overlay": true,
+        "stop": true
+      },
+      "main_process": {
+        "memory": {
+          "residentSet": 115132,
+          "private": 43372,
+          "shared": 804
+        },
+        "heap": {
+          "totalHeapSize": 9216,
+          "totalHeapSizeExecutable": 1280,
+          "totalPhysicalSize": 9216,
+          "totalAvailableSize": 4286158,
+          "usedHeapSize": 7463,
+          "heapSizeLimit": 4292608,
+          "mallocedMemory": 146,
+          "peakMallocedMemory": 9580,
+          "doesZapGarbage": false
+        },
+        "ipcMain_on_listeners": {
+          "error": 1,
+          "spaider:overlay-painted": 1,
+          "spaider:active-conversations": 1
+        },
+        "ipcMain_on_total": 3,
+        "ipcMain_invoke_handlers": 18,
+        "app_listeners": {
+          "quit": 1,
+          "window-all-closed": 2,
+          "before-quit": 1,
+          "second-instance": 1,
+          "will-quit": 1
+        },
+        "app_listeners_total": 6,
+        "overlay_window_listeners": {
+          "blur": 1,
+          "focus": 1,
+          "close": 2,
+          "closed": 1,
+          "page-title-updated": 1,
+          "show": 2,
+          "move": 1,
+          "resize": 1
+        },
+        "overlay_webcontents_listeners": {
+          "-will-add-new-contents": 1,
+          "-add-new-contents": 1,
+          "-run-dialog": 1,
+          "-cancel-dialogs": 1,
+          "newListener": 1,
+          "removeListener": 1,
+          "unresponsive": 1,
+          "responsive": 1,
+          "destroyed": 1,
+          "will-attach-webview": 1,
+          "before-input-event": 1
+        },
+        "main_window_listeners": {
+          "blur": 1,
+          "focus": 1,
+          "close": 2,
+          "closed": 2,
+          "resize": 1,
+          "move": 1,
+          "maximize": 1,
+          "unmaximize": 1
+        },
+        "main_webcontents_listeners": {
+          "-will-add-new-contents": 1,
+          "-add-new-contents": 1,
+          "-run-dialog": 1,
+          "-cancel-dialogs": 1,
+          "newListener": 1,
+          "removeListener": 1,
+          "unresponsive": 1,
+          "responsive": 1,
+          "destroyed": 1,
+          "will-navigate": 1,
+          "will-attach-webview": 1,
+          "before-input-event": 1
+        }
+      },
+      "electron": [
+        {
+          "pid": 15456,
+          "type": "Browser",
+          "name": "electron",
+          "ws_kb": 115120,
+          "private_kb": 43360,
+          "handles": 1049,
+          "gdi": 33,
+          "user": 62,
+          "ws": 117882880,
+          "private": 44400640,
+          "threads": 47
+        },
+        {
+          "pid": 42748,
+          "type": "GPU",
+          "name": "electron",
+          "ws_kb": 145708,
+          "private_kb": 99132,
+          "handles": 490,
+          "gdi": 9,
+          "user": 13,
+          "ws": 149204992,
+          "private": 101511168,
+          "threads": 29
+        },
+        {
+          "pid": 32584,
+          "type": "Utility",
+          "name": "electron",
+          "ws_kb": 50236,
+          "private_kb": 12240,
+          "handles": 369,
+          "gdi": 0,
+          "user": 4,
+          "ws": 51441664,
+          "private": 12533760,
+          "threads": 22
+        },
+        {
+          "pid": 37128,
+          "type": "Tab",
+          "name": "electron",
+          "ws_kb": 91904,
+          "private_kb": 36440,
+          "handles": 298,
+          "gdi": 0,
+          "user": 0,
+          "ws": 94109696,
+          "private": 37314560,
+          "threads": 16
+        },
+        {
+          "pid": 20328,
+          "type": "Tab",
+          "name": "electron",
+          "ws_kb": 93288,
+          "private_kb": 35932,
+          "handles": 296,
+          "gdi": 0,
+          "user": 0,
+          "ws": 95526912,
+          "private": 36794368,
+          "threads": 16
+        }
+      ],
+      "core": [
+        {
+          "pid": 23768,
+          "name": "python",
+          "handles": 70,
+          "gdi": 0,
+          "user": 0,
+          "ws": 4521984,
+          "private": 774144,
+          "threads": 1
+        },
+        {
+          "pid": 39024,
+          "name": "python",
+          "handles": 577,
+          "gdi": 0,
+          "user": 5,
+          "ws": 266252288,
+          "private": 471736320,
+          "threads": 15
+        },
+        {
+          "pid": 37828,
+          "name": "llama-server",
+          "handles": 227,
+          "gdi": 0,
+          "user": 1,
+          "ws": 1783590912,
+          "private": 5453885440,
+          "threads": 12
+        }
+      ],
+      "renderer_overlay": {
+        "dom_nodes": 63,
+        "js_heap_used": 10000000,
+        "js_heap_total": 10000000
+      },
+      "renderer_main": {
+        "dom_nodes": 156,
+        "js_heap_used": 10000000,
+        "js_heap_total": 10000000
+      }
+    },
+    {
+      "label": "after 10 s idle",
+      "at": "2026-11-04T01:25:49.273Z",
+      "windows": 2,
+      "overlay_windows": 1,
+      "hotkeys_registered": {
+        "overlay": true,
+        "stop": true
+      },
+      "main_process": {
+        "memory": {
+          "residentSet": 114968,
+          "private": 42616,
+          "shared": 804
+        },
+        "heap": {
+          "totalHeapSize": 8448,
+          "totalHeapSizeExecutable": 1280,
+          "totalPhysicalSize": 8448,
+          "totalAvailableSize": 4286745,
+          "usedHeapSize": 7645,
+          "heapSizeLimit": 4292608,
+          "mallocedMemory": 146,
+          "peakMallocedMemory": 9580,
+          "doesZapGarbage": false
+        },
+        "ipcMain_on_listeners": {
+          "error": 1,
+          "spaider:overlay-painted": 1,
+          "spaider:active-conversations": 1
+        },
+        "ipcMain_on_total": 3,
+        "ipcMain_invoke_handlers": 18,
+        "app_listeners": {
+          "quit": 1,
+          "window-all-closed": 2,
+          "before-quit": 1,
+          "second-instance": 1,
+          "will-quit": 1
+        },
+        "app_listeners_total": 6,
+        "overlay_window_listeners": {
+          "blur": 1,
+          "focus": 1,
+          "close": 2,
+          "closed": 1,
+          "page-title-updated": 1,
+          "show": 2,
+          "move": 1,
+          "resize": 1
+        },
+        "overlay_webcontents_listeners": {
+          "-will-add-new-contents": 1,
+          "-add-new-contents": 1,
+          "-run-dialog": 1,
+          "-cancel-dialogs": 1,
+          "newListener": 1,
+          "removeListener": 1,
+          "unresponsive": 1,
+          "responsive": 1,
+          "destroyed": 1,
+          "will-attach-webview": 1,
+          "before-input-event": 1
+        },
+        "main_window_listeners": {
+          "blur": 1,
+          "focus": 1,
+          "close": 2,
+          "closed": 2,
+          "resize": 1,
+          "move": 1,
+          "maximize": 1,
+          "unmaximize": 1
+        },
+        "main_webcontents_listeners": {
+          "-will-add-new-contents": 1,
+          "-add-new-contents": 1,
+          "-run-dialog": 1,
+          "-cancel-dialogs": 1,
+          "newListener": 1,
+          "removeListener": 1,
+          "unresponsive": 1,
+          "responsive": 1,
+          "destroyed": 1,
+          "will-navigate": 1,
+          "will-attach-webview": 1,
+          "before-input-event": 1
+        }
+      },
+      "electron": [
+        {
+          "pid": 15456,
+          "type": "Browser",
+          "name": "electron",
+          "ws_kb": 114956,
+          "private_kb": 42604,
+          "handles": 1047,
+          "gdi": 33,
+          "user": 62,
+          "ws": 117719040,
+          "private": 43630592,
+          "threads": 47
+        },
+        {
+          "pid": 42748,
+          "type": "GPU",
+          "name": "electron",
+          "ws_kb": 132836,
+          "private_kb": 86076,
+          "handles": 490,
+          "gdi": 9,
+          "user": 13,
+          "ws": 136024064,
+          "private": 88141824,
+          "threads": 29
+        },
+        {
+          "pid": 32584,
+          "type": "Utility",
+          "name": "electron",
+          "ws_kb": 50216,
+          "private_kb": 12216,
+          "handles": 369,
+          "gdi": 0,
+          "user": 4,
+          "ws": 51421184,
+          "private": 12509184,
+          "threads": 22
+        },
+        {
+          "pid": 37128,
+          "type": "Tab",
+          "name": "electron",
+          "ws_kb": 91516,
+          "private_kb": 36036,
+          "handles": 298,
+          "gdi": 0,
+          "user": 0,
+          "ws": 93712384,
+          "private": 36900864,
+          "threads": 16
+        },
+        {
+          "pid": 20328,
+          "type": "Tab",
+          "name": "electron",
+          "ws_kb": 93236,
+          "private_kb": 35840,
+          "handles": 295,
+          "gdi": 0,
+          "user": 0,
+          "ws": 95473664,
+          "private": 36700160,
+          "threads": 16
+        }
+      ],
+      "core": [
+        {
+          "pid": 23768,
+          "name": "python",
+          "handles": 70,
+          "gdi": 0,
+          "user": 0,
+          "ws": 4521984,
+          "private": 774144,
+          "threads": 1
+        },
+        {
+          "pid": 39024,
+          "name": "python",
+          "handles": 574,
+          "gdi": 0,
+          "user": 5,
+          "ws": 266252288,
+          "private": 471736320,
+          "threads": 15
+        },
+        {
+          "pid": 37828,
+          "name": "llama-server",
+          "handles": 227,
+          "gdi": 0,
+          "user": 1,
+          "ws": 1783590912,
+          "private": 5453885440,
+          "threads": 12
+        }
+      ],
+      "renderer_overlay": {
+        "dom_nodes": 63,
+        "js_heap_used": 10000000,
+        "js_heap_total": 10000000
+      },
+      "renderer_main": {
+        "dom_nodes": 156,
+        "js_heap_used": 10000000,
+        "js_heap_total": 10000000
+      }
+    }
+  ],
+  "checks": {
+    "windows": 2,
+    "overlay_windows": 1,
+    "hotkeys_registered": {
+      "overlay": true,
+      "stop": true
+    },
+    "cycle31": {
+      "hotkey_to_show_ms": 60,
+      "hotkey_to_painted_ms": 70,
+      "foreground_ms": 35.2,
+      "os_keydown_to_show_ms": 62,
+      "picker_open": false,
+      "target": "Ziel: Zyklus Pruefung UI – powershell.exe"
+    },
+    "sessions_final": [],
+    "launcher_hidden_lines": 31,
+    "launcher_shown_lines": 31,
+    "content_leak": false,
+    "test_app_restarts": 0
+  },
+  "source_id": "win:202214:4828",
+  "summary": {
+    "hotkey_to_show_ms": {
+      "n": 30,
+      "median": 47.8,
+      "min": 40,
+      "max": 80.6,
+      "p95": 70.3
+    },
+    "hotkey_to_painted_ms": {
+      "n": 30,
+      "median": 53.6,
+      "min": 44.8,
+      "max": 89.3,
+      "p95": 88.5
+    },
+    "show_to_painted_ms": {
+      "n": 30,
+      "median": 26.3,
+      "min": 19,
+      "max": 56.8,
+      "p95": 36.8
+    },
+    "foreground_ms": {
+      "n": 30,
+      "median": 27.8,
+      "min": 22.2,
+      "max": 51.1,
+      "p95": 37.9
+    },
+    "os_keydown_to_show_ms": {
+      "n": 30,
+      "median": 52,
+      "min": 41,
+      "max": 84,
+      "p95": 71
+    },
+    "session_create_ms": {
+      "n": 30,
+      "median": 35.2,
+      "min": 23.4,
+      "max": 62.6,
+      "p95": 57.6
+    },
+    "session_delete_ms": {
+      "n": 30,
+      "median": 1.4,
+      "min": 1,
+      "max": 3.3,
+      "p95": 3.2
+    },
+    "esc_to_hidden_ms": {
+      "n": 30,
+      "median": 62,
+      "min": 60,
+      "max": 109,
+      "p95": 109
+    },
+    "sessions_empty_after_delete": 30,
+    "sessions_after_esc_nonempty": 30,
+    "esc_hidden": 30,
+    "launcher_samples_per_metric": {
+      "hotkey_to_show_ms": 30,
+      "hotkey_to_painted_ms": 30,
+      "show_to_painted_ms": 30,
+      "foreground_ms": 30
+    }
+  },
+  "growth": [
+    {
+      "pid": 15456,
+      "name": "electron",
+      "type": "Browser",
+      "handles": [
+        1056,
+        1047
+      ],
+      "gdi": [
+        42,
+        33
+      ],
+      "user": [
+        64,
+        62
+      ],
+      "ws_mb": [
+        107.2,
+        112.3
+      ],
+      "private_mb": [
+        41.7,
+        41.6
+      ]
+    },
+    {
+      "pid": 42748,
+      "name": "electron",
+      "type": "GPU",
+      "handles": [
+        499,
+        490
+      ],
+      "gdi": [
+        6,
+        9
+      ],
+      "user": [
+        13,
+        13
+      ],
+      "ws_mb": [
+        140.1,
+        129.7
+      ],
+      "private_mb": [
+        95.8,
+        84.1
+      ]
+    },
+    {
+      "pid": 32584,
+      "name": "electron",
+      "type": "Utility",
+      "handles": [
+        382,
+        369
+      ],
+      "gdi": [
+        0,
+        0
+      ],
+      "user": [
+        4,
+        4
+      ],
+      "ws_mb": [
+        48.7,
+        49
+      ],
+      "private_mb": [
+        11.9,
+        11.9
+      ]
+    },
+    {
+      "pid": 37128,
+      "name": "electron",
+      "type": "Tab",
+      "handles": [
+        291,
+        298
+      ],
+      "gdi": [
+        0,
+        0
+      ],
+      "user": [
+        0,
+        0
+      ],
+      "ws_mb": [
+        90.8,
+        89.4
+      ],
+      "private_mb": [
+        40.1,
+        35.2
+      ]
+    },
+    {
+      "pid": 20328,
+      "name": "electron",
+      "type": "Tab",
+      "handles": [
+        278,
+        295
+      ],
+      "gdi": [
+        0,
+        0
+      ],
+      "user": [
+        0,
+        0
+      ],
+      "ws_mb": [
+        85.6,
+        91.1
+      ],
+      "private_mb": [
+        35.1,
+        35
+      ]
+    },
+    {
+      "pid": 23768,
+      "name": "python",
+      "type": "core",
+      "handles": [
+        70,
+        70
+      ],
+      "gdi": [
+        0,
+        0
+      ],
+      "user": [
+        0,
+        0
+      ],
+      "ws_mb": [
+        4.3,
+        4.3
+      ],
+      "private_mb": [
+        0.7,
+        0.7
+      ]
+    },
+    {
+      "pid": 39024,
+      "name": "python",
+      "type": "core",
+      "handles": [
+        590,
+        574
+      ],
+      "gdi": [
+        0,
+        0
+      ],
+      "user": [
+        5,
+        5
+      ],
+      "ws_mb": [
+        253.8,
+        253.9
+      ],
+      "private_mb": [
+        450,
+        449.9
+      ]
+    },
+    {
+      "pid": 37828,
+      "name": "llama-server",
+      "type": "core",
+      "handles": [
+        227,
+        227
+      ],
+      "gdi": [
+        0,
+        0
+      ],
+      "user": [
+        1,
+        1
+      ],
+      "ws_mb": [
+        1845.4,
+        1701
+      ],
+      "private_mb": [
+        5201.2,
+        5201.2
+      ]
+    }
+  ],
+  "finished_at": "2026-11-04T01:25:49.278Z",
+  "note": "Live sessions are created by the harness via POST /api/live/sessions for the overlay's confirmed source (the overlay itself creates a session only with the first question, which needs a model answer) and deleted via DELETE after Esc; the UI's own DELETE-on-hide path was verified in the earlier run with real questions."
+}

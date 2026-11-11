@@ -1,0 +1,1035 @@
+{
+  "hardware": {
+    "cpu": "Intel(R) Core(TM) Ultra 7 268V",
+    "cores_physical": 8,
+    "ram_gb": 31.6,
+    "gpus": [
+      [
+        "Intel(R) Arc(TM) 140V GPU (16GB)",
+        null
+      ]
+    ],
+    "backend": "vulkan",
+    "fingerprint": "d5c9be4a263cd1fe"
+  },
+  "alltag": {
+    "hardware": {
+      "cpu": {
+        "name": "Intel(R) Core(TM) Ultra 7 268V",
+        "cores_physical": 8,
+        "threads": 8,
+        "features": [
+          "avx2",
+          "sse2",
+          "avx"
+        ]
+      },
+      "ram_total_bytes": 33895956480,
+      "ram_available_bytes": 11051859968,
+      "gpus": [
+        {
+          "name": "Intel(R) Arc(TM) 140V GPU (16GB)",
+          "backend": "vulkan",
+          "device": "Vulkan0",
+          "vram_total_bytes": 19320012800,
+          "vram_free_bytes": 18514706432,
+          "driver": "32.0.101.8860",
+          "usable": true,
+          "note_de": ""
+        }
+      ],
+      "disk_free_bytes": 282150993920,
+      "disk_total_bytes": 508587667456,
+      "filesystem": "NTFS",
+      "max_file_bytes": null,
+      "power": {
+        "on_battery": false,
+        "power_saver": null
+      },
+      "fingerprint": "d5c9be4a263cd1fe",
+      "runtime_variants": [
+        "cpu",
+        "vulkan"
+      ],
+      "active_backend": "vulkan",
+      "detected_at": "2026-11-02T12:25:11Z",
+      "notes_de": []
+    },
+    "focus": "alltag",
+    "picks": [
+      {
+        "slot": "balanced",
+        "entry": {
+          "id": "qwen3-4b-q4_k_m",
+          "name": "Qwen3 4B (Q4_K_M)",
+          "role": "chat",
+          "family": "Qwen3",
+          "publisher": "Qwen",
+          "source": "official",
+          "repo": "Qwen/Qwen3-4B-GGUF",
+          "revision": "bc640142c66e1fdd12af0bd68f40445458f3869b",
+          "files": [
+            {
+              "path": "Qwen3-4B-Q4_K_M.gguf",
+              "size": 2497280256,
+              "sha256": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5"
+            }
+          ],
+          "license": {
+            "id": "apache-2.0",
+            "name": "Apache License 2.0",
+            "url": "https://huggingface.co/Qwen/Qwen3-4B-GGUF/blob/main/LICENSE",
+            "kind": "open-source",
+            "gated": false,
+            "requires_account": false,
+            "note_de": ""
+          },
+          "architecture": "qwen3",
+          "parameters": "4B",
+          "quantization": "Q4_K_M",
+          "context_length": 32768,
+          "embedding_dimensions": null,
+          "support": "executed",
+          "description_de": "Mittleres Modell mit 4-Bit-Quantisierung. Deutlich bessere Antworten als 1.7B, auf 16 GB RAM noch gut nutzbar.",
+          "type": "chat",
+          "original_model": "Qwen/Qwen3-4B",
+          "converter": "Qwen (offiziell)",
+          "families": [
+            "Qwen3"
+          ],
+          "verification": {
+            "status": "executed",
+            "date": "2026-11-02",
+            "scope": "echte Inferenz auf b12032 (CPU) durch den Nutzer und in der Baseline-Messung"
+          },
+          "evidence": [
+            {
+              "kind": "model_card",
+              "note_de": "Qwen3-Modellkarte: 119 Sprachen inkl. Deutsch; Thinking-Modus umschaltbar.",
+              "scope": "Herstellerangabe"
+            }
+          ],
+          "resources": {
+            "n_layers": 36,
+            "n_kv_heads": 8,
+            "head_dim": 128,
+            "note": "Qwen3 config.json"
+          },
+          "template": {
+            "reasoning_toggle": "enable_thinking",
+            "system_role": true
+          },
+          "published": null,
+          "checked_at": "2026-11-02",
+          "source_kind": "builtin",
+          "total_bytes": 2497280256,
+          "repo_url": "https://huggingface.co/Qwen/Qwen3-4B-GGUF/tree/bc640142c66e1fdd12af0bd68f40445458f3869b",
+          "min_ram_bytes": 3745505126,
+          "recommended_ram_bytes": 6524227353,
+          "fit": {
+            "level": "recommended",
+            "message_de": "Passt gut (etwa 4.1 GB RAM).",
+            "estimated_ram_bytes": 4349484902
+          },
+          "installed_model_id": null
+        },
+        "reasons_de": [
+          "Beste Gesamtbewertung für diesen Rechner und Schwerpunkt.",
+          "Auf dieser Runtime bereits mit echter Inferenz getestet.",
+          "Modellkarte nennt Deutsch als unterstützte Sprache.",
+          "Geschwindigkeit hier noch nicht gemessen.",
+          "Passt vollständig in den Grafikspeicher (Intel(R) Arc(TM) 140V GPU (16GB))."
+        ],
+        "estimate": {
+          "ram_bytes": 1393429170,
+          "vram_bytes": 4549267322,
+          "download_bytes": 2497280256,
+          "context_tokens": 8192,
+          "kv_bytes": 1207959552
+        },
+        "uses_gpu": true,
+        "measured": null,
+        "installed_model_id": null
+      },
+      {
+        "slot": "fast",
+        "entry": {
+          "id": "gemma-3-1b-it-q4_k_m",
+          "name": "Gemma 3 1B it (Q4_K_M, Konvertierung unsloth)",
+          "role": "chat",
+          "family": "Gemma",
+          "publisher": "unsloth (Konvertierung); Originalmodell: google/gemma-3-1b-it",
+          "source": "community",
+          "repo": "unsloth/gemma-3-1b-it-GGUF",
+          "revision": "f0b45be0aac41bd6a100a4b5734cad5f67255bfb",
+          "files": [
+            {
+              "path": "gemma-3-1b-it-Q4_K_M.gguf",
+              "size": 806058272,
+              "sha256": "8270790f3ab69fdfe860b7b64008d9a19986d8df7e407bb018184caa08798ebd"
+            }
+          ],
+          "license": {
+            "id": "gemma",
+            "name": "Gemma Terms of Use",
+            "url": "https://ai.google.dev/gemma/terms",
+            "kind": "open-weights",
+            "gated": false,
+            "requires_account": false,
+            "note_de": "Open-Weights-Lizenz mit Nutzungsbedingungen; das Original-Repository von Google ist freigeschaltet, diese Konvertierung ist frei abrufbar."
+          },
+          "architecture": "gemma3",
+          "parameters": "1B",
+          "quantization": "Q4_K_M",
+          "context_length": 32768,
+          "embedding_dimensions": null,
+          "support": "documented",
+          "description_de": "Sehr kleines Gemma-Modell. Chatvorlage ohne Systemrolle (Systemtext wird der ersten Nachricht vorangestellt).",
+          "type": "chat",
+          "original_model": "google/gemma-3-1b-it",
+          "converter": "unsloth",
+          "families": [
+            "Gemma 3"
+          ],
+          "verification": {
+            "status": "metadata",
+            "date": "2026-11-02",
+            "scope": "Katalogeintrag (Architektur laut llama.cpp-Doku/HF-Metadaten, Prüfsumme, Lizenz); hier nicht ausgeführt"
+          },
+          "evidence": [
+            {
+              "kind": "model_card",
+              "note_de": "Gemma-3-Modellkarte: über 140 Sprachen.",
+              "scope": "Herstellerangabe"
+            }
+          ],
+          "resources": {
+            "n_layers": 26,
+            "n_kv_heads": 1,
+            "head_dim": 256,
+            "note": "Gemma 3 1B config.json"
+          },
+          "template": {
+            "reasoning_toggle": null,
+            "system_role": false
+          },
+          "published": null,
+          "checked_at": "2026-11-02",
+          "source_kind": "builtin",
+          "total_bytes": 806058272,
+          "repo_url": "https://huggingface.co/unsloth/gemma-3-1b-it-GGUF/tree/f0b45be0aac41bd6a100a4b5734cad5f67255bfb",
+          "min_ram_bytes": 1559355270,
+          "recommended_ram_bytes": 2502610761,
+          "fit": {
+            "level": "recommended",
+            "message_de": "Passt gut (etwa 1.6 GB RAM).",
+            "estimated_ram_bytes": 1668407174
+          },
+          "installed_model_id": null
+        },
+        "reasons_de": [
+          "Geringster Ressourcenbedarf unter den passenden Modellen.",
+          "Nach Metadaten geprüft (Architektur, Prüfsumme, Lizenz), hier noch nicht ausgeführt.",
+          "Geschwindigkeit hier noch nicht gemessen.",
+          "Passt vollständig in den Grafikspeicher (Intel(R) Arc(TM) 140V GPU (16GB))."
+        ],
+        "estimate": {
+          "ram_bytes": 886062575,
+          "vram_bytes": 1732891835,
+          "download_bytes": 806058272,
+          "context_tokens": 8192,
+          "kv_bytes": 218103808
+        },
+        "uses_gpu": true,
+        "measured": null,
+        "installed_model_id": null
+      },
+      {
+        "slot": "quality",
+        "entry": {
+          "id": "qwen3.8-27b-q4_k_m-ggml",
+          "name": "Qwen3.8 27B (Q4_K_M, Konvertierung ggml-org)",
+          "role": "chat",
+          "family": "Qwen3.8",
+          "publisher": "ggml-org (Konvertierung); Originalmodell: Qwen/Qwen3.8-27B",
+          "source": "community",
+          "repo": "ggml-org/Qwen3.8-27B-GGUF",
+          "revision": "a316ea527fde32c12487be7574e2db5ac2ad2a7e",
+          "files": [
+            {
+              "path": "Qwen3.8-27B-Q4_K_M.gguf",
+              "size": 18973870528,
+              "sha256": "c600de0300ae8a0eb3a6c0b8b5561b8b96f16bd2c863c2a66c42de29d391a747"
+            }
+          ],
+          "license": {
+            "id": "apache-2.0",
+            "name": "Apache License 2.0",
+            "url": "https://huggingface.co/Qwen/Qwen3.8-27B/blob/main/LICENSE",
+            "kind": "open-source",
+            "gated": false,
+            "requires_account": false,
+            "note_de": ""
+          },
+          "architecture": "qwen35",
+          "parameters": "27B",
+          "quantization": "Q4_K_M",
+          "context_length": 32768,
+          "embedding_dimensions": null,
+          "support": "documented",
+          "description_de": "Qwen3.8 27B als GGUF-Konvertierung der llama.cpp-Entwickler (ggml-org). Qwen selbst veröffentlicht keine GGUF-Datei. Architektur qwen35 ist im gebündelten Build gelistet, hier nicht ausgeführt. Benötigt etwa 22 GB RAM und ist auf reiner CPU sehr langsam.",
+          "type": "chat",
+          "original_model": "Qwen/Qwen3.8-27B",
+          "converter": "ggml-org",
+          "families": [
+            "Qwen3.8"
+          ],
+          "verification": {
+            "status": "metadata",
+            "date": "2026-11-02",
+            "scope": "Katalogeintrag (Architektur, Prüfsumme, Lizenz)"
+          },
+          "evidence": [
+            {
+              "kind": "model_card",
+              "note_de": "Qwen3-Modellkarte: 119 Sprachen inkl. Deutsch; Thinking-Modus umschaltbar.",
+              "scope": "Herstellerangabe"
+            }
+          ],
+          "resources": {},
+          "template": {
+            "reasoning_toggle": "enable_thinking",
+            "system_role": true
+          },
+          "published": null,
+          "checked_at": "2026-11-02",
+          "source_kind": "builtin",
+          "total_bytes": 18973870528,
+          "repo_url": "https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF/tree/a316ea527fde32c12487be7574e2db5ac2ad2a7e",
+          "min_ram_bytes": 20154986534,
+          "recommended_ram_bytes": 31037786169,
+          "fit": {
+            "level": "tight",
+            "message_de": "Passt nur knapp: etwa 19.3 GB RAM nötig, derzeit 10.3 GB frei.",
+            "estimated_ram_bytes": 20691857446
+          },
+          "installed_model_id": null
+        },
+        "reasons_de": [
+          "Größtes passendes Modell; mehr Qualität bei längerer Antwortzeit.",
+          "Nach Metadaten geprüft (Architektur, Prüfsumme, Lizenz), hier noch nicht ausgeführt.",
+          "Modellkarte nennt Deutsch als unterstützte Sprache.",
+          "Geschwindigkeit hier noch nicht gemessen."
+        ],
+        "estimate": {
+          "ram_bytes": 21640550972,
+          "vram_bytes": 0,
+          "download_bytes": 18973870528,
+          "context_tokens": 8192,
+          "kv_bytes": 1073741824
+        },
+        "uses_gpu": false,
+        "measured": null,
+        "installed_model_id": null
+      }
+    ],
+    "excluded": [
+      {
+        "id": "qwen3-embedding-0.6b-q8_0",
+        "name": "Qwen3-Embedding 0.6B (Q8_0)",
+        "reason_de": "Kein Chatmodell."
+      },
+      {
+        "id": "embeddinggemma-2-q8_0",
+        "name": "EmbeddingGemma 2 (Q8_0, Konvertierung ggml-org)",
+        "reason_de": "Kein Chatmodell."
+      },
+      {
+        "id": "nomic-embed-text-v1.5-q8_0",
+        "name": "nomic-embed-text v1.5 (Q8_0, offiziell)",
+        "reason_de": "Kein Chatmodell."
+      }
+    ],
+    "catalog_date": "2026-11-02"
+  },
+  "dokumente": {
+    "hardware": {
+      "cpu": {
+        "name": "Intel(R) Core(TM) Ultra 7 268V",
+        "cores_physical": 8,
+        "threads": 8,
+        "features": [
+          "avx2",
+          "sse2",
+          "avx"
+        ]
+      },
+      "ram_total_bytes": 33895956480,
+      "ram_available_bytes": 11050156032,
+      "gpus": [
+        {
+          "name": "Intel(R) Arc(TM) 140V GPU (16GB)",
+          "backend": "vulkan",
+          "device": "Vulkan0",
+          "vram_total_bytes": 19320012800,
+          "vram_free_bytes": 18514706432,
+          "driver": "32.0.101.8860",
+          "usable": true,
+          "note_de": ""
+        }
+      ],
+      "disk_free_bytes": 282150993920,
+      "disk_total_bytes": 508587667456,
+      "filesystem": "NTFS",
+      "max_file_bytes": null,
+      "power": {
+        "on_battery": false,
+        "power_saver": null
+      },
+      "fingerprint": "d5c9be4a263cd1fe",
+      "runtime_variants": [
+        "cpu",
+        "vulkan"
+      ],
+      "active_backend": "vulkan",
+      "detected_at": "2026-11-02T12:25:11Z",
+      "notes_de": []
+    },
+    "focus": "dokumente",
+    "picks": [
+      {
+        "slot": "balanced",
+        "entry": {
+          "id": "qwen3-8b-q4_k_m",
+          "name": "Qwen3 8B (Q4_K_M)",
+          "role": "chat",
+          "family": "Qwen3",
+          "publisher": "Qwen",
+          "source": "official",
+          "repo": "Qwen/Qwen3-8B-GGUF",
+          "revision": "7c41481f57cb95916b40956ab2f0b139b296d974",
+          "files": [
+            {
+              "path": "Qwen3-8B-Q4_K_M.gguf",
+              "size": 5027783488,
+              "sha256": "d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785"
+            }
+          ],
+          "license": {
+            "id": "apache-2.0",
+            "name": "Apache License 2.0",
+            "url": "https://huggingface.co/Qwen/Qwen3-8B-GGUF/blob/main/LICENSE",
+            "kind": "open-source",
+            "gated": false,
+            "requires_account": false,
+            "note_de": ""
+          },
+          "architecture": "qwen3",
+          "parameters": "8B",
+          "quantization": "Q4_K_M",
+          "context_length": 32768,
+          "embedding_dimensions": null,
+          "support": "documented",
+          "description_de": "Großes Modell für 16 GB RAM und mehr. Auf reiner CPU langsam, dafür die beste Antwortqualität im Katalog ohne 27B.",
+          "type": "chat",
+          "original_model": "Qwen/Qwen3-8B",
+          "converter": "Qwen (offiziell)",
+          "families": [
+            "Qwen3"
+          ],
+          "verification": {
+            "status": "metadata",
+            "date": "2026-11-02",
+            "scope": "Katalogeintrag (Architektur, Prüfsumme, Lizenz)"
+          },
+          "evidence": [
+            {
+              "kind": "model_card",
+              "note_de": "Qwen3-Modellkarte: 119 Sprachen inkl. Deutsch; Thinking-Modus umschaltbar.",
+              "scope": "Herstellerangabe"
+            }
+          ],
+          "resources": {
+            "n_layers": 36,
+            "n_kv_heads": 8,
+            "head_dim": 128,
+            "note": "Qwen3 config.json"
+          },
+          "template": {
+            "reasoning_toggle": "enable_thinking",
+            "system_role": true
+          },
+          "published": null,
+          "checked_at": "2026-11-02",
+          "source_kind": "builtin",
+          "total_bytes": 5027783488,
+          "repo_url": "https://huggingface.co/Qwen/Qwen3-8B-GGUF/tree/7c41481f57cb95916b40956ab2f0b139b296d974",
+          "min_ram_bytes": 6276008358,
+          "recommended_ram_bytes": 10319982201,
+          "fit": {
+            "level": "recommended",
+            "message_de": "Passt gut (etwa 6.4 GB RAM).",
+            "estimated_ram_bytes": 6879988134
+          },
+          "installed_model_id": null
+        },
+        "reasons_de": [
+          "Beste Gesamtbewertung für diesen Rechner und Schwerpunkt.",
+          "Nach Metadaten geprüft (Architektur, Prüfsumme, Lizenz), hier noch nicht ausgeführt.",
+          "Modellkarte nennt Deutsch als unterstützte Sprache.",
+          "Geschwindigkeit hier noch nicht gemessen.",
+          "Passt vollständig in den Grafikspeicher (Intel(R) Arc(TM) 140V GPU (16GB))."
+        ],
+        "estimate": {
+          "ram_bytes": 2152580140,
+          "vram_bytes": 7282210813,
+          "download_bytes": 5027783488,
+          "context_tokens": 8192,
+          "kv_bytes": 1207959552
+        },
+        "uses_gpu": true,
+        "measured": null,
+        "installed_model_id": null
+      },
+      {
+        "slot": "fast",
+        "entry": {
+          "id": "gemma-3-1b-it-q4_k_m",
+          "name": "Gemma 3 1B it (Q4_K_M, Konvertierung unsloth)",
+          "role": "chat",
+          "family": "Gemma",
+          "publisher": "unsloth (Konvertierung); Originalmodell: google/gemma-3-1b-it",
+          "source": "community",
+          "repo": "unsloth/gemma-3-1b-it-GGUF",
+          "revision": "f0b45be0aac41bd6a100a4b5734cad5f67255bfb",
+          "files": [
+            {
+              "path": "gemma-3-1b-it-Q4_K_M.gguf",
+              "size": 806058272,
+              "sha256": "8270790f3ab69fdfe860b7b64008d9a19986d8df7e407bb018184caa08798ebd"
+            }
+          ],
+          "license": {
+            "id": "gemma",
+            "name": "Gemma Terms of Use",
+            "url": "https://ai.google.dev/gemma/terms",
+            "kind": "open-weights",
+            "gated": false,
+            "requires_account": false,
+            "note_de": "Open-Weights-Lizenz mit Nutzungsbedingungen; das Original-Repository von Google ist freigeschaltet, diese Konvertierung ist frei abrufbar."
+          },
+          "architecture": "gemma3",
+          "parameters": "1B",
+          "quantization": "Q4_K_M",
+          "context_length": 32768,
+          "embedding_dimensions": null,
+          "support": "documented",
+          "description_de": "Sehr kleines Gemma-Modell. Chatvorlage ohne Systemrolle (Systemtext wird der ersten Nachricht vorangestellt).",
+          "type": "chat",
+          "original_model": "google/gemma-3-1b-it",
+          "converter": "unsloth",
+          "families": [
+            "Gemma 3"
+          ],
+          "verification": {
+            "status": "metadata",
+            "date": "2026-11-02",
+            "scope": "Katalogeintrag (Architektur laut llama.cpp-Doku/HF-Metadaten, Prüfsumme, Lizenz); hier nicht ausgeführt"
+          },
+          "evidence": [
+            {
+              "kind": "model_card",
+              "note_de": "Gemma-3-Modellkarte: über 140 Sprachen.",
+              "scope": "Herstellerangabe"
+            }
+          ],
+          "resources": {
+            "n_layers": 26,
+            "n_kv_heads": 1,
+            "head_dim": 256,
+            "note": "Gemma 3 1B config.json"
+          },
+          "template": {
+            "reasoning_toggle": null,
+            "system_role": false
+          },
+          "published": null,
+          "checked_at": "2026-11-02",
+          "source_kind": "builtin",
+          "total_bytes": 806058272,
+          "repo_url": "https://huggingface.co/unsloth/gemma-3-1b-it-GGUF/tree/f0b45be0aac41bd6a100a4b5734cad5f67255bfb",
+          "min_ram_bytes": 1559355270,
+          "recommended_ram_bytes": 2502610761,
+          "fit": {
+            "level": "recommended",
+            "message_de": "Passt gut (etwa 1.6 GB RAM).",
+            "estimated_ram_bytes": 1668407174
+          },
+          "installed_model_id": null
+        },
+        "reasons_de": [
+          "Geringster Ressourcenbedarf unter den passenden Modellen.",
+          "Nach Metadaten geprüft (Architektur, Prüfsumme, Lizenz), hier noch nicht ausgeführt.",
+          "Geschwindigkeit hier noch nicht gemessen.",
+          "Passt vollständig in den Grafikspeicher (Intel(R) Arc(TM) 140V GPU (16GB))."
+        ],
+        "estimate": {
+          "ram_bytes": 886062575,
+          "vram_bytes": 1732891835,
+          "download_bytes": 806058272,
+          "context_tokens": 8192,
+          "kv_bytes": 218103808
+        },
+        "uses_gpu": true,
+        "measured": null,
+        "installed_model_id": null
+      },
+      {
+        "slot": "quality",
+        "entry": {
+          "id": "qwen3.8-27b-q4_k_m-ggml",
+          "name": "Qwen3.8 27B (Q4_K_M, Konvertierung ggml-org)",
+          "role": "chat",
+          "family": "Qwen3.8",
+          "publisher": "ggml-org (Konvertierung); Originalmodell: Qwen/Qwen3.8-27B",
+          "source": "community",
+          "repo": "ggml-org/Qwen3.8-27B-GGUF",
+          "revision": "a316ea527fde32c12487be7574e2db5ac2ad2a7e",
+          "files": [
+            {
+              "path": "Qwen3.8-27B-Q4_K_M.gguf",
+              "size": 18973870528,
+              "sha256": "c600de0300ae8a0eb3a6c0b8b5561b8b96f16bd2c863c2a66c42de29d391a747"
+            }
+          ],
+          "license": {
+            "id": "apache-2.0",
+            "name": "Apache License 2.0",
+            "url": "https://huggingface.co/Qwen/Qwen3.8-27B/blob/main/LICENSE",
+            "kind": "open-source",
+            "gated": false,
+            "requires_account": false,
+            "note_de": ""
+          },
+          "architecture": "qwen35",
+          "parameters": "27B",
+          "quantization": "Q4_K_M",
+          "context_length": 32768,
+          "embedding_dimensions": null,
+          "support": "documented",
+          "description_de": "Qwen3.8 27B als GGUF-Konvertierung der llama.cpp-Entwickler (ggml-org). Qwen selbst veröffentlicht keine GGUF-Datei. Architektur qwen35 ist im gebündelten Build gelistet, hier nicht ausgeführt. Benötigt etwa 22 GB RAM und ist auf reiner CPU sehr langsam.",
+          "type": "chat",
+          "original_model": "Qwen/Qwen3.8-27B",
+          "converter": "ggml-org",
+          "families": [
+            "Qwen3.8"
+          ],
+          "verification": {
+            "status": "metadata",
+            "date": "2026-11-02",
+            "scope": "Katalogeintrag (Architektur, Prüfsumme, Lizenz)"
+          },
+          "evidence": [
+            {
+              "kind": "model_card",
+              "note_de": "Qwen3-Modellkarte: 119 Sprachen inkl. Deutsch; Thinking-Modus umschaltbar.",
+              "scope": "Herstellerangabe"
+            }
+          ],
+          "resources": {},
+          "template": {
+            "reasoning_toggle": "enable_thinking",
+            "system_role": true
+          },
+          "published": null,
+          "checked_at": "2026-11-02",
+          "source_kind": "builtin",
+          "total_bytes": 18973870528,
+          "repo_url": "https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF/tree/a316ea527fde32c12487be7574e2db5ac2ad2a7e",
+          "min_ram_bytes": 20154986534,
+          "recommended_ram_bytes": 31037786169,
+          "fit": {
+            "level": "tight",
+            "message_de": "Passt nur knapp: etwa 19.3 GB RAM nötig, derzeit 10.3 GB frei.",
+            "estimated_ram_bytes": 20691857446
+          },
+          "installed_model_id": null
+        },
+        "reasons_de": [
+          "Größtes passendes Modell; mehr Qualität bei längerer Antwortzeit.",
+          "Nach Metadaten geprüft (Architektur, Prüfsumme, Lizenz), hier noch nicht ausgeführt.",
+          "Modellkarte nennt Deutsch als unterstützte Sprache.",
+          "Geschwindigkeit hier noch nicht gemessen."
+        ],
+        "estimate": {
+          "ram_bytes": 21640550972,
+          "vram_bytes": 0,
+          "download_bytes": 18973870528,
+          "context_tokens": 8192,
+          "kv_bytes": 1073741824
+        },
+        "uses_gpu": false,
+        "measured": null,
+        "installed_model_id": null
+      }
+    ],
+    "excluded": [
+      {
+        "id": "qwen3-embedding-0.6b-q8_0",
+        "name": "Qwen3-Embedding 0.6B (Q8_0)",
+        "reason_de": "Kein Chatmodell."
+      },
+      {
+        "id": "embeddinggemma-2-q8_0",
+        "name": "EmbeddingGemma 2 (Q8_0, Konvertierung ggml-org)",
+        "reason_de": "Kein Chatmodell."
+      },
+      {
+        "id": "nomic-embed-text-v1.5-q8_0",
+        "name": "nomic-embed-text v1.5 (Q8_0, offiziell)",
+        "reason_de": "Kein Chatmodell."
+      }
+    ],
+    "catalog_date": "2026-11-02"
+  },
+  "coding": {
+    "hardware": {
+      "cpu": {
+        "name": "Intel(R) Core(TM) Ultra 7 268V",
+        "cores_physical": 8,
+        "threads": 8,
+        "features": [
+          "avx2",
+          "sse2",
+          "avx"
+        ]
+      },
+      "ram_total_bytes": 33895956480,
+      "ram_available_bytes": 11049037824,
+      "gpus": [
+        {
+          "name": "Intel(R) Arc(TM) 140V GPU (16GB)",
+          "backend": "vulkan",
+          "device": "Vulkan0",
+          "vram_total_bytes": 19320012800,
+          "vram_free_bytes": 18514706432,
+          "driver": "32.0.101.8860",
+          "usable": true,
+          "note_de": ""
+        }
+      ],
+      "disk_free_bytes": 282150993920,
+      "disk_total_bytes": 508587667456,
+      "filesystem": "NTFS",
+      "max_file_bytes": null,
+      "power": {
+        "on_battery": false,
+        "power_saver": null
+      },
+      "fingerprint": "d5c9be4a263cd1fe",
+      "runtime_variants": [
+        "cpu",
+        "vulkan"
+      ],
+      "active_backend": "vulkan",
+      "detected_at": "2026-11-02T12:25:11Z",
+      "notes_de": []
+    },
+    "focus": "coding",
+    "picks": [
+      {
+        "slot": "balanced",
+        "entry": {
+          "id": "qwen3-8b-q4_k_m",
+          "name": "Qwen3 8B (Q4_K_M)",
+          "role": "chat",
+          "family": "Qwen3",
+          "publisher": "Qwen",
+          "source": "official",
+          "repo": "Qwen/Qwen3-8B-GGUF",
+          "revision": "7c41481f57cb95916b40956ab2f0b139b296d974",
+          "files": [
+            {
+              "path": "Qwen3-8B-Q4_K_M.gguf",
+              "size": 5027783488,
+              "sha256": "d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785"
+            }
+          ],
+          "license": {
+            "id": "apache-2.0",
+            "name": "Apache License 2.0",
+            "url": "https://huggingface.co/Qwen/Qwen3-8B-GGUF/blob/main/LICENSE",
+            "kind": "open-source",
+            "gated": false,
+            "requires_account": false,
+            "note_de": ""
+          },
+          "architecture": "qwen3",
+          "parameters": "8B",
+          "quantization": "Q4_K_M",
+          "context_length": 32768,
+          "embedding_dimensions": null,
+          "support": "documented",
+          "description_de": "Großes Modell für 16 GB RAM und mehr. Auf reiner CPU langsam, dafür die beste Antwortqualität im Katalog ohne 27B.",
+          "type": "chat",
+          "original_model": "Qwen/Qwen3-8B",
+          "converter": "Qwen (offiziell)",
+          "families": [
+            "Qwen3"
+          ],
+          "verification": {
+            "status": "metadata",
+            "date": "2026-11-02",
+            "scope": "Katalogeintrag (Architektur, Prüfsumme, Lizenz)"
+          },
+          "evidence": [
+            {
+              "kind": "model_card",
+              "note_de": "Qwen3-Modellkarte: 119 Sprachen inkl. Deutsch; Thinking-Modus umschaltbar.",
+              "scope": "Herstellerangabe"
+            }
+          ],
+          "resources": {
+            "n_layers": 36,
+            "n_kv_heads": 8,
+            "head_dim": 128,
+            "note": "Qwen3 config.json"
+          },
+          "template": {
+            "reasoning_toggle": "enable_thinking",
+            "system_role": true
+          },
+          "published": null,
+          "checked_at": "2026-11-02",
+          "source_kind": "builtin",
+          "total_bytes": 5027783488,
+          "repo_url": "https://huggingface.co/Qwen/Qwen3-8B-GGUF/tree/7c41481f57cb95916b40956ab2f0b139b296d974",
+          "min_ram_bytes": 6276008358,
+          "recommended_ram_bytes": 10319982201,
+          "fit": {
+            "level": "recommended",
+            "message_de": "Passt gut (etwa 6.4 GB RAM).",
+            "estimated_ram_bytes": 6879988134
+          },
+          "installed_model_id": null
+        },
+        "reasons_de": [
+          "Beste Gesamtbewertung für diesen Rechner und Schwerpunkt.",
+          "Nach Metadaten geprüft (Architektur, Prüfsumme, Lizenz), hier noch nicht ausgeführt.",
+          "Modellkarte nennt Deutsch als unterstützte Sprache.",
+          "Geschwindigkeit hier noch nicht gemessen.",
+          "Passt vollständig in den Grafikspeicher (Intel(R) Arc(TM) 140V GPU (16GB))."
+        ],
+        "estimate": {
+          "ram_bytes": 2152580140,
+          "vram_bytes": 7282210813,
+          "download_bytes": 5027783488,
+          "context_tokens": 8192,
+          "kv_bytes": 1207959552
+        },
+        "uses_gpu": true,
+        "measured": null,
+        "installed_model_id": null
+      },
+      {
+        "slot": "fast",
+        "entry": {
+          "id": "gemma-3-1b-it-q4_k_m",
+          "name": "Gemma 3 1B it (Q4_K_M, Konvertierung unsloth)",
+          "role": "chat",
+          "family": "Gemma",
+          "publisher": "unsloth (Konvertierung); Originalmodell: google/gemma-3-1b-it",
+          "source": "community",
+          "repo": "unsloth/gemma-3-1b-it-GGUF",
+          "revision": "f0b45be0aac41bd6a100a4b5734cad5f67255bfb",
+          "files": [
+            {
+              "path": "gemma-3-1b-it-Q4_K_M.gguf",
+              "size": 806058272,
+              "sha256": "8270790f3ab69fdfe860b7b64008d9a19986d8df7e407bb018184caa08798ebd"
+            }
+          ],
+          "license": {
+            "id": "gemma",
+            "name": "Gemma Terms of Use",
+            "url": "https://ai.google.dev/gemma/terms",
+            "kind": "open-weights",
+            "gated": false,
+            "requires_account": false,
+            "note_de": "Open-Weights-Lizenz mit Nutzungsbedingungen; das Original-Repository von Google ist freigeschaltet, diese Konvertierung ist frei abrufbar."
+          },
+          "architecture": "gemma3",
+          "parameters": "1B",
+          "quantization": "Q4_K_M",
+          "context_length": 32768,
+          "embedding_dimensions": null,
+          "support": "documented",
+          "description_de": "Sehr kleines Gemma-Modell. Chatvorlage ohne Systemrolle (Systemtext wird der ersten Nachricht vorangestellt).",
+          "type": "chat",
+          "original_model": "google/gemma-3-1b-it",
+          "converter": "unsloth",
+          "families": [
+            "Gemma 3"
+          ],
+          "verification": {
+            "status": "metadata",
+            "date": "2026-11-02",
+            "scope": "Katalogeintrag (Architektur laut llama.cpp-Doku/HF-Metadaten, Prüfsumme, Lizenz); hier nicht ausgeführt"
+          },
+          "evidence": [
+            {
+              "kind": "model_card",
+              "note_de": "Gemma-3-Modellkarte: über 140 Sprachen.",
+              "scope": "Herstellerangabe"
+            }
+          ],
+          "resources": {
+            "n_layers": 26,
+            "n_kv_heads": 1,
+            "head_dim": 256,
+            "note": "Gemma 3 1B config.json"
+          },
+          "template": {
+            "reasoning_toggle": null,
+            "system_role": false
+          },
+          "published": null,
+          "checked_at": "2026-11-02",
+          "source_kind": "builtin",
+          "total_bytes": 806058272,
+          "repo_url": "https://huggingface.co/unsloth/gemma-3-1b-it-GGUF/tree/f0b45be0aac41bd6a100a4b5734cad5f67255bfb",
+          "min_ram_bytes": 1559355270,
+          "recommended_ram_bytes": 2502610761,
+          "fit": {
+            "level": "recommended",
+            "message_de": "Passt gut (etwa 1.6 GB RAM).",
+            "estimated_ram_bytes": 1668407174
+          },
+          "installed_model_id": null
+        },
+        "reasons_de": [
+          "Geringster Ressourcenbedarf unter den passenden Modellen.",
+          "Nach Metadaten geprüft (Architektur, Prüfsumme, Lizenz), hier noch nicht ausgeführt.",
+          "Geschwindigkeit hier noch nicht gemessen.",
+          "Passt vollständig in den Grafikspeicher (Intel(R) Arc(TM) 140V GPU (16GB))."
+        ],
+        "estimate": {
+          "ram_bytes": 886062575,
+          "vram_bytes": 1732891835,
+          "download_bytes": 806058272,
+          "context_tokens": 8192,
+          "kv_bytes": 218103808
+        },
+        "uses_gpu": true,
+        "measured": null,
+        "installed_model_id": null
+      },
+      {
+        "slot": "quality",
+        "entry": {
+          "id": "qwen3.8-27b-q4_k_m-ggml",
+          "name": "Qwen3.8 27B (Q4_K_M, Konvertierung ggml-org)",
+          "role": "chat",
+          "family": "Qwen3.8",
+          "publisher": "ggml-org (Konvertierung); Originalmodell: Qwen/Qwen3.8-27B",
+          "source": "community",
+          "repo": "ggml-org/Qwen3.8-27B-GGUF",
+          "revision": "a316ea527fde32c12487be7574e2db5ac2ad2a7e",
+          "files": [
+            {
+              "path": "Qwen3.8-27B-Q4_K_M.gguf",
+              "size": 18973870528,
+              "sha256": "c600de0300ae8a0eb3a6c0b8b5561b8b96f16bd2c863c2a66c42de29d391a747"
+            }
+          ],
+          "license": {
+            "id": "apache-2.0",
+            "name": "Apache License 2.0",
+            "url": "https://huggingface.co/Qwen/Qwen3.8-27B/blob/main/LICENSE",
+            "kind": "open-source",
+            "gated": false,
+            "requires_account": false,
+            "note_de": ""
+          },
+          "architecture": "qwen35",
+          "parameters": "27B",
+          "quantization": "Q4_K_M",
+          "context_length": 32768,
+          "embedding_dimensions": null,
+          "support": "documented",
+          "description_de": "Qwen3.8 27B als GGUF-Konvertierung der llama.cpp-Entwickler (ggml-org). Qwen selbst veröffentlicht keine GGUF-Datei. Architektur qwen35 ist im gebündelten Build gelistet, hier nicht ausgeführt. Benötigt etwa 22 GB RAM und ist auf reiner CPU sehr langsam.",
+          "type": "chat",
+          "original_model": "Qwen/Qwen3.8-27B",
+          "converter": "ggml-org",
+          "families": [
+            "Qwen3.8"
+          ],
+          "verification": {
+            "status": "metadata",
+            "date": "2026-11-02",
+            "scope": "Katalogeintrag (Architektur, Prüfsumme, Lizenz)"
+          },
+          "evidence": [
+            {
+              "kind": "model_card",
+              "note_de": "Qwen3-Modellkarte: 119 Sprachen inkl. Deutsch; Thinking-Modus umschaltbar.",
+              "scope": "Herstellerangabe"
+            }
+          ],
+          "resources": {},
+          "template": {
+            "reasoning_toggle": "enable_thinking",
+            "system_role": true
+          },
+          "published": null,
+          "checked_at": "2026-11-02",
+          "source_kind": "builtin",
+          "total_bytes": 18973870528,
+          "repo_url": "https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF/tree/a316ea527fde32c12487be7574e2db5ac2ad2a7e",
+          "min_ram_bytes": 20154986534,
+          "recommended_ram_bytes": 31037786169,
+          "fit": {
+            "level": "tight",
+            "message_de": "Passt nur knapp: etwa 19.3 GB RAM nötig, derzeit 10.3 GB frei.",
+            "estimated_ram_bytes": 20691857446
+          },
+          "installed_model_id": null
+        },
+        "reasons_de": [
+          "Größtes passendes Modell; mehr Qualität bei längerer Antwortzeit.",
+          "Nach Metadaten geprüft (Architektur, Prüfsumme, Lizenz), hier noch nicht ausgeführt.",
+          "Modellkarte nennt Deutsch als unterstützte Sprache.",
+          "Geschwindigkeit hier noch nicht gemessen."
+        ],
+        "estimate": {
+          "ram_bytes": 21640550972,
+          "vram_bytes": 0,
+          "download_bytes": 18973870528,
+          "context_tokens": 8192,
+          "kv_bytes": 1073741824
+        },
+        "uses_gpu": false,
+        "measured": null,
+        "installed_model_id": null
+      }
+    ],
+    "excluded": [
+      {
+        "id": "qwen3-embedding-0.6b-q8_0",
+        "name": "Qwen3-Embedding 0.6B (Q8_0)",
+        "reason_de": "Kein Chatmodell."
+      },
+      {
+        "id": "embeddinggemma-2-q8_0",
+        "name": "EmbeddingGemma 2 (Q8_0, Konvertierung ggml-org)",
+        "reason_de": "Kein Chatmodell."
+      },
+      {
+        "id": "nomic-embed-text-v1.5-q8_0",
+        "name": "nomic-embed-text v1.5 (Q8_0, offiziell)",
+        "reason_de": "Kein Chatmodell."
+      }
+    ],
+    "catalog_date": "2026-11-02"
+  }
+}

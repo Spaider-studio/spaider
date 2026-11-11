@@ -1,0 +1,51 @@
+{
+  "before": {
+    "conversations": 5,
+    "messages": 32,
+    "nodes": 25,
+    "edges": 22,
+    "documents": 0,
+    "notes": 0,
+    "models": 1,
+    "ingest_queue": 13,
+    "user_version": 1
+  },
+  "core_start_s": 11.39,
+  "runtime": {
+    "state": "ready",
+    "model": "qwen3-4b-q4_k_m",
+    "backend": "vulkan"
+  },
+  "setup": "ready",
+  "memory_overview": {
+    "facts": 16,
+    "entities": 11,
+    "conversations": 5,
+    "messages": 32,
+    "pending_ingest": 0
+  },
+  "tasks": [],
+  "capabilities": {
+    "id": "qwen3-4b-q4_k_m",
+    "vision_input": false,
+    "image_grounding": "none",
+    "tool_call_format": "json_schema",
+    "structured_output": true
+  },
+  "after": {
+    "conversations": 5,
+    "messages": 32,
+    "nodes": 29,
+    "edges": 22,
+    "documents": 0,
+    "notes": 0,
+    "models": 1,
+    "ingest_queue": 13,
+    "agent_tasks": 0,
+    "agent_actions": 0,
+    "agent_recipes": 0,
+    "user_version": 3,
+    "quick_check": "ok"
+  },
+  "original_untouched": 1
+}

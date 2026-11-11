@@ -1,0 +1,28 @@
+{
+ "before": {
+  "conversations": 5,
+  "messages": 32,
+  "nodes": 25,
+  "edges": 22,
+  "documents": 0,
+  "notes": 0,
+  "models": 1,
+  "ingest_queue": 13,
+  "schema_user_version": 1
+ },
+ "after": {
+  "conversations": 5,
+  "messages": 32,
+  "nodes": 25,
+  "edges": 22,
+  "documents": 0,
+  "notes": 0,
+  "models": 1,
+  "ingest_queue": 13,
+  "schema": 2
+ },
+ "quick_check": "ok",
+ "restore_user_version": 1,
+ "original_untouched": true,
+ "copy": "C:/Users/<Nutzer>/spaider-foldable/measure/update-test"
+}

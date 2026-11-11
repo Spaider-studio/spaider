@@ -1,0 +1,76 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spaider-foldable-core"
+version = "0.3.0"
+description = "SpAIder Foldable: portable, local SpAIder chat core (reuses backend/app as a library)"
+license = "AGPL-3.0-only"
+requires-python = ">=3.11"
+# Runtime dependencies. The SpAIder backend package (../../backend) is used as a
+# library and is NOT installed as a distribution: bootstrap.py puts it on
+# sys.path (dev) or the PyInstaller bundle includes it (frozen). Only the
+# subset of backend dependencies that the reused modules import is listed.
+dependencies = [
+    "fastapi==0.141.1",
+    "uvicorn==0.53.0",
+    "pydantic>=2.10,<3",
+    "pydantic-settings>=2.6",
+    "litellm>=1.67.0",
+    "redis>=5.2.0",
+    "Levenshtein>=0.26.0",
+    "numpy>=2.2.0",
+    "httpx==0.28.1",
+    # 0.4: MCP memory bridge, Sign in with ChatGPT (ID-token verification), vault KDF/AEAD
+    "mcp==2.3.0",
+    "PyJWT==2.15.1",
+    "cryptography==50.0.2",
+    # upstream backend 0.5.0 (imported as a library): purge/finetune services import SQLAlchemy
+    "sqlalchemy[asyncio]>=2.0.0",
+    "aiosqlite>=0.20.0",
+    "rapidfuzz>=3.10.0",
+    "pdfplumber>=0.11.4",
+    "markdown-it-py>=3.0.0",
+    "python-multipart==0.0.32",
+    # imported (not connected) by app.services.query_service / graph_service
+    "neo4j==6.3.1",
+    # hardware profile (physical cores, battery), process accounting
+    "psutil>=6.0",
+    # 0.3: desktop observation/automation and the own browser (pinned to the versions used in the frozen build)
+    "pywinauto==0.6.9",
+    "pywin32==312",
+    "comtypes==1.4.17",
+    "mss==10.2.0",
+    "playwright==1.64.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "pytest-mock==3.15.1",
+    "ruff>=0.6,<0.7",
+    "pyinstaller>=6.10",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["spaider_foldable*"]
+
+[tool.setuptools.package-data]
+spaider_foldable = ["models/*.json", "db/*.sql"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "real_inference: needs the llama.cpp runtime and a downloaded model (slow, opt-in via SPAIDER_FOLDABLE_REAL_TESTS=1)",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]

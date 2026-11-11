@@ -1,0 +1,508 @@
+{
+ "task": "B1",
+ "model": {
+  "id": "qwen3-vl-4b-instruct-q4_k_m",
+  "file": null,
+  "runtime": {
+   "chat": {
+    "state": "ready",
+    "model_id": "qwen3-vl-4b-instruct-q4_k_m",
+    "error": null,
+    "port": 63818,
+    "startup_seconds": 2.28,
+    "backend": "vulkan",
+    "options": {
+     "backend": "vulkan",
+     "device": "Vulkan0",
+     "gpu_layers": 999,
+     "threads": 8,
+     "threads_batch": 8,
+     "prio": 0,
+     "reason_de": "Alle Schichten auf Intel(R) Arc(TM) 140V GPU (16GB) (geschätzt 5.6 GB von 17.2 GB frei).",
+     "mmproj_offload": true,
+     "image_max_tokens": null,
+     "mmproj": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-jq443xc2\\SpAIder\\data\\models\\qwen3-vl-4b-instruct-q4_k_m\\mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf"
+    }
+   },
+   "embedding": {
+    "state": "stopped",
+    "model_id": null,
+    "error": null,
+    "port": null,
+    "startup_seconds": null,
+    "backend": null,
+    "options": {}
+   }
+  }
+ },
+ "catalog_id": "qwen3-vl-4b-instruct-q4_k_m",
+ "started_at": "2026-11-04T01:44:48Z",
+ "normal": [
+  {
+   "id": "B1",
+   "goal": "Öffne im eigenen Browser file:///C:/Users/<Nutzer>/AppData/Local/Temp/spaider-matrix-jq443xc2/B1-0/web/seite.html und fülle das Formular aus der Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-jq443xc2\\B1-0\\quelle.txt (Projektname, Budget als Zahl, Priorität), klicke „Als Entwurf speichern“ und prüfe die Bestätigung „Entwurf gespeichert“.",
+   "success": true,
+   "false_success_claim": false,
+   "state": "completed",
+   "steps": 9,
+   "llm_calls": 9,
+   "wall_s": 71.0,
+   "questions": 0,
+   "interventions": [],
+   "failed_tools": [],
+   "rejected": 0,
+   "check": {
+    "ok": true,
+    "expected": "Entwurf gespeichert: Polarstern | 51200 | hoch"
+   },
+   "summary": "Formular ausgefüllt und Entwurf gespeichert – Bestätigung sichtbar.",
+   "timings": {
+    "observe_ms": 59,
+    "wait_ms": 0,
+    "planning_ms": 69262,
+    "executing_ms": 1466
+   },
+   "actions": [
+    [
+     1,
+     "browser.open",
+     "done"
+    ],
+    [
+     2,
+     "files.read",
+     "done"
+    ],
+    [
+     3,
+     "browser.fill",
+     "done"
+    ],
+    [
+     4,
+     "browser.fill",
+     "done"
+    ],
+    [
+     5,
+     "browser.select",
+     "done"
+    ],
+    [
+     6,
+     "browser.click",
+     "done"
+    ],
+    [
+     7,
+     "browser.wait_for_text",
+     "done"
+    ]
+   ],
+   "arm": "normal"
+  },
+  {
+   "id": "B1",
+   "goal": "Öffne im eigenen Browser file:///C:/Users/<Nutzer>/AppData/Local/Temp/spaider-matrix-jq443xc2/B1-1/web/seite.html und fülle das Formular aus der Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-jq443xc2\\B1-1\\quelle.txt (Projektname, Budget als Zahl, Priorität), klicke „Als Entwurf speichern“ und prüfe die Bestätigung „Entwurf gespeichert“.",
+   "success": true,
+   "false_success_claim": false,
+   "state": "completed",
+   "steps": 9,
+   "llm_calls": 9,
+   "wall_s": 64.6,
+   "questions": 0,
+   "interventions": [],
+   "failed_tools": [],
+   "rejected": 0,
+   "check": {
+    "ok": true,
+    "expected": "Entwurf gespeichert: Seeadler | 62750 | hoch"
+   },
+   "summary": "Formular ausgefüllt und Entwurf gespeichert – Bestätigung sichtbar.",
+   "timings": {
+    "observe_ms": 46,
+    "wait_ms": 0,
+    "planning_ms": 64166,
+    "executing_ms": 355
+   },
+   "actions": [
+    [
+     1,
+     "browser.open",
+     "done"
+    ],
+    [
+     2,
+     "files.read",
+     "done"
+    ],
+    [
+     3,
+     "browser.fill",
+     "done"
+    ],
+    [
+     4,
+     "browser.fill",
+     "done"
+    ],
+    [
+     5,
+     "browser.select",
+     "done"
+    ],
+    [
+     6,
+     "browser.click",
+     "done"
+    ],
+    [
+     7,
+     "browser.wait_for_text",
+     "done"
+    ]
+   ],
+   "arm": "normal"
+  },
+  {
+   "id": "B1",
+   "goal": "Öffne im eigenen Browser file:///C:/Users/<Nutzer>/AppData/Local/Temp/spaider-matrix-jq443xc2/B1-2/web/seite.html und fülle das Formular aus der Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-jq443xc2\\B1-2\\quelle.txt (Projektname, Budget als Zahl, Priorität), klicke „Als Entwurf speichern“ und prüfe die Bestätigung „Entwurf gespeichert“.",
+   "success": true,
+   "false_success_claim": false,
+   "state": "completed",
+   "steps": 10,
+   "llm_calls": 10,
+   "wall_s": 74.6,
+   "questions": 0,
+   "interventions": [],
+   "failed_tools": [],
+   "rejected": 0,
+   "check": {
+    "ok": true,
+    "expected": "Entwurf gespeichert: Seeadler | 48500 | hoch"
+   },
+   "summary": "Formular ausgefüllt und Entwurf gespeichert – Bestätigung sichtbar.",
+   "timings": {
+    "observe_ms": 46,
+    "wait_ms": 0,
+    "planning_ms": 74137,
+    "executing_ms": 337
+   },
+   "actions": [
+    [
+     1,
+     "browser.open",
+     "done"
+    ],
+    [
+     2,
+     "files.read",
+     "done"
+    ],
+    [
+     3,
+     "browser.fill",
+     "done"
+    ],
+    [
+     4,
+     "browser.fill",
+     "done"
+    ],
+    [
+     5,
+     "browser.select",
+     "done"
+    ],
+    [
+     6,
+     "browser.click",
+     "done"
+    ],
+    [
+     7,
+     "browser.read",
+     "done"
+    ],
+    [
+     8,
+     "browser.wait_for_text",
+     "done"
+    ]
+   ],
+   "arm": "normal"
+  }
+ ],
+ "recipe": [
+  {
+   "id": "B1",
+   "goal": "Öffne im eigenen Browser file:///C:/Users/<Nutzer>/AppData/Local/Temp/spaider-matrix-jq443xc2/B1-10/web/seite.html und fülle das Formular aus der Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-jq443xc2\\B1-10\\quelle.txt (Projektname, Budget als Zahl, Priorität), klicke „Als Entwurf speichern“ und prüfe die Bestätigung „Entwurf gespeichert“.",
+   "success": true,
+   "false_success_claim": false,
+   "state": "completed",
+   "steps": 8,
+   "llm_calls": 0,
+   "wall_s": 0.4,
+   "questions": 0,
+   "interventions": [],
+   "failed_tools": [],
+   "rejected": 0,
+   "check": {
+    "ok": true,
+    "expected": "Entwurf gespeichert: Nordlicht | 48500 | hoch"
+   },
+   "summary": "Ablauf „Projektanfrage ausfuellen“ ausgeführt (7 Schritte ohne Modellaufruf).",
+   "timings": {
+    "observe_ms": 0,
+    "executing_ms": 353
+   },
+   "actions": [
+    [
+     1,
+     "browser.open",
+     "done"
+    ],
+    [
+     2,
+     "files.read",
+     "done"
+    ],
+    [
+     3,
+     "browser.fill",
+     "done"
+    ],
+    [
+     4,
+     "browser.fill",
+     "done"
+    ],
+    [
+     5,
+     "browser.select",
+     "done"
+    ],
+    [
+     6,
+     "browser.click",
+     "done"
+    ],
+    [
+     7,
+     "browser.wait_for_text",
+     "done"
+    ]
+   ],
+   "arm": "recipe"
+  },
+  {
+   "id": "B1",
+   "goal": "Öffne im eigenen Browser file:///C:/Users/<Nutzer>/AppData/Local/Temp/spaider-matrix-jq443xc2/B1-11/web/seite.html und fülle das Formular aus der Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-jq443xc2\\B1-11\\quelle.txt (Projektname, Budget als Zahl, Priorität), klicke „Als Entwurf speichern“ und prüfe die Bestätigung „Entwurf gespeichert“.",
+   "success": true,
+   "false_success_claim": false,
+   "state": "completed",
+   "steps": 8,
+   "llm_calls": 0,
+   "wall_s": 0.4,
+   "questions": 0,
+   "interventions": [],
+   "failed_tools": [],
+   "rejected": 0,
+   "check": {
+    "ok": true,
+    "expected": "Entwurf gespeichert: Polarstern | 39900 | hoch"
+   },
+   "summary": "Ablauf „Projektanfrage ausfuellen“ ausgeführt (7 Schritte ohne Modellaufruf).",
+   "timings": {
+    "observe_ms": 61,
+    "executing_ms": 277
+   },
+   "actions": [
+    [
+     1,
+     "browser.open",
+     "done"
+    ],
+    [
+     2,
+     "files.read",
+     "done"
+    ],
+    [
+     3,
+     "browser.fill",
+     "done"
+    ],
+    [
+     4,
+     "browser.fill",
+     "done"
+    ],
+    [
+     5,
+     "browser.select",
+     "done"
+    ],
+    [
+     6,
+     "browser.click",
+     "done"
+    ],
+    [
+     7,
+     "browser.wait_for_text",
+     "done"
+    ]
+   ],
+   "arm": "recipe"
+  },
+  {
+   "id": "B1",
+   "goal": "Öffne im eigenen Browser file:///C:/Users/<Nutzer>/AppData/Local/Temp/spaider-matrix-jq443xc2/B1-12/web/seite.html und fülle das Formular aus der Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-jq443xc2\\B1-12\\quelle.txt (Projektname, Budget als Zahl, Priorität), klicke „Als Entwurf speichern“ und prüfe die Bestätigung „Entwurf gespeichert“.",
+   "success": true,
+   "false_success_claim": false,
+   "state": "completed",
+   "steps": 8,
+   "llm_calls": 0,
+   "wall_s": 0.4,
+   "questions": 0,
+   "interventions": [],
+   "failed_tools": [],
+   "rejected": 0,
+   "check": {
+    "ok": true,
+    "expected": "Entwurf gespeichert: Nordlicht | 39900 | hoch"
+   },
+   "summary": "Ablauf „Projektanfrage ausfuellen“ ausgeführt (7 Schritte ohne Modellaufruf).",
+   "timings": {
+    "observe_ms": 45,
+    "executing_ms": 310
+   },
+   "actions": [
+    [
+     1,
+     "browser.open",
+     "done"
+    ],
+    [
+     2,
+     "files.read",
+     "done"
+    ],
+    [
+     3,
+     "browser.fill",
+     "done"
+    ],
+    [
+     4,
+     "browser.fill",
+     "done"
+    ],
+    [
+     5,
+     "browser.select",
+     "done"
+    ],
+    [
+     6,
+     "browser.click",
+     "done"
+    ],
+    [
+     7,
+     "browser.wait_for_text",
+     "done"
+    ]
+   ],
+   "arm": "recipe"
+  }
+ ],
+ "recipe_def": {
+  "id": "rcp_49b98a372d",
+  "steps": [
+   [
+    "browser.open",
+    {
+     "url": "{url}"
+    }
+   ],
+   [
+    "files.read",
+    {
+     "path": "{src}"
+    }
+   ],
+   [
+    "browser.fill",
+    {
+     "ref": "b2",
+     "text": "{projname}"
+    }
+   ],
+   [
+    "browser.fill",
+    {
+     "ref": "b4",
+     "text": "{budget}"
+    }
+   ],
+   [
+    "browser.select",
+    {
+     "ref": "b6",
+     "value": "hoch"
+    }
+   ],
+   [
+    "browser.click",
+    {
+     "ref": "b7"
+    }
+   ],
+   [
+    "browser.wait_for_text",
+    {
+     "text": "Entwurf gespeichert: {projname} | {budget} | hoch",
+     "timeout_ms": 5000
+    }
+   ]
+  ],
+  "requires": {
+   "tools": [
+    "browser.click",
+    "browser.fill",
+    "browser.open",
+    "browser.select",
+    "browser.wait_for_text",
+    "files.read"
+   ],
+   "apps": [],
+   "vision": false
+  }
+ },
+ "summary": {
+  "normal": {
+   "success": 3,
+   "total": 3,
+   "median_wall_s": 71.0,
+   "llm_calls": [
+    9,
+    9,
+    10
+   ],
+   "false_success_claims": 0
+  },
+  "recipe": {
+   "success": 3,
+   "total": 3,
+   "median_wall_s": 0.4,
+   "llm_calls": [
+    0,
+    0,
+    0
+   ],
+   "false_success_claims": 0
+  }
+ }
+}
