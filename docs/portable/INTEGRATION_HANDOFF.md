@@ -282,3 +282,30 @@ vorhanden) und `mcp==2.3.0` müssen auf dieselbe Hauptversion gebracht werden.
    im Desktop), Paketbau (`foldable/build/*`), Vergleichslauf des Testberichts.
 3. Erst dann Pull Request gegen das gemeinsame Repository; Veröffentlichungen (Releases,
   Plugins, Tunnel) bleiben eine Entscheidung der Gründer.
+
+
+## Stand 0.5.0 (Agent v2, 2026-11-12)
+
+- Branch `feature/spaider-foldable-agent-v2` setzt auf `feature/spaider-foldable-0.4-review`
+  (PR #60, Commit 219828a = offizielles `main` 126ef75 + Foldable 0.1–0.4) auf. Der Draft-PR
+  für 0.5 zielt deshalb auf den Branch von #60, nicht auf `main`; nach dem Merge von #60 kann
+  er auf `main` umgestellt werden (keine Konflikte erwartet: alle Änderungen liegen unter
+  `foldable/` und `docs/portable/`).
+- Neue Dateien: `foldable/core/spaider_foldable/agent/{contracts,deps,compiler,reuse,bindings,
+  verifier,planner,inputguard,teach,workflows}.py`, `db/schema_v6.sql`, `api/routes_teach.py`,
+  `tests/test_agent_v2.py`, `tests/test_agent_v2_api.py`, `tests/test_teach.py`,
+  `tests/matrix/tasks_v2.json`, `tests/matrix/run_matrix_v2.py`, `tests/fixtures/winforms_formapp.ps1`;
+  Desktop: `components/tasks/{WorkflowsList,TeachPanel}.tsx` (RecipesList entfernt),
+  Bridge `openPath`/`revealPath`.
+- Geänderte 0.3/0.4-Dateien: `agent/loop.py` (neu geschrieben), `agent/models.py`, `agent/store.py`,
+  `agent/broker.py` (unverändert), `agent/tools/windows.py` (Eingabesperre), `agent/tools/files.py`
+  (Schreibordner lesbar), `agent/tools/browser.py` (Elementnamen), `memory/store.py` (Hook),
+  `connectors/service.py` (Invalidierung), `context.py` (Verdrahtung), `api/routes_agent.py`,
+  `api/app.py`, `models/registry.py` (agent_checks), `observe/windows.py` (last_input_age_ms),
+  `build/spaider_foldable_core.spec` (schema_v6).
+- Schema: v6 additiv; `agent_recipes` bleibt, Rezepte werden beim Start als Kandidaten übernommen.
+- Befund am veröffentlichten 0.4-Stand (PR #60): `tests/matrix/run_matrix.py` enthält ein
+  Backspace-Byte im Standardpfad `dev-app\browser` (durch die Pfad-Neutralisierung entstanden);
+  auf diesem Branch repariert. Beim Review von #60 bitte mitnehmen.
+- Vergleichsläufe und Baseline: `foldable/build/measurements/matrix2-*.json`,
+  `baseline-*.json`; Erzeugung mit `tests/matrix/run_matrix_v2.py` (Arme none/simple/full).
