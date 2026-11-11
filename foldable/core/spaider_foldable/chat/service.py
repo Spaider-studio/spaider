@@ -164,6 +164,39 @@ class ChatService:
         n = await client.tokenize_count(text)
         return n if n is not None else int(len(text) / CHARS_PER_TOKEN) + 1
 
+    def _cloud_origin_filter(self):
+        """Predicate for memory retrieval when the answer leaves the machine: memories
+        whose origin (conversation, document, connector) belongs to a „Nur lokal“
+        project are never included. None when no such project exists."""
+        if self.projects is None:
+            return None
+        local_only = {p["id"] for p in self.projects.list() if p.get("local_only")}
+        if not local_only:
+            return None
+        db = self.conversations.db
+        cache: dict[tuple[str, str], bool] = {}
+
+        def allowed(kind: str, oid: str) -> bool:
+            key = (kind, oid)
+            if key in cache:
+                return cache[key]
+            pid = "default"
+            try:
+                if kind == "conversation" and oid:
+                    row = db.query_one("SELECT project_id FROM conversations WHERE id = ?", (oid,))
+                    pid = (row["project_id"] if row else None) or "default"
+                elif kind == "document" and oid:
+                    row = db.query_one("SELECT project_id FROM documents WHERE id = ?", (oid,))
+                    pid = (row["project_id"] if row else None) or "default"
+                elif kind == "connector" and "/" in (oid or ""):
+                    pid = oid.split("/", 1)[1] or "default"
+            except Exception:  # noqa: BLE001
+                pid = "default"
+            cache[key] = pid not in local_only
+            return cache[key]
+
+        return allowed
+
     async def _wait_for_runtime(self, tracker: ActivityTracker, pending: list[str]):
         slot = self.inference.chat
         if slot.model_id is None and slot.state == "stopped":
@@ -309,7 +342,10 @@ class ChatService:
                     if use_memory:
                         retrieved = await asyncio.wait_for(
                             self.retriever.retrieve(
-                                content, max_chars=ctx_budget_chars, exclude_fact_ids={fact_id} if fact_id else None
+                                content,
+                                max_chars=ctx_budget_chars,
+                                exclude_fact_ids={fact_id} if fact_id else None,
+                                origin_allowed=self._cloud_origin_filter() if (conn is not None and conn.execution != "local") else None,
                             ),
                             timeout=30,
                         )
@@ -511,6 +547,21 @@ class ChatService:
             tracker.fail("failed", f"Fehlgeschlagen: {exc.message_de[:120]}")
             for s in flush():
                 yield s
+            sharing_estimate = None
+            if exc.code in ("consent_required", "local_only", "denied") and conn is not None:
+                # policy blocks happen before the prompt is built: give the consent dialog the counts it can know
+                try:
+                    hist = self.conversations.messages(conversation_id)
+                    sharing_estimate = {
+                        "history_messages": sum(1 for m in hist if m.get("role") in ("user", "assistant") and m.get("id") != assistant["id"]),
+                        "system_prompt": True,
+                        "memory_chars": None,
+                        "sources": None,
+                        "images": 1 if observe is not None else 0,
+                        "estimate": True,
+                    }
+                except Exception:  # noqa: BLE001
+                    sharing_estimate = None
             yield sse(
                 "error",
                 {
@@ -522,6 +573,7 @@ class ChatService:
                     "connection_id": conn.id if conn else None,
                     "project_id": project.get("id") if project else None,
                     "partial_text": bool(text_parts),
+                    "sharing": sharing_estimate,
                     "next_action_de": NEXT_ACTION_DE.get(exc.code, "Erneut versuchen oder ein anderes Modell wählen."),
                 },
             )

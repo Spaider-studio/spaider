@@ -37,6 +37,7 @@ class ActivateBody(BaseModel):
 class ResolveBody(BaseModel):
     repo: str
     file: Optional[str] = None
+    projector: Optional[str] = None  # mmproj file of the same repo for vision models (chosen in the UI)
 
 
 @router.get("/catalog")
@@ -244,6 +245,13 @@ async def resolve(body: ResolveBody, ctx: AppContext = Depends(get_ctx)):
         parts = hub.split_group(info.files, chosen)
     except hub.HubError as exc:
         raise ApiError(exc.status, exc.code, exc.detail)
+    projector = None
+    if body.projector:
+        if not _SAFE_FILE.match(body.projector) or ".." in body.projector or "mmproj" not in body.projector.lower():
+            raise ApiError(422, "invalid_file", "Ungültiger Projektor-Dateiname (erwartet wird eine mmproj-GGUF-Datei desselben Repositorys).")
+        projector = next((f for f in info.files if f.path == body.projector), None)
+        if projector is None:
+            raise ApiError(404, "not_found", "Projektor-Datei nicht im Repository.")
     try:
         header = await asyncio.to_thread(hub.remote_gguf_header, info.repo, info.revision, parts[0].path)
     except hub.HubError as exc:
@@ -296,7 +304,8 @@ async def resolve(body: ResolveBody, ctx: AppContext = Depends(get_ctx)):
         original_model=info.base_model,
         repo=info.repo,
         revision=info.revision,
-        files=[CatalogFile(path=f.path, size=f.size, sha256=f.sha256) for f in parts],
+        files=[CatalogFile(path=f.path, size=f.size, sha256=f.sha256) for f in parts]
+        + ([CatalogFile(path=projector.path, size=projector.size, sha256=projector.sha256, kind="mmproj")] if projector is not None else []),
         license=License(
             id=license_id,
             name=info.license or "unbekannt",

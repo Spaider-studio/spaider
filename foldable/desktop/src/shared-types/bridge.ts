@@ -181,6 +181,22 @@ export const IPC = {
 export const OPEN_EXTERNAL_ALLOWLIST = [
   "https://huggingface.co/",
   "https://github.com/ggml-org/llama.cpp",
+  // 0.4: provider key pages and documentation linked from the presets (no other hosts)
+  "https://platform.openai.com/",
+  "https://developers.openai.com/",
+  "https://console.anthropic.com/",
+  "https://platform.claude.com/",
+  "https://aistudio.google.com/",
+  "https://platform.deepseek.com/",
+  "https://api-docs.deepseek.com/",
+  "https://z.ai/",
+  "https://docs.z.ai/",
+  "https://console.mistral.ai/",
+  "https://docs.mistral.ai/",
+  "https://openrouter.ai/",
+  "https://docs.ollama.com/",
+  "https://lmstudio.ai/",
+  "https://github.com/openai/tunnel-client",
 ] as const;
 
 export function isAllowedExternalUrl(url: string): boolean {

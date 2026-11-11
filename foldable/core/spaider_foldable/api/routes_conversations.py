@@ -57,13 +57,14 @@ async def delete(cid: str, ctx: AppContext = Depends(get_ctx)):
 
 @router.post("/{cid}/messages")
 async def send(cid: str, body: MessageBody, ctx: AppContext = Depends(get_ctx)):
-    ctx.conversations.get(cid)
+    conv = ctx.conversations.get(cid)
     if cid in ctx.chat._active:
         raise ApiError(409, "generation_running", "In diesem Gespräch wird gerade eine Antwort erzeugt.")
     slot = ctx.inference.chat
-    if slot.model_id is None and slot.state == "stopped":
+    bound_local = ((conv.get("binding") or {}).get("kind") or "local") == "local"
+    if bound_local and slot.model_id is None and slot.state == "stopped":
         raise ApiError(409, "no_model", "Es ist kein Chatmodell aktiv. Bitte zuerst ein Modell einrichten.")
-    if slot.state != "ready":
+    if bound_local and slot.state != "ready":
         raise ApiError(
             409,
             "runtime_not_ready",

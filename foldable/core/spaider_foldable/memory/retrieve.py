@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Callable, Optional
 
 from app.models.schemas import GraphPayload, Node
 from app.services.query_service import QueryService, _rrf_fuse
@@ -71,8 +71,17 @@ class MemoryRetriever:
         self.embeddings = embeddings
 
     async def retrieve(
-        self, query: str, *, max_chars: int = 6000, top_k: int = 10, exclude_fact_ids: Optional[set[str]] = None
+        self,
+        query: str,
+        *,
+        max_chars: int = 6000,
+        top_k: int = 10,
+        exclude_fact_ids: Optional[set[str]] = None,
+        origin_allowed: Optional[Callable[[str, str], bool]] = None,
     ) -> RetrievedContext:
+        """``origin_allowed(kind, id)`` drops nodes whose origin must not leave the
+        machine (facts from „Nur lokal“ projects when the answer goes to a cloud
+        connection); it is applied before any text is assembled."""
         query = (query or "").strip()
         if not query:
             return RetrievedContext(context_text="")
@@ -99,6 +108,8 @@ class MemoryRetriever:
         all_ids = list(dict.fromkeys(seed_ids + [i for i in neighbour_ids if i not in seed_ids]))
         rows = self.store.get_nodes(all_ids)
         nodes: list[Node] = []
+        if origin_allowed is not None:
+            rows = {k: r for k, r in rows.items() if origin_allowed(r["origin_kind"] or "", r["origin_id"] or "")}
         for nid in all_ids:
             r = rows.get(nid)
             if r is None or r["superseded"] or (exclude_fact_ids and nid in exclude_fact_ids):
@@ -135,6 +146,8 @@ class MemoryRetriever:
         fact_rows = [r for r in (rows[i] for i in all_ids if i in rows) if r["type"] == "FACT" and not r["superseded"]]
         for r in self.store.facts_mentioning(entity_ids, limit=10):
             if r["id"] not in {f["id"] for f in fact_rows}:
+                if origin_allowed is not None and not origin_allowed(r["origin_kind"] or "", r["origin_id"] or ""):
+                    continue
                 fact_rows.append(r)
         sources: list[dict] = []
         for r in fact_rows[:12]:
@@ -154,6 +167,8 @@ class MemoryRetriever:
         # Older, replaced statements about the same entities (shown as history).
         history_lines: list[str] = []
         for e in self.store.superseded_edges_for_nodes(entity_ids, limit=6):
+            if origin_allowed is not None and not origin_allowed(e.get("origin_kind") or "", e.get("origin_id") or ""):
+                continue
             props = json.loads(e.get("properties_json") or "{}")
             text = props.get("source_text") or props.get("description") or f"{e['subj']} {e['relation']} {e['obj']}"
             history_lines.append(f"• [veraltet, ersetzt] {text[:200]}")

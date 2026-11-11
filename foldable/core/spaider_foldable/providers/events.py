@@ -19,6 +19,8 @@ never written into the memory store and never handed to another provider.
 
 from __future__ import annotations
 
+import time
+
 from dataclasses import dataclass, field
 from typing import Any, Literal, Optional
 
@@ -126,9 +128,11 @@ class AccessCheck:
     error: Optional[dict] = None
     latency_ms: Optional[int] = None
     details: dict = field(default_factory=dict)
+    at: str = field(default_factory=lambda: time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
 
     def to_dict(self) -> dict:
         return {
+            "at": self.at,
             "server_reached": self.server_reached,
             "access_ok": self.access_ok,
             "model_listed": self.model_listed,

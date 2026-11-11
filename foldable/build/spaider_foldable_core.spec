@@ -21,7 +21,7 @@ binaries = []
 hiddenimports = []
 
 # litellm ships a large JSON cost map + tokenizer data; collect everything.
-for pkg in ("litellm", "tiktoken", "tiktoken_ext", "tokenizers", "openai", "pdfplumber", "pdfminer", "pypdfium2"):
+for pkg in ("litellm", "tiktoken", "tiktoken_ext", "tokenizers", "openai", "pdfplumber", "pdfminer", "pypdfium2", "mcp", "jwt", "cryptography"):
     try:
         d, b, h = collect_all(pkg)
         datas += d
