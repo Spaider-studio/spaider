@@ -325,3 +325,76 @@ Ergänzt die Liste oben; frühere Einträge gelten weiter, soweit nicht genannt.
 ### Paket
 - Elektron-Binärdatei fehlte im Worktree (postinstall); der Build lädt sie bei
   Bedarf nach. Paket nicht signiert (wie zuvor).
+
+
+## 0.5.0 (2026-11-12): Ausführungskern, Abläufe, Abhängigkeiten (Agent v2)
+
+Ergänzt die Abschnitte 0.3 (Agent/Live) und 0.4. Was unten steht, ist der tatsächliche
+Stand des Branches `feature/spaider-foldable-agent-v2`; Zahlen in `AGENT_V2_TEST_REPORT.md`.
+
+### Hypothese und Messung
+
+- Die Forschungshypothese (weniger Modellarbeit bei Wiederholungen trotz Faktenänderungen
+  und Rechnerwechsel) ist **nur** für die 60 synthetischen Aufgaben mit einem lokalen
+  Modell (Qwen3-4B Q4_K_M, Vulkan) gemessen. Ob die Ersparnis bei anderen Modellen,
+  echten Anwendungen oder Cloud-Anbietern gleich ausfällt, ist offen.
+- Die Ersparnis entsteht nur bei Abläufen, deren Schritte nicht aus gelesenen Daten
+  abgeleitet werden müssen; jeder abgeleitete Schritt (Bericht, Mailtext) kostet pro Lauf
+  einen Modellaufruf. Aufgaben, die nur aus Lesen + Ableiten bestehen, sparen entsprechend
+  wenig Aufrufe, aber Beobachtungs- und Planungsrunden.
+- Ein Zwei-PC-/USB-Transfer wurde nicht physisch durchgeführt (ein Rechner); geprüft sind
+  Umzugstests auf anderes Laufwerk (0.3), Hostwechsel-Logik und die Bindungsauflösung.
+  Anleitung und Protokollfelder in `AGENT_V2_MIGRATION.md`.
+
+### Ergebnisprüfung
+
+- Der Verifier prüft nur, was aus dem Auftrag ableitbar ist (genannte Ausgabedateien,
+  zitierte Pflichttexte, „prüfe, dass … erscheint“) oder aus dem Ablauf stammt. Ein
+  inhaltlich falscher, aber existierender Bericht kann als „erfüllt“ gelten, wenn der
+  Auftrag keine prüfbaren Inhaltsvorgaben macht; die unabhängige Prüfung der Matrix ist
+  strenger und zählt solche Fälle als Fehlerfolge-Meldung. Abhilfe: Erfolgskriterien
+  explizit mitgeben (`success_criteria`) oder zitierte Pflichttexte im Auftrag.
+- „ungeklärt“ bedeutet: keine Zustandsprüfung möglich und die letzte Aktion nicht selbst
+  belegt. Solche Ergebnisse sind sichtbar als „ungeprüft“ markiert, nicht als erfüllt.
+
+### Wiederverwendung, Reparatur, Beibringen
+
+- Reparatur ist auf 4 Planeraktionen je Schritt begrenzt und nur dort möglich, wo ein
+  Schritt Nachbedingungen/Abhängigkeiten hat; danach übernimmt der Planer. Bei
+  Oberflächenänderungen (anderer Knopfname) wird das Ziel nicht gefunden → Reparatur oder
+  Neuplanung; ein Erfolg hängt dann vom Modell ab.
+- Abhängigkeiten auf Fakten entstehen nur aus `memory.search`-Treffern (beobachtet) oder
+  aus Parameterwerten, die einem gespeicherten Fakt entsprechen (vermutet). Fakten, die
+  das Modell aus dem Gedächtniskontext des Chats kannte, ohne dass der Agent
+  `memory.search` benutzt hat, werden nicht verknüpft.
+- Vermutete Beziehungen schalten das Gate auf „streng“, sie beweisen nichts; ein Ablauf
+  mit ausschließlich vermuteten Abhängigkeiten wird nie als „geprüft“ eingestuft.
+- Beibringen: Der Browser-Recorder erfasst Klicks, Eingaben und Auswahlen auf der eigenen
+  Seite (keine Tastenkombinationen, kein Drag&Drop, keine Dateidialoge). Der Fenster-Diff
+  erfasst geänderte Feldwerte; welcher Knopf gedrückt wurde, muss der Nutzer benennen.
+  Das Ergebnis ist immer ein Kandidat, der erst durch einen Prüflauf belegt wird.
+- Mehrere Modell-Tool-Calls in einer Runde: nur der erste wird ausgeführt.
+- Native Tool-Calls sind gegen einen Fake-Anbieter und die lokale llama-server-Probe
+  geprüft, nicht gegen einen echten Cloud-Anbieter (0-€-Vorgabe).
+
+### Steuerung und Sicherheit
+
+- Die Nutzereingabe-Erkennung nutzt `GetLastInputInfo` (sitzungsweit). Eingaben in einer
+  anderen Sitzung/RDP werden nicht erkannt; eigene Injektionen werden über ein Zeitfenster
+  ausgeblendet – sehr schnelle Nutzereingaben direkt nach einer Agentenaktion können
+  als eigene gelten (Fenster 0,4–2 s).
+- Die Fokusprüfung greift nur bei Tastatureingaben (`type_text`); UIA-Patterns
+  (`set_value`, `invoke`) brauchen keinen Fokus und laufen auch bei Fokuswechsel.
+- Kein HCU-Adapter, keine Shell, kein generierter Code – bewusst. Aufgaben, die das
+  bräuchten, enden mit „nicht erreichbar“.
+- Sperrbildschirm wird erkannt (`OpenInputDesktop`), Fortsetzung automatisch;
+  Datenträgerverlust führt zu `interrupted`, die Persistierung dieses Zustands kann dann
+  selbst scheitern (Logeintrag).
+
+### Oberfläche
+
+- Die Desktop-Oberfläche zeigt Abläufe, Abhängigkeiten, Bindungen, Ergebnisprüfung,
+  tatsächliche Schritte und das Beibringen; Bearbeiten einzelner Ablaufschritte ist nur
+  über die API (`PATCH /agent/workflows/{id}`) möglich.
+- Belege öffnen nur Textformate mit der Standardanwendung; alles andere wird im Ordner
+  gezeigt.

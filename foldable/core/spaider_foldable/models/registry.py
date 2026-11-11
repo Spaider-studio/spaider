@@ -410,11 +410,21 @@ class ModelRegistry:
             "embedding_dimensions": row["embedding_dimensions"],
             "license": json.loads(row["license_json"]) if row["license_json"] else None,
             "metadata": json.loads(row["metadata_json"] or "{}"),
+            "agent_checks": (json.loads(row["metadata_json"] or "{}").get("agent_checks") or {}),
             "mmproj_path": self._mmproj_path(row),
             "state": row["state"],
             "active": active.get(row["role"]) == row["id"],
             "created_at": row["created_at"],
         }
+
+    def set_agent_checks(self, model_id: str, checks: dict) -> None:
+        """Persist capability probe results (chat / tool calls / vision / grounding) for a model."""
+        row = self.db.query_one("SELECT metadata_json FROM models WHERE id = ?", (model_id,))
+        if row is None:
+            raise KeyError(model_id)
+        meta = json.loads(row["metadata_json"] or "{}")
+        meta["agent_checks"] = {**(meta.get("agent_checks") or {}), **checks}
+        self.db.execute("UPDATE models SET metadata_json = ? WHERE id = ?", (json.dumps(meta, ensure_ascii=False), model_id))
 
     def _mmproj_path(self, row) -> Optional[str]:
         meta = json.loads(row["metadata_json"] or "{}")

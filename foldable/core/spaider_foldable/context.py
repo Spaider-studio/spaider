@@ -543,6 +543,85 @@ class AppContext:
                     text += chunk.text
         return text
 
+    async def probe_agent_capabilities(self) -> dict:
+        """Test chat, grammar tool decisions, native tool calls, vision input and grounding
+        separately on the active local model; nothing is assumed from the model name."""
+        import json as _json
+        import time as _time
+
+        from .agent.prompts import build_action_schema
+
+        mid = self.inference.chat.model_id
+        client = self.inference.chat.client
+        if mid is None or client is None:
+            raise RuntimeError("Kein Chatmodell aktiv.")
+        toggle = self._active_reasoning_toggle()
+        results: dict = {"model_id": mid, "checked_at": _time.strftime("%Y-%m-%dT%H:%M:%SZ", _time.gmtime())}
+
+        async def _collect(messages, **kw):
+            text, usage = "", {}
+            async with self.scheduler.chat():
+                async for ch in client.stream_chat(messages, temperature=0.0, max_tokens=kw.pop("max_tokens", 120), enable_thinking=(False if toggle else None), reasoning_toggle=toggle, timeout_s=120.0, **kw):
+                    if ch.text:
+                        text += ch.text
+                    if ch.done:
+                        usage = ch.usage or {}
+            return text, usage
+
+        t0 = _time.monotonic()
+        try:
+            text, _ = await _collect([{"role": "user", "content": "Antworte mit genau einem Wort: Bereit"}], max_tokens=16)
+            results["text_chat"] = {"status": "verified" if text.strip() else "failed", "ms": int((_time.monotonic() - t0) * 1000), "sample": text.strip()[:40]}
+        except Exception as exc:  # noqa: BLE001
+            results["text_chat"] = {"status": "failed", "error": str(exc)[:160]}
+        echo = {"name": "files.list", "description_de": "Listet einen Ordner", "schema": {"type": "object", "properties": {"path": {"type": "string", "maxLength": 200}}, "required": ["path"], "additionalProperties": False}}
+        t0 = _time.monotonic()
+        try:
+            text, _ = await _collect([{"role": "system", "content": "Antworte nur mit JSON nach Schema."}, {"role": "user", "content": "Liste den Ordner C:/Daten auf. Entscheide als JSON (decision=action, tool files.list)."}], json_schema=build_action_schema([echo]), max_tokens=160)
+            d = _json.loads(text)
+            ok = d.get("decision") == "action" and (d.get("action") or {}).get("tool") == "files.list"
+            results["tool_call_grammar"] = {"status": "verified" if ok else "failed", "ms": int((_time.monotonic() - t0) * 1000)}
+        except Exception as exc:  # noqa: BLE001
+            results["tool_call_grammar"] = {"status": "failed", "error": str(exc)[:160]}
+        t0 = _time.monotonic()
+        try:
+            tools = [{"type": "function", "function": {"name": "files_list", "description": "Listet einen Ordner", "parameters": echo["schema"]}}]
+            text, usage = await _collect([{"role": "user", "content": "Liste den Ordner C:/Daten auf. Benutze das Werkzeug files_list."}], tools=tools, max_tokens=160)
+            calls = usage.get("tool_calls") or []
+            native_ok = any(((c.get("function") or {}).get("name") == "files_list") for c in calls if isinstance(c, dict))
+            results["native_tool_calls"] = {"status": "verified" if native_ok else "failed", "ms": int((_time.monotonic() - t0) * 1000), "calls": len(calls)}
+        except Exception as exc:  # noqa: BLE001
+            results["native_tool_calls"] = {"status": "failed", "error": str(exc)[:160]}
+        if self.vision_available():
+            from .agent.tools.vision import GroundingCalibrator
+
+            t0 = _time.monotonic()
+            try:
+                png, _pt = GroundingCalibrator.image()
+                import base64 as _b64
+
+                url = "data:image/png;base64," + _b64.b64encode(png).decode()
+                answer = await self.ask_vlm("Welche Farbe hat die Schaltfläche mit der Aufschrift WEITER? Antworte mit einem Wort.", url, 20)
+                results["vision_input"] = {"status": "verified" if "grün" in answer.lower() or "gruen" in answer.lower() or "green" in answer.lower() else "failed", "ms": int((_time.monotonic() - t0) * 1000), "sample": answer.strip()[:40]}
+            except Exception as exc:  # noqa: BLE001
+                results["vision_input"] = {"status": "failed", "error": str(exc)[:160]}
+            try:
+                cal = await self.grounding.calibrate(mid, lambda p, u: self.ask_vlm(p, u, 60))
+                results["image_grounding"] = {"status": cal.get("status"), "convention": cal.get("convention"), "error_pct": cal.get("error_pct")}
+            except Exception as exc:  # noqa: BLE001
+                results["image_grounding"] = {"status": "failed", "error": str(exc)[:160]}
+        else:
+            results["vision_input"] = {"status": "none"}
+            results["image_grounding"] = {"status": "none"}
+        self.registry.set_agent_checks(mid, {
+            "native_tool_calls": results["native_tool_calls"]["status"],
+            "tool_call_grammar": results["tool_call_grammar"]["status"],
+            "text_chat": results["text_chat"]["status"],
+            "image_grounding": results["image_grounding"]["status"] if results["image_grounding"]["status"] in ("verified", "failed") else ("none" if results["image_grounding"]["status"] == "none" else "untested"),
+            "probe": results,
+        })
+        return results
+
     def agent_capabilities(self) -> dict:
         mid = self.inference.chat.model_id
         caps = (self.capabilities_for(mid) if mid else None) or {}

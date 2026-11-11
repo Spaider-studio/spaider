@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "spaider-foldable-core"
-version = "0.3.0"
+version = "0.5.0"
 description = "SpAIder Foldable: portable, local SpAIder chat core (reuses backend/app as a library)"
 license = "AGPL-3.0-only"
 requires-python = ">=3.11"

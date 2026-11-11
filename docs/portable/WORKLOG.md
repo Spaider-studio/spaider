@@ -578,3 +578,34 @@ Status), UI-Integration des Desktop-Agenten, dann Phase 6 (echte Tests, Paket 0.
 - Endstand ZIP: SpAIder-Foldable-0.4.0-win-x64.zip, 398 543 196 Bytes, SHA-256 220fe4d28c3dbc046acf4473969069709ab326ebdbc5170aab6257dcb8804eab,
   BUILD_MANIFEST_0.4.0.json daneben. Kern-Suite 129 bestanden / 6 uebersprungen, Desktop 104 Tests.
 - Bundle: backup/spaider-foldable-modelhub-final-20261111.bundle (verifiziert, alle Branches/Tags des Worktrees). Push-Versuch: genau ein `git push origin feature/spaider-foldable-modelhub-connectors` -> vom Server abgewiesen ("refusing to allow an OAuth App to create or update workflow .github/workflows/ci.yml without workflow scope"); kein weiterer Versuch, keine Auth-Aenderung. Freigabe durch Musa: gh auth refresh -h github.com -s workflow, dann Push (INTEGRATION_HANDOFF.md).
+
+
+## 0.5 Agent v2 (Auftrag 2026-11-11 abends): Ausführungskern, Abläufe, Abhängigkeiten
+
+Worktree `C:\Users\<Nutzer>\spaider-foldable\repo-agent`, Branch `feature/spaider-foldable-agent-v2`
+von `feature/spaider-foldable-0.4-review` (219828a = offizielles main 126ef75 + Foldable 0.1–0.4;
+PR #60 offen, nicht gemerged). Sicherung vorab: `backup/spaider-foldable-pre-agent-v2-20261111.bundle`.
+AGENTS.md existiert im Repo nicht; das Research-PDF war nicht beigefügt (Hinweis im Bericht).
+
+### Phase 1 (21:00–22:30): Bestand, Baseline, Kern
+- Bestand verifiziert: Agent 0.3 (Loop/Broker/Werkzeuge/Rezepte), Matrix 20 Aufgaben, Schema v5,
+  Anbieter-Events mit tool_call, kein HCU-Adapter, CI ohne Foldable.
+- Baseline (Basis-Commit 219828a, Qwen3-4B Q4_K_M Vulkan, Datei+Browser 10 Aufgaben x 3):
+  27/30, 1 Fehlerfolge-Meldung, Median 31,6 s -> `measure/agentv2/baseline-fb-qwen3-4b-219828a.json`.
+  Fenster/Bild-Baseline wartet idle-gesteuert (10 min Inaktivitaet) im Hintergrund.
+- Kern umgesetzt (Commit 551844b): Schema v6, contracts.py, deps.py, compiler.py, reuse.py,
+  bindings.py, verifier.py, planner.py (Grammatik + native Tool-Calls), inputguard.py, teach.py,
+  workflows.py (Lebenszyklus, Rezept-Migration), loop.py neu (reuse -> repair -> replan, Ableitung,
+  Ueberspringen nach Pruefung, Journal-Waechter, Pause bei Nutzereingabe, Epoche), Routen.
+  Tests: 25 neue (test_agent_v2.py, test_agent_v2_api.py), Kernsuite 154 bestanden / 6 uebersprungen.
+- Befund: `tests/matrix/run_matrix.py` im veroeffentlichten Branch hatte ein Backspace-Byte im
+  Standardpfad (`dev-app\browser`), entstanden durch ein `\b` in der Neutralisierung -> repariert.
+- Werkzeug-Lektion: Bash-Heredocs dieses Werkzeugs verfaelschen Backslashes; Patches nur ueber
+  Dateien (Write) oder Edit.
+
+### Wiederaufnahmepunkt
+- Laufend: Desktop-UI (Subagent, nur foldable/desktop), Smoke-Laeufe der Matrix v2
+  (`measure/agentv2/smoke2-v2-full.*`), danach `scratchpad/overnight_v2.py` (Datei+Browser in
+  full/simple/none, dann Fenster+Cross idle-gesteuert).
+- Offen: Testbericht mit Zahlen, KNOWN_LIMITATIONS 0.5, REVIEW_START_HERE, Paket 0.5.0,
+  Geheimnis-Scan, Push, Draft-PR gegen feature/spaider-foldable-0.4-review, Prerelease.

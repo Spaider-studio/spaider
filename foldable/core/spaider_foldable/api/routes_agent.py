@@ -43,6 +43,17 @@ async def capabilities(ctx: AppContext = Depends(get_ctx)):
     return ctx.agent_capabilities()
 
 
+@router.post("/capabilities/probe")
+async def probe_capabilities(ctx: AppContext = Depends(get_ctx)):
+    """Tests chat, grammar decisions, native tool calls, vision and grounding separately on the
+    active local model (bounded calls); results are stored per model."""
+    try:
+        results = await ctx.probe_agent_capabilities()
+    except RuntimeError as exc:
+        raise ApiError(409, "no_model", str(exc))
+    return {"probe": results, "capabilities": ctx.agent_capabilities()}
+
+
 @router.get("/tasks")
 async def list_tasks(ctx: AppContext = Depends(get_ctx)):
     return {"tasks": [t.model_dump() for t in ctx.tasks.list()]}
