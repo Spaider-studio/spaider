@@ -118,7 +118,7 @@ class WorkflowCompiler:
                 for e in data.get("elements") or []:
                     if isinstance(e, dict) and e.get("ref"):
                         browser_elements[str(e["ref"])] = {"role": str(e.get("role") or ""), "name": str(e.get("name") or "")}
-            target = self._element_target(a, args, element_names, browser_elements)
+            target = self._element_target(a, args, element_names, browser_elements, data)
             tmpl = templatize(args, parameters)
             tmpl = _replace_all(tmpl, role_subs)
             if target is not None:
@@ -244,7 +244,7 @@ class WorkflowCompiler:
         return roles, subs
 
     @staticmethod
-    def _element_target(a: Action, args: dict, element_names: dict[str, dict[str, str]], browser_elements: dict[str, dict]) -> Optional[dict[str, str]]:
+    def _element_target(a: Action, args: dict, element_names: dict[str, dict[str, str]], browser_elements: dict[str, dict], data: Optional[dict] = None) -> Optional[dict[str, str]]:
         if a.tool.startswith("windows.") and args.get("element_id"):
             sid = str(args.get("source_id") or "")
             name = (element_names.get(sid) or {}).get(str(args["element_id"]))
@@ -252,11 +252,17 @@ class WorkflowCompiler:
                 return {"role": "", "name": name}
             return {"role": "", "name": str(args["element_id"])}
         if a.tool.startswith("browser.") and args.get("ref"):
+            # the tool result carries the accessible name the adapter computed at execution time
+            d = data if isinstance(data, dict) else {}
+            if d.get("name"):
+                return {"role": str(d.get("role") or ""), "name": str(d["name"])}
             el = browser_elements.get(str(args["ref"]))
             if el and el.get("name"):
                 return {"role": el.get("role", ""), "name": el["name"]}
             if a.result and a.result.evidence and a.result.evidence.get("name"):
                 return {"role": str(a.result.evidence.get("role") or ""), "name": str(a.result.evidence["name"])}
+            if d.get("clicked"):
+                return {"role": "", "name": str(d["clicked"])}
             return None
         return None
 
