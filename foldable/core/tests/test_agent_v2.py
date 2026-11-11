@@ -753,3 +753,15 @@ def test_recipes_are_migrated_to_candidate_workflows(db):
     assert wf.status == "candidate" and wf.stats["origin_kind"] == "migrated" and wf.steps[0].tool == "files.read" and wf.parameters[0].name == "datei"
     assert any("0.3-Rezept" in x for x in wf.known_limits_de)
     assert wfs.as_recipe(wf).steps[0].arguments_template == {"path": "C:/x/{datei}"}
+
+
+def test_goal_literals_are_only_required_when_they_name_content(tmp_path):
+    """Quoted strings right after 'mit' / 'Betreff' are required file content; a quoted selector
+    ('mit der Rolle „Leitung“') is not (regression: correct results were marked not_fulfilled)."""
+    out = tmp_path / "out"
+    out.mkdir()
+    scopes = Scopes(files=FilesScope(roots=[str(tmp_path)], write_dir=str(out)))
+    crit = derive_criteria("Lies kontakte.csv und schreibe die E-Mail-Adresse der Person mit der Rolle „Leitung“ nach " + str(out / "leitung-mail.txt") + ".", scopes, None)
+    assert [c.kind for c in crit] == ["file_exists"]
+    crit = derive_criteria("Schreibe nach " + str(out / "mail_entwurf.txt") + " einen Mailentwurf (kein Versand) mit „An: <E-Mail der Projektleitung>“ und Betreff „Bericht Atlas“.", scopes, None)
+    assert [(c.kind, c.expect) for c in crit] == [("file_exists", []), ("file_contains", ["An:"]), ("file_contains", ["Bericht Atlas"])]

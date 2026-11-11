@@ -29,6 +29,7 @@ _FILE_RE = re.compile(r"((?:[A-Za-z]:[\\/]|/)[^\s„“\"']+?\.(?:txt|md|markdow
 _FILE_NAME_RE = re.compile(r"\b([\wäöüÄÖÜß\-]+\.(?:txt|md|markdown|csv|json|log|html|htm|xml|tsv|yaml|yml|eml))\b", re.IGNORECASE)
 _CONFIRM_RE = re.compile(r"(?:prüfe|pruefe|kontrolliere|bestätig\w*|warte)[^„\"]{0,80}[„\"]([^“\"]{2,120})[“\"]", re.IGNORECASE)
 _QUOTED_RE = re.compile(r"[„\"]([^“\"\n]{2,120})[“\"]")
+_LITERAL_LEAD_RE = re.compile(r"(?:\bmit(?: dem Text| dem Betreff| der Überschrift| der Zeile)?|\bBetreff|\benthält|\benthalt|\bÜberschrift|\bZeile)\s*$", re.IGNORECASE)
 _OUTPUT_WORDS = re.compile(r"\b(nach|in|als|unter|erstelle|schreibe|speichere|lege|erzeuge)\b", re.IGNORECASE)
 
 
@@ -60,8 +61,10 @@ def derive_criteria(goal: str, scopes: Scopes, parameters: dict | None = None, *
     if out and out[-1].kind == "file_exists":
         target = out[-1].target
         for m in _QUOTED_RE.finditer(text):
-            before = text[max(0, m.start() - 25) : m.start()].lower()
-            if not any(w in before for w in ("mit ", "enthält", "enthalt", "betreff", "überschrift", "zeile")):
+            before = text[max(0, m.start() - 25) : m.start()]
+            # the keyword must stand directly before the quote ("mit „An:“", "Betreff „Bericht“");
+            # "mit der Rolle „Leitung“" names a selector, not required content
+            if not _LITERAL_LEAD_RE.search(before):
                 continue
             literal = m.group(1).split("<")[0].strip()
             if len(literal) >= 2 and "{" not in literal and not _mentioned_as_input(text, literal):
