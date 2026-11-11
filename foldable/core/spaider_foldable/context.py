@@ -15,6 +15,7 @@ from typing import Callable, Optional
 from . import __version__
 from .activity import ActivityBus, utcnow
 from .chat.service import ChatService
+from .connectors.service import ConnectorService
 from .db import Database
 from .hardware import HardwareProfile, detect, profile_from_dict, refresh_dynamic
 from .inference.manager import InferenceManager
@@ -94,6 +95,7 @@ class AppContext:
         self.connections = ConnectionStore(self.db, self.profile_id)
         self.local_adapter = LocalRuntimeAdapter(lambda: self.inference.chat.client, self._active_reasoning_toggle)
         self.providers = ProviderRegistry(self.presets, self.connections, self.credentials, local_adapter=self.local_adapter)
+        self.connectors = ConnectorService(self)
         self.chat = ChatService(
             self.conversations,
             self.retriever,

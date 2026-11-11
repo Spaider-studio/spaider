@@ -428,3 +428,19 @@ class IngestWorker:
                 self.db.execute("UPDATE documents SET status = 'indexed' WHERE id = ?", (row["document_id"],))
             if self.on_document_progress:
                 self.on_document_progress(row["document_id"])
+        elif item["kind"] == "fact":
+            # a raw FACT node written directly (memory connectors): extract entities/relations for it
+            row = self.db.query_one(
+                "SELECT id, description, origin_kind, origin_id, origin_title, processing FROM nodes WHERE id = ?",
+                (item["ref_id"],),
+            )
+            if row is None or row["processing"] == "forgotten":
+                return
+            origin = Origin(row["origin_kind"] or "connector", row["origin_id"] or "", row["origin_title"] or "")
+            await self.ingestor.ingest_text(
+                row["description"] or "",
+                origin,
+                source=f"{origin.kind}:{origin.id}",
+                llm_available=llm_ready,
+                fact_id=row["id"],
+            )

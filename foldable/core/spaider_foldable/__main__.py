@@ -65,7 +65,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--port", type=int, default=0, help="loopback port (0 = free port)")
     parser.add_argument("--log-level", default="INFO")
     parser.add_argument("--version", action="version", version=__version__)
+    parser.add_argument("--mcp-stdio", action="store_true", help="run as MCP stdio bridge for one connector (no API server)")
+    parser.add_argument("--connector", type=Path, default=None, help="connector file (data/connectors/<id>.json) for --mcp-stdio")
     args = parser.parse_args(argv)
+
+    if args.mcp_stdio:
+        from .connectors.bridge import run_bridge
+
+        return run_bridge(args.connector, log_level=args.log_level)
 
     app_root = args.app_root or _default_app_root()
     if app_root is None:
@@ -153,6 +160,16 @@ def main(argv: list[str] | None = None) -> int:
             return
         print(json.dumps({"event": "ready", "port": port, "profile_id": manager.active_id}), flush=True)
         log.info("API ready on 127.0.0.1:%d", port)
+        # discovery file for the MCP stdio bridges (shared host dir; no secrets inside)
+        core_json = paths.host_dir / "core.json"
+        try:
+            paths.host_dir.mkdir(parents=True, exist_ok=True)
+            core_json.write_text(
+                json.dumps({"port": port, "pid": os.getpid(), "version": __version__, "profile_id": manager.active_id}),
+                encoding="utf-8",
+            )
+        except OSError as exc:
+            log.warning("could not write %s: %s", core_json, exc)
 
         def _signal_handler(*_):
             manager.ctx.request_shutdown()
@@ -168,6 +185,10 @@ def main(argv: list[str] | None = None) -> int:
             except (ValueError, OSError):
                 pass
         await task
+        try:
+            core_json.unlink(missing_ok=True)
+        except OSError:
+            pass
         if not manager.ctx.shutting_down:
             await manager.ctx.shutdown()
 

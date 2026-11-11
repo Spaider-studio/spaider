@@ -17,6 +17,8 @@ from ..store.common import NotFound
 from .errors import ApiError
 from .routes_activity import router as activity_router
 from .routes_agent import router as agent_router
+from .routes_connectors import router as connectors_router
+from .routes_connectors import rpc_router as connector_rpc_router
 from .routes_conversations import router as conversations_router
 from .routes_documents import router as documents_router
 from .routes_live import router as live_router
@@ -48,6 +50,8 @@ def create_app(ctx: AppContext, token: str) -> FastAPI:
     async def require_token(request: Request, call_next):
         if request.method == "OPTIONS":
             return await call_next(request)
+        if request.url.path.startswith("/api/connector-rpc/"):
+            return await call_next(request)  # authenticated by the per-connector token inside the route
         provided = request.headers.get(TOKEN_HEADER, "")
         if not provided or not hmac.compare_digest(provided.encode(), token.encode()):
             return JSONResponse({"detail": "Nicht autorisiert.", "code": "unauthorized"}, status_code=401)
@@ -87,4 +91,6 @@ def create_app(ctx: AppContext, token: str) -> FastAPI:
     app.include_router(agent_router, prefix="/api")
     app.include_router(providers_router, prefix="/api")
     app.include_router(profiles_router, prefix="/api")
+    app.include_router(connectors_router, prefix="/api")
+    app.include_router(connector_rpc_router, prefix="/api")
     return app
