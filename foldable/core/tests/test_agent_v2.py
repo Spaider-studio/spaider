@@ -798,3 +798,29 @@ async def test_values_copied_from_read_data_make_the_step_derived(db, tmp_path):
     mgr.start(t2)
     r2 = await _wait(store, t2.id)
     assert r2.state == "completed" and r2.llm_calls == 1 and "17.08.2026" in (out / "zahlung.txt").read_text(encoding="utf-8")
+
+
+@pytest.mark.asyncio
+async def test_browser_field_values_are_verified_through_page_elements():
+    """A filled input is not visible page text; the element_value check reads the field's value from
+    the page elements (regression: fill steps were 'repaired' although they had succeeded)."""
+    broker = Broker()
+
+    async def snapshot(args, ctx):
+        return ToolOutcome(ok=True, summary_de="Seite", data={"elements": [{"ref": "b1", "role": "text", "name": "Projektname", "value": "Steinbock"}, {"ref": "b2", "role": "combobox", "name": "Priorität", "value": "hoch"}], "text": "Projektanfrage Projektname Budget in Euro"}, verified=True)
+
+    async def read(args, ctx):
+        return ToolOutcome(ok=True, summary_de="Text", data={"text": "Projektanfrage Projektname Budget in Euro"}, verified=True)
+
+    broker.register(Tool(name="browser.snapshot", description_de="", scope="browser", side_effect="none", schema={"type": "object", "properties": {"max_elements": {"type": "integer"}}}, run=snapshot))
+    broker.register(Tool(name="browser.read", description_de="", scope="browser", side_effect="none", schema={"type": "object", "properties": {"max_chars": {"type": "integer"}}}, run=read))
+    from spaider_foldable.agent.models import BrowserScope
+
+    ctx = ToolContext(task_id="t", scopes=Scopes(browser=BrowserScope(enabled=True)), cancel_generation=0, is_cancelled=lambda: False, latest_snapshot_ids={}, emit=lambda k, p: None)
+    v = OutcomeVerifier(broker)
+    rep = await v.verify([SuccessCriterion(kind="element_value", target="browser|Projektname", expect=["Steinbock"]), SuccessCriterion(kind="element_value", target="browser|Priorität", expect=["hoch"])], ctx, [])
+    assert rep.status == "fulfilled", rep.causes_de
+    rep = await v.verify([SuccessCriterion(kind="page_text", target="browser", expect=["Steinbock"])], ctx, [])
+    assert rep.status == "not_fulfilled"  # the old page_text check would have failed a correct fill
+    rep = await v.verify([SuccessCriterion(kind="element_value", target="browser|Budget in Euro", expect=["51200"])], ctx, [])
+    assert rep.status == "unclear" and "nicht auf der Seite" in rep.causes_de[0]

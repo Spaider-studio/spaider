@@ -333,7 +333,10 @@ class WorkflowCompiler:
         elif a.tool == "browser.wait_for_text":
             out.append(StepCheck(kind="page_text", target="browser", expect=[str(tmpl.get("text") or "")], description_de="Text erschien auf der Seite"))
         elif a.tool == "browser.fill" and target:
-            out.append(StepCheck(kind="page_text", target="browser", expect=[str(tmpl.get("text") or "")], description_de=f"Feld „{target['name']}“ trägt den Wert"))
+            # input values are not visible page text: check the field's value through the page elements
+            out.append(StepCheck(kind="element_value", target="browser|" + target["name"], expect=[str(tmpl.get("text") or "")], description_de=f"Feld „{target['name']}“ trägt den Wert"))
+        elif a.tool == "browser.select" and target:
+            out.append(StepCheck(kind="element_value", target="browser|" + target["name"], expect=[str(tmpl.get("value") or "")], description_de=f"Auswahl „{target['name']}“ steht auf dem Wert"))
         elif a.tool == "windows.set_value" and target:
             out.append(StepCheck(kind="element_value", target="{" + _window_role_of(tmpl) + "}|" + target["name"], expect=[str(tmpl.get("text") or "")], description_de=f"Feld „{target['name']}“ trägt den Wert"))
         elif a.tool in ("browser.click", "windows.invoke", "windows.click_at", "windows.send_keys", "browser.press"):

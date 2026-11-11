@@ -153,6 +153,19 @@ class OutcomeVerifier:
             text = str(out.data.get("text") or "").lower()
             missing = [e for e in expect if e.lower() not in text]
             return CheckResult(criterion=c, ok=not missing, detail_de="" if not missing else f"Seite zeigt nicht: {', '.join(missing)[:160]}", evidence={"url": out.data.get("url"), "title": out.data.get("title")})
+        if c.kind == "element_value" and target.startswith("browser|"):
+            # value of a form field on the own browser page (input values are not part of the visible text)
+            tool = self.broker.get("browser.snapshot")
+            if tool is None:
+                return CheckResult(criterion=c, ok=None, detail_de="browser.snapshot nicht verfügbar")
+            out = await tool.run({"max_elements": 300}, ctx)
+            name = target.split("|", 1)[1].strip().lower()
+            els = [e for e in (out.data.get("elements") or []) if isinstance(e, dict) and (e.get("name") or "").strip().lower() == name]
+            if not els:
+                return CheckResult(criterion=c, ok=None, detail_de=f"Feld „{target.split('|', 1)[1]}“ nicht auf der Seite gefunden")
+            value = str(els[0].get("value") or "")
+            missing = [e for e in expect if e.lower() not in value.lower()]
+            return CheckResult(criterion=c, ok=not missing, detail_de="" if not missing else f"Feld „{target.split('|', 1)[1]}“ trägt nicht: {', '.join(missing)[:120]}", evidence={"field": target.split("|", 1)[1], "value": value[:200]})
         if c.kind in ("window_text", "element_value"):
             tool = self.broker.get("windows.read")
             if tool is None:
