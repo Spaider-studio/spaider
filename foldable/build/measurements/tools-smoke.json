@@ -1,0 +1,66 @@
+{
+  "windows": {
+    "target": {
+      "id": "win:857054:38128",
+      "hwnd": 857054,
+      "pid": 38128,
+      "process": "powershell.exe",
+      "exe": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "title": "SpAIder Testanwendung",
+      "class": "WindowsForms10.Window.8.app.0.d993cf_r8_ad1",
+      "rect": {
+        "x": 647,
+        "y": 306,
+        "w": 626,
+        "h": 413
+      },
+      "monitor_id": "screen:2",
+      "minimized": false,
+      "is_self": false
+    },
+    "inspect": {
+      "ok": true,
+      "summary": "16 Elemente in „SpAIder Testanwendung“",
+      "ms": 1078
+    },
+    "set_name": {
+      "ok": true,
+      "verified": true,
+      "summary": "Wert gesetzt und zurückgelesen",
+      "ms": 406
+    },
+    "set_notes": {
+      "ok": true,
+      "verified": true,
+      "summary": "Wert gesetzt und zurückgelesen"
+    },
+    "invoke_save": {
+      "ok": true,
+      "summary": "„Speichern“ (Button) ausgelöst per invoke",
+      "ms": 531
+    },
+    "status_text_has_saved": false,
+    "file": {
+      "exists": true,
+      "ok": true
+    },
+    "scope_check": "rejected: Dieses Fenster ist nicht Teil des freigegebenen Umfangs."
+  },
+  "browser": {
+    "chrome": "C:\\Users\\mucbay\\spaider-foldable\\dev-app\\browser\\chromium-1248\\chrome-win64\\chrome.exe",
+    "open": {
+      "ok": true,
+      "summary": "Seite geöffnet: Testformular (200)",
+      "ms": 1141,
+      "launch_total_ms": 1141
+    },
+    "fill": [
+      true,
+      true,
+      true
+    ],
+    "submit_verified": true,
+    "private_block": "rejected: Lokale/private Adressen sind gesperrt, außer sie sind für diese Aufgabe freigegeben.",
+    "stale_ref": "rejected: Referenz b7 stammt nicht aus der aktuellen Seite; bitte browser.snapshot wiederholen."
+  }
+}

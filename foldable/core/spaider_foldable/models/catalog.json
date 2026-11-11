@@ -1,0 +1,1186 @@
+{
+  "version": 2,
+  "generated": "2026-11-02",
+  "notes": [
+    "Schema v2. Revisionen und SHA-256 stammen aus der Hugging-Face-API (api/models/<repo>?blobs=true, siblings[].lfs.sha256) vom 2026-11-02.",
+    "verification.status=executed: echte Inferenz auf der gebündelten Runtime in diesem Projekt; metadata: Architektur, Prüfsumme und Lizenz geprüft, nicht ausgeführt; unverified: nur Suchtreffer.",
+    "resources: n_layers/n_kv_heads/head_dim aus den Hersteller-Konfigurationen, dienen der KV-Cache-Schätzung; fehlende Werte ergeben eine konservative Schätzung (128 KiB/Token).",
+    "license.kind: open-source (OSI-Lizenz), open-weights (Gewichte frei, aber Nutzungsbedingungen), other. gated/requires_account markieren Freischaltungs- oder Kontopflicht beim Download.",
+    "Leistungsangaben stehen nie im Katalog; gemessene Werte liegen im lokalen Modellprofil des jeweiligen Rechners."
+  ],
+  "entries": [
+    {
+      "id": "qwen3-0.6b-q8_0",
+      "name": "Qwen3 0.6B (Q8_0)",
+      "role": "chat",
+      "family": "Qwen3",
+      "publisher": "Qwen",
+      "source": "official",
+      "repo": "Qwen/Qwen3-0.6B-GGUF",
+      "revision": "23749fefcc72300e3a2ad315e1317431b06b590a",
+      "files": [
+        {
+          "path": "Qwen3-0.6B-Q8_0.gguf",
+          "size": 639446688,
+          "sha256": "9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031"
+        }
+      ],
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/blob/main/LICENSE",
+        "kind": "open-source",
+        "gated": false,
+        "requires_account": false
+      },
+      "architecture": "qwen3",
+      "parameters": "0.6B",
+      "quantization": "Q8_0",
+      "context_length": 32768,
+      "embedding_dimensions": null,
+      "support": "executed",
+      "description_de": "Sehr kleines Modell für Smoke-Tests und schwache Hardware. Antwortet schnell, aber mit begrenzter Qualität.",
+      "type": "chat",
+      "families": [
+        "Qwen3"
+      ],
+      "source_kind": "builtin",
+      "checked_at": "2026-11-02",
+      "original_model": "Qwen/Qwen3-0.6B",
+      "converter": "Qwen (offiziell)",
+      "template": {
+        "reasoning_toggle": "enable_thinking",
+        "system_role": true
+      },
+      "evidence": [
+        {
+          "kind": "model_card",
+          "note_de": "Qwen3-Modellkarte: 119 Sprachen inkl. Deutsch; Thinking-Modus umschaltbar.",
+          "scope": "Herstellerangabe"
+        }
+      ],
+      "verification": {
+        "status": "executed",
+        "date": "2026-11-02",
+        "scope": "echte Inferenz auf b12032 (CPU) in diesem Projekt"
+      },
+      "resources": {
+        "n_layers": 28,
+        "n_kv_heads": 8,
+        "head_dim": 128,
+        "note": "Qwen3 config.json"
+      }
+    },
+    {
+      "id": "qwen3-1.7b-q8_0",
+      "name": "Qwen3 1.7B (Q8_0)",
+      "role": "chat",
+      "family": "Qwen3",
+      "publisher": "Qwen",
+      "source": "official",
+      "repo": "Qwen/Qwen3-1.7B-GGUF",
+      "revision": "90862c4b9d2787eaed51d12237eafdfe7c5f6077",
+      "files": [
+        {
+          "path": "Qwen3-1.7B-Q8_0.gguf",
+          "size": 1834426016,
+          "sha256": "061b54daade076b5d3362dac252678d17da8c68f07560be70818cace6590cb1a"
+        }
+      ],
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/blob/main/LICENSE",
+        "kind": "open-source",
+        "gated": false,
+        "requires_account": false
+      },
+      "architecture": "qwen3",
+      "parameters": "1.7B",
+      "quantization": "Q8_0",
+      "context_length": 32768,
+      "embedding_dimensions": null,
+      "support": "documented",
+      "description_de": "Kleines Allround-Modell. Guter Kompromiss aus Geschwindigkeit und Qualität auf Laptops ohne dedizierte GPU.",
+      "type": "chat",
+      "families": [
+        "Qwen3"
+      ],
+      "source_kind": "builtin",
+      "checked_at": "2026-11-02",
+      "original_model": "Qwen/Qwen3-1.7B",
+      "converter": "Qwen (offiziell)",
+      "template": {
+        "reasoning_toggle": "enable_thinking",
+        "system_role": true
+      },
+      "evidence": [
+        {
+          "kind": "model_card",
+          "note_de": "Qwen3-Modellkarte: 119 Sprachen inkl. Deutsch; Thinking-Modus umschaltbar.",
+          "scope": "Herstellerangabe"
+        }
+      ],
+      "verification": {
+        "status": "metadata",
+        "date": "2026-11-02",
+        "scope": "Katalogeintrag (Architektur, Prüfsumme, Lizenz)"
+      },
+      "resources": {
+        "n_layers": 28,
+        "n_kv_heads": 8,
+        "head_dim": 128,
+        "note": "Qwen3 config.json"
+      }
+    },
+    {
+      "id": "qwen3-4b-q4_k_m",
+      "name": "Qwen3 4B (Q4_K_M)",
+      "role": "chat",
+      "family": "Qwen3",
+      "publisher": "Qwen",
+      "source": "official",
+      "repo": "Qwen/Qwen3-4B-GGUF",
+      "revision": "bc640142c66e1fdd12af0bd68f40445458f3869b",
+      "files": [
+        {
+          "path": "Qwen3-4B-Q4_K_M.gguf",
+          "size": 2497280256,
+          "sha256": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5"
+        }
+      ],
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/Qwen/Qwen3-4B-GGUF/blob/main/LICENSE",
+        "kind": "open-source",
+        "gated": false,
+        "requires_account": false
+      },
+      "architecture": "qwen3",
+      "parameters": "4B",
+      "quantization": "Q4_K_M",
+      "context_length": 32768,
+      "embedding_dimensions": null,
+      "support": "executed",
+      "description_de": "Mittleres Modell mit 4-Bit-Quantisierung. Deutlich bessere Antworten als 1.7B, auf 16 GB RAM noch gut nutzbar.",
+      "type": "chat",
+      "families": [
+        "Qwen3"
+      ],
+      "source_kind": "builtin",
+      "checked_at": "2026-11-02",
+      "original_model": "Qwen/Qwen3-4B",
+      "converter": "Qwen (offiziell)",
+      "template": {
+        "reasoning_toggle": "enable_thinking",
+        "system_role": true
+      },
+      "evidence": [
+        {
+          "kind": "model_card",
+          "note_de": "Qwen3-Modellkarte: 119 Sprachen inkl. Deutsch; Thinking-Modus umschaltbar.",
+          "scope": "Herstellerangabe"
+        }
+      ],
+      "verification": {
+        "status": "executed",
+        "date": "2026-11-02",
+        "scope": "echte Inferenz auf b12032 (CPU) durch den Nutzer und in der Baseline-Messung"
+      },
+      "resources": {
+        "n_layers": 36,
+        "n_kv_heads": 8,
+        "head_dim": 128,
+        "note": "Qwen3 config.json"
+      }
+    },
+    {
+      "id": "qwen3-4b-q8_0",
+      "name": "Qwen3 4B (Q8_0)",
+      "role": "chat",
+      "family": "Qwen3",
+      "publisher": "Qwen",
+      "source": "official",
+      "repo": "Qwen/Qwen3-4B-GGUF",
+      "revision": "bc640142c66e1fdd12af0bd68f40445458f3869b",
+      "files": [
+        {
+          "path": "Qwen3-4B-Q8_0.gguf",
+          "size": 4280404704,
+          "sha256": "8c2f07f26af9747e41988551106f149b03eb9b5cb6df636027b6bf6278473300"
+        }
+      ],
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/Qwen/Qwen3-4B-GGUF/blob/main/LICENSE",
+        "kind": "open-source",
+        "gated": false,
+        "requires_account": false
+      },
+      "architecture": "qwen3",
+      "parameters": "4B",
+      "quantization": "Q8_0",
+      "context_length": 32768,
+      "embedding_dimensions": null,
+      "support": "documented",
+      "description_de": "Mittleres Modell in 8-Bit-Qualität. Benötigt spürbar mehr RAM und Zeit als die Q4-Variante.",
+      "type": "chat",
+      "families": [
+        "Qwen3"
+      ],
+      "source_kind": "builtin",
+      "checked_at": "2026-11-02",
+      "original_model": "Qwen/Qwen3-4B",
+      "converter": "Qwen (offiziell)",
+      "template": {
+        "reasoning_toggle": "enable_thinking",
+        "system_role": true
+      },
+      "evidence": [
+        {
+          "kind": "model_card",
+          "note_de": "Qwen3-Modellkarte: 119 Sprachen inkl. Deutsch; Thinking-Modus umschaltbar.",
+          "scope": "Herstellerangabe"
+        }
+      ],
+      "verification": {
+        "status": "metadata",
+        "date": "2026-11-02",
+        "scope": "Katalogeintrag (Architektur, Prüfsumme, Lizenz)"
+      },
+      "resources": {
+        "n_layers": 36,
+        "n_kv_heads": 8,
+        "head_dim": 128,
+        "note": "Qwen3 config.json"
+      }
+    },
+    {
+      "id": "qwen3-8b-q4_k_m",
+      "name": "Qwen3 8B (Q4_K_M)",
+      "role": "chat",
+      "family": "Qwen3",
+      "publisher": "Qwen",
+      "source": "official",
+      "repo": "Qwen/Qwen3-8B-GGUF",
+      "revision": "7c41481f57cb95916b40956ab2f0b139b296d974",
+      "files": [
+        {
+          "path": "Qwen3-8B-Q4_K_M.gguf",
+          "size": 5027783488,
+          "sha256": "d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785"
+        }
+      ],
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/Qwen/Qwen3-8B-GGUF/blob/main/LICENSE",
+        "kind": "open-source",
+        "gated": false,
+        "requires_account": false
+      },
+      "architecture": "qwen3",
+      "parameters": "8B",
+      "quantization": "Q4_K_M",
+      "context_length": 32768,
+      "embedding_dimensions": null,
+      "support": "documented",
+      "description_de": "Großes Modell für 16 GB RAM und mehr. Auf reiner CPU langsam, dafür die beste Antwortqualität im Katalog ohne 27B.",
+      "type": "chat",
+      "families": [
+        "Qwen3"
+      ],
+      "source_kind": "builtin",
+      "checked_at": "2026-11-02",
+      "original_model": "Qwen/Qwen3-8B",
+      "converter": "Qwen (offiziell)",
+      "template": {
+        "reasoning_toggle": "enable_thinking",
+        "system_role": true
+      },
+      "evidence": [
+        {
+          "kind": "model_card",
+          "note_de": "Qwen3-Modellkarte: 119 Sprachen inkl. Deutsch; Thinking-Modus umschaltbar.",
+          "scope": "Herstellerangabe"
+        }
+      ],
+      "verification": {
+        "status": "metadata",
+        "date": "2026-11-02",
+        "scope": "Katalogeintrag (Architektur, Prüfsumme, Lizenz)"
+      },
+      "resources": {
+        "n_layers": 36,
+        "n_kv_heads": 8,
+        "head_dim": 128,
+        "note": "Qwen3 config.json"
+      }
+    },
+    {
+      "id": "qwen3-8b-q6_k",
+      "name": "Qwen3 8B (Q6_K)",
+      "role": "chat",
+      "family": "Qwen3",
+      "publisher": "Qwen",
+      "source": "official",
+      "repo": "Qwen/Qwen3-8B-GGUF",
+      "revision": "7c41481f57cb95916b40956ab2f0b139b296d974",
+      "files": [
+        {
+          "path": "Qwen3-8B-Q6_K.gguf",
+          "size": 6725899040,
+          "sha256": "cb042ccd76795a8830d6be6bd4165245847cc68e41797b13bd61aed4c2cfbce6"
+        }
+      ],
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/Qwen/Qwen3-8B-GGUF/blob/main/LICENSE",
+        "kind": "open-source",
+        "gated": false,
+        "requires_account": false
+      },
+      "architecture": "qwen3",
+      "parameters": "8B",
+      "quantization": "Q6_K",
+      "context_length": 32768,
+      "embedding_dimensions": null,
+      "support": "documented",
+      "description_de": "Großes Modell in hoher Quantisierungsqualität. Empfohlen ab 24 GB RAM.",
+      "type": "chat",
+      "families": [
+        "Qwen3"
+      ],
+      "source_kind": "builtin",
+      "checked_at": "2026-11-02",
+      "original_model": "Qwen/Qwen3-8B",
+      "converter": "Qwen (offiziell)",
+      "template": {
+        "reasoning_toggle": "enable_thinking",
+        "system_role": true
+      },
+      "evidence": [
+        {
+          "kind": "model_card",
+          "note_de": "Qwen3-Modellkarte: 119 Sprachen inkl. Deutsch; Thinking-Modus umschaltbar.",
+          "scope": "Herstellerangabe"
+        }
+      ],
+      "verification": {
+        "status": "metadata",
+        "date": "2026-11-02",
+        "scope": "Katalogeintrag (Architektur, Prüfsumme, Lizenz)"
+      },
+      "resources": {
+        "n_layers": 36,
+        "n_kv_heads": 8,
+        "head_dim": 128,
+        "note": "Qwen3 config.json"
+      }
+    },
+    {
+      "id": "qwen3.8-27b-q4_k_m-ggml",
+      "name": "Qwen3.8 27B (Q4_K_M, Konvertierung ggml-org)",
+      "role": "chat",
+      "family": "Qwen3.8",
+      "publisher": "ggml-org (Konvertierung); Originalmodell: Qwen/Qwen3.8-27B",
+      "source": "community",
+      "repo": "ggml-org/Qwen3.8-27B-GGUF",
+      "revision": "a316ea527fde32c12487be7574e2db5ac2ad2a7e",
+      "files": [
+        {
+          "path": "Qwen3.8-27B-Q4_K_M.gguf",
+          "size": 18973870528,
+          "sha256": "c600de0300ae8a0eb3a6c0b8b5561b8b96f16bd2c863c2a66c42de29d391a747"
+        }
+      ],
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/Qwen/Qwen3.8-27B/blob/main/LICENSE",
+        "kind": "open-source",
+        "gated": false,
+        "requires_account": false,
+        "note_de": ""
+      },
+      "architecture": "qwen35",
+      "parameters": "27B",
+      "quantization": "Q4_K_M",
+      "context_length": 32768,
+      "embedding_dimensions": null,
+      "support": "documented",
+      "description_de": "Qwen3.8 27B als GGUF-Konvertierung der llama.cpp-Entwickler (ggml-org). Qwen selbst veröffentlicht keine GGUF-Datei. Architektur qwen35 ist im gebündelten Build gelistet, hier nicht ausgeführt. Benötigt etwa 22 GB RAM und ist auf reiner CPU sehr langsam.",
+      "type": "chat",
+      "families": [
+        "Qwen3.8"
+      ],
+      "source_kind": "builtin",
+      "checked_at": "2026-11-02",
+      "original_model": "Qwen/Qwen3.8-27B",
+      "converter": "ggml-org",
+      "template": {
+        "reasoning_toggle": "enable_thinking",
+        "system_role": true
+      },
+      "evidence": [
+        {
+          "kind": "model_card",
+          "note_de": "Qwen3-Modellkarte: 119 Sprachen inkl. Deutsch; Thinking-Modus umschaltbar.",
+          "scope": "Herstellerangabe"
+        }
+      ],
+      "verification": {
+        "status": "metadata",
+        "date": "2026-11-02",
+        "scope": "Katalogeintrag (Architektur, Prüfsumme, Lizenz)"
+      },
+      "resources": {}
+    },
+    {
+      "id": "qwen3-embedding-0.6b-q8_0",
+      "name": "Qwen3-Embedding 0.6B (Q8_0)",
+      "role": "embedding",
+      "family": "Qwen3-Embedding",
+      "publisher": "Qwen",
+      "source": "official",
+      "repo": "Qwen/Qwen3-Embedding-0.6B-GGUF",
+      "revision": "370f27d7550e0def9b39c1f16d3fbaa13aa67728",
+      "files": [
+        {
+          "path": "Qwen3-Embedding-0.6B-Q8_0.gguf",
+          "size": 639150592,
+          "sha256": "06507c7b42688469c4e7298b0a1e16deff06caf291cf0a5b278c308249c3e439"
+        }
+      ],
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/Qwen/Qwen3-Embedding-0.6B-GGUF",
+        "kind": "open-source",
+        "gated": false,
+        "requires_account": false
+      },
+      "architecture": "qwen3",
+      "parameters": "0.6B",
+      "quantization": "Q8_0",
+      "context_length": 32768,
+      "embedding_dimensions": 1024,
+      "support": "executed",
+      "description_de": "Embedding-Modell für die semantische Gedächtnissuche und die Entitäten-Zusammenführung. Optional: ohne dieses Modell arbeitet das Gedächtnis mit Volltextsuche.",
+      "type": "embedding",
+      "families": [
+        "Qwen3-Embedding"
+      ],
+      "source_kind": "builtin",
+      "checked_at": "2026-11-02",
+      "original_model": "Qwen/Qwen3-Embedding-0.6B",
+      "converter": "Qwen (offiziell)",
+      "template": {
+        "reasoning_toggle": null,
+        "system_role": true
+      },
+      "evidence": [
+        {
+          "kind": "model_card",
+          "note_de": "Qwen3-Modellkarte: 119 Sprachen inkl. Deutsch; Thinking-Modus umschaltbar.",
+          "scope": "Herstellerangabe"
+        }
+      ],
+      "verification": {
+        "status": "executed",
+        "date": "2026-11-02",
+        "scope": "echte Inferenz auf b12032 (CPU) in diesem Projekt"
+      },
+      "resources": {}
+    },
+    {
+      "id": "qwen3.5-0.8b-q8_0",
+      "name": "Qwen3.5 0.8B (Q8_0, Konvertierung ggml-org)",
+      "role": "chat",
+      "type": "chat",
+      "family": "Qwen3.5",
+      "families": [
+        "Qwen3.5"
+      ],
+      "publisher": "ggml-org (Konvertierung); Originalmodell: Qwen/Qwen3.5-0.8B",
+      "source": "community",
+      "converter": "ggml-org",
+      "original_model": "Qwen/Qwen3.5-0.8B",
+      "repo": "ggml-org/Qwen3.5-0.8B-GGUF",
+      "revision": "807dfd9a6fadbf703207aac3bfb0b2b3040d077c",
+      "files": [
+        {
+          "path": "Qwen3.5-0.8B-Q8_0.gguf",
+          "size": 833592096,
+          "sha256": "37ae482d336108d23516fa35e8e0c4126688d81018b87178a18d752a1357814f"
+        }
+      ],
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/Qwen/Qwen3.5-0.8B",
+        "kind": "open-source",
+        "gated": false,
+        "requires_account": false,
+        "note_de": ""
+      },
+      "architecture": "qwen35",
+      "parameters": "0.8B",
+      "quantization": "Q8_0",
+      "context_length": 32768,
+      "template": {
+        "reasoning_toggle": "enable_thinking",
+        "system_role": true
+      },
+      "resources": {},
+      "evidence": [
+        {
+          "kind": "model_card",
+          "note_de": "Qwen3.5-Modellkarte: mehrsprachig inkl. Deutsch.",
+          "scope": "Herstellerangabe"
+        }
+      ],
+      "description_de": "Sehr kleines Qwen3.5-Modell (hybride Aufmerksamkeit). Schneller Einstieg auf schwacher Hardware; Qualität begrenzt.",
+      "support": "documented",
+      "source_kind": "builtin",
+      "checked_at": "2026-11-02",
+      "verification": {
+        "status": "metadata",
+        "date": "2026-11-02",
+        "scope": "Katalogeintrag (Architektur laut llama.cpp-Doku/HF-Metadaten, Prüfsumme, Lizenz); hier nicht ausgeführt"
+      }
+    },
+    {
+      "id": "smollm3-3b-q4_k_m",
+      "name": "SmolLM3 3B (Q4_K_M, Konvertierung ggml-org)",
+      "role": "chat",
+      "type": "chat",
+      "family": "SmolLM3",
+      "families": [
+        "SmolLM3"
+      ],
+      "publisher": "ggml-org (Konvertierung); Originalmodell: HuggingFaceTB/SmolLM3-3B",
+      "source": "community",
+      "converter": "ggml-org",
+      "original_model": "HuggingFaceTB/SmolLM3-3B",
+      "repo": "ggml-org/SmolLM3-3B-GGUF",
+      "revision": "4965cb60b150737b68a0408c36aeefb65078f894",
+      "files": [
+        {
+          "path": "SmolLM3-Q4_K_M.gguf",
+          "size": 1915305312,
+          "sha256": "8334b850b7bd46238c16b0c550df2138f0889bf433809008cc17a8b05761863e"
+        }
+      ],
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/HuggingFaceTB/SmolLM3-3B",
+        "kind": "open-source",
+        "gated": false,
+        "requires_account": false,
+        "note_de": ""
+      },
+      "architecture": "smollm3",
+      "parameters": "3B",
+      "quantization": "Q4_K_M",
+      "context_length": 65536,
+      "template": {
+        "reasoning_toggle": "enable_thinking",
+        "system_role": true
+      },
+      "resources": {
+        "n_layers": 36,
+        "n_kv_heads": 4,
+        "head_dim": 128,
+        "note": "SmolLM3 config.json"
+      },
+      "evidence": [
+        {
+          "kind": "model_card",
+          "note_de": "SmolLM3-Modellkarte: Englisch, Französisch, Spanisch, Deutsch, Italienisch, Portugiesisch; Dual-Mode (Thinking).",
+          "scope": "Herstellerangabe"
+        }
+      ],
+      "description_de": "Vollständig offenes 3B-Modell von Hugging Face mit Deutsch-Unterstützung und optionalem Thinking-Modus.",
+      "support": "documented",
+      "source_kind": "builtin",
+      "checked_at": "2026-11-02",
+      "verification": {
+        "status": "metadata",
+        "date": "2026-11-02",
+        "scope": "Katalogeintrag (Architektur laut llama.cpp-Doku/HF-Metadaten, Prüfsumme, Lizenz); hier nicht ausgeführt"
+      }
+    },
+    {
+      "id": "llama-3.2-1b-instruct-q4_k_m",
+      "name": "Llama 3.2 1B Instruct (Q4_K_M, Konvertierung bartowski)",
+      "role": "chat",
+      "type": "chat",
+      "family": "Llama",
+      "families": [
+        "Llama 3.2"
+      ],
+      "publisher": "bartowski (Konvertierung); Originalmodell: meta-llama/Llama-3.2-1B-Instruct",
+      "source": "community",
+      "converter": "bartowski",
+      "original_model": "meta-llama/Llama-3.2-1B-Instruct",
+      "repo": "bartowski/Llama-3.2-1B-Instruct-GGUF",
+      "revision": "067b946cf014b7c697f3654f621d577a3e3afd1c",
+      "files": [
+        {
+          "path": "Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+          "size": 807694464,
+          "sha256": "6f85a640a97cf2bf5b8e764087b1e83da0fdb51d7c9fab7d0fece9385611df83"
+        }
+      ],
+      "license": {
+        "id": "llama3.2",
+        "name": "Llama 3.2 Community License",
+        "url": "https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct/blob/main/LICENSE.txt",
+        "kind": "open-weights",
+        "gated": false,
+        "requires_account": false,
+        "note_de": "Open-Weights-Lizenz mit Nutzungsbedingungen (keine Open-Source-Lizenz). Das Original-Repository von Meta ist freigeschaltet; diese Konvertierung ist frei abrufbar."
+      },
+      "architecture": "llama",
+      "parameters": "1B",
+      "quantization": "Q4_K_M",
+      "context_length": 131072,
+      "template": {
+        "reasoning_toggle": null,
+        "system_role": true
+      },
+      "resources": {
+        "n_layers": 16,
+        "n_kv_heads": 8,
+        "head_dim": 64,
+        "note": "Llama 3.2 1B config.json"
+      },
+      "evidence": [
+        {
+          "kind": "model_card",
+          "note_de": "Llama-3.2-Modellkarte: offiziell Englisch, Deutsch, Französisch, Italienisch, Portugiesisch, Hindi, Spanisch, Thai.",
+          "scope": "Herstellerangabe"
+        },
+        {
+          "kind": "measurement",
+          "note_de": "Echtlauf in foldable/build/measurements/families-report.json (synthetische Testdaten).",
+          "scope": "dieser Rechner"
+        }
+      ],
+      "description_de": "Sehr kleines Llama-Modell für schwache Hardware. Kein Thinking-Modus.",
+      "support": "documented",
+      "source_kind": "builtin",
+      "checked_at": "2026-11-02",
+      "verification": {
+        "status": "executed",
+        "date": "2026-11-02",
+        "scope": "echte Inferenz auf b12032 (Vulkan, Intel Arc 140V) in diesem Projekt: Import, Aktivierung, Chat mit Gedächtnis, Stopp, Kalibrierung (71 Token/s, erstes Token 656 ms)"
+      }
+    },
+    {
+      "id": "ministral-3-3b-instruct-q4_k_m",
+      "name": "Ministral 3 3B Instruct (Q4_K_M, offiziell)",
+      "role": "chat",
+      "type": "chat",
+      "family": "Mistral",
+      "families": [
+        "Ministral 3"
+      ],
+      "publisher": "Mistral AI",
+      "source": "official",
+      "converter": "Mistral AI (offiziell)",
+      "original_model": "mistralai/Ministral-3-3B-Instruct-2512",
+      "repo": "mistralai/Ministral-3-3B-Instruct-2512-GGUF",
+      "revision": "eb599d408350ea2bb60452cb86be7c7b2fc28227",
+      "files": [
+        {
+          "path": "Ministral-3-3B-Instruct-2512-Q4_K_M.gguf",
+          "size": 2147023008,
+          "sha256": "9ed150d4367e68df0ac8e1540f6ddc65b42d0ee26378329d1ecbca60f93fc5f8"
+        }
+      ],
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/mistralai/Ministral-3-3B-Instruct-2512-GGUF",
+        "kind": "open-source",
+        "gated": false,
+        "requires_account": false,
+        "note_de": ""
+      },
+      "architecture": "mistral3",
+      "parameters": "3B",
+      "quantization": "Q4_K_M",
+      "context_length": 32768,
+      "template": {
+        "reasoning_toggle": null,
+        "system_role": true
+      },
+      "resources": {
+        "n_layers": 26,
+        "n_kv_heads": 8,
+        "head_dim": 128,
+        "note": "Ministral 3 3B config.json (26 Schichten, 8 KV-Köpfe, head_dim 128)"
+      },
+      "evidence": [
+        {
+          "kind": "model_card",
+          "note_de": "Mistral-Modellkarte: mehrsprachig inkl. Deutsch.",
+          "scope": "Herstellerangabe"
+        },
+        {
+          "kind": "measurement",
+          "note_de": "Echtlauf in foldable/build/measurements/families-report.json (synthetische Testdaten).",
+          "scope": "dieser Rechner"
+        }
+      ],
+      "description_de": "Offizielle GGUF-Veröffentlichung von Mistral AI. Kompaktes Instruct-Modell, Apache-2.0.",
+      "support": "documented",
+      "source_kind": "builtin",
+      "checked_at": "2026-11-02",
+      "verification": {
+        "status": "executed",
+        "date": "2026-11-02",
+        "scope": "echte Inferenz auf b12032 (Vulkan, Intel Arc 140V) in diesem Projekt: Import, Aktivierung, Chat mit Gedächtnis, Stopp, Kalibrierung (28,5 Token/s, erstes Token 891 ms)"
+      }
+    },
+    {
+      "id": "phi-4-mini-instruct-q4_k_m",
+      "name": "Phi-4-mini Instruct (Q4_K_M, Konvertierung unsloth)",
+      "role": "chat",
+      "type": "chat",
+      "family": "Phi",
+      "families": [
+        "Phi-4"
+      ],
+      "publisher": "unsloth (Konvertierung); Originalmodell: microsoft/Phi-4-mini-instruct",
+      "source": "community",
+      "converter": "unsloth",
+      "original_model": "microsoft/Phi-4-mini-instruct",
+      "repo": "unsloth/Phi-4-mini-instruct-GGUF",
+      "revision": "78eb92a46fc37e6b524df991ed9aca9bc6aa7b80",
+      "files": [
+        {
+          "path": "Phi-4-mini-instruct-Q4_K_M.gguf",
+          "size": 2491874272,
+          "sha256": "88c00229914083cd112853aab84ed51b87bdf6b9ce42f532d8c85c7c63b1730a"
+        }
+      ],
+      "license": {
+        "id": "mit",
+        "name": "MIT License",
+        "url": "https://huggingface.co/microsoft/Phi-4-mini-instruct/blob/main/LICENSE",
+        "kind": "open-source",
+        "gated": false,
+        "requires_account": false,
+        "note_de": ""
+      },
+      "architecture": "phi3",
+      "parameters": "3.8B",
+      "quantization": "Q4_K_M",
+      "context_length": 131072,
+      "template": {
+        "reasoning_toggle": null,
+        "system_role": true
+      },
+      "resources": {},
+      "evidence": [
+        {
+          "kind": "model_card",
+          "note_de": "Phi-4-mini-Modellkarte: mehrsprachig (u. a. Deutsch), Schwerpunkt Reasoning und Code.",
+          "scope": "Herstellerangabe"
+        }
+      ],
+      "description_de": "Microsofts kompaktes Modell unter MIT-Lizenz; gut für Code-Fragen laut Modellkarte.",
+      "support": "documented",
+      "source_kind": "builtin",
+      "checked_at": "2026-11-02",
+      "verification": {
+        "status": "metadata",
+        "date": "2026-11-02",
+        "scope": "Katalogeintrag (Architektur laut llama.cpp-Doku/HF-Metadaten, Prüfsumme, Lizenz); hier nicht ausgeführt"
+      }
+    },
+    {
+      "id": "gemma-4-e2b-it-q4_0",
+      "name": "Gemma 4 E2B it (Q4_0, Konvertierung ggml-org)",
+      "role": "chat",
+      "type": "chat",
+      "family": "Gemma",
+      "families": [
+        "Gemma 4"
+      ],
+      "publisher": "ggml-org (Konvertierung); Originalmodell: google/gemma-4-E2B-it",
+      "source": "community",
+      "converter": "ggml-org",
+      "original_model": "google/gemma-4-E2B-it",
+      "repo": "ggml-org/gemma-4-E2B-it-GGUF",
+      "revision": "6938c58e698502037401a5f19f6905f2fb2f7dee",
+      "files": [
+        {
+          "path": "gemma-4-E2B-it-Q4_0.gguf",
+          "size": 2841481184,
+          "sha256": "8e30dff3ac4c8434c49a7036fa15564bdbb6044e42bf04550bf1a096ad7e6a52"
+        }
+      ],
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF",
+        "kind": "open-source",
+        "gated": false,
+        "requires_account": false,
+        "note_de": ""
+      },
+      "architecture": "gemma4",
+      "parameters": "2B (effektiv)",
+      "quantization": "Q4_0",
+      "context_length": 32768,
+      "template": {
+        "reasoning_toggle": null,
+        "system_role": false
+      },
+      "resources": {},
+      "evidence": [
+        {
+          "kind": "model_card",
+          "note_de": "Gemma-4-Modellkarte: mehrsprachig; laut HF-Metadaten Apache-2.0.",
+          "scope": "Herstellerangabe"
+        }
+      ],
+      "description_de": "Gemma 4 E2B (effektiv 2B Parameter, mehr Gewichte durch Per-Layer-Embeddings). Nur Textteil wird genutzt; der Bildprojektor wird nicht geladen.",
+      "support": "documented",
+      "source_kind": "builtin",
+      "checked_at": "2026-11-02",
+      "verification": {
+        "status": "metadata",
+        "date": "2026-11-02",
+        "scope": "Katalogeintrag (Architektur laut llama.cpp-Doku/HF-Metadaten, Prüfsumme, Lizenz); hier nicht ausgeführt"
+      }
+    },
+    {
+      "id": "gemma-3-1b-it-q4_k_m",
+      "name": "Gemma 3 1B it (Q4_K_M, Konvertierung unsloth)",
+      "role": "chat",
+      "type": "chat",
+      "family": "Gemma",
+      "families": [
+        "Gemma 3"
+      ],
+      "publisher": "unsloth (Konvertierung); Originalmodell: google/gemma-3-1b-it",
+      "source": "community",
+      "converter": "unsloth",
+      "original_model": "google/gemma-3-1b-it",
+      "repo": "unsloth/gemma-3-1b-it-GGUF",
+      "revision": "f0b45be0aac41bd6a100a4b5734cad5f67255bfb",
+      "files": [
+        {
+          "path": "gemma-3-1b-it-Q4_K_M.gguf",
+          "size": 806058272,
+          "sha256": "8270790f3ab69fdfe860b7b64008d9a19986d8df7e407bb018184caa08798ebd"
+        }
+      ],
+      "license": {
+        "id": "gemma",
+        "name": "Gemma Terms of Use",
+        "url": "https://ai.google.dev/gemma/terms",
+        "kind": "open-weights",
+        "gated": false,
+        "requires_account": false,
+        "note_de": "Open-Weights-Lizenz mit Nutzungsbedingungen; das Original-Repository von Google ist freigeschaltet, diese Konvertierung ist frei abrufbar."
+      },
+      "architecture": "gemma3",
+      "parameters": "1B",
+      "quantization": "Q4_K_M",
+      "context_length": 32768,
+      "template": {
+        "reasoning_toggle": null,
+        "system_role": false
+      },
+      "resources": {
+        "n_layers": 26,
+        "n_kv_heads": 1,
+        "head_dim": 256,
+        "note": "Gemma 3 1B config.json"
+      },
+      "evidence": [
+        {
+          "kind": "model_card",
+          "note_de": "Gemma-3-Modellkarte: über 140 Sprachen.",
+          "scope": "Herstellerangabe"
+        }
+      ],
+      "description_de": "Sehr kleines Gemma-Modell. Chatvorlage ohne Systemrolle (Systemtext wird der ersten Nachricht vorangestellt).",
+      "support": "documented",
+      "source_kind": "builtin",
+      "checked_at": "2026-11-02",
+      "verification": {
+        "status": "metadata",
+        "date": "2026-11-02",
+        "scope": "Katalogeintrag (Architektur laut llama.cpp-Doku/HF-Metadaten, Prüfsumme, Lizenz); hier nicht ausgeführt"
+      }
+    },
+    {
+      "id": "embeddinggemma-2-q8_0",
+      "name": "EmbeddingGemma 2 (Q8_0, Konvertierung ggml-org)",
+      "role": "embedding",
+      "type": "embedding",
+      "family": "EmbeddingGemma",
+      "families": [
+        "EmbeddingGemma 2"
+      ],
+      "publisher": "ggml-org (Konvertierung); Originalmodell: google/embeddinggemma-2",
+      "source": "community",
+      "converter": "ggml-org",
+      "original_model": "google/embeddinggemma-2",
+      "repo": "ggml-org/embeddinggemma-2-GGUF",
+      "revision": "6ea3e3a309d12a4779cfda98b8c19800d2d5da71",
+      "files": [
+        {
+          "path": "embeddinggemma-2-Q8_0.gguf",
+          "size": 309855456,
+          "sha256": "2188ac1deca4b77dffefd603c2776a9d76d9d74ec01841392982ebb840b09135"
+        }
+      ],
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/ggml-org/embeddinggemma-2-GGUF",
+        "kind": "open-source",
+        "gated": false,
+        "requires_account": false,
+        "note_de": ""
+      },
+      "architecture": "gemma-embedding2",
+      "parameters": "0.3B",
+      "quantization": "Q8_0",
+      "context_length": 2048,
+      "embedding_dimensions": 768,
+      "template": {
+        "reasoning_toggle": null,
+        "system_role": false
+      },
+      "resources": {},
+      "evidence": [
+        {
+          "kind": "model_card",
+          "note_de": "Mehrsprachiges Embedding-Modell (laut Modellkarte).",
+          "scope": "Herstellerangabe"
+        }
+      ],
+      "description_de": "Kleines Embedding-Modell als Alternative zu Qwen3-Embedding (768 Dimensionen; Index ist an das Modell gebunden).",
+      "support": "documented",
+      "source_kind": "builtin",
+      "checked_at": "2026-11-02",
+      "verification": {
+        "status": "metadata",
+        "date": "2026-11-02",
+        "scope": "Katalogeintrag (Architektur laut llama.cpp-Doku/HF-Metadaten, Prüfsumme, Lizenz); hier nicht ausgeführt"
+      }
+    },
+    {
+      "id": "nomic-embed-text-v1.5-q8_0",
+      "name": "nomic-embed-text v1.5 (Q8_0, offiziell)",
+      "role": "embedding",
+      "type": "embedding",
+      "family": "nomic-embed",
+      "families": [
+        "nomic-embed"
+      ],
+      "publisher": "Nomic AI",
+      "source": "official",
+      "converter": "Nomic AI (offiziell)",
+      "original_model": "nomic-ai/nomic-embed-text-v1.5",
+      "repo": "nomic-ai/nomic-embed-text-v1.5-GGUF",
+      "revision": "0188c9bf409793f810680a5a431e7b899c46104c",
+      "files": [
+        {
+          "path": "nomic-embed-text-v1.5.Q8_0.gguf",
+          "size": 146146432,
+          "sha256": "3e24342164b3d94991ba9692fdc0dd08e3fd7362e0aacc396a9a5c54a544c3b7"
+        }
+      ],
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF",
+        "kind": "open-source",
+        "gated": false,
+        "requires_account": false,
+        "note_de": ""
+      },
+      "architecture": "nomic-bert",
+      "parameters": "0.14B",
+      "quantization": "Q8_0",
+      "context_length": 8192,
+      "embedding_dimensions": 768,
+      "template": {
+        "reasoning_toggle": null,
+        "system_role": false
+      },
+      "resources": {},
+      "evidence": [
+        {
+          "kind": "model_card",
+          "note_de": "Englisch-zentriertes Embedding-Modell; Deutsch nur eingeschränkt belegt.",
+          "scope": "Modellkarte"
+        }
+      ],
+      "description_de": "Sehr kleines Embedding-Modell (146 MB). Für deutsche Texte ist Qwen3-Embedding besser belegt.",
+      "support": "documented",
+      "source_kind": "builtin",
+      "checked_at": "2026-11-02",
+      "verification": {
+        "status": "metadata",
+        "date": "2026-11-02",
+        "scope": "Katalogeintrag (Architektur laut llama.cpp-Doku/HF-Metadaten, Prüfsumme, Lizenz); hier nicht ausgeführt"
+      }
+    },
+    {
+      "id": "qwen3-vl-4b-instruct-q4_k_m",
+      "name": "Qwen3-VL 4B Instruct (Q4_K_M + Bild-Projektor Q8_0)",
+      "role": "chat",
+      "family": "Qwen3-VL",
+      "publisher": "Qwen",
+      "source": "official",
+      "repo": "Qwen/Qwen3-VL-4B-Instruct-GGUF",
+      "revision": "1cd86afb9a95c410a6038ab3b40d8b578c892266",
+      "files": [
+        {
+          "path": "Qwen3VL-4B-Instruct-Q4_K_M.gguf",
+          "size": 2497281664,
+          "sha256": "66358cb18bb6b3b1b6675aa412c7a88ef01d228f481184d13668e5201c730a0a",
+          "kind": "weights"
+        },
+        {
+          "path": "mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf",
+          "size": 453974304,
+          "sha256": "30ba2c7dd3127a4561b6cba9d13d0f711c91bdb38742e2f56d73c8cb596bd06d",
+          "kind": "mmproj"
+        }
+      ],
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0",
+        "url": "https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct-GGUF/blob/main/LICENSE",
+        "kind": "open-source",
+        "gated": false,
+        "requires_account": false,
+        "note_de": ""
+      },
+      "architecture": "qwen3vl",
+      "parameters": "4B",
+      "quantization": "Q4_K_M",
+      "context_length": 32768,
+      "embedding_dimensions": null,
+      "support": "documented",
+      "description_de": "Multimodales 4B-Modell (Text + Bilder) der Qwen3-VL-Reihe, offizielle GGUF-Konvertierung mit Projektor. Standardwahl für Live-Bildschirmfragen und den Agenten.",
+      "type": "chat",
+      "original_model": "Qwen/Qwen3-VL-4B-Instruct",
+      "converter": "Qwen (offiziell)",
+      "families": [
+        "Qwen3-VL"
+      ],
+      "verification": {
+        "status": "executed",
+        "date": "2026-11-04",
+        "scope": "echte Ausführung auf b12032 (Vulkan + Projektor-Offload, CPU): Text-Chat, Bildfrage auf echter Fensteraufnahme, Grounding-Kalibrierung (0–1000 normiert), Werkzeugplanung in der 20er-Aufgabenmatrix (AGENT_LIVE_TEST_REPORT.md)"
+      },
+      "evidence": [
+        {
+          "kind": "model_card",
+          "note_de": "Qwen3-VL-Modellkarte: Bildverständnis, GUI-Grounding und mehrsprachig inkl. Deutsch (Herstellerangabe).",
+          "scope": "Herstellerangabe"
+        }
+      ],
+      "resources": {
+        "n_layers": 36,
+        "n_kv_heads": 8,
+        "head_dim": 128,
+        "note": "Qwen3-VL-4B config.json (Textteil); Projektor zusätzlich ≈ 0,45 GB"
+      },
+      "template": {
+        "reasoning_toggle": "enable_thinking",
+        "system_role": true
+      },
+      "modalities": [
+        "text",
+        "image"
+      ]
+    },
+    {
+      "id": "gemma-4-e2b-it-q4_0-vision",
+      "name": "Gemma 4 E2B it (Q4_0 + Bild-Projektor Q8_0, Konvertierung ggml-org)",
+      "role": "chat",
+      "family": "Gemma",
+      "publisher": "ggml-org (Konvertierung); Originalmodell: google/gemma-4-E2B-it",
+      "source": "community",
+      "repo": "ggml-org/gemma-4-E2B-it-GGUF",
+      "revision": "6938c58e698502037401a5f19f6905f2fb2f7dee",
+      "files": [
+        {
+          "path": "gemma-4-E2B-it-Q4_0.gguf",
+          "size": 2841481184,
+          "sha256": "8e30dff3ac4c8434c49a7036fa15564bdbb6044e42bf04550bf1a096ad7e6a52",
+          "kind": "weights"
+        },
+        {
+          "path": "mmproj-gemma-4-E2B-it-Q8_0.gguf",
+          "size": 557368064,
+          "sha256": "9406f99c16d68cda4f1f0552192dcc99021ea1fc6d2fd50b1dc3ccf30d04b292",
+          "kind": "mmproj"
+        }
+      ],
+      "license": {
+        "id": "apache-2.0",
+        "name": "Apache License 2.0 (laut HF-Metadaten)",
+        "url": "https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF",
+        "kind": "open-source",
+        "gated": false,
+        "requires_account": false,
+        "note_de": "Lizenzangabe laut Hugging-Face-Metadaten des Konvertierungs-Repos."
+      },
+      "architecture": "gemma4",
+      "parameters": "E2B",
+      "quantization": "Q4_0",
+      "context_length": 32768,
+      "embedding_dimensions": null,
+      "support": "documented",
+      "description_de": "Kleines multimodales Gemma-4-Modell (Text + Bilder) mit Projektor; zweite Familie für Bildfragen. E2B ist keine vollständige Speicherangabe: Gewichte 2,65 GB + Projektor 0,52 GB.",
+      "type": "chat",
+      "original_model": "google/gemma-4-E2B-it",
+      "converter": "ggml-org",
+      "families": [
+        "Gemma"
+      ],
+      "verification": {
+        "status": "executed",
+        "date": "2026-11-04",
+        "scope": "echte Ausführung auf b12032 (Vulkan + Projektor): Text-Chat und Bildfragen (vision.describe) in der Aufgabenmatrix-Teilmenge, 13/16 Aufgaben erfolgreich (Windows-Gruppe schwach); Grounding ungetestet (AGENT_LIVE_TEST_REPORT.md)"
+      },
+      "evidence": [
+        {
+          "kind": "model_card",
+          "note_de": "Gemma-4-Modellkarte: multimodal, mehrsprachig (Herstellerangabe).",
+          "scope": "Herstellerangabe"
+        }
+      ],
+      "resources": {
+        "note": "ggml-org GGUF; Projektor zusätzlich ≈ 0,55 GB"
+      },
+      "template": {
+        "reasoning_toggle": null,
+        "system_role": false
+      },
+      "modalities": [
+        "text",
+        "image"
+      ]
+    }
+  ]
+}

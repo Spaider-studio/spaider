@@ -1,0 +1,153 @@
+{
+  "cases": {
+    "memory_after_two_messages": {
+      "facts": 2,
+      "entities": 3,
+      "relations": 2,
+      "superseded": 1,
+      "documents": 0,
+      "notes": 0,
+      "conversations": 1,
+      "messages": 4,
+      "pending_ingest": 0,
+      "index": {
+        "fts": true,
+        "vectors": {
+          "enabled": true,
+          "model_id": "qwen3-embedding-0.6b-q8_0",
+          "dimensions": 1024,
+          "count": 5
+        }
+      }
+    },
+    "search_projektleiter": [
+      {
+        "status": "current",
+        "excerpt": "Korrektur: Der Projektleiter von Orion ist nicht mehr Idris Kane, sondern jetzt "
+      },
+      {
+        "status": "superseded",
+        "excerpt": "Merk dir bitte: Mein Projekt heißt Orion. Der Projektleiter von Orion ist Idris "
+      },
+      {
+        "status": "current",
+        "excerpt": "Merk dir bitte: Mein Projekt heißt Orion. Das Budget von Orion beträgt 42000 Eur"
+      }
+    ],
+    "switch_failure": {
+      "state": "failed",
+      "error": {
+        "detail": "Das Modell konnte nicht gestartet werden: llama-server (chat) hat sich beendet (Exit-Code 1).\n0.00.615.030 I srv  init_listene: The UI is disabled\n0.00.615.041 I srv  init_listene: Use --ui/--no-ui (or deprecated --webui/--no-webui) to enable/disable\n0.00.631.001 I srv    load_model: loading model 'C:\\Users\\mucbay\\AppData\\Local\\Temp\\PYTEST~1\\PYTEST~2\\TEST_R~1\\SPAIDE~1\\SpAIder\\data\\models\\kaputt\\KAPUTT~1.GGU'\n0.00.639.337 E llama_model_load: error loading model: error loading model hyperparameters: key not found in model: qwen3.block_count\n0.00.639.345 E llama_model_load_from_file_impl: failed to load model\n0.00.639.407 E common_fit_params: encountered an error while trying to fit params to free device memory: failed to load model\n0.00.640.056 E llama_model_load: error loading model: error loading model hyperparameters: key not found in model: qwen3.block_count\n0.00.640.061 E llama_model_load_from_file_impl: failed to load model\n0.00.640.063 E cmn  common_init_: failed to load model 'C:\\Users\\mucbay\\AppData\\Local\\Temp\\PYTEST~1\\PYTEST~2\\TEST_R~1\\SPAIDE~1\\SpAIder\\data\\models\\kaputt\\KAPUTT~1.GGU'\n0.00.640.084 E srv    load_model: failed to load model, 'C:\\Users\\mucbay\\AppData\\Local\\Temp\\PYTEST~1\\PYTEST~2\\TEST_R~1\\SPAIDE~1\\SpAIder\\data\\models\\kaputt\\KAPUTT~1.GGU'\n0.00.640.090 I srv    operator(): operator(): cleaning up before exit...\n0.00.641.052 E srv  server_run_i: exiting due to model loading error Das vorherige Modell „Qwen3 0.6B (Q8_0)“ ist wieder aktiv.",
+        "code": "runtime_start_failed"
+      },
+      "phases": [
+        "begin",
+        "plan"
+      ]
+    },
+    "stop": {
+      "status": "stopped",
+      "chars": 31,
+      "wall_s": 0.53
+    },
+    "cross_chat_recall": {
+      "answer": "Aktuell ist der Projektleiter von Orion Priya Nair. Das Budget beträgt 42000 Euro.",
+      "sources": [
+        {
+          "kind": "fact",
+          "status": "current",
+          "origin": "Neues Gespräch",
+          "excerpt": "Merk dir bitte: Mein Projekt heißt Orion. Das Budget von Orion beträgt 42000 Euro."
+        },
+        {
+          "kind": "fact",
+          "status": "current",
+          "origin": "Merk dir bitte: Mein Projekt heißt Orion. Der Projektleiter …",
+          "excerpt": "Korrektur: Der Projektleiter von Orion ist nicht mehr Idris Kane, sondern jetzt Priya Nair"
+        },
+        {
+          "kind": "fact",
+          "status": "superseded",
+          "origin": "",
+          "excerpt": "Idris Kane is the Project Leader of Orion"
+        },
+        {
+          "kind": "fact",
+          "status": "superseded",
+          "origin": "Neues Gespräch",
+          "excerpt": "Merk dir bitte: Mein Projekt heißt Orion. Der Projektleiter von Orion ist Idris Kane. Das "
+        }
+      ]
+    },
+    "supersession_fired": true,
+    "document_recall": {
+      "answer": "Die Firma Zephyr hat ihren Hauptsitz in Lissabon.",
+      "sources": [
+        [
+          "fact",
+          "firmen notiz.txt"
+        ],
+        [
+          "fact",
+          "Neues Gespräch"
+        ],
+        [
+          "fact",
+          "Merk dir bitte: Mein Projekt heißt Orion. Der Projektleiter …"
+        ],
+        [
+          "fact",
+          "Merk dir bitte: Mein Projekt heißt Orion. Der Projektleiter …"
+        ],
+        [
+          "fact",
+          ""
+        ],
+        [
+          "fact",
+          "Neues Gespräch"
+        ],
+        [
+          "document",
+          "firmen notiz.txt"
+        ]
+      ]
+    },
+    "move": {
+      "from": "C:\\Users\\mucbay\\AppData\\Local\\Temp\\pytest-of-mucbay\\pytest-54\\test_real_end_to_end0\\SpAIder Töst Ü\\SpAIder",
+      "to": "Z:\\SpAIder Foldable",
+      "subst_drive": "Z"
+    },
+    "after_move": {
+      "answer": "Mein Projekt heißt Orion, und der Projektleiter leitet es.",
+      "data_dir": "C:\\Users\\mucbay\\AppData\\Local\\Temp\\pytest-of-mucbay\\pytest-54\\test_real_end_to_end0\\Neuer Ort é ß\\SpAIder Foldable\\data"
+    }
+  },
+  "measurements": {
+    "core_start_s": 8.44,
+    "chat_model_activation_s": 4.34,
+    "chat_model_startup_s": 4.23,
+    "llama_server_rss_mb": {
+      "33712": 1852.8,
+      "13984": 2529.5
+    },
+    "core_rss_mb": 4.3,
+    "first_answer": {
+      "usage": {
+        "prompt_tokens": 515,
+        "completion_tokens": 15,
+        "time_to_first_token_ms": 202,
+        "tokens_per_second": 65.72,
+        "prompt_tokens_per_second": 2766.04,
+        "prompt_cached_tokens": 1,
+        "finish_reason": "stop"
+      },
+      "wall_s": 0.48,
+      "first_token_s": 0.266,
+      "chars": 52
+    },
+    "shutdown_s": 2.92,
+    "shutdown_2_s": 2.83,
+    "shutdown_3_s": 3.2
+  }
+}

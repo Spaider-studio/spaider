@@ -1,0 +1,53 @@
+{
+  "core_start_s": 4.42,
+  "exe": "C:\\Users\\mucbay\\spaider-foldable\\repo\\foldable\\build\\out\\SpAIder-Foldable-0.2.0-win-x64\\SpAIder\\resources\\core\\spaider-foldable-core.exe",
+  "model_ready_s": 5.08,
+  "runtime": {
+    "state": "ready",
+    "model_id": "qwen3-4b-q4_k_m",
+    "backend": "vulkan",
+    "startup_seconds": 3.84
+  },
+  "runtime_options": {
+    "backend": "vulkan",
+    "device": "Vulkan0",
+    "gpu_layers": 999,
+    "threads": 8,
+    "threads_batch": 8,
+    "prio": 0,
+    "reason_de": "Alle Schichten auf Intel(R) Arc(TM) 140V GPU (16GB) (geschätzt 5.6 GB von 17.2 GB frei)."
+  },
+  "setup_state": "ready",
+  "memory_overview": {
+    "facts": 16,
+    "entities": 11,
+    "relations": 4,
+    "superseded": 2,
+    "conversations": 5,
+    "messages": 32,
+    "pending_ingest": 0
+  },
+  "chat": {
+    "first_token_s": 0.719,
+    "done_s": 1.453,
+    "tokens_seen": 19,
+    "status": "complete",
+    "timings": {
+      "memory_search_ms": 0,
+      "prompt_build_ms": 0,
+      "prompt_processing_ms": 718,
+      "generating_ms": 733,
+      "total_ms": 1452,
+      "first_token_ms": 718
+    },
+    "usage": {
+      "prompt_tokens": 501,
+      "completion_tokens": 20,
+      "tokens_per_second": 26.02,
+      "time_to_first_token_ms": 718
+    }
+  },
+  "pending_after_drain": 0,
+  "shutdown_s": 1.73,
+  "exit_code": 0
+}

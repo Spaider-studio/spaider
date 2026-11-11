@@ -1,0 +1,525 @@
+{
+  "fresh": {
+    "phase": "fresh",
+    "started_at": "2026-11-04T12:25:30.077Z",
+    "package": "SpAIder-Foldable-0.3.0-review-cd50a04-win-x64.zip",
+    "checks": {
+      "fresh_start": {
+        "setup_page_h1": "Willkommen bei SpAIder Foldable",
+        "setup_state": "needs_model",
+        "runtime_state": "stopped",
+        "core_version": "0.3.0",
+        "core_port": "http://127.0.0.1:60406",
+        "launcher": [
+          "starting (packaged=true) appRoot=C:\\Users\\mucbay\\spaider-foldable\\measure\\ui-review\\SpAIder-Foldable-0.3.0-review-cd50a04-win-x64\\SpAIder",
+          "spawning core: C:\\Users\\mucbay\\spaider-foldable\\measure\\ui-review\\SpAIder-Foldable-0.3.0-review-cd50a04-win-x64\\SpAIder\\resources\\core\\spaider-foldable-core.exe --app-root C:\\Users\\mucbay\\spaider-foldable\\measure\\ui-review\\SpAIder-Foldable-0.3.0-review-cd50a04-win-x64\\SpAIder (cwd C:\\Users\\mucbay\\spaider-foldable\\measure\\ui-review\\SpAIder-Foldable-0.3.0-review-cd50a04-win-x64\\SpAIder\\resources\\core)",
+          "backend status: starting - SpAIder-Kern wird gestartet …",
+          "backend status: ready",
+          "hotkeys registered: overlay=- stop=- errors=2",
+          "hotkey problem: Live-Fenster: Control+Alt+Space konnte nicht registriert werden – vermutlich belegt eine andere Anwendung diese Kombination.",
+          "hotkey problem: Stopp: Control+Alt+Backspace konnte nicht registriert werden – vermutlich belegt eine andere Anwendung diese Kombination."
+        ],
+        "lock_file_during_run": true,
+        "quit": {
+          "exit": {
+            "code": 0,
+            "signal": null,
+            "at": 1793795135730
+          },
+          "quit_ms": 921,
+          "after": {
+            "mine": [],
+            "musa_alive": [
+              "SpAIder:7512",
+              "spaider-foldable-core:13952"
+            ],
+            "lock_file_present": false
+          }
+        },
+        "pass": true
+      }
+    },
+    "finished_at": "2026-11-04T12:25:37.486Z"
+  },
+  "updated_at": "2026-11-04T12:37:27.367Z",
+  "main": {
+    "phase": "main",
+    "started_at": "2026-11-04T12:35:36.765Z",
+    "package": "SpAIder-Foldable-0.3.0-review-cd50a04-win-x64.zip",
+    "checks": {
+      "model_activation": {
+        "ms_to_chat_screen": 8321,
+        "ms_to_runtime_ready": 8311,
+        "setup_state": "ready",
+        "runtime_state": "ready",
+        "active_model": "qwen3-vl-4b-instruct-q4_k_m",
+        "runtime_line": "INFO spaider_foldable.inference.manager: runtime chat ready on port 56534 via vulkan (5.4s) Alle Schichten auf Intel(R) Arc(TM) 140V GPU (16GB) (geschätzt 5.6 GB von 17.2 GB frei).\r",
+        "vulkan": true,
+        "launcher": [
+          "spawning core: C:\\Users\\mucbay\\spaider-foldable\\measure\\ui-review\\SpAIder-Foldable-0.3.0-review-cd50a04-win-x64\\SpAIder\\resources\\core\\spaider-foldable-core.exe --app-root C:\\Users\\mucbay\\spaider-foldable\\measure\\ui-review\\SpAIder-Foldable-0.3.0-review-cd50a04-win-x64\\SpAIder (cwd C:\\Users\\mucbay\\spaider-foldable\\measure\\ui-review\\SpAIder-Foldable-0.3.0-review-cd50a04-win-x64\\SpAIder\\resources\\core)",
+          "hotkeys registered: overlay=Control+Alt+F9 stop=Control+Alt+F10 errors=0"
+        ],
+        "pass": true
+      },
+      "chat": {
+        "question": "Nenne drei Farben.",
+        "answer": "Rot, Blau, Grün.Antwort fertig · 2,8 s · 15 Token/s· Gedächtnis-Nachverarbeitung ausstehendDetailsAntwort kopierenQuellen (1)15,3 Token/s · erstes Token nach 2,3 s · 9 Token · Suche 0,0 s · Kontext 2,3 s · gesamt 2,8 s",
+        "ms_to_done_wall": 3158,
+        "first_token_ms_after_send": 2336,
+        "activity": "Antwort fertig · 2,8 s · 15 Token/s",
+        "pass": true
+      },
+      "live": {
+        "presses": [
+          {
+            "press": 1,
+            "fg_ok": true,
+            "os_keydown_to_shown_log_ms": 118
+          },
+          {
+            "press": 2,
+            "fg_ok": true,
+            "os_keydown_to_shown_log_ms": 124
+          },
+          {
+            "press": 3,
+            "fg_ok": true,
+            "os_keydown_to_shown_log_ms": 109
+          },
+          {
+            "press": 4,
+            "fg_ok": true,
+            "os_keydown_to_shown_log_ms": 103
+          },
+          {
+            "press": 5,
+            "fg_ok": true,
+            "os_keydown_to_shown_log_ms": 96
+          },
+          {
+            "press": 6,
+            "fg_ok": true,
+            "os_keydown_to_shown_log_ms": 102
+          },
+          {
+            "press": 7,
+            "fg_ok": true,
+            "os_keydown_to_shown_log_ms": 99
+          },
+          {
+            "press": 8,
+            "fg_ok": true,
+            "os_keydown_to_shown_log_ms": 125
+          },
+          {
+            "press": 9,
+            "fg_ok": true,
+            "os_keydown_to_shown_log_ms": 109
+          },
+          {
+            "press": 10,
+            "fg_ok": true,
+            "os_keydown_to_shown_log_ms": 94
+          }
+        ],
+        "picker": {
+          "preselected": "Review Pruefung UIpowershell.exeVordergrund",
+          "offered_count": 13,
+          "offered_titles": [
+            "Review Pruefung UI",
+            "*Ayla Demo – Protokoll 04.01.2026 – Notepad",
+            "Erinnerungen – Musa Ucbay – Outlook",
+            "*Ayla Demo – Protokoll 26.04.2026 – Notepad",
+            "*Ayla mo   ttokoll ...11.6 – Notepad",
+            "Claude",
+            "Profile Viewers | LinkedIn - Google Chrome",
+            "Kalender – Musa Ucbay – Outlook",
+            "ChatGPT",
+            "out – Datei-Explorer",
+            "\\\\.\\DISPLAY4",
+            "\\\\.\\DISPLAY5"
+          ]
+        },
+        "target": "Ziel: Review Pruefung UI – powershell.exe",
+        "hotkey_to_show_ms": {
+          "n": 20,
+          "median": 74.6,
+          "min": 49.2,
+          "max": 99.5,
+          "p95": 98.1
+        },
+        "hotkey_to_painted_ms": {
+          "n": 20,
+          "median": 81.6,
+          "min": 52.7,
+          "max": 105.2,
+          "p95": 103.1
+        },
+        "foreground_ms": {
+          "n": 20,
+          "median": 55.4,
+          "min": 32.9,
+          "max": 78.5,
+          "p95": 71.4
+        },
+        "os_keydown_to_shown_ms": {
+          "n": 10,
+          "median": 103,
+          "min": 94,
+          "max": 125,
+          "p95": 125
+        },
+        "question": {
+          "text": "Was steht im Feld Name?",
+          "answer": "Im Feld „Name“ steht „Projekt Nordlicht“. (Diese Information wurde aus der Beobachtung der Quelle „Review Pruefung UI (powershell.exe)“ extrahiert.)",
+          "answer_correct": true,
+          "send_to_first_activity_ms": 204.8,
+          "send_to_first_token_ms": 4716.8,
+          "send_to_done_ms": 6361.6,
+          "send_to_stream_end_ms": 6377.1,
+          "keystroke_to_dom_ms": {
+            "n": 23,
+            "median": 0.9,
+            "min": 0.7,
+            "max": 2.1,
+            "p95": 1.6
+          },
+          "activity_texts": [
+            {
+              "t": "Aufnahme fertig (ok)",
+              "ms": 205
+            },
+            {
+              "t": "Keine passenden gespeicherten Informationen",
+              "ms": 206
+            },
+            {
+              "t": "Kontext vorbereitet",
+              "ms": 207
+            },
+            {
+              "t": "Kontext wird verarbeitet",
+              "ms": 208
+            },
+            {
+              "t": "Kontext wird verarbeitet (34 %)",
+              "ms": 528
+            },
+            {
+              "t": "Kontext wird verarbeitet (79 %)",
+              "ms": 1429
+            },
+            {
+              "t": "Kontext wird verarbeitet (100 %)",
+              "ms": 4669
+            },
+            {
+              "t": "Antwort wird geschrieben · 1000.0 Token/s",
+              "ms": 4671
+            },
+            {
+              "t": "Antwort wird geschrieben · 28.4 Token/s",
+              "ms": 4953
+            },
+            {
+              "t": "Antwort wird geschrieben · 26.6 Token/s",
+              "ms": 5237
+            },
+            {
+              "t": "Antwort wird geschrieben · 26.1 Token/s",
+              "ms": 5517
+            },
+            {
+              "t": "Antwort wird geschrieben · 25.8 Token/s",
+              "ms": 5799
+            },
+            {
+              "t": "Antwort wird geschrieben · 25.6 Token/s",
+              "ms": 6078
+            },
+            {
+              "t": "Antwort fertig · 6,3 s · 25 Token/s",
+              "ms": 6362
+            }
+          ],
+          "observation": "mit Bild · 16 Elemente · 234 Zeichen",
+          "problem": null
+        },
+        "esc": {
+          "hidden": true,
+          "sessions_before": [
+            "live_604a2ea152"
+          ],
+          "sessions_after": []
+        },
+        "pass": true,
+        "hotkey_this_run": {
+          "hotkey_to_show_ms": {
+            "n": 10,
+            "median": 78.95,
+            "min": 55.3,
+            "max": 98.1,
+            "p95": 98.1
+          },
+          "hotkey_to_painted_ms": {
+            "n": 10,
+            "median": 83.4,
+            "min": 58.4,
+            "max": 103.0,
+            "p95": 103.0
+          },
+          "show_to_painted_ms": {
+            "n": 10,
+            "median": 21.6,
+            "min": 19.4,
+            "max": 41.0,
+            "p95": 41.0
+          },
+          "foreground_ms": {
+            "n": 10,
+            "median": 57.95,
+            "min": 35.7,
+            "max": 78.5,
+            "p95": 78.5
+          }
+        },
+        "note_hotkey_stats": "hotkey_to_show_ms/hotkey_to_painted_ms/foreground_ms above pool the launcher log of this app root (incl. 10 presses of an earlier aborted run of the same build); hotkey_this_run holds only the 10 presses of this run."
+      },
+      "tasks": {
+        "form1": {
+          "filesOn": true,
+          "dialogs": [
+            {
+              "ok": false,
+              "helper": "edit(Name/System.ItemNameDisplay)+value+enter(nobutton)",
+              "tree": "Pane|id=|name=|pat= ;; ToolBar|id=FolderBandModuleInner|name=Befehlsmodul|pat=Value ;; Button|id=HelpButton|name=&Hilfe|pat=Invoke/Value ;; SplitButton|id=ViewControl|name=Details|pat=Invoke/Value ;; Button|id=SplitMenuButton|name=Schieberegler anzeigen|pat=Invoke/Value ;; Button|id={7DDC1264-7E4D-4F74-BBC0-D191987C8D0F}|name=Organisieren|pat=Invoke/Value ;; Button|id={E44616AD-6DF1-4B94-85A4-E465AE8A19DB}|name=Neuer Ordner|pat=Invoke/Value ;; Pane|id=ProperTreeHost|name=Steuerelementhost|pat= ;; Pane|id=100|name=Navigationsbereich|pat= ;; Pane|id=listview|name=Shellordneransicht|pat= ;; List|id=|name=Elementansicht|pat=Selection/Value/Scroll/Grid/MultipleView/Table/ItemContainer ;; Header|id=|name=Kopfzeile|pat=Value ;; SplitButton|id=System.ItemNameDisplay|name=Name|pat=Invoke/Value/ExpandCollapse ;; Button|id=DropDown|name=Filterdropdown|pat=Invoke/Value ;; SplitButton|id=System.DateModified|name=Änderungsdatum|pat=Invoke/Value/ExpandCollapse ;; Button|id=DropDown|name=Filterdropdown|pat=Invoke/Value ;; SplitButton|id=System.ItemTypeText|name=Typ|pat=Invoke/Value/ExpandCollapse ;; Button|id=DropDown|name=Filterdropdown|pat=Invoke/Value ;; SplitButton|id=System.Size|name=Größe|pat=Invoke/Value/ExpandCollapse ;; Button|id=DropDown|name=Filterdropdown|pat=Invoke/Value ;; Group|id=0|name=Anfang des Jahres|pat=Invoke/ExpandCollapse/ScrollItem ;; Group|id=UIGroupHeader|name=Anfang des Jahres|pat=Value/ExpandCollapse ;; Button|id=UIGroupButton|name=Gruppe reduzieren|pat=Invoke/Value ;; Edit|id=System.ItemNameDisplay|name=Name|pat=Value ;; ListItem|id=0|name=VW-Praesentation-DWave-Stil|pat=Invoke/Value/SelectionItem/ScrollItem ;; Edit|id=System.ItemNameDisplay|name=Name|pat=Value/GridItem/TableItem ;; Edit|id=System.DateModified|name=Änderungsdatum|pat=Value/GridItem/TableItem ;; Edit|id=System.ItemTypeText|name=Typ|pat=Value/GridItem/TableItem ;; Edit|id=System.Size|name=Größe|pat=Value/GridItem/TableItem ;; Tree|id=AppControlsModuleInner|name=Anwendungssteuerelemente|pat=Value ;; Pane|id=1090|name=Ordner:|pat= ;; Pane|id=1152|name=|pat= ;; Pane|id=1|name=Ordner auswählen|pat= ;; Pane|id=2|name=Abbrechen|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=|pat= ;; Pane|id=40965|name=|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=Navigationsschaltflächen|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=Aufwärts-Band|pat= ;; Pane|id=41477|name=|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=|pat= ;; Pane|id=1001|name=Adresse: Downloads|pat= ;; Pane|id=|name=Adressband|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=|pat= ;; Edit|id=SearchEditBox|name=Suchfeld|pat=Value/Text ;; Button|id=SearchBoxSearchButton|name=Suchen|pat=Invoke/Value ;; Pane|id=|name=|pat="
+            },
+            {
+              "ok": false,
+              "helper": "edit(Name/System.ItemNameDisplay)+value+enter(nobutton)",
+              "tree": "Pane|id=|name=|pat= ;; ToolBar|id=FolderBandModuleInner|name=Befehlsmodul|pat=Value ;; Button|id=HelpButton|name=&Hilfe|pat=Invoke/Value ;; SplitButton|id=ViewControl|name=Details|pat=Invoke/Value ;; Button|id=SplitMenuButton|name=Schieberegler anzeigen|pat=Invoke/Value ;; Button|id={7DDC1264-7E4D-4F74-BBC0-D191987C8D0F}|name=Organisieren|pat=Invoke/Value ;; Button|id={E44616AD-6DF1-4B94-85A4-E465AE8A19DB}|name=Neuer Ordner|pat=Invoke/Value ;; Pane|id=ProperTreeHost|name=Steuerelementhost|pat= ;; Pane|id=100|name=Navigationsbereich|pat= ;; Pane|id=listview|name=Shellordneransicht|pat= ;; List|id=|name=Elementansicht|pat=Selection/Value/Scroll/Grid/MultipleView/Table/ItemContainer ;; Header|id=|name=Kopfzeile|pat=Value ;; SplitButton|id=System.ItemNameDisplay|name=Name|pat=Invoke/Value/ExpandCollapse ;; Button|id=DropDown|name=Filterdropdown|pat=Invoke/Value ;; SplitButton|id=System.DateModified|name=Änderungsdatum|pat=Invoke/Value/ExpandCollapse ;; Button|id=DropDown|name=Filterdropdown|pat=Invoke/Value ;; SplitButton|id=System.ItemTypeText|name=Typ|pat=Invoke/Value/ExpandCollapse ;; Button|id=DropDown|name=Filterdropdown|pat=Invoke/Value ;; SplitButton|id=System.Size|name=Größe|pat=Invoke/Value/ExpandCollapse ;; Button|id=DropDown|name=Filterdropdown|pat=Invoke/Value ;; Group|id=0|name=Anfang des Jahres|pat=Invoke/ExpandCollapse/ScrollItem ;; Group|id=UIGroupHeader|name=Anfang des Jahres|pat=Value/ExpandCollapse ;; Button|id=UIGroupButton|name=Gruppe reduzieren|pat=Invoke/Value ;; Edit|id=System.ItemNameDisplay|name=Name|pat=Value ;; ListItem|id=0|name=VW-Praesentation-DWave-Stil|pat=Invoke/Value/SelectionItem/ScrollItem ;; Edit|id=System.ItemNameDisplay|name=Name|pat=Value/GridItem/TableItem ;; Edit|id=System.DateModified|name=Änderungsdatum|pat=Value/GridItem/TableItem ;; Edit|id=System.ItemTypeText|name=Typ|pat=Value/GridItem/TableItem ;; Edit|id=System.Size|name=Größe|pat=Value/GridItem/TableItem ;; Tree|id=AppControlsModuleInner|name=Anwendungssteuerelemente|pat=Value ;; Pane|id=1090|name=Ordner:|pat= ;; Pane|id=1152|name=|pat= ;; Pane|id=1|name=Ordner auswählen|pat= ;; Pane|id=2|name=Abbrechen|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=|pat= ;; Pane|id=40965|name=|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=Navigationsschaltflächen|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=Aufwärts-Band|pat= ;; Pane|id=41477|name=|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=|pat= ;; Pane|id=1001|name=Adresse: Downloads|pat= ;; Pane|id=|name=Adressband|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=|pat= ;; Edit|id=SearchEditBox|name=Suchfeld|pat=Value/Text ;; Button|id=SearchBoxSearchButton|name=Suchen|pat=Invoke/Value ;; Pane|id=|name=|pat="
+            }
+          ],
+          "chips": [],
+          "memory": "false",
+          "problem": "Für den Dateizugriff mindestens einen Ordner wählen.",
+          "ok": false
+        },
+        "task1": {
+          "id": "task_0b9f3410d7f1",
+          "api_created": true,
+          "wall_ms": 23424,
+          "final_state": "completed",
+          "meta": "AbgeschlossenSchritt 3/20· 3 Modellaufrufe· Dateien (1)· an diesen Rechner gebunden",
+          "result": "ErgebnisgeprüftZusammenfassung der notizen.txt in zusammenfassung.md geschrieben und verifiziert.zusammenfassung.mdC:\\Users\\mucbay\\spaider-foldable\\measure\\ui-review\\task\\out\\zusammenfassung.md",
+          "actions": 2,
+          "timeline": [
+            {
+              "ms": 2,
+              "state": "planning",
+              "activity": null,
+              "actions": 0
+            },
+            {
+              "ms": 7934,
+              "state": "planning",
+              "activity": "Schritt 2: Planung",
+              "actions": 1
+            },
+            {
+              "ms": 17239,
+              "state": "planning",
+              "activity": "Schritt 3: Planung",
+              "actions": 2
+            },
+            {
+              "ms": 23015,
+              "state": "completed",
+              "activity": "Entscheidung erhalten",
+              "actions": 2
+            }
+          ],
+          "api": {
+            "state": "completed",
+            "step": 3,
+            "llm_calls": 3,
+            "started_at": "2026-11-04T12:36:30Z",
+            "finished_at": "2026-11-04T12:36:53Z",
+            "scopes": {
+              "files": {
+                "roots": [
+                  "C:\\Users\\mucbay\\spaider-foldable\\measure\\ui-review\\task"
+                ],
+                "write_dir": "C:\\Users\\mucbay\\spaider-foldable\\measure\\ui-review\\task\\out"
+              },
+              "browser": null,
+              "windows": null,
+              "memory": false,
+              "external_effects": false
+            },
+            "result": {
+              "ok": true,
+              "summary_de": "Zusammenfassung der notizen.txt in zusammenfassung.md geschrieben und verifiziert.",
+              "artifacts": [
+                {
+                  "kind": "file",
+                  "path": "C:\\Users\\mucbay\\spaider-foldable\\measure\\ui-review\\task\\out\\zusammenfassung.md",
+                  "url": null,
+                  "label": "zusammenfassung.md"
+                }
+              ],
+              "verified": true,
+              "verified_by": "files.write (Rücklesen, sha256)",
+              "timings": {
+                "observe_ms": 0,
+                "wait_ms": 0,
+                "planning_ms": 22903,
+                "executing_ms": 16
+              }
+            },
+            "last_error": null
+          },
+          "output_exists": true,
+          "output_bytes": 167,
+          "output_excerpt": "Projekt Nordlicht: Kickoff am 12.11.2026 in Bremen.\nBudget: 48500 Euro, davon 12000 Euro für externe Beratung.\nNaechster Schritt: Lastenheft bis 30.11.2026 abstimmen.",
+          "pass": true
+        },
+        "form2": {
+          "filesOn": true,
+          "dialogs": [
+            {
+              "ok": false,
+              "helper": "edit(Name/System.ItemNameDisplay)+value+enter(nobutton)",
+              "tree": "Pane|id=|name=|pat= ;; Pane|id=|name=|pat= ;; ToolBar|id=FolderBandModuleInner|name=Befehlsmodul|pat=Value ;; Button|id=HelpButton|name=&Hilfe|pat=Invoke/Value ;; SplitButton|id=ViewControl|name=Details|pat=Invoke/Value ;; Button|id=SplitMenuButton|name=Schieberegler anzeigen|pat=Invoke/Value ;; Button|id={7DDC1264-7E4D-4F74-BBC0-D191987C8D0F}|name=Organisieren|pat=Invoke/Value ;; Button|id={E44616AD-6DF1-4B94-85A4-E465AE8A19DB}|name=Neuer Ordner|pat=Invoke/Value ;; Pane|id=ProperTreeHost|name=Steuerelementhost|pat= ;; Pane|id=100|name=Navigationsbereich|pat= ;; Pane|id=listview|name=Shellordneransicht|pat= ;; List|id=|name=Elementansicht|pat=Selection/Value/Scroll/Grid/MultipleView/Table/ItemContainer ;; Header|id=|name=Kopfzeile|pat=Value ;; SplitButton|id=System.ItemNameDisplay|name=Name|pat=Invoke/Value/ExpandCollapse ;; Button|id=DropDown|name=Filterdropdown|pat=Invoke/Value ;; SplitButton|id=System.DateModified|name=Änderungsdatum|pat=Invoke/Value/ExpandCollapse ;; Button|id=DropDown|name=Filterdropdown|pat=Invoke/Value ;; SplitButton|id=System.ItemTypeText|name=Typ|pat=Invoke/Value/ExpandCollapse ;; Button|id=DropDown|name=Filterdropdown|pat=Invoke/Value ;; SplitButton|id=System.Size|name=Größe|pat=Invoke/Value/ExpandCollapse ;; Button|id=DropDown|name=Filterdropdown|pat=Invoke/Value ;; Group|id=0|name=Anfang des Jahres|pat=Invoke/ExpandCollapse/ScrollItem ;; Group|id=UIGroupHeader|name=Anfang des Jahres|pat=Value/ExpandCollapse ;; Button|id=UIGroupButton|name=Gruppe reduzieren|pat=Invoke/Value ;; Edit|id=System.ItemNameDisplay|name=Name|pat=Value ;; ListItem|id=0|name=VW-Praesentation-DWave-Stil|pat=Invoke/Value/SelectionItem/ScrollItem ;; Edit|id=System.ItemNameDisplay|name=Name|pat=Value/GridItem/TableItem ;; Edit|id=System.DateModified|name=Änderungsdatum|pat=Value/GridItem/TableItem ;; Edit|id=System.ItemTypeText|name=Typ|pat=Value/GridItem/TableItem ;; Edit|id=System.Size|name=Größe|pat=Value/GridItem/TableItem ;; Tree|id=AppControlsModuleInner|name=Anwendungssteuerelemente|pat=Value ;; Pane|id=1090|name=Ordner:|pat= ;; Pane|id=1152|name=|pat= ;; Pane|id=1|name=Ordner auswählen|pat= ;; Pane|id=2|name=Abbrechen|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=|pat= ;; Pane|id=40965|name=|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=Navigationsschaltflächen|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=Aufwärts-Band|pat= ;; Pane|id=41477|name=|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=|pat= ;; Pane|id=1001|name=Adresse: Downloads|pat= ;; Pane|id=|name=Adressband|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=|pat= ;; Edit|id=SearchEditBox|name=Suchfeld|pat=Value/Text ;; Button|id=SearchBoxSearchButton|name=Suchen|pat=Invoke/Value ;; Pane|id=|name=|pat="
+            },
+            {
+              "ok": false,
+              "helper": "edit(Name/System.ItemNameDisplay)+value+enter(nobutton)",
+              "tree": "Pane|id=|name=|pat= ;; Pane|id=|name=|pat= ;; ToolBar|id=FolderBandModuleInner|name=Befehlsmodul|pat=Value ;; Button|id=HelpButton|name=&Hilfe|pat=Invoke/Value ;; SplitButton|id=ViewControl|name=Details|pat=Invoke/Value ;; Button|id=SplitMenuButton|name=Schieberegler anzeigen|pat=Invoke/Value ;; Button|id={7DDC1264-7E4D-4F74-BBC0-D191987C8D0F}|name=Organisieren|pat=Invoke/Value ;; Button|id={E44616AD-6DF1-4B94-85A4-E465AE8A19DB}|name=Neuer Ordner|pat=Invoke/Value ;; Pane|id=ProperTreeHost|name=Steuerelementhost|pat= ;; Pane|id=100|name=Navigationsbereich|pat= ;; Pane|id=listview|name=Shellordneransicht|pat= ;; List|id=|name=Elementansicht|pat=Selection/Value/Scroll/Grid/MultipleView/Table/ItemContainer ;; Header|id=|name=Kopfzeile|pat=Value ;; SplitButton|id=System.ItemNameDisplay|name=Name|pat=Invoke/Value/ExpandCollapse ;; Button|id=DropDown|name=Filterdropdown|pat=Invoke/Value ;; SplitButton|id=System.DateModified|name=Änderungsdatum|pat=Invoke/Value/ExpandCollapse ;; Button|id=DropDown|name=Filterdropdown|pat=Invoke/Value ;; SplitButton|id=System.ItemTypeText|name=Typ|pat=Invoke/Value/ExpandCollapse ;; Button|id=DropDown|name=Filterdropdown|pat=Invoke/Value ;; SplitButton|id=System.Size|name=Größe|pat=Invoke/Value/ExpandCollapse ;; Button|id=DropDown|name=Filterdropdown|pat=Invoke/Value ;; Group|id=0|name=Anfang des Jahres|pat=Invoke/ExpandCollapse/ScrollItem ;; Group|id=UIGroupHeader|name=Anfang des Jahres|pat=Value/ExpandCollapse ;; Button|id=UIGroupButton|name=Gruppe reduzieren|pat=Invoke/Value ;; Edit|id=System.ItemNameDisplay|name=Name|pat=Value ;; ListItem|id=0|name=VW-Praesentation-DWave-Stil|pat=Invoke/Value/SelectionItem/ScrollItem ;; Edit|id=System.ItemNameDisplay|name=Name|pat=Value/GridItem/TableItem ;; Edit|id=System.DateModified|name=Änderungsdatum|pat=Value/GridItem/TableItem ;; Edit|id=System.ItemTypeText|name=Typ|pat=Value/GridItem/TableItem ;; Edit|id=System.Size|name=Größe|pat=Value/GridItem/TableItem ;; Tree|id=AppControlsModuleInner|name=Anwendungssteuerelemente|pat=Value ;; Pane|id=1090|name=Ordner:|pat= ;; Pane|id=1152|name=|pat= ;; Pane|id=1|name=Ordner auswählen|pat= ;; Pane|id=2|name=Abbrechen|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=|pat= ;; Pane|id=40965|name=|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=Navigationsschaltflächen|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=Aufwärts-Band|pat= ;; Pane|id=41477|name=|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=|pat= ;; Pane|id=1001|name=Adresse: Downloads|pat= ;; Pane|id=|name=Adressband|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=|pat= ;; Pane|id=|name=|pat= ;; Edit|id=SearchEditBox|name=Suchfeld|pat=Value/Text ;; Button|id=SearchBoxSearchButton|name=Suchen|pat=Invoke/Value ;; Pane|id=|name=|pat="
+            }
+          ],
+          "chips": [],
+          "memory": "false",
+          "problem": "Für den Dateizugriff mindestens einen Ordner wählen.",
+          "ok": false
+        },
+        "task2": {
+          "id": "task_3667b15e14c1",
+          "api_created": true,
+          "state_at_stop": "planning",
+          "ms_from_start_to_stop_press": 123,
+          "stop_hotkey": "Ctrl+Alt+F10 (hotkey_stop of this app root; Ctrl+Alt+Backspace is held by the user's running instance)",
+          "hotkey_to_terminal_ms": 1,
+          "state_after_stop": "cancelled",
+          "actions_after_stop": 0,
+          "state_after_10s": "cancelled",
+          "actions_after_10s": 0,
+          "api_after_10s": {
+            "state": "cancelled",
+            "step": 1,
+            "actions": [],
+            "last_error": null
+          },
+          "output_exists": false,
+          "launcher_stop_lines": [
+            "hotkeys registered: overlay=Control+Alt+F9 stop=Control+Alt+F10 errors=0",
+            "stop (hotkey): agent/stop + 0 conversation stop(s)",
+            "stop: agent/stop -> HTTP 200"
+          ],
+          "last_stop_badge": "Globaler Stopp (Hotkey)",
+          "pass": true
+        },
+        "deviation": "Both tasks were created via POST /api/agent/tasks with the scopes the form would send (files root + write dir, memory off) because the harness could not fill the native 'Ordner auswählen' dialog through UI Automation (the folder edit/buttons were not found in the dialog's UIA tree); the tasks were then opened from the Tasks panel and driven/observed there. Stop hotkey: Ctrl+Alt+F10 (hotkey_stop of this app root) because Ctrl+Alt+Backspace is held by the user's running instance."
+      },
+      "quit": {
+        "before": {
+          "mine": [
+            {
+              "pid": 43716,
+              "name": "SpAIder.exe"
+            },
+            {
+              "pid": 36476,
+              "name": "SpAIder.exe"
+            },
+            {
+              "pid": 4908,
+              "name": "SpAIder.exe"
+            },
+            {
+              "pid": 4520,
+              "name": "SpAIder.exe"
+            },
+            {
+              "pid": 40664,
+              "name": "SpAIder.exe"
+            },
+            {
+              "pid": 38512,
+              "name": "spaider-foldable-core.exe"
+            },
+            {
+              "pid": 26704,
+              "name": "llama-server.exe"
+            }
+          ],
+          "musa_alive": [
+            "SpAIder:7512",
+            "spaider-foldable-core:13952"
+          ],
+          "lock_file_present": true
+        },
+        "exit": {
+          "code": 0,
+          "signal": null,
+          "at": 1793795844581
+        },
+        "quit_ms": 2287,
+        "after": {
+          "mine": [],
+          "musa_alive": [
+            "SpAIder:7512",
+            "spaider-foldable-core:13952"
+          ],
+          "lock_file_present": false
+        },
+        "launcher_tail": [
+          "core exited (code 0, signal null)",
+          "core stopped via graceful shutdown",
+          "quit requested (renderer)",
+          "shutdown request -> HTTP 200",
+          "core exited (code 0, signal null)",
+          "core stopped via graceful shutdown"
+        ],
+        "core_tail": [
+          "INFO uvicorn.error: Shutting down\r",
+          "INFO uvicorn.error: Finished server process [38512]\r",
+          "INFO spaider_foldable.main: core exited with code 0\r"
+        ],
+        "pass": true
+      },
+      "summary": {
+        "1a_fresh_start": true,
+        "1b_model_vulkan": true,
+        "1c_chat": true,
+        "2_live": true,
+        "3a_task_completes": true,
+        "3b_stop_hotkey": true,
+        "4_quit": true
+      }
+    },
+    "finished_at": "2026-11-04T12:37:27.367Z"
+  },
+  "environment": {
+    "user_instance_untouched": true,
+    "user_instance_pids": [
+      7512,
+      13952
+    ],
+    "overlay_hotkey": "Ctrl+Alt+F9",
+    "stop_hotkey": "Ctrl+Alt+F10",
+    "env": "PATH=C:\\Windows\\System32;C:\\Windows (+USERPROFILE/APPDATA/LOCALAPPDATA/TEMP/SystemRoot), SPAIDER_FOLDABLE_PERF=1 (renderer perf helper only)",
+    "model_install": "registry install from local stock (prepare_review_root.py, no network)",
+    "runs": "fresh phase 12:25Z; main phase 12:35Z (two earlier main attempts aborted by harness bugs: send clicked while runtime was starting; sidebar row click target) - their forced kills left a stale instance.lock that was removed before the next start"
+  }
+}

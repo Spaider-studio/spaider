@@ -1,0 +1,81 @@
+{
+  "model": "qwen3-vl-4b-instruct-q4_k_m",
+  "runtime": {
+    "backend": "vulkan",
+    "device": "Vulkan0",
+    "gpu_layers": 999,
+    "threads": 8,
+    "threads_batch": 8,
+    "prio": 0,
+    "reason_de": "Alle Schichten auf Intel(R) Arc(TM) 140V GPU (16GB) (geschätzt 5.6 GB von 17.2 GB frei).",
+    "mmproj_offload": true,
+    "image_max_tokens": null,
+    "mmproj": "C:\\Users\\mucbay\\AppData\\Local\\Temp\\pytest-of-mucbay\\pytest-71\\test_live_question_with_vision0\\Live ä\\SpAIder\\data\\models\\qwen3-vl-4b-instruct-q4_k_m\\mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf"
+  },
+  "capabilities": {
+    "id": "qwen3-vl-4b-instruct-q4_k_m",
+    "vision_input": true,
+    "image_grounding": "untested",
+    "tool_call_format": "json_schema",
+    "structured_output": true
+  },
+  "sources": {
+    "windows": 7,
+    "screens": 3,
+    "desktop_interactive": true
+  },
+  "snapshot": {
+    "ms": 108,
+    "quality": "ok",
+    "elements": 16,
+    "text_chars": 242,
+    "preview_bytes": 19772
+  },
+  "question_image": {
+    "first_token_s": 2.766,
+    "total_s": 4.031,
+    "observation": {
+      "snapshot_id": "snap_e8abd194f874",
+      "source_kind": "window",
+      "quality": "ok",
+      "used_image": true,
+      "used_structure": true,
+      "elements": 16,
+      "text_chars": 242,
+      "age_ms": 94
+    },
+    "answer": "Im Feld „Name“ steht „Projekt Nordlicht“.  \nIm Feld „Notizen“ wird ein Budget von 48.500 Euro genannt.",
+    "capture_ms": 94,
+    "image_encode": {
+      "image_w": 626,
+      "image_h": 413,
+      "image_bytes": 10783
+    },
+    "timings": {
+      "capture_ms": 94,
+      "observe_ms": 0,
+      "image_encode_ms": 0,
+      "memory_search_ms": 0,
+      "prompt_build_ms": 0,
+      "prompt_processing_ms": 2671,
+      "generating_ms": 1264,
+      "total_ms": 4031,
+      "first_token_ms": 2671
+    }
+  },
+  "question_structure": {
+    "first_token_s": 2.469,
+    "total_s": 3.094,
+    "observation": {
+      "snapshot_id": "snap_6bcff041e18b",
+      "source_kind": "window",
+      "quality": "ok",
+      "used_image": false,
+      "used_structure": true,
+      "elements": 16,
+      "text_chars": 242,
+      "age_ms": 63
+    },
+    "answer": "Speichern, Leeren, Minimieren, Maximieren, Schließen."
+  }
+}
