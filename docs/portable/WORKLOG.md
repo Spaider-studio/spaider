@@ -665,8 +665,8 @@ AGENTS.md existiert im Repo nicht; das Research-PDF war nicht beigefügt (Hinwei
   `run_matrix_v2.py` ist kein Geheimnis.
 - Paket: `SpAIder-Foldable-0.5.0-win-x64.zip`, 402220402 Bytes, SHA-256 `7bb5b8e86d2d316420e3f999207c604a226e680abf8b050a05ff0f3799187fc9`, Build-Commit `e11400e`
   (BUILD_INFO.txt im ZIP; Paketpruefung 37/37 auf diesem ZIP).
-- Push (nur Feature-Branch, ein Versuch): PLATZHALTER_PUSH
-- Draft-PR gegen `feature/spaider-foldable-0.4-review`: PLATZHALTER_PR
-- Prerelease `foldable-0.5.0-review` (neue Assets, 0.4-Assets unveraendert): PLATZHALTER_RELEASE
+- Push (nur Feature-Branch, ein Versuch): erfolgreich (08:10 Uhr, `git push official feature/spaider-foldable-agent-v2`, neuer Branch; Stand 9bbdaed, danach nur Worklog-Commits)
+- Draft-PR gegen `feature/spaider-foldable-0.4-review`: https://github.com/Spaider-studio/spaider/pull/61 (Draft, Basis = Branch von PR 60)
+- Prerelease `foldable-0.5.0-review` (neue Assets, 0.4-Assets unveraendert): https://github.com/Spaider-studio/spaider/releases/tag/foldable-0.5.0-review (ZIP, SHA256SUMS-0.5.0.txt, BUILD_MANIFEST_0.5.0.json)
 - Nicht beendet werden konnte Prozess 50444 (0.4-Paketkern vom 11.11. vormittags; Beenden vom
   Werkzeugfilter abgelehnt) – bitte manuell schliessen.
