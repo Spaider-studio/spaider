@@ -7407,7 +7407,7 @@
   "host": {
     "desktop_interactive": false
   },
-  "code": "5a0bca6",
+  "code": "8c06758",
   "runtime": {
     "backend": "vulkan",
     "device": "Vulkan0",
@@ -7615,8 +7615,8 @@
       "wall_reduction_pct": 41.2
     }
   },
-  "code_browser": "7a32b9c",
+  "code_browser": "725a484",
   "notes": [
-    "browser group rerun 2026-11-12T04:30:45Z on code 7a32b9c (label naming, derivation sources, derive prompt, repaired B8/B11 pages); files group from 2026-11-12T02:18:30Z on code 5a0bca6."
+    "browser group rerun 2026-11-12T04:30:45Z on code 725a484 (label naming, derivation sources, derive prompt, repaired B8/B11 pages); files group from 2026-11-12T02:18:30Z on code 8c06758."
   ]
 }

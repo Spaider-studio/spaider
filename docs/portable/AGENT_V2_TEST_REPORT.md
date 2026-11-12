@@ -5,7 +5,7 @@ Stand: 2026-11-12. Branch `feature/spaider-foldable-agent-v2`. Hardware: Intel C
 (`qwen3-4b-q4_k_m`, llama.cpp b12032, Vulkan). Alle Zahlen stammen aus den JSON-Dateien
 unter `foldable/build/measurements/` bzw. werden dort genannt; **nichts ist geschätzt**.
 Mocks und Skripttests sind getrennt ausgewiesen. Die Messreihe (Abschnitt 4) lief auf dem Stand
-7a32b9c (Dateigruppe 5a0bca6/9a1f414); die danach behobene Reparaturlücke (a162c4d, Abschnitt 5)
+725a484 (Dateigruppe 8c06758/02a3606); die danach behobene Reparaturlücke (0e6bdb4, Abschnitt 5)
 ist im Paket enthalten, die Tabellen wurden dafür nicht neu gemessen.
 
 Einstufung: **echt** = laufender Kern + echtes Modell + unabhängige Prüfung des Endzustands;
@@ -20,7 +20,7 @@ Aufgaben (`tests/matrix/tasks.json`, Seed 7), 3 Wiederholungen, Zeitbudget 180 s
 | Lauf | Datei | Ergebnis |
 |---|---|---|
 | Datei + Browser (10 Aufgaben × 3) | `baseline-fb-qwen3-4b-219828a.json` | **27/30**, 1 Fehlerfolge-Meldung, 0 Rückfragen, Median 31,6 s, Modellaufrufe = Schritte (jeder Schritt ein Aufruf) |
-| Fenster + Bild (10 Aufgaben × 3) | `baseline-wv-qwen3-4b-219828a.json` | PLATZHALTER_BASELINE_WV |
+| Fenster + Bild (5 Fensteraufgaben × 3; Bildaufgaben ohne Lauf) | `baseline-wv-qwen3-4b-219828a.json` | **3/15, nur hinter dem Sperrbildschirm messbar** (12.11., 07:37–07:51): W2 (reines UIA-Lesen) 3/3 mit je 3 Aufrufen, 25–29 s; W1/W3/W4/W5 scheitern an `windows.focus`/`click_at` (Fenster nicht in den Vordergrund zu holen), V1–V5 ohne Lauf (kein Bildmodell). Kein belastbarer Vergleichswert; Teilvergleich W2: 0.5 wiederverwendet mit 1 Aufruf und 7–11 s (`matrix2-full-windows-cross.locked1.json`) |
 
 Die Baseline hat keinen Ablauf-Mechanismus außer 0.3-Rezepten; jede Wiederholung ist ein
 Planerlauf. Sie ist der Vergleichswert für „unbekannte Aufgabe“ und für den Arm „ohne
@@ -28,7 +28,7 @@ Wiederverwendung“.
 
 ## 2. Unit- und Integrationstests (skriptiert, ohne Modell)
 
-`cd foldable/core && pytest tests` → **159 bestanden, 8 übersprungen** (Stand a162c4d, mit `SPAIDER_FOLDABLE_BROWSER_DIR`; ohne Browser-Ordner 158/9) (die übersprungenen sind Echtläufe, die `SPAIDER_FOLDABLE_REAL_TESTS=1` bzw. den Chromium-Ordner brauchen; mit `SPAIDER_FOLDABLE_BROWSER_DIR` läuft zusätzlich der echte Browser-Recorder-Test). Desktop: `npm test` → **123 bestanden (14 Dateien)**, `npm run typecheck` und `npm run lint` ohne Befund.
+`cd foldable/core && pytest tests` → **159 bestanden, 8 übersprungen** (Stand 0e6bdb4, mit `SPAIDER_FOLDABLE_BROWSER_DIR`; ohne Browser-Ordner 158/9) (die übersprungenen sind Echtläufe, die `SPAIDER_FOLDABLE_REAL_TESTS=1` bzw. den Chromium-Ordner brauchen; mit `SPAIDER_FOLDABLE_BROWSER_DIR` läuft zusätzlich der echte Browser-Recorder-Test). Desktop: `npm test` → **123 bestanden (14 Dateien)**, `npm run typecheck` und `npm run lint` ohne Befund.
 
 Neu in 0.5 (`tests/test_agent_v2.py`, `tests/test_agent_v2_api.py`):
 
@@ -63,7 +63,7 @@ diesem Zeitpunkt noch nicht → seitdem zitierte Pflichttexte als Kriterium). Wi
 erfolgreich mit **1,0 Modellaufrufen im Mittel statt 5,3** (−81 %) und **10,2 s statt 41,5 s**
 (−75 %); B1 mit umbenanntem Knopf („Entwurf sichern“) im dritten Lauf erfolgreich mit 2
 Aufrufen. Befund daraus: Browser-Ziele wurden noch über Referenzen abgespielt → behoben
-(Rolle+Name, Commit 333e9cf); die Messreihe lief danach mit diesem Stand.
+(Rolle+Name, Commit 8ad9245); die Messreihe lief danach mit diesem Stand.
 
 ## 4. Messreihe: 60 Aufgaben, drei Vergleichsarme (echt)
 
@@ -110,7 +110,7 @@ im Arm „ohne“ ist jede Wiederholung ein Planerlauf). ✓/✗ = unabhängige 
 ✗! = Kern meldete „erfüllt“, Prüfung scheiterte (falsche Fertigmeldung); (reu)/(rep) =
 Gate-Entscheidung reuse/repair.
 
-#### Gruppen Dateien + Browser (Code 5a0bca6, 7a32b9c, 9a1f414, Modell qwen3-4b-q4_k_m)
+#### Gruppen Dateien + Browser (Code 8c06758, 725a484, 02a3606, Modell qwen3-4b-q4_k_m)
 
 | Arm | Läufe | Erfolg | falsche Fertigmeldungen | falsche Wiederverwendung | Rückfragen | Nebenwirkungen | wiederholte Fehler | Modellaufrufe Ø | Dauer Ø |
 |---|---|---|---|---|---|---|---|---|---|
@@ -176,7 +176,7 @@ App-Variante (umbenannte Knöpfe) im Arm „voll“: 0/1 erfolgreich, Entscheidu
 
 voll vs. ohne Wiederverwendung (Wiederholungen): Ersparnis Modellaufrufe 62 %, Ersparnis Dauer 53 %, Erfolg 88 % vs. 90 %, falsche Wiederverwendung 5 vs. 0.
 
-#### Gruppen Fenster + anwendungsübergreifend (nur die sechs Cross-Aufgaben ohne Fenster liefen; Fensteraufgaben übersprungen, Abschnitt 4.3) (Code 5a0bca6, 7a32b9c, ed6b78d, Modell qwen3-4b-q4_k_m)
+#### Gruppen Fenster + anwendungsübergreifend (nur die sechs Cross-Aufgaben ohne Fenster liefen; Fensteraufgaben übersprungen, Abschnitt 4.3) (Code 8c06758, 725a484, a378452, Modell qwen3-4b-q4_k_m)
 
 | Arm | Läufe | Erfolg | falsche Fertigmeldungen | falsche Wiederverwendung | Rückfragen | Nebenwirkungen | wiederholte Fehler | Modellaufrufe Ø | Dauer Ø |
 |---|---|---|---|---|---|---|---|---|---|
@@ -238,7 +238,7 @@ sie ist schnell und in 18 von 44 Fällen falsch.
 
 Die Sitzung war während der Nachtmessung gesperrt (Abschnitt 9). Gemessen werden konnten die
 UI-Automation-Aufgaben vor der Sperr-Erkennung (`matrix2-full-windows-cross.locked1.json`,
-22 Läufe, Code ed6b78d ohne Sperr-Erkennung, nur Arm „voll“):
+22 Läufe, Code a378452 ohne Sperr-Erkennung, nur Arm „voll“):
 
 | Aufgabe | Lauf 1 (unbekannt) | Lauf 2 | Lauf 3 | Modellaufrufe 1/2/3 | Dauer 1/2/3 |
 |---|---|---|---|---|---|
@@ -249,7 +249,7 @@ UI-Automation-Aufgaben vor der Sperr-Erkennung (`matrix2-full-windows-cross.lock
 | W1, W4, W6, W8 (Vordergrund/Tastatur nötig) | ✗ | ✗ | ✗ | – | Sperrbildschirm: `windows.focus`/`click_at` scheitern, Aufgabe ehrlich `not_fulfilled` |
 
 Die sechs Cross-Aufgaben ohne Fenster (Dateien, Browser, Gedächtnis) liefen in allen drei Armen
-(voll: Code 7a32b9c; einfach: ed6b78d; ohne: 5a0bca6 – für diese Aufgaben mechanisch gleich):
+(voll: Code 725a484; einfach: a378452; ohne: 8c06758 – für diese Aufgaben mechanisch gleich):
 
 | Aufgabe | voll (Lauf 1/2/3, Aufrufe) | einfache Rezepte | ohne Wiederverwendung | Befund |
 |---|---|---|---|---|
@@ -273,7 +273,7 @@ Modellfehler beim ersten (unbekannten) Lauf, die alle Arme gleichermaßen treffe
   schrieb falsche Bewertung). Alle drei: Ergebnisprüfung nur so stark wie die Kriterien des
   Auftrags; ohne zitierte Pflichttexte bleibt ein inhaltlich falsches Ergebnis „erfüllt“.
 - Produktdemo X10: Reparatur eines `memory.search`-Schritts nach Faktenänderung ging an den Planer
-  und scheiterte am Budget (Abschnitt 5). Nach der Messreihe behoben (Commit a162c4d: rein lesende
+  und scheiterte am Budget (Abschnitt 5). Nach der Messreihe behoben (Commit 0e6bdb4: rein lesende
   Schritte werden erneut gelesen, abgeleitete neu abgeleitet, Zwischendateien sind keine Eingaben);
   die Tabellen oben stammen vom Stand davor und wurden **nicht** komplett neu gemessen – nur X10
   und X6 liefen auf dem behobenen Stand erneut (Abschnitt 5).
@@ -289,7 +289,7 @@ Modellfehler beim ersten (unbekannten) Lauf, die alle Arme gleichermaßen treffe
   (Kern + llama-server) 11,7–13,2 GB in allen Armen gleich (Modellgewichte dominieren).
 - Die Harness-Seiten B8/B11 waren in den ersten Läufen durch ein Escaping-Problem kaputt; die
   Browser-Gruppe wurde deshalb auf dem Endstand komplett neu gemessen (Arme voll/ohne), die
-  Dateigruppe stammt aus dem Lauf davor (Code 5a0bca6 bzw. 9a1f414, mechanisch identisch).
+  Dateigruppe stammt aus dem Lauf davor (Code 8c06758 bzw. 02a3606, mechanisch identisch).
 
 Gemessene Größen je Lauf: Erstversuchserfolg (unabhängige Prüfung), falsche Fertigmeldungen,
 Eingriffe (Rückfragen), Nebenwirkungen (unerwartete Dateien, Aktionen nach außen),
@@ -305,13 +305,13 @@ X10 der Matrix im Arm „voll“: Projektdateien lesen → `bericht.md` erzeugen
 (Connector `correct_memory`) → betroffene Empfängerzuordnung repariert, Bericht nach Prüfung
 wiederverwendet. Kein Versand, nur Testdateien/-konten.
 
-**Messreihe (Code 7a32b9c, `matrix2-full-windows-cross.json`):** Der erste Lauf endete als
+**Messreihe (Code 725a484, `matrix2-full-windows-cross.json`):** Der erste Lauf endete als
 falsche Fertigmeldung – Bericht korrekt, Mailentwurf mit Namen, aber ohne E-Mail-Adresse der
 Leitung; der Verifier kannte aus dem Auftrag nur den zitierten Betreff „Bericht …“ und das
 `An:`. Ohne erfolgreichen ersten Lauf gibt es keinen Ablauf; die Wiederholungen liefen als
 Planerläufe (✓ ✓, je 11 Aufrufe, 134 s) und sind keine Demo des Mechanismus.
 
-**Nachlauf 1 (Code 7a32b9c, `demo-x10-full-1.json`, 07:28–07:36):** Lauf 1 ✓ (12 Aufrufe,
+**Nachlauf 1 (Code 725a484, `demo-x10-full-1.json`, 07:28–07:36):** Lauf 1 ✓ (12 Aufrufe,
 143 s, Projekt „Polarstern“) → Kandidat mit 12 Schritten kompiliert (Bericht und Mail als
 abgeleitete Schritte, beobachteter Fakt „Projektleitung“, drei Dateieingaben). Lauf 2 mit neuer
 Ausgabe und korrigierter Projektleitung (`correct_memory`): Gate **repair** (Abdeckung 82 %,
@@ -324,7 +324,7 @@ Reparaturbudget (4) war erschöpft → Rückfall auf den Planer → Schrittbudge
 gescheiterten Reparaturlauf zurückgestuft → vollständige Neuplanung (14 Aufrufe, 200 s, ✗: Betreff
 fehlte). Ergebnis der Demo auf diesem Stand: **0/2 Wiederholungen**, Mechanismus nicht belegt.
 
-**Behebung (Commit a162c4d, nach der Messreihe):** (1) Dateien, die ein früherer Schritt des
+**Behebung (Commit 0e6bdb4, nach der Messreihe):** (1) Dateien, die ein früherer Schritt des
 Ablaufs schreibt, sind Zwischenergebnisse – weder Abhängigkeit noch Reparaturgrund (Compiler und
 Gate). (2) Ein rein lesender Schritt mit ungültiger Abhängigkeit (`memory.search`, `files.read`,
 …) wird **wörtlich erneut gelesen, ohne Modellaufruf**; ein abgeleiteter Schritt wird aus den
@@ -353,7 +353,7 @@ Profil-Umzug und Hardwareerkennung; gepackt siehe Abschnitt 7).
 ## 7. Paket (echt)
 
 `SpAIder-Foldable-0.5.0-win-x64.zip`, 402 217 361 Bytes, SHA-256
-`3172f221ed672be049d129530b0d70a47963abdc2724c5126f562e7513b52ef0`, Build-Commit `95ee575`
+`3172f221ed672be049d129530b0d70a47963abdc2724c5126f562e7513b52ef0`, Build-Commit `02678fb`
 (Manifest `BUILD_MANIFEST_0.5.0.json`; spätere Commits des Branches ändern nur Dokumente und
 Messdateien). Kein Modell, keine Nutzerdaten, kein Browserprofil, keine Schlüssel im ZIP
 (geprüft: 8 935 Einträge).
@@ -386,7 +386,7 @@ Entwicklungskern mit demselben Code; der 0.3-Paketvolltest mit Modell wurde nich
   konnten in der Nacht nicht gemessen werden:** die Sitzung stand nach dem Leerlauf-Timeout auf dem
   Windows-Sperrbildschirm (LockApp im Vordergrund). Der Kern erkannte das zunächst nicht
   (Eingabe-Desktop meldet „Default“) und meldete `windows.focus` ehrlich als gescheitert; seit
-  Commit a6e2d83 gilt der Sperrbildschirm als nicht interaktiv (Pause), und die Harness überspringt
+  Commit e2b8257 gilt der Sperrbildschirm als nicht interaktiv (Pause), und die Harness überspringt
   Fensteraufgaben, solange die Sitzung gesperrt ist (`skipped: Sperrbildschirm`). Die Teildaten
   des ersten Fensterlaufs (UIA-Aufgaben W2, W3, W5, W7 erfolgreich wiederverwendet; Vordergrund-
   Aufgaben gescheitert) stehen in `matrix2-full-windows-cross.locked1.json`. Eine Messung der
@@ -399,4 +399,9 @@ Entwicklungskern mit demselben Code; der 0.3-Paketvolltest mit Modell wurde nich
   sondern führt UIA-Schritte aus (ungefährlich, aber unbeabsichtigt). Abhilfe (offen): zusätzlich die
   WTS-Sitzungsflags (`WTSQuerySessionInformation`, `WTSSessionInfoEx`) abfragen, wie es die
   Harness `tail6_baseline.py` tut.
-- Fenster/Bild-Baseline (219828a, `baseline-wv-qwen3-4b-219828a.json`): PLATZHALTER_BASELINE_WV_TEXT
+- Fenster/Bild-Baseline (219828a, `baseline-wv-qwen3-4b-219828a.json`): lief erst nach der
+  Messreihe und ebenfalls hinter dem Sperrbildschirm (3/15, nur W2). Der 0.3-Agent versucht bei
+  W3 `windows.focus` + Klick und scheitert dort, wo 0.5 per UIA-`invoke` ohne Vordergrund arbeitet
+  (W3 in `locked1`: 7/0/0 Aufrufe) – ein Hinweis, kein Vergleich unter gleichen Bedingungen.
+  Beide Baselines (Datei+Browser 27/30; Fenster) sind mit dem 0.3-Harness `tests/matrix/run_matrix.py`
+  auf dem Basis-Commit reproduzierbar; die Fensterbaseline braucht eine entsperrte, unbenutzte Sitzung.

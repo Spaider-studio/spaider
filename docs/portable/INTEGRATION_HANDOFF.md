@@ -310,6 +310,6 @@ vorhanden) und `mcp==2.3.0` müssen auf dieselbe Hauptversion gebracht werden.
 - Vergleichsläufe und Baseline: `foldable/build/measurements/matrix2-*.json`,
   `baseline-*.json`, Produktdemo `demo-x10-full-*.json`; Erzeugung mit
   `tests/matrix/run_matrix_v2.py` (Arme none/simple/full, `--tasks X10 --mode full`).
-- Nach der Messreihe behoben (a162c4d, im Paket enthalten, Tabellen nicht neu gemessen):
+- Nach der Messreihe behoben (0e6bdb4, im Paket enthalten, Tabellen nicht neu gemessen):
   Reparatur lesender/abgeleiteter Schritte ohne Planer, Zwischendateien keine Abhängigkeit
   (`agent/loop.py`, `agent/reuse.py`, `agent/compiler.py`, Tests angepasst/ergänzt).

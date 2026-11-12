@@ -1,0 +1,933 @@
+{
+  "model": "qwen3-4b-q4_k_m",
+  "catalog_id": "qwen3-4b-q4_k_m",
+  "started_at": "2026-11-12T06:36:59Z",
+  "repeat": 3,
+  "task_timeout_s": 180,
+  "runs": [
+    {
+      "id": "W1",
+      "goal": "Im Fenster „SpAIder Testanwendung W1-0-138“ (source_id win:59445940:12200): Trage in „Name“ den Text „Lena Test“ und in „Notizen“ den Text „Kickoff 05.07.2026“ ein, klicke „Speichern“ und prüfe die Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-iskvdkzs\\W1-0\\ausgabe.txt.",
+      "success": false,
+      "false_success_claim": false,
+      "state": "failed",
+      "steps": 6,
+      "llm_calls": 6,
+      "wall_s": 67.0,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [
+        "windows.click_at",
+        "windows.focus"
+      ],
+      "rejected": 0,
+      "check": {
+        "ok": false,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-iskvdkzs\\W1-0\\ausgabe.txt",
+        "exists": false,
+        "missing": [
+          "Lena Test",
+          "05.07.2026"
+        ]
+      },
+      "summary": "windows.focus ist dreimal mit denselben Argumenten gescheitert: Fenster konnte nicht in den Vordergrund geholt werden",
+      "timings": {
+        "observe_ms": 732,
+        "wait_ms": 0,
+        "planning_ms": 58139,
+        "executing_ms": 8103
+      },
+      "actions": [
+        [
+          1,
+          "windows.set_value",
+          "done"
+        ],
+        [
+          2,
+          "windows.set_value",
+          "done"
+        ],
+        [
+          3,
+          "windows.click_at",
+          "failed",
+          "focus"
+        ],
+        [
+          4,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ],
+        [
+          5,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ],
+        [
+          6,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ]
+      ],
+      "group": "windows",
+      "repeat": 0
+    },
+    {
+      "id": "W1",
+      "goal": "Im Fenster „SpAIder Testanwendung W1-1-226“ (source_id win:74781484:20632): Trage in „Name“ den Text „Mara Muster“ und in „Notizen“ den Text „Kickoff 14.07.2026“ ein, klicke „Speichern“ und prüfe die Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-iskvdkzs\\W1-1\\ausgabe.txt.",
+      "success": false,
+      "false_success_claim": false,
+      "state": "failed",
+      "steps": 6,
+      "llm_calls": 6,
+      "wall_s": 64.6,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [
+        "windows.click_at",
+        "windows.focus"
+      ],
+      "rejected": 0,
+      "check": {
+        "ok": false,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-iskvdkzs\\W1-1\\ausgabe.txt",
+        "exists": false,
+        "missing": [
+          "Mara Muster",
+          "14.07.2026"
+        ]
+      },
+      "summary": "windows.click_at ist dreimal mit denselben Argumenten gescheitert: Zielfenster ist nicht im Vordergrund; Klick abgebrochen.",
+      "timings": {
+        "observe_ms": 716,
+        "wait_ms": 0,
+        "planning_ms": 55715,
+        "executing_ms": 8077
+      },
+      "actions": [
+        [
+          1,
+          "windows.set_value",
+          "done"
+        ],
+        [
+          2,
+          "windows.set_value",
+          "done"
+        ],
+        [
+          3,
+          "windows.click_at",
+          "failed",
+          "focus"
+        ],
+        [
+          4,
+          "windows.click_at",
+          "failed",
+          "focus"
+        ],
+        [
+          5,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ],
+        [
+          6,
+          "windows.click_at",
+          "failed",
+          "focus"
+        ]
+      ],
+      "group": "windows",
+      "repeat": 1
+    },
+    {
+      "id": "W1",
+      "goal": "Im Fenster „SpAIder Testanwendung W1-2-979“ (source_id win:25363420:17024): Trage in „Name“ den Text „Jonas Beispiel“ und in „Notizen“ den Text „Kickoff 21.11.2026“ ein, klicke „Speichern“ und prüfe die Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-iskvdkzs\\W1-2\\ausgabe.txt.",
+      "success": false,
+      "false_success_claim": false,
+      "state": "failed",
+      "steps": 4,
+      "llm_calls": 4,
+      "wall_s": 34.1,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [
+        "windows.focus",
+        "windows.launch"
+      ],
+      "rejected": 0,
+      "check": {
+        "ok": false,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-iskvdkzs\\W1-2\\ausgabe.txt",
+        "exists": false,
+        "missing": [
+          "Jonas Beispiel",
+          "21.11.2026"
+        ]
+      },
+      "summary": "windows.focus ist dreimal mit denselben Argumenten gescheitert: Fenster konnte nicht in den Vordergrund geholt werden",
+      "timings": {
+        "observe_ms": 452,
+        "wait_ms": 0,
+        "planning_ms": 31091,
+        "executing_ms": 2483
+      },
+      "actions": [
+        [
+          1,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ],
+        [
+          2,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ],
+        [
+          3,
+          "windows.launch",
+          "failed",
+          "scope"
+        ],
+        [
+          4,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ]
+      ],
+      "group": "windows",
+      "repeat": 2
+    },
+    {
+      "id": "W2",
+      "goal": "Im Fenster „SpAIder Testanwendung W2-0-684“ (source_id win:12129288:40692): Lies den Inhalt des Feldes „Notizen“ und schreibe ihn nach C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-iskvdkzs\\W2-0\\Ausgabe/gelesen.txt.",
+      "success": true,
+      "false_success_claim": false,
+      "state": "completed",
+      "steps": 3,
+      "llm_calls": 3,
+      "wall_s": 28.9,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-iskvdkzs\\W2-0\\Ausgabe\\gelesen.txt",
+        "exists": true,
+        "missing": []
+      },
+      "summary": "Inhalt des Feldes 'Notizen' wurde gelesen und in die Datei 'gelesen.txt' geschrieben.",
+      "timings": {
+        "observe_ms": 312,
+        "wait_ms": 0,
+        "planning_ms": 28437,
+        "executing_ms": 107
+      },
+      "actions": [
+        [
+          1,
+          "windows.read",
+          "done"
+        ],
+        [
+          2,
+          "files.write",
+          "done"
+        ]
+      ],
+      "group": "windows",
+      "repeat": 0
+    },
+    {
+      "id": "W2",
+      "goal": "Im Fenster „SpAIder Testanwendung W2-1-644“ (source_id win:12194824:26100): Lies den Inhalt des Feldes „Notizen“ und schreibe ihn nach C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-iskvdkzs\\W2-1\\Ausgabe/gelesen.txt.",
+      "success": true,
+      "false_success_claim": false,
+      "state": "completed",
+      "steps": 3,
+      "llm_calls": 3,
+      "wall_s": 26.6,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-iskvdkzs\\W2-1\\Ausgabe\\gelesen.txt",
+        "exists": true,
+        "missing": []
+      },
+      "summary": "Inhalt des Feldes 'Notizen' wurde gelesen und in die Datei 'gelesen.txt' geschrieben.",
+      "timings": {
+        "observe_ms": 422,
+        "wait_ms": 0,
+        "planning_ms": 26029,
+        "executing_ms": 139
+      },
+      "actions": [
+        [
+          1,
+          "windows.read",
+          "done"
+        ],
+        [
+          2,
+          "files.write",
+          "done"
+        ]
+      ],
+      "group": "windows",
+      "repeat": 1
+    },
+    {
+      "id": "W2",
+      "goal": "Im Fenster „SpAIder Testanwendung W2-2-815“ (source_id win:75041740:26264): Lies den Inhalt des Feldes „Notizen“ und schreibe ihn nach C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-iskvdkzs\\W2-2\\Ausgabe/gelesen.txt.",
+      "success": true,
+      "false_success_claim": false,
+      "state": "completed",
+      "steps": 3,
+      "llm_calls": 3,
+      "wall_s": 25.0,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-iskvdkzs\\W2-2\\Ausgabe\\gelesen.txt",
+        "exists": true,
+        "missing": []
+      },
+      "summary": "Inhalt des Feldes 'Notizen' wurde gelesen und in die Datei 'gelesen.txt' geschrieben.",
+      "timings": {
+        "observe_ms": 421,
+        "wait_ms": 0,
+        "planning_ms": 24436,
+        "executing_ms": 125
+      },
+      "actions": [
+        [
+          1,
+          "windows.read",
+          "done"
+        ],
+        [
+          2,
+          "files.write",
+          "done"
+        ]
+      ],
+      "group": "windows",
+      "repeat": 2
+    },
+    {
+      "id": "W3",
+      "goal": "Im Fenster „SpAIder Testanwendung W3-0-174“ (source_id win:29562012:54528): Klicke „Leeren“ und prüfe mit windows.read, dass der Status „Geleert“ anzeigt; schreibe den gelesenen Status nach C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-iskvdkzs\\W3-0\\Ausgabe/status.txt.",
+      "success": false,
+      "false_success_claim": false,
+      "state": "failed",
+      "steps": 3,
+      "llm_calls": 3,
+      "wall_s": 25.7,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [
+        "windows.focus"
+      ],
+      "rejected": 0,
+      "check": {
+        "ok": false,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-iskvdkzs\\W3-0\\Ausgabe\\status.txt",
+        "exists": false,
+        "missing": [
+          "Geleert"
+        ]
+      },
+      "summary": "windows.focus ist dreimal mit denselben Argumenten gescheitert: Fenster konnte nicht in den Vordergrund geholt werden",
+      "timings": {
+        "observe_ms": 342,
+        "wait_ms": 0,
+        "planning_ms": 22857,
+        "executing_ms": 2453
+      },
+      "actions": [
+        [
+          1,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ],
+        [
+          2,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ],
+        [
+          3,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ]
+      ],
+      "group": "windows",
+      "repeat": 0
+    },
+    {
+      "id": "W3",
+      "goal": "Im Fenster „SpAIder Testanwendung W3-1-179“ (source_id win:75172812:54656): Klicke „Leeren“ und prüfe mit windows.read, dass der Status „Geleert“ anzeigt; schreibe den gelesenen Status nach C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-iskvdkzs\\W3-1\\Ausgabe/status.txt.",
+      "success": false,
+      "false_success_claim": false,
+      "state": "failed",
+      "steps": 3,
+      "llm_calls": 3,
+      "wall_s": 26.2,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [
+        "windows.focus"
+      ],
+      "rejected": 0,
+      "check": {
+        "ok": false,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-iskvdkzs\\W3-1\\Ausgabe\\status.txt",
+        "exists": false,
+        "missing": [
+          "Geleert"
+        ]
+      },
+      "summary": "windows.focus ist dreimal mit denselben Argumenten gescheitert: Fenster konnte nicht in den Vordergrund geholt werden",
+      "timings": {
+        "observe_ms": 279,
+        "wait_ms": 0,
+        "planning_ms": 23421,
+        "executing_ms": 2452
+      },
+      "actions": [
+        [
+          1,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ],
+        [
+          2,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ],
+        [
+          3,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ]
+      ],
+      "group": "windows",
+      "repeat": 1
+    },
+    {
+      "id": "W3",
+      "goal": "Im Fenster „SpAIder Testanwendung W3-2-376“ (source_id win:56430414:35096): Klicke „Leeren“ und prüfe mit windows.read, dass der Status „Geleert“ anzeigt; schreibe den gelesenen Status nach C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-iskvdkzs\\W3-2\\Ausgabe/status.txt.",
+      "success": false,
+      "false_success_claim": false,
+      "state": "failed",
+      "steps": 3,
+      "llm_calls": 3,
+      "wall_s": 28.2,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [
+        "windows.focus"
+      ],
+      "rejected": 0,
+      "check": {
+        "ok": false,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-iskvdkzs\\W3-2\\Ausgabe\\status.txt",
+        "exists": false,
+        "missing": [
+          "Geleert"
+        ]
+      },
+      "summary": "windows.focus ist dreimal mit denselben Argumenten gescheitert: Fenster konnte nicht in den Vordergrund geholt werden",
+      "timings": {
+        "observe_ms": 343,
+        "wait_ms": 0,
+        "planning_ms": 25405,
+        "executing_ms": 2405
+      },
+      "actions": [
+        [
+          1,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ],
+        [
+          2,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ],
+        [
+          3,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ]
+      ],
+      "group": "windows",
+      "repeat": 2
+    },
+    {
+      "id": "W4",
+      "goal": "Starte Notepad (windows.launch), tippe den Text „Samir Probe – Protokoll 23.11.2026“ ein und prüfe über windows.read, dass der Text im Editor steht. Nicht speichern.",
+      "success": false,
+      "false_success_claim": false,
+      "state": "failed",
+      "steps": 6,
+      "llm_calls": 6,
+      "wall_s": 56.3,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [
+        "windows.focus",
+        "windows.type_text"
+      ],
+      "rejected": 0,
+      "check": {
+        "ok": false,
+        "reads": 0
+      },
+      "summary": "windows.focus ist dreimal mit denselben Argumenten gescheitert: Fenster konnte nicht in den Vordergrund geholt werden",
+      "timings": {
+        "observe_ms": 575,
+        "wait_ms": 0,
+        "planning_ms": 50748,
+        "executing_ms": 4935
+      },
+      "actions": [
+        [
+          1,
+          "windows.launch",
+          "done"
+        ],
+        [
+          2,
+          "windows.type_text",
+          "failed",
+          "focus"
+        ],
+        [
+          3,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ],
+        [
+          4,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ],
+        [
+          5,
+          "windows.type_text",
+          "failed",
+          "focus"
+        ],
+        [
+          6,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ]
+      ],
+      "group": "windows",
+      "repeat": 0
+    },
+    {
+      "id": "W4",
+      "goal": "Starte Notepad (windows.launch), tippe den Text „Samir Probe – Protokoll 22.06.2026“ ein und prüfe über windows.read, dass der Text im Editor steht. Nicht speichern.",
+      "success": false,
+      "false_success_claim": false,
+      "state": "failed",
+      "steps": 6,
+      "llm_calls": 6,
+      "wall_s": 56.0,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [
+        "windows.focus",
+        "windows.type_text"
+      ],
+      "rejected": 0,
+      "check": {
+        "ok": false,
+        "reads": 1
+      },
+      "summary": "windows.focus ist dreimal mit denselben Argumenten gescheitert: Fenster konnte nicht in den Vordergrund geholt werden",
+      "timings": {
+        "observe_ms": 810,
+        "wait_ms": 0,
+        "planning_ms": 51185,
+        "executing_ms": 3903
+      },
+      "actions": [
+        [
+          1,
+          "windows.launch",
+          "done"
+        ],
+        [
+          2,
+          "windows.type_text",
+          "failed",
+          "focus"
+        ],
+        [
+          3,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ],
+        [
+          4,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ],
+        [
+          5,
+          "windows.read",
+          "done"
+        ],
+        [
+          6,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ]
+      ],
+      "group": "windows",
+      "repeat": 1
+    },
+    {
+      "id": "W4",
+      "goal": "Starte Notepad (windows.launch), tippe den Text „Jonas Beispiel – Protokoll 25.05.2026“ ein und prüfe über windows.read, dass der Text im Editor steht. Nicht speichern.",
+      "success": false,
+      "false_success_claim": false,
+      "state": "failed",
+      "steps": 5,
+      "llm_calls": 5,
+      "wall_s": 43.5,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [
+        "windows.focus",
+        "windows.type_text"
+      ],
+      "rejected": 0,
+      "check": {
+        "ok": false,
+        "reads": 0
+      },
+      "summary": "windows.focus ist dreimal mit denselben Argumenten gescheitert: Fenster konnte nicht in den Vordergrund geholt werden",
+      "timings": {
+        "observe_ms": 594,
+        "wait_ms": 0,
+        "planning_ms": 39168,
+        "executing_ms": 3684
+      },
+      "actions": [
+        [
+          1,
+          "windows.launch",
+          "done"
+        ],
+        [
+          2,
+          "windows.type_text",
+          "failed",
+          "focus"
+        ],
+        [
+          3,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ],
+        [
+          4,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ],
+        [
+          5,
+          "windows.focus",
+          "failed",
+          "Fenster konnte nicht in den Vordergrund geholt werden"
+        ]
+      ],
+      "group": "windows",
+      "repeat": 2
+    },
+    {
+      "id": "W5",
+      "goal": "Im Fenster „SpAIder Testanwendung W5-0-467“ (source_id win:788464:4392): Setze „Name“ auf „Samir Probe“, klicke „Speichern“, prüfe über die Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-iskvdkzs\\W5-0\\ausgabe.txt, dass der Name gespeichert wurde, und klicke danach „Leeren“.",
+      "success": false,
+      "false_success_claim": false,
+      "state": "failed",
+      "steps": 4,
+      "llm_calls": 4,
+      "wall_s": 40.3,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [
+        "windows.click_at"
+      ],
+      "rejected": 0,
+      "check": {
+        "ok": false,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-iskvdkzs\\W5-0\\ausgabe.txt",
+        "exists": false,
+        "missing": [
+          "Samir Probe"
+        ]
+      },
+      "summary": "windows.click_at ist dreimal mit denselben Argumenten gescheitert: Zielfenster ist nicht im Vordergrund; Klick abgebrochen.",
+      "timings": {
+        "observe_ms": 686,
+        "wait_ms": 0,
+        "planning_ms": 34544,
+        "executing_ms": 4998
+      },
+      "actions": [
+        [
+          1,
+          "windows.set_value",
+          "done"
+        ],
+        [
+          2,
+          "windows.click_at",
+          "failed",
+          "focus"
+        ],
+        [
+          3,
+          "windows.click_at",
+          "failed",
+          "focus"
+        ],
+        [
+          4,
+          "windows.click_at",
+          "failed",
+          "focus"
+        ]
+      ],
+      "group": "windows",
+      "repeat": 0
+    },
+    {
+      "id": "W5",
+      "goal": "Im Fenster „SpAIder Testanwendung W5-1-951“ (source_id win:590180:40208): Setze „Name“ auf „Samir Probe“, klicke „Speichern“, prüfe über die Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-iskvdkzs\\W5-1\\ausgabe.txt, dass der Name gespeichert wurde, und klicke danach „Leeren“.",
+      "success": false,
+      "false_success_claim": false,
+      "state": "failed",
+      "steps": 10,
+      "llm_calls": 10,
+      "wall_s": 207.1,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [
+        "windows.click_at"
+      ],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-iskvdkzs\\W5-1\\ausgabe.txt",
+        "exists": true,
+        "missing": []
+      },
+      "summary": "Zeitbudget erschöpft, Ziel nicht belegt erreicht.",
+      "timings": {
+        "observe_ms": 1732,
+        "wait_ms": 0,
+        "planning_ms": 188541,
+        "executing_ms": 16763
+      },
+      "actions": [
+        [
+          1,
+          "windows.set_value",
+          "done"
+        ],
+        [
+          2,
+          "windows.invoke",
+          "done"
+        ],
+        [
+          3,
+          "windows.click_at",
+          "failed",
+          "focus"
+        ],
+        [
+          4,
+          "windows.invoke",
+          "done"
+        ],
+        [
+          5,
+          "windows.invoke",
+          "done"
+        ],
+        [
+          6,
+          "files.read",
+          "done"
+        ],
+        [
+          7,
+          "windows.invoke",
+          "done"
+        ],
+        [
+          8,
+          "windows.invoke",
+          "done"
+        ],
+        [
+          9,
+          "files.read",
+          "done"
+        ]
+      ],
+      "group": "windows",
+      "repeat": 1
+    },
+    {
+      "id": "W5",
+      "goal": "Im Fenster „SpAIder Testanwendung W5-2-426“ (source_id win:7341806:6508): Setze „Name“ auf „Ayla Demo“, klicke „Speichern“, prüfe über die Datei C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-iskvdkzs\\W5-2\\ausgabe.txt, dass der Name gespeichert wurde, und klicke danach „Leeren“.",
+      "success": false,
+      "false_success_claim": false,
+      "state": "failed",
+      "steps": 5,
+      "llm_calls": 5,
+      "wall_s": 80.8,
+      "questions": 0,
+      "interventions": [],
+      "failed_tools": [
+        "windows.click_at"
+      ],
+      "rejected": 0,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix-iskvdkzs\\W5-2\\ausgabe.txt",
+        "exists": true,
+        "missing": []
+      },
+      "summary": "Fenster nicht mehr verfügbar, kann nicht weiterarbeiten.",
+      "timings": {
+        "observe_ms": 732,
+        "wait_ms": 0,
+        "planning_ms": 73762,
+        "executing_ms": 6282
+      },
+      "actions": [
+        [
+          1,
+          "windows.set_value",
+          "done"
+        ],
+        [
+          2,
+          "windows.invoke",
+          "done"
+        ],
+        [
+          3,
+          "windows.click_at",
+          "done"
+        ],
+        [
+          4,
+          "windows.click_at",
+          "failed",
+          "source_lost"
+        ]
+      ],
+      "group": "windows",
+      "repeat": 2
+    },
+    {
+      "id": "V1",
+      "skipped": "Modell ohne Bildeingabe",
+      "group": "visual"
+    },
+    {
+      "id": "V2",
+      "skipped": "Modell ohne Bildeingabe",
+      "group": "visual"
+    },
+    {
+      "id": "V3",
+      "skipped": "Modell ohne Bildeingabe",
+      "group": "visual"
+    },
+    {
+      "id": "V4",
+      "skipped": "Modell ohne Bildeingabe",
+      "group": "visual"
+    },
+    {
+      "id": "V5",
+      "skipped": "Modell ohne Bildeingabe",
+      "group": "visual"
+    }
+  ],
+  "host": {
+    "desktop_interactive": true
+  },
+  "runtime": {
+    "backend": "vulkan",
+    "device": "Vulkan0",
+    "gpu_layers": 999,
+    "threads": 8,
+    "threads_batch": 8,
+    "prio": 0,
+    "reason_de": "Alle Schichten auf Intel(R) Arc(TM) 140V GPU (16GB) (geschätzt 5.6 GB von 17.2 GB frei).",
+    "mmproj_offload": true,
+    "image_max_tokens": null,
+    "mmproj": null
+  },
+  "capabilities": {
+    "id": "qwen3-4b-q4_k_m",
+    "vision_input": false,
+    "image_grounding": "none",
+    "tool_call_format": "json_schema",
+    "structured_output": true
+  },
+  "summary": {
+    "success": 3,
+    "total": 15,
+    "false_success_claims": 0,
+    "questions": 0,
+    "median_wall_s": 40.3
+  }
+}

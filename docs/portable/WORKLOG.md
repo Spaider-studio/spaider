@@ -617,11 +617,11 @@ AGENTS.md existiert im Repo nicht; das Research-PDF war nicht beigefügt (Hinwei
   Pausen-Resume nur bei Inaktivitaet), zweite WinForms-App `winforms_formapp.ps1`.
 - Smoke mit Qwen3-4B (`measure/agentv2/smoke2-v2-full.json`): Wiederholungen 6/6, Modellaufrufe
   5,3 -> 1,0, Dauer -75 %. Befunde daraus und behoben: Browser-Ziele wurden ueber Referenzen
-  abgespielt (-> Rolle+Name, 333e9cf); Parameter der Harness enthielten Werte, die aus Dateien
+  abgespielt (-> Rolle+Name, 8ad9245); Parameter der Harness enthielten Werte, die aus Dateien
   gelesen werden muessen (-> nur Nutzereingaben als Parameter, Rest abgeleitet); Verifier-Regel
   fuer zitierte Pflichttexte zuerst zu lax (F13 ohne "An:" galt als erfuellt), dann zu streng
-  (F7 "mit der Rolle „Leitung“" galt als Inhalt) -> 1993ad3 mit Regressionstest.
-- Desktop-UI (Subagent, von mir verifiziert: typecheck/lint/123 Tests, Paket gebaut): 1290342.
+  (F7 "mit der Rolle „Leitung“" galt als Inhalt) -> 84a31c8 mit Regressionstest.
+- Desktop-UI (Subagent, von mir verifiziert: typecheck/lint/123 Tests, Paket gebaut): 952de90.
 - Versionen 0.5.0 (Kern, Desktop). Kernsuite 156 bestanden / 7 uebersprungen (ein neuer Echtlauf
   `test_real_browser_recorder_compiles_a_candidate` mit echtem Chromium bestanden).
 - Betriebsfehler: taskkill ohne MSYS_NO_PATHCONV beendete nichts -> zeitweise zwei Messlaeufe
@@ -633,13 +633,13 @@ AGENTS.md existiert im Repo nicht; das Research-PDF war nicht beigefügt (Hinwei
   Parameter mit Dateiwerten, kaputte Seiten B8/B11 durch Escaping, einfacher Arm fiel auf den
   Planer zurueck) – Endstand: Datei+Browser drei Arme (voll 37/42, ohne 45/50, einfach 24/44),
   Cross-Aufgaben drei Arme, Fensteraufgaben nur Teildaten (Sitzung gesperrt; Sperr-Erkennung
-  a6e2d83, Harness ueberspringt gesperrte Fensteraufgaben).
-- Befunde und Fixes aus echten Laeufen: Ableitung von Zahlen/Daten/Einzelwoertern (39ae82b,
-  1ff65b8), Klickergebnisse als Lesequelle, Ein-Wert-Ableitungsprompt, Browser-Elementnamen aus
-  Labels, Feldwert-Nachbedingungen (f9cad2c, 95ee575); Verifier-Regel fuer zitierte Pflichttexte.
-- Pakete gebaut/geprueft nach jedem Code-Stand (zuletzt 95ee575: 37/37), Migration auf Kopie.
+  e2b8257, Harness ueberspringt gesperrte Fensteraufgaben).
+- Befunde und Fixes aus echten Laeufen: Ableitung von Zahlen/Daten/Einzelwoertern (4620a89,
+  67deda7), Klickergebnisse als Lesequelle, Ein-Wert-Ableitungsprompt, Browser-Elementnamen aus
+  Labels, Feldwert-Nachbedingungen (60195ae, 02678fb); Verifier-Regel fuer zitierte Pflichttexte.
+- Pakete gebaut/geprueft nach jedem Code-Stand (zuletzt 02678fb: 37/37), Migration auf Kopie.
 - Produktdemo X10 im Nachlauf: Reparaturluecke (memory.search-Schritt an den Planer, Zwischendatei
-  als fehlende Eingabe) → behoben a162c4d (rein lesende Schritte erneut lesen, abgeleitete neu
+  als fehlende Eingabe) → behoben 0e6bdb4 (rein lesende Schritte erneut lesen, abgeleitete neu
   ableiten, Zwischendateien keine Abhaengigkeit), Tests 158/9, Paket neu gebaut, Demo wiederholt.
 - Fenster/Bild-Baseline (0.3-Harness) lief hinter dem Sperrbildschirm: Vordergrund-Aufgaben
   scheitern dort wie in 0.5; kein belastbarer Vergleichswert (Testbericht Abschnitt 9).
