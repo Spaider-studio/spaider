@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import ctypes
 import ctypes.wintypes as wt
+import html
 import json
 import os
 import random
@@ -296,7 +297,7 @@ class Harness:
 <p><label>Projektname <input id="n"></label></p><p><button type="submit">Weiter</button></p></form></body></html>""", encoding="utf-8")
         elif kind == "search":
             rows = {s: ("verspätet" if s == v["supplier"] and v["supplier_status"] == "verspätet" else v["supplier_status"] if s == v["supplier"] else "geliefert") for s in SUPPLIERS}
-            data = json.dumps(rows, ensure_ascii=False)
+            data = html.escape(json.dumps(rows, ensure_ascii=False), quote=True)  # JSON inside a double-quoted attribute
             page.write_text(head.format(t="Lieferantensuche") + f"""<h1>Lieferantensuche</h1>
 <p><label>Lieferant <input id="q"></label> <button onclick="const d={data};const k=Object.keys(d).find(x=>x.toLowerCase()===document.getElementById('q').value.trim().toLowerCase());document.getElementById('o').textContent=k?('Treffer: '+k+' – Status: '+d[k]):'Kein Treffer';">Suchen</button></p><p id="o"></p></body></html>""", encoding="utf-8")
         elif kind == "orders":
@@ -310,7 +311,7 @@ class Harness:
             page.write_text(head.format(t="Portal") + "<h1>Portal</h1><p><a href='projekte.html'>Projekte</a></p><p><a href='#'>Berichte</a></p></body></html>", encoding="utf-8")
         elif kind == "supplier_check":
             opts = "".join(f"<option>{s}</option>" for s in SUPPLIERS)
-            ratings = json.dumps({s: ("A" if i == 0 else "B" if i == 1 else "C") for i, s in enumerate(SUPPLIERS)}, ensure_ascii=False)
+            ratings = html.escape(json.dumps({s: ("A" if i == 0 else "B" if i == 1 else "C") for i, s in enumerate(SUPPLIERS)}, ensure_ascii=False), quote=True)
             v["rating"] = {s: ("A" if i == 0 else "B" if i == 1 else "C") for i, s in enumerate(SUPPLIERS)}[v["supplier"]]
             page.write_text(head.format(t="Lieferantenprüfung") + f"""<h1>Lieferantenprüfung</h1>
 <label>Lieferant <select id="s">{opts}</select></label> <button onclick="const r={ratings};setTimeout(()=>{{document.getElementById('o').textContent='Lieferant geprüft – Bewertung: '+r[document.getElementById('s').value];}},700)">Prüfen</button><p id="o"></p></body></html>""", encoding="utf-8")
