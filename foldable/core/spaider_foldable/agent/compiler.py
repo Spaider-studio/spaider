@@ -74,6 +74,16 @@ def _ireplace(text: str, lit: str, ph: str) -> str:
     return text.replace(lit, ph)
 
 
+def _norm_key(key: str) -> str:
+    return key.replace("\\", "/").strip().lower()
+
+
+def _same_file(key: str, produced: str) -> bool:
+    """`bericht.md` written relative to the output folder and `{output_dir}/bericht.md` read back are one file."""
+    a, b = _norm_key(key), _norm_key(produced)
+    return a == b or a.endswith("/" + b) or b.endswith("/" + a)
+
+
 def _content_words(text: str) -> set[str]:
     return {w.lower() for w in _WORD_RE.findall(text or "") if w.lower() not in _STOP}
 
@@ -121,6 +131,7 @@ class WorkflowCompiler:
         steps: list[WorkflowStep] = []
         deps: list[Dependency] = []
         read_texts: dict[int, str] = {}  # step index -> data text read by that step
+        produced_files: set[str] = set()  # files written by earlier steps (intermediate results, not inputs)
         browser_elements: dict[str, dict] = {}  # ref -> {role, name} from the latest browser.snapshot
         seen_fact_ids: set[str] = set()
         for idx, a in enumerate(done):
@@ -156,8 +167,10 @@ class WorkflowCompiler:
             # files read -> observed file dependency with the sha from the evidence
             if a.tool == "files.read" and a.result and a.result.evidence and a.result.evidence.get("sha256"):
                 key = str(tmpl.get("path") or "")
-                deps.append(Dependency(kind="file", key=key, revision=str(a.result.evidence["sha256"]), origin="observed", step_index=idx))
-                step.depends_on.append(f"file:{key}")
+                if not any(_same_file(key, p) for p in produced_files):  # a file this workflow wrote itself is no input
+                    deps.append(Dependency(kind="file", key=key, revision=str(a.result.evidence["sha256"]), origin="observed", step_index=idx))
+                    step.depends_on.append(f"file:{key}")
+            produced_files.update(k[5:] for k in step.write_set if k.startswith("file:"))
             # derived arguments: content/text that came from data read earlier
             derived_from = self._derivation(a.tool, tmpl, read_texts, idx, goal_words)
             if derived_from:

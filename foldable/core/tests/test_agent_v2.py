@@ -113,6 +113,27 @@ def _file_decisions(root: Path, out_name: str, lead: str):
     ]
 
 
+@pytest.mark.asyncio
+async def test_compiler_treats_files_written_by_the_workflow_as_intermediate(db, tmp_path):
+    """A file the workflow writes and reads back is an intermediate result, not an input dependency
+    (otherwise every repeated run in a new folder would look like a missing input)."""
+    root, out = _project(tmp_path)
+    decisions = _file_decisions(root, "bericht.md", "Priya Nair")[:3] + [
+        {"thought": "", "decision": "action", "action": {"tool": "files.read", "arguments": {"path": str(out / "bericht.md")}}, "expected_effect": ""},
+        {"thought": "fertig", "decision": "done", "done": {"ok": True, "summary": "Bericht geschrieben und geprüft", "verified_by": "files.read"}},
+    ]
+    client = _ScriptedClient(decisions)
+    mgr, store, broker, deps, wfs, binder, compiler = _stack(db, client)
+    task = store.create(goal="Lies die Projektdateien, schreibe einen Bericht nach " + str(out / "bericht.md") + " und lies ihn zur Prüfung zurück", scopes=Scopes(files=FilesScope(roots=[str(root)], write_dir=str(out))), max_steps=10, max_seconds=60, conversation_id=None, live_session_id=None, recipe_id=None, parameters=None)
+    mgr.start(task)
+    t = await _wait(store, task.id)
+    assert t.state == "completed" and t.outcome == "fulfilled", (t.state, t.summary_de, t.outcome_report)
+    wf = compiler.compile(t, store.actions(task.id), name="Bericht mit Rücklesen", parameters=[], action_data=mgr.action_data(task.id), criteria=[SuccessCriterion.model_validate(c) for c in t.success_criteria])
+    file_deps = {d.key for d in wf.dependencies if d.kind == "file"}
+    assert any(k.endswith("notizen.txt") for k in file_deps) and not any(k.endswith("bericht.md") for k in file_deps), file_deps
+    assert not any(k.endswith("bericht.md") for k in wf.steps[3].depends_on)
+
+
 # ---- DependencyStore --------------------------------------------------------------------------
 def test_dependency_invalidation_is_transitive_and_keeps_history(db):
     deps = DependencyStore(db, HOST)
@@ -270,11 +291,11 @@ async def test_superseded_fact_repairs_only_dependent_steps(db, tmp_path):
     facts.clear()
     facts["fact_lead_2"] = "Die Projektleitung von Atlas ist jetzt Jonas Beispiel."
     assert any(not d.valid for d in deps.for_workflow(wf.id))
-    # repair run: the report step is derived from file data (one model call, as in every run); the planner
-    # is asked for the two affected steps (memory.search + mail draft); the file read replays without a model
+    # repair run: the report step is derived from file data (one model call, as in every run); the affected
+    # memory.search is read again verbatim (no model call, no planner) and the mail draft is re-derived
+    # from the new fact (one model call); the file read replays without a model
     client.decisions = [
         {"thought": "ableiten", "decision": "action", "action": {"tool": "files.write", "arguments": {"path": "bericht.md", "content": "# Bericht Atlas\nKickoff am 03.12.2026, Budget 42000 EUR.\n"}}, "expected_effect": ""},
-        {"thought": "", "decision": "action", "action": {"tool": "memory.search", "arguments": {"query": "Projektleitung Atlas"}}, "expected_effect": ""},
         {"thought": "", "decision": "action", "action": {"tool": "files.write", "arguments": {"path": "mail.txt", "content": "An: Jonas Beispiel\nBetreff: Bericht Atlas\nAnbei der aktuelle Bericht.\n"}}, "expected_effect": ""},
     ]
     # fresh output for the repeated run (a real run reads back and overwrites with if_sha256)
@@ -286,11 +307,12 @@ async def test_superseded_fact_repairs_only_dependent_steps(db, tmp_path):
     assert t2.reuse["mode"] == "repair" and sorted(t2.reuse["repair_steps"]) == [2, 3], t2.reuse
     assert t2.state == "completed" and t2.outcome == "fulfilled", (t2.state, t2.summary_de, t2.outcome_report)
     acts = store.actions(task2.id)
-    assert t2.llm_calls == 3, [(a.tool, a.origin, a.state) for a in acts]
+    assert t2.llm_calls == 2, [(a.tool, a.origin, a.state) for a in acts]
     assert [(a.tool, a.origin) for a in acts] == [("files.read", "workflow"), ("files.write", "workflow"), ("memory.search", "repair"), ("files.write", "repair")]
+    assert acts[2].arguments.get("query") == "Projektleitung Atlas"  # read again verbatim, not re-planned
     assert "Jonas Beispiel" in (out / "mail.txt").read_text(encoding="utf-8")
     run = wfs.runs(wf.id)[0]
-    assert run["decision"] == "repair" and json.loads(run["repaired_steps"]) == [2, 3] and run["reused_steps"] == 1 and run["llm_calls"] == 3
+    assert run["decision"] == "repair" and json.loads(run["repaired_steps"]) == [2, 3] and run["reused_steps"] == 1 and run["llm_calls"] == 2
 
 
 # ---- Gate decisions (unit) -----------------------------------------------------------------
@@ -327,6 +349,11 @@ def test_reuse_gate_decisions():
     cand.status = "candidate"
     assert gate.decide(cand, params={}, deps_now=cand.dependencies, bindings={}, missing_bindings=[], available_tools={"files.read"}).strict is True
     assert ReuseGate.negative_check(_wf())["ok"] is True
+    # an input file that an earlier step of the same workflow writes is produced during the run, not missing
+    chain = VerifiedWorkflow(id="wf_c", name="c", status="verified", steps=[WorkflowStep(index=0, tool="files.write", side_effect="local", write_set=["file:{output_dir}\\bericht.md"]), WorkflowStep(index=1, tool="files.read", side_effect="none", read_set=["file:{output_dir}/bericht.md"], depends_on=["file:{output_dir}/bericht.md"])], dependencies=[Dependency(kind="file", key="{output_dir}/bericht.md", origin="observed", step_index=1), Dependency(kind="tool_contract", key="files.read", origin="declared")])
+    missing = [d.model_copy(update={"valid": False, "reason": "Datei fehlt"}) if d.kind == "file" else d for d in chain.dependencies]
+    plan = gate.decide(chain, params={}, deps_now=missing, bindings={}, missing_bindings=[], available_tools={"files.read", "files.write"})
+    assert plan.mode == "reuse" and plan.repair_steps == [] and plan.strict is False and plan.coverage == 1.0, plan
 
 
 # ---- Bindings -----------------------------------------------------------------------------

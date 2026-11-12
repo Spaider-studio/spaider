@@ -20,6 +20,16 @@ MAX_REPAIR_FRACTION = 0.5
 MIN_COVERAGE_FOR_RELAXED = 0.8
 
 
+def _norm_key(key: str) -> str:
+    return key.replace("\\", "/").strip().lower()
+
+
+def _produced(key: str, produced: set[str]) -> bool:
+    """`bericht.md` written relative to the output folder and `{output_dir}/bericht.md` read back are one file."""
+    a = _norm_key(key)
+    return any(a == b or a.endswith("/" + b) or b.endswith("/" + a) for b in produced)
+
+
 class ReuseGate:
     def decide(
         self,
@@ -40,7 +50,9 @@ class ReuseGate:
         missing_tools = [t for t in workflow.requires_tools() if t not in available_tools]
         if missing_tools:
             return ReusePlan(mode="replan", reasons_de=[f"Werkzeuge fehlen oder sind nicht im Umfang: {', '.join(missing_tools)}"], bindings=bindings, missing_bindings=[b.role for b in missing_bindings])
-        invalid = [d for d in deps_now if not d.valid]
+        produced = {_norm_key(k[5:]) for s in workflow.steps for k in s.write_set if k.startswith("file:")}
+        # a file that an earlier step of this workflow writes is produced during the run, not an input
+        invalid = [d for d in deps_now if not d.valid and not (d.kind == "file" and _produced(d.key, produced))]
         # tool contract drift: the plan was recorded against other argument schemas
         if any(d.kind == "tool_contract" for d in invalid):
             return ReusePlan(mode="replan", reasons_de=["Werkzeugvertrag hat sich geändert; der Ablauf wird neu geplant."], invalid=invalid, bindings=bindings, missing_bindings=[b.role for b in missing_bindings])
@@ -80,7 +92,7 @@ class ReuseGate:
         # coverage: observed + declared and valid over all; inferred never counts as proof
         total = len(deps_now)
         # a changed input file is a known relation with new content, not missing coverage
-        proven = sum(1 for d in deps_now if d.origin in ("observed", "declared") and (d.valid or (d.kind == "file" and "geändert" in (d.reason or ""))))
+        proven = sum(1 for d in deps_now if d.origin in ("observed", "declared") and (d.valid or (d.kind == "file" and ("geändert" in (d.reason or "") or _produced(d.key, produced)))))
         coverage = (proven / total) if total else 0.0
         unknown = total == 0 or any(d.origin == "inferred" for d in deps_now) or any(not s.depends_on and s.tool in ("memory.search", "browser.read", "browser.snapshot", "windows.read", "vision.describe") for s in workflow.steps)
         strict = workflow.status != "verified" or unknown or coverage < MIN_COVERAGE_FOR_RELAXED or bool(invalid)

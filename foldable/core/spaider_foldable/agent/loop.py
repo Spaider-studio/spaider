@@ -708,8 +708,13 @@ class AgentManager:
             self._note(task.id, f"Ablauf „{wf.name}“ ist abgearbeitet; prüfe das Ergebnis und melde done.")
             return None
         step = wf.steps[wr.cursor]
-        if step.index in wr.plan.repair_steps and step.index not in wr.repaired:
-            self._enter_repair(task.id, wr, step, "; ".join(r for r in wr.plan.reasons_de if "Fakt" in r or "fehlt" in r)[:200] or "Abhängigkeit ungültig")
+        repair_of = step.index in wr.plan.repair_steps and step.index not in wr.repaired
+        repair_reason = "; ".join(r for r in wr.plan.reasons_de if "Fakt" in r or "fehlt" in r)[:200] or "Abhängigkeit ungültig"
+        # a step whose dependency became invalid: a derived step is simply re-derived from the current
+        # data and a read-only step (memory.search, files.read, ...) is read again verbatim - both
+        # without the planner; only other steps (fixed-content writes, UI actions) are handed to it
+        if repair_of and not step.derive and not (_step_kind(step.tool) == "read" and step.target is None):
+            self._enter_repair(task.id, wr, step, repair_reason)
             return None
         args = BindingResolver.fill(step.arguments_template, wr.bindings, wr.params)
         # UI targets are resolved against the current observation (never a stale ref)
@@ -734,6 +739,8 @@ class AgentManager:
             self._workflow_fallback(task.id, f"Schritt {step.index + 1} ({step.tool}): Platzhalter nicht gebunden: {', '.join(sorted(left))}")
             return None
         if step.derive:
+            if repair_of:
+                self._step_event(task.id, "repair", f"Schritt {step.index + 1} ({step.tool}) wird repariert: {repair_reason[:160]} – Inhalt wird aus aktuellen Daten neu abgeleitet.", step=step.index)
             try:
                 decision = await self._plan_derive(task, wr, step, args, observations)
             except PlannerError:
@@ -743,7 +750,7 @@ class AgentManager:
                 return None
             wr.cursor += 1
             wr.executed += 1
-            decision.update({"_workflow": True, "_step": step.index, "origin": "workflow"})
+            decision.update({"_workflow": True, "_step": step.index, "origin": "repair" if repair_of else "workflow", "_repair": repair_of})
             return decision
         # unchanged partial results: skip a side-effect step only after proving its postconditions now
         if step.side_effect != "none" and step.postconditions and not step.derive and await self._step_already_satisfied(task, wr, step):
@@ -764,6 +771,9 @@ class AgentManager:
             return None
         wr.cursor += 1
         wr.executed += 1
+        if repair_of:
+            self._step_event(task.id, "repair", f"Schritt {step.index + 1} ({step.tool}) wird repariert: {repair_reason[:160]} – wird erneut gelesen (ohne Modellaufruf).", step=step.index)
+            return {"_workflow": True, "_step": step.index, "_repair": True, "call_id": f"call_{uuid.uuid4().hex[:10]}", "thought": f"Ablauf „{wf.name}“, Schritt {step.index + 1}/{len(wf.steps)}: {step.tool} erneut gelesen (Reparatur).", "decision": "action", "action": {"tool": step.tool, "arguments": args}, "expected_effect": (step.check_de or "")[:200], "origin": "repair"}
         wr.reused += 1
         return {"_workflow": True, "_step": step.index, "call_id": f"call_{uuid.uuid4().hex[:10]}", "thought": f"Ablauf „{wf.name}“, Schritt {step.index + 1}/{len(wf.steps)}: {step.tool}", "decision": "action", "action": {"tool": step.tool, "arguments": args}, "expected_effect": (step.check_de or "")[:200], "origin": "workflow"}
 
@@ -917,6 +927,9 @@ class AgentManager:
                     self._enter_repair(task_id, wr, step, f"Nachbedingung nicht erfüllt: {failed[:120]}")
                 else:
                     self._workflow_fallback(task_id, f"Nachbedingung von Schritt {idx + 1} auch nach Reparatur nicht erfüllt: {failed[:120]}")
+            elif decision.get("_repair") and idx not in wr.repaired:
+                wr.repaired.append(idx)
+                self._step_event(task_id, "repaired", f"Schritt {idx + 1} ({step.tool}) repariert ({'neu abgeleitet' if step.derive else 'erneut gelesen'}).", step=idx)
             return
         if wr.repairing is not None:
             idx = wr.repairing
