@@ -401,6 +401,22 @@ Stand des Branches `feature/spaider-foldable-agent-v2`; Zahlen in `AGENT_V2_TEST
 
 ### Befunde aus der Messreihe (2026-11-12, im Branch behoben, soweit markiert)
 
+- Reparaturweg (Produktdemo X10, behoben in a162c4d – nach der Messreihe): Nach einer
+  Faktenänderung ging der betroffene `memory.search`-Schritt an den Planer, der den Mailentwurf zu
+  früh schrieb und das Reparaturbudget verbrauchte; außerdem galt die vom Ablauf selbst
+  geschriebene Berichtsdatei als „fehlende Eingabe“. Jetzt: rein lesende Schritte werden wörtlich
+  erneut gelesen (kein Modellaufruf), abgeleitete Schritte neu abgeleitet, Zwischendateien sind
+  keine Abhängigkeit. Die Tabellen der Messreihe stammen vom Stand davor; nur X10/X6 wurden auf
+  dem behobenen Stand wiederholt. Restrisiko: Ein lesender Schritt mit Elementziel (`windows.read`
+  mit `element_id`) und ein Schreibschritt mit festem Inhalt gehen weiterhin an den Planer.
+- Nach einem gescheiterten Reparatur- oder Wiederverwendungslauf wird der Ablauf zurückgestuft
+  und nicht mehr automatisch benutzt (bewusst konservativ). Ein einziger Modellfehler im
+  Reparaturlauf beendet damit die Ersparnis, bis der Ablauf in der Oberfläche wieder auf
+  „Kandidat“ gesetzt wird (`PATCH /agent/workflows/{id}`).
+- Sperr-Erkennung: `session_locked()` prüft, ob LockApp/LogonUI das Vordergrundfenster ist. In
+  einem Moment (Bildschirm aus) war das bei gesperrter Sitzung nicht der Fall; der Kern hätte
+  UIA-Schritte ausgeführt statt zu pausieren. Offen: WTS-Sitzungsflags zusätzlich abfragen.
+
 - Sperrbildschirm: Nach dem Leerlauf-Timeout zeigt Windows `LockApp.exe` auf dem *Default*-Desktop;
   die Prüfung des Eingabe-Desktops allein hielt die Sitzung für interaktiv, Vordergrund und
   Eingaben scheiterten. Behoben (a6e2d83): Sperrbildschirm = nicht interaktiv → Aufgabe pausiert

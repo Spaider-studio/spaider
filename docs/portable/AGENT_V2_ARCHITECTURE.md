@@ -96,9 +96,15 @@ verfügbare Werkzeuge. Reihenfolge der Regeln:
 3. ungültige Fakten → betroffene Schritte (gleiche `depends_on`, `read_set`,
    `derive_from`) in die Reparaturmenge; bei vermuteten Beziehungen alle abgeleiteten
    Schritte. Fehlende Eingabedateien → lesende Schritte reparieren. Fehlende Programme →
-   Startschritt reparieren.
+   Startschritt reparieren. Dateien, die ein früherer Schritt desselben Ablaufs schreibt,
+   sind Zwischenergebnisse: keine Abhängigkeit, kein Reparaturgrund (Compiler und Gate).
 4. Reparaturmenge enthält eine Wirkung nach außen oder mehr als die Hälfte der Schritte
-   → **replan**. Sonst → **repair**, mit Reparaturbudget (4 Planeraktionen je Schritt).
+   → **replan**. Sonst → **repair**: ein abgeleiteter Schritt wird aus den aktuellen Daten
+   neu abgeleitet (ein Modellaufruf), ein rein lesender Schritt (`memory.search`,
+   `files.read`, `windows.read` ohne Elementziel …) wird wörtlich erneut gelesen (kein
+   Aufruf); nur Schreibschritte mit festem Inhalt und UI-Aktionen gehen an den Planer, mit
+   Reparaturbudget (4 Planeraktionen je Schritt). Schlägt auch das fehl, übernimmt der
+   Planer den Rest (Rückfall), und ein gescheiterter Reparaturlauf stuft den Ablauf zurück.
 5. sonst → **reuse**. `strict` (jede Nachbedingung prüfen, UI-Schritte neu beobachten)
    gilt für Kandidaten, bei Abdeckung < 0,8, bei unbekannten/vermuteten Abhängigkeiten
    und bei jeder ungültigen Abhängigkeit.
@@ -203,6 +209,8 @@ Die 0.3-Wire-Modelle `Task`/`Action`/`Recipe` bleiben die API-Form und wurden um
   bestandener Negativprüfung; ein fehlgeschlagener Wiederverwendungslauf stuft zurück.
 * Reparatur nur dort, wo Abschluss prüfbar ist (Schritt hat Nachbedingungen,
   Abhängigkeiten oder ist abgeleitet); bloße 0.3-Rezeptschritte gehen an den Planer.
+  Wo die Reparatur mechanisch ist (erneut lesen, neu ableiten), läuft sie ohne Planer –
+  Befund der Produktdemo (Testbericht Abschnitt 5).
 * Unveränderte Teilergebnisse werden nur übersprungen, wenn alle gelesenen Dateien die
   aufgezeichnete Revision haben **und** die Nachbedingungen jetzt erfüllt sind (journaliert
   als „bereits erfüllt (geprüft)“). Faktenbasierte und abgeleitete Schritte werden nicht

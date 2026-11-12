@@ -308,4 +308,8 @@ vorhanden) und `mcp==2.3.0` müssen auf dieselbe Hauptversion gebracht werden.
   Backspace-Byte im Standardpfad `dev-app\browser` (durch die Pfad-Neutralisierung entstanden);
   auf diesem Branch repariert. Beim Review von #60 bitte mitnehmen.
 - Vergleichsläufe und Baseline: `foldable/build/measurements/matrix2-*.json`,
-  `baseline-*.json`; Erzeugung mit `tests/matrix/run_matrix_v2.py` (Arme none/simple/full).
+  `baseline-*.json`, Produktdemo `demo-x10-full-*.json`; Erzeugung mit
+  `tests/matrix/run_matrix_v2.py` (Arme none/simple/full, `--tasks X10 --mode full`).
+- Nach der Messreihe behoben (a162c4d, im Paket enthalten, Tabellen nicht neu gemessen):
+  Reparatur lesender/abgeleiteter Schritte ohne Planer, Zwischendateien keine Abhängigkeit
+  (`agent/loop.py`, `agent/reuse.py`, `agent/compiler.py`, Tests angepasst/ergänzt).

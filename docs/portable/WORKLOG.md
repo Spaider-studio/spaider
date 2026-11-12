@@ -628,9 +628,30 @@ AGENTS.md existiert im Repo nicht; das Research-PDF war nicht beigefügt (Hinwei
   parallel auf der GPU; alle Baeume beendet, Messreihe um 22:28 sauber neu gestartet
   (Teil-Logs als *.partialN.log behalten, nicht gewertet).
 
-### Wiederaufnahmepunkt (aktualisiert)
-- Laufend: `scratchpad/overnight_v2.py` (Datei+Browser full/simple/none -> danach Fenster+Cross
-  idle-gesteuert), `idle_gated_baseline.py` (Fenster/Bild-Baseline auf 219828a, wartet auf 10 min
-  Inaktivitaet), PyInstaller-Build 0.5.0 (muss nach 1993ad3 erneut gebaut werden).
-- Danach: Testbericht-Platzhalter fuellen, Paket neu bauen + `package_check_05.py` + Manifest,
-  Scan (`scan_range.py`, WORKLOG-Pfade neutralisieren), Push, Draft-PR, Prerelease.
+### Phase 3 (23:00–08:30): Nachtmessung, Befunde, Paket, Produktdemo
+- Messreihe v2 mehrfach neu gestartet (Harness-Fehler: Projektname je Wiederholung neu gewuerfelt,
+  Parameter mit Dateiwerten, kaputte Seiten B8/B11 durch Escaping, einfacher Arm fiel auf den
+  Planer zurueck) – Endstand: Datei+Browser drei Arme (voll 37/42, ohne 45/50, einfach 24/44),
+  Cross-Aufgaben drei Arme, Fensteraufgaben nur Teildaten (Sitzung gesperrt; Sperr-Erkennung
+  a6e2d83, Harness ueberspringt gesperrte Fensteraufgaben).
+- Befunde und Fixes aus echten Laeufen: Ableitung von Zahlen/Daten/Einzelwoertern (39ae82b,
+  1ff65b8), Klickergebnisse als Lesequelle, Ein-Wert-Ableitungsprompt, Browser-Elementnamen aus
+  Labels, Feldwert-Nachbedingungen (f9cad2c, 95ee575); Verifier-Regel fuer zitierte Pflichttexte.
+- Pakete gebaut/geprueft nach jedem Code-Stand (zuletzt 95ee575: 37/37), Migration auf Kopie.
+- Produktdemo X10 im Nachlauf: Reparaturluecke (memory.search-Schritt an den Planer, Zwischendatei
+  als fehlende Eingabe) → behoben a162c4d (rein lesende Schritte erneut lesen, abgeleitete neu
+  ableiten, Zwischendateien keine Abhaengigkeit), Tests 158/9, Paket neu gebaut, Demo wiederholt.
+- Fenster/Bild-Baseline (0.3-Harness) lief hinter dem Sperrbildschirm: Vordergrund-Aufgaben
+  scheitern dort wie in 0.5; kein belastbarer Vergleichswert (Testbericht Abschnitt 9).
+- Betriebsbefund: `session_locked()` meldete einmal kurz „nicht gesperrt“ bei gesperrter Sitzung
+  (LockApp nicht im Vordergrund) → Harness abgebrochen; Abhilfe (WTS-Flags) dokumentiert, offen.
+
+### Wiederaufnahmepunkt (Stand Abschluss)
+- Erledigt: Kern, Oberflaeche, Tests, Messreihe, Paket 0.5.0 (Manifest/SHA im Testbericht Abschnitt 7),
+  Dokumente, Geheimnis-Scan ueber den gesamten Commit-Bereich.
+- Veroeffentlichung: siehe Abschnitt „Push/PR/Prerelease“ am Ende dieser Datei (wird beim Abschluss
+  ergaenzt: Commit, PR-Link oder Blocker, Prerelease).
+- Offen fuer eine naechste Phase: Fensteraufgaben in entsperrter, unbenutzter Sitzung messen
+  (`run_matrix_v2.py --groups windows --min-idle 120`), Offline-/CPU-Echtlaeufe auf 0.5 wiederholen,
+  WTS-Sperrflags im Kern, Reparatur fuer lesende Schritte mit Elementziel, echter Cloud-Anbieter
+  mit freigegebenem Budget, physischer Zwei-PC-Transfer.
