@@ -15,7 +15,7 @@
   },
   "packaged_core_ready": {
    "ok": true,
-   "detail": "port=55647 7.8s"
+   "detail": "port=55806 6.6s"
   },
   "health": {
    "ok": true,
@@ -27,7 +27,7 @@
   },
   "health_version_0.5.0": {
    "ok": true,
-   "detail": "{'version': '0.5.0', 'profile_id': 'dc0f88f4-d401-4d3a-97c1-d8c6ea6365d2'}"
+   "detail": "{'version': '0.5.0', 'profile_id': 'f371b56e-1365-4313-b731-4c9c1ab52b47'}"
   },
   "providers_13_presets": {
    "ok": true,
@@ -71,7 +71,7 @@
   },
   "stop_lock_fast": {
    "ok": true,
-   "detail": "{'stopped_tasks': 0, 'stopped_live': 0, 'ended_sessions': 0, 'released_keys': 0, 'stopped_teach': 0, 'lock_ms': 0.1}"
+   "detail": "{'stopped_tasks': 0, 'stopped_live': 0, 'ended_sessions': 0, 'released_keys': 0, 'stopped_teach': 0, 'lock_ms': 0.2}"
   },
   "teach_rejects_unscoped_window": {
    "ok": true,
@@ -79,11 +79,11 @@
   },
   "schema_v6_tables": {
    "ok": true,
-   "detail": "user_version=6 db=C:\\Users\\<Nutzer>\\spaider-foldable\\measure\\agentv2\\pkg05\\Päck age ü\\SpAIder-Foldable-0.5.0-win-x64\\SpAIder\\data\\profiles\\dc0f88f4-d401-4d3a-97c1-d8c6ea6365d2\\spaider.db"
+   "detail": "user_version=6 db=C:\\Users\\<Nutzer>\\spaider-foldable\\measure\\agentv2\\pkg05\\Päck age ü\\SpAIder-Foldable-0.5.0-win-x64\\SpAIder\\data\\profiles\\f371b56e-1365-4313-b731-4c9c1ab52b47\\spaider.db"
   },
   "credentials_status": {
    "ok": true,
-   "detail": "{'host_available': True, 'vault': {'exists': False, 'unlocked': False, 'path': 'C:\\\\Users\\\\<Nutzer>\\\\spaider-foldable\\\\measure\\\\agentv2\\\\pkg05\\\\Päck age ü\\\\SpAIder-Foldable-0.5.0-win-x64\\\\SpAIder\\\\data\\\\profiles\\\\dc0f88f4-d401-4d3a-97c1-d8c6ea6365d2\\\\vault.json', 'kdf': None}, 'session_items': 0}"
+   "detail": "{'host_available': True, 'vault': {'exists': False, 'unlocked': False, 'path': 'C:\\\\Users\\\\<Nutzer>\\\\spaider-foldable\\\\measure\\\\agentv2\\\\pkg05\\\\Päck age ü\\\\SpAIder-Foldable-0.5.0-win-x64\\\\SpAIder\\\\data\\\\profiles\\\\f371b56e-1365-4313-b731-4c9c1ab52b47\\\\vault.json', 'kdf': None}, 'session_items': 0}"
   },
   "vault_create": {
    "ok": true,
@@ -95,7 +95,7 @@
   },
   "siwc_connection_created": {
    "ok": true,
-   "detail": "{\"connection\":{\"id\":\"conn_5bcfae5c5485\",\"profile_id\":\"dc0f88f4-d401-4d3a-97c1-d8c6ea6365d2\",\"provider\":\"openai_siwc\",\"protocol\":\"responses\",\"name\":\"ChatGPT\",\"ba"
+   "detail": "{\"connection\":{\"id\":\"conn_7a4b646e76e6\",\"profile_id\":\"f371b56e-1365-4313-b731-4c9c1ab52b47\",\"provider\":\"openai_siwc\",\"protocol\":\"responses\",\"name\":\"ChatGPT\",\"ba"
   },
   "siwc_status_needs_setup": {
    "ok": true,
@@ -115,11 +115,11 @@
   },
   "connector_created": {
    "ok": true,
-   "detail": "{\"connector\":{\"id\":\"mcp_420d9f8a5d\",\"name\":\"Paket-Check\",\"client_kind\":\"claude_code\",\"profile_id\":\"dc0f88f4-d401-4d3a-97"
+   "detail": "{\"connector\":{\"id\":\"mcp_ca455634d7\",\"name\":\"Paket-Check\",\"client_kind\":\"claude_code\",\"profile_id\":\"f371b56e-1365-4313-b7"
   },
   "bridge_command_is_packaged_exe": {
    "ok": true,
-   "detail": "['C:\\\\Users\\\\<Nutzer>\\\\spaider-foldable\\\\measure\\\\agentv2\\\\pkg05\\\\Päck age ü\\\\SpAIder-Foldable-0.5.0-win-x64\\\\SpAIder\\\\resources\\\\core\\\\spaider-foldable-core.exe', '--mcp-stdio', '--connector', 'C:\\\\Users\\\\<Nutzer>\\\\spaider-foldable\\\\measure\\\\agentv2\\\\pkg05\\\\Päck age ü\\\\SpAIder-Foldable-0.5.0-win-x64\\\\SpAIder\\\\data\\\\connectors\\\\mcp_420d9f8a5d.json']"
+   "detail": "['C:\\\\Users\\\\<Nutzer>\\\\spaider-foldable\\\\measure\\\\agentv2\\\\pkg05\\\\Päck age ü\\\\SpAIder-Foldable-0.5.0-win-x64\\\\SpAIder\\\\resources\\\\core\\\\spaider-foldable-core.exe', '--mcp-stdio', '--connector', 'C:\\\\Users\\\\<Nutzer>\\\\spaider-foldable\\\\measure\\\\agentv2\\\\pkg05\\\\Päck age ü\\\\SpAIder-Foldable-0.5.0-win-x64\\\\SpAIder\\\\data\\\\connectors\\\\mcp_ca455634d7.json']"
   },
   "packaged_bridge_tools_no_computer_control": {
    "ok": true,
@@ -151,12 +151,12 @@
   }
  },
  "timings": {
-  "unzip_s": 22.0,
-  "packaged_core_ready_s": 7.8,
+  "unzip_s": 21.1,
+  "packaged_core_ready_s": 6.6,
   "stop_roundtrip_ms": 0.0,
-  "discover_s": 1.73,
-  "packaged_bridge_roundtrip_s": 3.66,
-  "packaged_profile_switch_s": 0.08
+  "discover_s": 1.69,
+  "packaged_bridge_roundtrip_s": 2.27,
+  "packaged_profile_switch_s": 0.06
  },
  "summary": {
   "passed": 37,
