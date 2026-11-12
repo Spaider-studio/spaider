@@ -31,7 +31,8 @@ ELEMENT_NAME_JS = r"""
 el => {
   const tag = el.tagName.toLowerCase();
   const role = el.getAttribute('role') || ({a:'link',button:'button',input:(el.type||'text'),select:'combobox',textarea:'textbox',summary:'button',label:'label'}[tag] || tag);
-  const lab = el.getAttribute('aria-label') || (el.id && document.querySelector('label[for="' + el.id + '"]') ? document.querySelector('label[for="' + el.id + '"]').innerText : '') || (el.closest && el.closest('label') ? el.closest('label').innerText.replace(el.value || '', '') : '');
+  const ownText = (l) => l ? Array.from(l.childNodes).filter(n => n.nodeType === 3).map(n => n.textContent).join(' ').replace(/\s+/g, ' ').trim() : '';
+  const lab = el.getAttribute('aria-label') || (el.id ? ownText(document.querySelector('label[for="' + el.id + '"]')) : '') || (el.closest ? ownText(el.closest('label')) : '');
   const name = ((lab || '').trim() || el.innerText || el.placeholder || el.getAttribute('title') || el.alt || el.name || el.value || '').trim().slice(0,120);
   return {role, name};
 }
@@ -53,7 +54,8 @@ SNAPSHOT_JS = r"""
     el.setAttribute('data-spaider-ref', ref);
     const tag = el.tagName.toLowerCase();
     let role = el.getAttribute('role') || ({a:'link',button:'button',input:(el.type||'text'),select:'combobox',textarea:'textbox',summary:'button',label:'label'}[tag] || tag);
-    const lab = el.getAttribute('aria-label') || (el.id && document.querySelector('label[for="' + el.id + '"]') ? document.querySelector('label[for="' + el.id + '"]').innerText : '') || (el.closest && el.closest('label') ? el.closest('label').innerText.replace(el.value || '', '') : '');
+    const ownText = (l) => l ? Array.from(l.childNodes).filter(n => n.nodeType === 3).map(n => n.textContent).join(' ').replace(/\s+/g, ' ').trim() : '';
+    const lab = el.getAttribute('aria-label') || (el.id ? ownText(document.querySelector('label[for="' + el.id + '"]')) : '') || (el.closest ? ownText(el.closest('label')) : '');
     const name = ((lab || '').trim() || el.innerText || el.placeholder || el.getAttribute('title') || el.alt || el.name || el.value || '').trim().slice(0,120);
     let value = null;
     if (tag === 'input' || tag === 'textarea' || tag === 'select') value = (el.value || '').slice(0,200);

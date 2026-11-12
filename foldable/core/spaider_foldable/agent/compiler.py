@@ -389,21 +389,21 @@ def _window_role_of(tmpl: dict) -> str:
 
 
 def _data_text(tool: str, data: dict) -> str:
+    """Everything a tool result let the planner read: every string field (text, text_after,
+    context, structure, answer, title, value_after ...) plus names/values of listed elements."""
     if not isinstance(data, dict):
         return ""
-    if tool in ("files.read", "browser.read", "windows.read"):
-        return str(data.get("text") or "")
-    if tool == "memory.search":
-        return str(data.get("context") or "")
-    if tool == "browser.snapshot":
-        return str(data.get("text") or "") + " " + " ".join(str(e.get("name") or "") + " " + str(e.get("value") or "") for e in (data.get("elements") or []) if isinstance(e, dict))
-    if tool == "windows.inspect":
-        return str(data.get("structure") or "")
-    if tool == "vision.describe":
-        return str(data.get("answer") or "")
-    if tool == "files.search":
-        return " ".join(str(h.get("excerpt") or "") for h in (data.get("hits") or []) if isinstance(h, dict))
-    return ""
+    parts: list[str] = []
+    for k, v in data.items():
+        if isinstance(v, str) and k not in ("path", "sha256", "url", "method"):
+            parts.append(v)
+        elif isinstance(v, list):
+            for e in v[:80]:
+                if isinstance(e, dict):
+                    parts.append(" ".join(str(e.get(f) or "") for f in ("name", "value", "excerpt", "text") if e.get(f)))
+                elif isinstance(e, str):
+                    parts.append(e)
+    return " ".join(parts)
 
 
 def _param_kind(value: str) -> str:
