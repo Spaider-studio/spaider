@@ -18,7 +18,7 @@
 
 ### Paket
 
-PLATZHALTER_PAKET
+Review-Prerelease `foldable-0.5.0-review` (https://github.com/Spaider-studio/spaider/releases/tag/foldable-0.5.0-review): `SpAIder-Foldable-0.5.0-win-x64.zip`,402 220 402 Bytes, SHA-256 `7bb5b8e86d2d316420e3f999207c604a226e680abf8b050a05ff0f3799187fc9`, Build-Commit `e11400e` (`BUILD_INFO.txt` im ZIP; `BUILD_MANIFEST_0.5.0.json` und `SHA256SUMS-0.5.0.txt` als Assets und unter `foldable/build/measurements/`). Ohne Modellgewichte, Nutzerdaten, Browserprofile, Schlüssel (8 935 Einträge geprüft). Frisch entpackt mit PATH ohne Entwicklerwerkzeuge geprüft (`verify_package.py` + Paketprüfung 37/37). Die Assets von `foldable-0.4.0-review` bleiben unverändert.
 
 ### Testanleitung (20 Minuten)
 
@@ -27,7 +27,7 @@ PLATZHALTER_PAKET
 ### Echte Resultate (Qwen3-4B Q4_K_M, Vulkan, ein Rechner; Details `docs/portable/AGENT_V2_TEST_REPORT.md`)
 
 - Datei + Browser, 35 Aufgaben × 3, drei Arme: Wiederholungen mit vollem Mechanismus **37/42 (88 %) bei 2,0 Modellaufrufen und 19 s** gegenüber **45/50 (90 %) bei 5,3 Aufrufen und 40 s** ohne Wiederverwendung → **−62 % Aufrufe, −53 % Dauer**, aber 2 Punkte weniger Erfolg und **5 falsche Wiederverwendungen** (Browser-Feldwerte, Modell). Einfache Rezepte (0.3-Semantik): 24/44 mit 18 falschen Wiederverwendungen. Dateigruppe allein: 24/24 sauber.
-- Faktenänderung: X6 repariert nur den Mailschritt (2 statt 4 Aufrufe, neuer Empfänger); die Produktdemo X10 scheiterte auf dem Messstand an der Reparatur eines `memory.search`-Schritts → behoben, Nachlauf im Testbericht Abschnitt 5.
+- Faktenänderung: X6 repariert nur den Mailschritt (2 statt 4 Aufrufe, neuer Empfänger). Die Produktdemo X10 scheiterte auf dem Messstand an der Reparatur eines `memory.search`-Schritts → behoben; Nachlauf auf dem behobenen Stand: Wiederholung 1 korrekt mit **4 statt 11 Aufrufen** (Gedächtnis ohne Modellaufruf neu gelesen, nur Mailentwurf neu abgeleitet), Wiederholung 2 eine falsche Wiederverwendung (Modell ließ die neue E-Mail weg; die Prüfung kennt Faktenwerte nicht) – Testbericht Abschnitt 5.
 - Fensteraufgaben: nur Teildaten (Sitzung war nachts gesperrt): UIA-Aufgaben W2/W3/W5/W7 wiederverwendet (3→1, 7→0, 5→4→1, 3→1 Aufrufe), Vordergrund-Aufgaben nicht messbar.
 - Skriptiert: Kernsuite 159 bestanden / 8 übersprungen (Echtläufe), Desktop 123 Tests; Pflichttests (Stopp mit ausstehendem Tool-Call, Stopp-Sperre p95 1,2 ms, veralteter Zustand, Profilwechsel, Prompt-Injection, App-Ausfall, Neustart, Memory-Korrektur, Nur-lokal, Migration, Nutzereingabe, falsche Fertigmeldung, doppelte Nebenwirkung) grün.
 - Paket frisch entpackt ohne Entwickler-PATH geprüft (37/37), Migration auf Kopie der 0.3-Daten geprüft.

@@ -1,0 +1,383 @@
+{
+  "version": 2,
+  "model": "qwen3-4b-q4_k_m",
+  "catalog_id": "qwen3-4b-q4_k_m",
+  "mode": "full",
+  "started_at": "2026-11-12T07:00:15Z",
+  "repeat": 3,
+  "task_timeout_s": 300,
+  "seed": 7,
+  "runs": [
+    {
+      "id": "X6",
+      "set": "learn",
+      "condition": "unknown",
+      "goal": "Lies C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix2-2e_hr0yg\\X6-0\\Projekt Seeadler/notizen.txt und C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix2-2e_hr0yg\\X6-0\\Projekt Seeadler/kontakte.csv, ermittle die aktuelle Projektleitung von Seeadler (memory.search, sonst Datei) und schreibe nach C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix2-2e_hr0yg\\X6-0\\Ausgabe/mail_entwurf.txt einen Mailentwurf mit „An: <E-Mail der Leitung>“, Betreff „Statusbericht Seeadler“ und dem Budget. Kein Versand.",
+      "success": false,
+      "false_success_claim": false,
+      "claimed": false,
+      "state": "failed",
+      "outcome": "not_fulfilled",
+      "steps": 8,
+      "llm_calls": 8,
+      "wall_s": 89.9,
+      "questions": 0,
+      "interventions": [],
+      "side_effect_files": [],
+      "external_actions": [],
+      "repeated_failures": 0,
+      "rejected": 0,
+      "peak_rss_mb": 4876,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix2-2e_hr0yg\\X6-0\\Ausgabe\\mail_entwurf.txt",
+        "exists": true,
+        "missing": []
+      },
+      "summary": "Mailentwurf wurde mit der Leitungsemail und dem Budget erstellt.",
+      "timings": {
+        "observe_ms": 0,
+        "executing_ms": 46,
+        "verify_ms": 31,
+        "wait_ms": 0,
+        "planning_ms": 89748
+      },
+      "reuse": null,
+      "false_reuse": false,
+      "verify_ms": 31,
+      "events": [
+        "Datei gelesen: notizen.txt",
+        "Datei gelesen: kontakte.csv",
+        "Ergebnis geprüft: nicht erfüllt (Datei fehlt: mail_entwurf.txt; Datei fehlt: mail_entwurf.txt; Datei fehlt: mail_entwurf.txt)",
+        "Datei geschrieben und zurückgelesen: mail_entwurf.txt",
+        "Datei geschrieben und zurückgelesen: mail_entwurf.txt – fehlgeschlagen: Datei existiert bereits: mail_entwurf.txt. Für Änderungen mode=\"overwrite\" mit i",
+        "Datei gelesen: mail_entwurf.txt",
+        "Datei geschrieben und zurückgelesen: mail_entwurf.txt",
+        "Ergebnis geprüft: nicht erfüllt (Inhalt fehlt in mail_entwurf.txt: Statusbericht Seeadler)"
+      ],
+      "actions": [
+        [
+          1,
+          "files.read",
+          "planner",
+          "done"
+        ],
+        [
+          2,
+          "files.read",
+          "planner",
+          "done"
+        ],
+        [
+          3,
+          "files.write",
+          "planner",
+          "done"
+        ],
+        [
+          4,
+          "files.write",
+          "planner",
+          "failed",
+          "exists"
+        ],
+        [
+          5,
+          "files.read",
+          "planner",
+          "done"
+        ],
+        [
+          6,
+          "files.write",
+          "planner",
+          "done"
+        ]
+      ],
+      "task_id": "task_e856bafffa01",
+      "fact_change": false,
+      "app_variant": 1,
+      "group": "cross",
+      "repeat": 0
+    },
+    {
+      "id": "X6",
+      "set": "learn",
+      "condition": "none",
+      "goal": "Lies C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix2-2e_hr0yg\\X6-1\\Projekt Seeadler/notizen.txt und C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix2-2e_hr0yg\\X6-1\\Projekt Seeadler/kontakte.csv, ermittle die aktuelle Projektleitung von Seeadler (memory.search, sonst Datei) und schreibe nach C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix2-2e_hr0yg\\X6-1\\Ausgabe/mail_entwurf.txt einen Mailentwurf mit „An: <E-Mail der Leitung>“, Betreff „Statusbericht Seeadler“ und dem Budget. Kein Versand.",
+      "success": true,
+      "false_success_claim": false,
+      "claimed": true,
+      "state": "completed",
+      "outcome": "fulfilled",
+      "steps": 5,
+      "llm_calls": 5,
+      "wall_s": 45.4,
+      "questions": 0,
+      "interventions": [],
+      "side_effect_files": [],
+      "external_actions": [],
+      "repeated_failures": 0,
+      "rejected": 0,
+      "peak_rss_mb": 5343,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix2-2e_hr0yg\\X6-1\\Ausgabe\\mail_entwurf.txt",
+        "exists": true,
+        "missing": []
+      },
+      "summary": "Projektleitung von Seeadler ist Mara Muster, Budget ist 62750 EUR, Mailentwurf wurde korrekt geschrieben.",
+      "timings": {
+        "observe_ms": 0,
+        "executing_ms": 77,
+        "verify_ms": 16,
+        "wait_ms": 0,
+        "planning_ms": 45201
+      },
+      "reuse": null,
+      "false_reuse": false,
+      "verify_ms": 16,
+      "events": [
+        "Datei gelesen: notizen.txt",
+        "Datei gelesen: kontakte.csv",
+        "Gedächtnis durchsucht: „Budget Projekt Seeadler“",
+        "Datei geschrieben und zurückgelesen: mail_entwurf.txt",
+        "Ergebnis geprüft: erfüllt"
+      ],
+      "actions": [
+        [
+          1,
+          "files.read",
+          "planner",
+          "done"
+        ],
+        [
+          2,
+          "files.read",
+          "planner",
+          "done"
+        ],
+        [
+          3,
+          "memory.search",
+          "planner",
+          "done"
+        ],
+        [
+          4,
+          "files.write",
+          "planner",
+          "done"
+        ]
+      ],
+      "task_id": "task_d3bd4a46ca79",
+      "fact_change": true,
+      "app_variant": 1,
+      "group": "cross",
+      "repeat": 1
+    },
+    {
+      "id": "X6",
+      "set": "learn",
+      "condition": "none",
+      "goal": "Lies C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix2-2e_hr0yg\\X6-2\\Projekt Seeadler/notizen.txt und C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix2-2e_hr0yg\\X6-2\\Projekt Seeadler/kontakte.csv, ermittle die aktuelle Projektleitung von Seeadler (memory.search, sonst Datei) und schreibe nach C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix2-2e_hr0yg\\X6-2\\Ausgabe/mail_entwurf.txt einen Mailentwurf mit „An: <E-Mail der Leitung>“, Betreff „Statusbericht Seeadler“ und dem Budget. Kein Versand.",
+      "success": true,
+      "false_success_claim": false,
+      "claimed": true,
+      "state": "completed",
+      "outcome": "fulfilled",
+      "steps": 5,
+      "llm_calls": 5,
+      "wall_s": 42.2,
+      "questions": 0,
+      "interventions": [],
+      "side_effect_files": [],
+      "external_actions": [],
+      "repeated_failures": 0,
+      "rejected": 0,
+      "peak_rss_mb": 5742,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix2-2e_hr0yg\\X6-2\\Ausgabe\\mail_entwurf.txt",
+        "exists": true,
+        "missing": []
+      },
+      "summary": "Projektleitung: Ayla Demo, Budget: 51200 EUR, Mailentwurf wurde geschrieben und zurückgelesen.",
+      "timings": {
+        "observe_ms": 0,
+        "executing_ms": 58,
+        "verify_ms": 0,
+        "wait_ms": 0,
+        "planning_ms": 42047
+      },
+      "reuse": null,
+      "false_reuse": false,
+      "verify_ms": 0,
+      "events": [
+        "Datei gelesen: notizen.txt",
+        "Datei gelesen: kontakte.csv",
+        "Gedächtnis durchsucht: „Projektleitung Seeadler“",
+        "Datei geschrieben und zurückgelesen: mail_entwurf.txt",
+        "Ergebnis geprüft: erfüllt"
+      ],
+      "actions": [
+        [
+          1,
+          "files.read",
+          "planner",
+          "done"
+        ],
+        [
+          2,
+          "files.read",
+          "planner",
+          "done"
+        ],
+        [
+          3,
+          "memory.search",
+          "planner",
+          "done"
+        ],
+        [
+          4,
+          "files.write",
+          "planner",
+          "done"
+        ]
+      ],
+      "task_id": "task_64a3e9d462ba",
+      "fact_change": true,
+      "app_variant": 1,
+      "group": "cross",
+      "repeat": 2
+    }
+  ],
+  "host": {
+    "desktop_interactive": true
+  },
+  "code": "e11400e",
+  "runtime": {
+    "backend": "vulkan",
+    "device": "Vulkan0",
+    "gpu_layers": 999,
+    "threads": 8,
+    "threads_batch": 8,
+    "prio": 0,
+    "reason_de": "Alle Schichten auf Intel(R) Arc(TM) 140V GPU (16GB) (geschätzt 5.6 GB von 17.2 GB frei).",
+    "mmproj_offload": true,
+    "image_max_tokens": null,
+    "mmproj": null
+  },
+  "capabilities": {
+    "id": "qwen3-4b-q4_k_m",
+    "vision_input": false,
+    "image_grounding": "none",
+    "tool_call_format": "json_schema",
+    "native_tool_calls": "untested",
+    "structured_output": true
+  },
+  "execution_core": {
+    "version": "1.5",
+    "workflows": 0,
+    "stale_workflows": 0,
+    "input_guard": {
+      "enabled": true,
+      "paused_by_user": 0,
+      "user_idle_ms": 47
+    },
+    "host_id": "4785575201e4e4887c7b9e9b75f349ac",
+    "teach": {
+      "active": 0,
+      "sessions": []
+    }
+  },
+  "summary": {
+    "all": {
+      "n": 3,
+      "success": 2,
+      "false_success_claims": 0,
+      "false_reuse": 0,
+      "questions": 0,
+      "side_effect_files": 0,
+      "external_actions": 0,
+      "repeated_failures": 0,
+      "llm_calls_mean": 6.0,
+      "wall_median_s": 45.4,
+      "wall_mean_s": 59.2,
+      "gate_ms_mean": 0.0,
+      "repaired_steps": 0,
+      "peak_rss_mb_max": 5742
+    },
+    "by_condition": {
+      "none": {
+        "n": 2,
+        "success": 2,
+        "false_success_claims": 0,
+        "false_reuse": 0,
+        "questions": 0,
+        "side_effect_files": 0,
+        "external_actions": 0,
+        "repeated_failures": 0,
+        "llm_calls_mean": 5.0,
+        "wall_median_s": 45.4,
+        "wall_mean_s": 43.8,
+        "gate_ms_mean": 0.0,
+        "repaired_steps": 0,
+        "peak_rss_mb_max": 5742
+      },
+      "unknown": {
+        "n": 1,
+        "success": 0,
+        "false_success_claims": 0,
+        "false_reuse": 0,
+        "questions": 0,
+        "side_effect_files": 0,
+        "external_actions": 0,
+        "repeated_failures": 0,
+        "llm_calls_mean": 8.0,
+        "wall_median_s": 89.9,
+        "wall_mean_s": 89.9,
+        "gate_ms_mean": 0.0,
+        "repaired_steps": 0,
+        "peak_rss_mb_max": 4876
+      }
+    },
+    "by_group": {
+      "cross": {
+        "n": 3,
+        "success": 2,
+        "false_success_claims": 0,
+        "false_reuse": 0,
+        "questions": 0,
+        "side_effect_files": 0,
+        "external_actions": 0,
+        "repeated_failures": 0,
+        "llm_calls_mean": 6.0,
+        "wall_median_s": 45.4,
+        "wall_mean_s": 59.2,
+        "gate_ms_mean": 0.0,
+        "repaired_steps": 0,
+        "peak_rss_mb_max": 5742
+      }
+    },
+    "by_set": {
+      "learn": {
+        "n": 3,
+        "success": 2,
+        "false_success_claims": 0,
+        "false_reuse": 0,
+        "questions": 0,
+        "side_effect_files": 0,
+        "external_actions": 0,
+        "repeated_failures": 0,
+        "llm_calls_mean": 6.0,
+        "wall_median_s": 45.4,
+        "wall_mean_s": 59.2,
+        "gate_ms_mean": 0.0,
+        "repaired_steps": 0,
+        "peak_rss_mb_max": 5742
+      }
+    }
+  }
+}

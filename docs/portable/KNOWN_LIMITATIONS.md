@@ -409,6 +409,11 @@ Stand des Branches `feature/spaider-foldable-agent-v2`; Zahlen in `AGENT_V2_TEST
   keine Abhängigkeit. Die Tabellen der Messreihe stammen vom Stand davor; nur X10/X6 wurden auf
   dem behobenen Stand wiederholt. Restrisiko: Ein lesender Schritt mit Elementziel (`windows.read`
   mit `element_id`) und ein Schreibschritt mit festem Inhalt gehen weiterhin an den Planer.
+- Nachbedingungen abgeleiteter Schritte kennen nur Parameterwerte und zitierte Auftragstexte, nicht
+  den Wert eines geänderten Fakts (z. B. die neue E-Mail-Adresse). Lässt das Modell den Wert bei der
+  Ableitung weg, kann die Reparatur „erfüllt“ melden, obwohl der Inhalt falsch ist (Produktdemo,
+  Lauf 3 im Testbericht Abschnitt 5). Abhilfe (offen): Werte aus den Quellen eines abgeleiteten
+  Schritts (Fakt, gelesene Datei) als Prüfkriterium übernehmen.
 - Nach einem gescheiterten Reparatur- oder Wiederverwendungslauf wird der Ablauf zurückgestuft
   und nicht mehr automatisch benutzt (bewusst konservativ). Ein einziger Modellfehler im
   Reparaturlauf beendet damit die Ersparnis, bis der Ablauf in der Oberfläche wieder auf

@@ -276,7 +276,8 @@ Modellfehler beim ersten (unbekannten) Lauf, die alle Arme gleichermaßen treffe
   und scheiterte am Budget (Abschnitt 5). Nach der Messreihe behoben (Commit 0e6bdb4: rein lesende
   Schritte werden erneut gelesen, abgeleitete neu abgeleitet, Zwischendateien sind keine Eingaben);
   die Tabellen oben stammen vom Stand davor und wurden **nicht** komplett neu gemessen – nur X10
-  und X6 liefen auf dem behobenen Stand erneut (Abschnitt 5).
+  und X6 liefen auf dem behobenen Stand erneut (Abschnitt 5: 1 von 2 Wiederholungen korrekt, eine
+  falsche Wiederverwendung, weil die Prüfung den geänderten Faktenwert nicht kennt).
 - Nach einem gescheiterten Reparaturlauf wird der Ablauf zurückgestuft (keine automatische
   Wiederverwendung mehr); das ist beabsichtigt konservativ, kostet aber nach einem einzigen
   Modellfehler alle weiteren Ersparnisse, bis der Nutzer den Ablauf wieder freigibt.
@@ -336,7 +337,31 @@ Gate-Fall in `test_reuse_gate_decisions`.
 
 **Nachlauf 2 (behobener Stand, `demo-x10-full-2.json`, `demo-x6-full-2.json`):**
 
-PLATZHALTER_DEMO_NEU
+Lauf 1 ✓ (11 Aufrufe, 148 s, Projekt „Polarstern“) → Kandidat mit 10 Schritten. Lauf 2 (neue
+Ausgabe, Projektleitung über `correct_memory` korrigiert): Gate **repair**, Abdeckung 90 %, betroffen
+nur noch die zwei `memory.search`-Schritte und der Mailentwurf (die Berichtsdatei gilt nicht mehr als
+fehlende Eingabe). Ablauf: Bericht neu abgeleitet (1 Aufruf, Nachbedingung erfüllt), **beide
+Gedächtnissuchen wörtlich erneut gelesen (0 Aufrufe)**, Mailentwurf aus den neuen Daten abgeleitet
+(1 Aufruf) → Nachbedingung „enthält Polarstern“ nicht erfüllt (Modell ließ den Projektnamen weg) →
+Planer-Reparatur (2 Aktionen; der erste Schreibversuch scheiterte an fehlendem `overwrite`) →
+Nachbedingung erfüllt → Endprüfung erfüllt, **unabhängige Prüfung ✓ (neue Adresse im Entwurf): 4
+Aufrufe und 84 s statt 11 Aufrufe und 148 s.** Lauf 3 (gleicher Weg): Mail wieder ohne Projektnamen
+abgeleitet → Planer-Reparatur (3 Aktionen) → Nachbedingung erfüllt, Endprüfung „erfüllt“ –
+**unabhängige Prüfung ✗: die neue E-Mail-Adresse fehlte** (falsche Wiederverwendung; 5 Aufrufe,
+105 s). Ursache: Die Nachbedingung eines abgeleiteten Schritts kennt nur Parameterwerte
+(Projektname) und zitierte Auftragstexte; den Wert des geänderten Fakts (E-Mail) kennt sie nicht,
+und der Planer erfüllte nur den prüfbaren Teil.
+
+Ergebnis der Produktdemo auf dem behobenen Stand: **1 von 2 Wiederholungen korrekt, mit 36 % der
+Modellaufrufe des ersten Laufs**. Belegt ist der Mechanismus (Reparatur nur der vom Fakt
+abhängigen Schritte, Wiederverwendung der übrigen, Gedächtnis ohne Modellaufruf neu gelesen,
+Bericht nach Prüfung übernommen); **nicht belegt ist gleichbleibende Ergebnisqualität** – sie hängt
+an der Ableitung durch Qwen3-4B und daran, dass die Prüfkriterien den geänderten Wert kennen
+(Abhilfe offen: Werte aus den Quellen eines abgeleiteten Schritts als Prüfkriterium,
+`KNOWN_LIMITATIONS.md`). X6 auf dem behobenen Stand (`demo-x6-full-2.json`): der erste Lauf
+scheiterte ehrlich am Modell (Betreff fehlte), kein Ablauf → keine neuen Reparaturdaten; der Beleg
+für X6 bleibt der Messlauf (Abschnitt 4.3). Beide Nachläufe liefen, während im Hintergrund das
+Paket gepackt wurde; die Zeiten sind obere Schranken.
 
 ## 6. Migration an Bestandsdaten (echt, Kopie)
 
@@ -352,16 +377,16 @@ Profil-Umzug und Hardwareerkennung; gepackt siehe Abschnitt 7).
 
 ## 7. Paket (echt)
 
-`SpAIder-Foldable-0.5.0-win-x64.zip`, 402 217 361 Bytes, SHA-256
-`3172f221ed672be049d129530b0d70a47963abdc2724c5126f562e7513b52ef0`, Build-Commit `02678fb`
-(Manifest `BUILD_MANIFEST_0.5.0.json`; spätere Commits des Branches ändern nur Dokumente und
-Messdateien). Kein Modell, keine Nutzerdaten, kein Browserprofil, keine Schlüssel im ZIP
+`SpAIder-Foldable-0.5.0-win-x64.zip`, 402 220 402 Bytes, SHA-256
+`7bb5b8e86d2d316420e3f999207c604a226e680abf8b050a05ff0f3799187fc9`, Build-Commit `e11400e`
+(`BUILD_INFO.txt` im ZIP, Manifest `BUILD_MANIFEST_0.5.0.json`; spätere Commits des Branches ändern
+nur Dokumente und Messdateien; der Reparatur-Fix 0e6bdb4 ist enthalten). Kein Modell, keine Nutzerdaten, kein Browserprofil, keine Schlüssel im ZIP
 (geprüft: 8 935 Einträge).
 
 | Prüfung | Datei | Ergebnis |
 |---|---|---|
 | `verify_package.py` (frisch entpackt, Kern aus dem Paket, Health/Setup/Runtime) | Konsole | bestanden |
-| erweiterte Paketprüfung `package_check_05.py` (Pfad mit Leerzeichen/Umlaut, PATH nur `C:\Windows`) | `package_check_0.5.0.json` | **37/37**: Version 0.5.0, 13 Presets, Profil-Layout, Ausführungskern 1.5 (Eingabesperre aktiv, 26 Werkzeuge, keine Shell), Aufgabe/Probe ohne Modell → 409, Abläufe leer, Bindungen anlegen/lesen/löschen, Stopp `lock_ms` 0,2, Beibringen außerhalb des Umfangs → 422, Schema v6 in frischem Profil, Tresor anlegen/sperren/falsches Passwort/entsperren, SIWC-Status „Einrichtung erforderlich“, Cloud-Planer ohne Freigabe → 409, Tunnel-Status, Entdecken (live), Connector + MCP-Brücke **aus dem Paket** (nur Gedächtniswerkzeuge, keine Computersteuerung), Profilwechsel-Isolation, keine Geheimnisse im Log, `core.json` entfernt; gepackter Kern bereit in 21,7 s |
+| erweiterte Paketprüfung `package_check_05.py` (Pfad mit Leerzeichen/Umlaut, PATH nur `C:\Windows`) | `package_check_0.5.0.json` | **37/37**: Version 0.5.0, 13 Presets, Profil-Layout, Ausführungskern 1.5 (Eingabesperre aktiv, 26 Werkzeuge, keine Shell), Aufgabe/Probe ohne Modell → 409, Abläufe leer, Bindungen anlegen/lesen/löschen, Stopp `lock_ms` 0,2, Beibringen außerhalb des Umfangs → 422, Schema v6 in frischem Profil, Tresor anlegen/sperren/falsches Passwort/entsperren, SIWC-Status „Einrichtung erforderlich“, Cloud-Planer ohne Freigabe → 409, Tunnel-Status, Entdecken (live), Connector + MCP-Brücke **aus dem Paket** (nur Gedächtniswerkzeuge, keine Computersteuerung), Profilwechsel-Isolation, keine Geheimnisse im Log, `core.json` entfernt; gepackter Kern bereit in 4,4 s (Entpacken 15,7 s) |
 | Desktop-Paket | `npm run package` | Electron 45.2.1, 0.5.0 |
 
 Nicht geprüft am Paket: Agentenaufgabe mit Modell aus dem Paket (die Messreihe lief gegen den

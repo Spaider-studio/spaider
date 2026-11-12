@@ -655,3 +655,18 @@ AGENTS.md existiert im Repo nicht; das Research-PDF war nicht beigefügt (Hinwei
   (`run_matrix_v2.py --groups windows --min-idle 120`), Offline-/CPU-Echtlaeufe auf 0.5 wiederholen,
   WTS-Sperrflags im Kern, Reparatur fuer lesende Schritte mit Elementziel, echter Cloud-Anbieter
   mit freigegebenem Budget, physischer Zwei-PC-Transfer.
+
+### Veroeffentlichung (2026-11-12 Vormittag)
+- Historie vor dem ersten Push lokal umgeschrieben (`git filter-branch --tree-filter`, 25 Commits):
+  Nutzerpfad aus Zwischenstaenden (WORKLOG, Messdateien) entfernt; alle Commit-IDs nach 551844b sind
+  neu, Verweise in Dokumenten und Messdateien angepasst (Zuordnung alt/neu im Scratchpad der
+  Sitzung). Kein Force-Push: der Branch war nie veroeffentlicht. Scan ueber den gesamten Bereich
+  (`scan_range.py`): 0 Befunde; der synthetische Harness-Token `matrix-token-…` in
+  `run_matrix_v2.py` ist kein Geheimnis.
+- Paket: `SpAIder-Foldable-0.5.0-win-x64.zip`, 402220402 Bytes, SHA-256 `7bb5b8e86d2d316420e3f999207c604a226e680abf8b050a05ff0f3799187fc9`, Build-Commit `e11400e`
+  (BUILD_INFO.txt im ZIP; Paketpruefung 37/37 auf diesem ZIP).
+- Push (nur Feature-Branch, ein Versuch): PLATZHALTER_PUSH
+- Draft-PR gegen `feature/spaider-foldable-0.4-review`: PLATZHALTER_PR
+- Prerelease `foldable-0.5.0-review` (neue Assets, 0.4-Assets unveraendert): PLATZHALTER_RELEASE
+- Nicht beendet werden konnte Prozess 50444 (0.4-Paketkern vom 11.11. vormittags; Beenden vom
+  Werkzeugfilter abgelehnt) – bitte manuell schliessen.
