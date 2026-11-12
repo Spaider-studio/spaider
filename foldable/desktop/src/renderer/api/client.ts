@@ -64,6 +64,24 @@ import type {
   RepoDetail,
   SetBindingRequest,
   VaultUnlockResult,
+  BindingsResponse,
+  CompileParameter,
+  HostBinding,
+  NegativeCheckResult,
+  PatchWorkflowRequest,
+  RunWorkflowRequest,
+  SuccessCriterion,
+  TeachCaptureResponse,
+  TeachEvent,
+  TeachFinishResponse,
+  TeachSession,
+  TeachStartRequest,
+  TeachStatus,
+  TeachStep,
+  Workflow,
+  WorkflowCheckResult,
+  WorkflowDetail,
+  WorkflowsEvent,
 } from "./types";
 import { parseJsonData, readSseStream } from "./sse";
 
@@ -307,11 +325,15 @@ export class ApiClient {
       onTask?: (task: Task) => void;
       /** v1.2 */
       onStop?: (ev: StopEvent) => void;
+      /** v1.5: a teach session changed (id, state, steps) */
+      onTeach?: (ev: TeachEvent) => void;
+      /** v1.5: dependencies of workflows changed (`stale` ids) */
+      onWorkflows?: (ev: WorkflowsEvent) => void;
       onOpen?: () => void;
     },
     signal?: AbortSignal,
   ) =>
-    this.subscribe<ActivityEvent | SchedulerEvent | RuntimeEvent | LiveSession | Task | StopEvent>(
+    this.subscribe<ActivityEvent | SchedulerEvent | RuntimeEvent | LiveSession | Task | StopEvent | TeachEvent | WorkflowsEvent>(
       "/api/activity",
       (event, data) => {
         if (event === "activity") handlers.onActivity?.(data as ActivityEvent);
@@ -320,6 +342,8 @@ export class ApiClient {
         else if (event === "live") handlers.onLive?.(data as LiveSession);
         else if (event === "task") handlers.onTask?.(data as Task);
         else if (event === "stop") handlers.onStop?.(data as StopEvent);
+        else if (event === "teach") handlers.onTeach?.(data as TeachEvent);
+        else if (event === "workflows") handlers.onWorkflows?.(data as WorkflowsEvent);
       },
       signal,
       handlers.onOpen,
@@ -387,7 +411,7 @@ export class ApiClient {
     this.subscribe<TaskStreamEvent["data"]>(
       `/api/agent/tasks/${encodeURIComponent(id)}/events`,
       (event, data) => {
-        if (["task", "action", "activity", "token", "question", "done"].includes(event)) {
+        if (["task", "action", "activity", "token", "question", "step", "done"].includes(event)) {
           onEvent({ type: event, data } as TaskStreamEvent);
         }
       },
@@ -398,14 +422,53 @@ export class ApiClient {
   resumeTask = async (id: string) => (await this.request<{ task: Task }>("POST", `/api/agent/tasks/${encodeURIComponent(id)}/resume`)).task;
   answerTask = async (id: string, answer: AnswerRequest) =>
     (await this.request<{ task: Task }>("POST", `/api/agent/tasks/${encodeURIComponent(id)}/answer`, { json: answer })).task;
+  /** 0.3 recipes (kept for older cores; v1.5 answers `{recipe, workflow}`). */
   saveRecipe = async (taskId: string, name: string, parameters: RecipeParameter[]) =>
-    (await this.request<{ recipe: Recipe }>("POST", `/api/agent/tasks/${encodeURIComponent(taskId)}/save-recipe`, { json: { name, parameters } }))
+    (await this.request<{ recipe: Recipe; workflow?: Workflow }>("POST", `/api/agent/tasks/${encodeURIComponent(taskId)}/save-recipe`, { json: { name, parameters } }))
       .recipe;
   recipes = async () => (await this.request<{ recipes: Recipe[] }>("GET", "/api/agent/recipes")).recipes;
   recipe = async (id: string) => (await this.request<{ recipe: Recipe }>("GET", `/api/agent/recipes/${encodeURIComponent(id)}`)).recipe;
   deleteRecipe = (id: string) => this.request<{ ok: boolean }>("DELETE", `/api/agent/recipes/${encodeURIComponent(id)}`);
   /** Global stop (hotkey): locks immediately, does not wait for the model. */
   agentStop = () => this.request<AgentStopResult>("POST", "/api/agent/stop");
+
+  // ----- v1.5 (0.5): workflows ---------------------------------------------------------------
+  workflows = async () => (await this.request<{ workflows: Workflow[] }>("GET", "/api/agent/workflows")).workflows;
+  workflow = (id: string) => this.request<WorkflowDetail>("GET", `/api/agent/workflows/${encodeURIComponent(id)}`);
+  patchWorkflow = async (id: string, patch: PatchWorkflowRequest) =>
+    (await this.request<{ workflow: Workflow }>("PATCH", `/api/agent/workflows/${encodeURIComponent(id)}`, { json: patch })).workflow;
+  deleteWorkflow = (id: string) => this.request<{ ok: boolean }>("DELETE", `/api/agent/workflows/${encodeURIComponent(id)}`);
+  /** Dry run of the reuse gate on this PC (nothing is executed). */
+  checkWorkflow = (id: string) => this.request<WorkflowCheckResult>("GET", `/api/agent/workflows/${encodeURIComponent(id)}/check`);
+  negativeCheckWorkflow = (id: string) => this.request<NegativeCheckResult>("POST", `/api/agent/workflows/${encodeURIComponent(id)}/negative-check`);
+  /** Starts a task from a workflow (201 `{task}`; 422 `parameters_missing` lists the names). */
+  runWorkflow = async (id: string, req: RunWorkflowRequest) =>
+    (await this.request<{ task: Task }>("POST", `/api/agent/workflows/${encodeURIComponent(id)}/run`, { json: req })).task;
+  /** Compiles a completed task into a candidate workflow (409 `not_completed` otherwise). */
+  compileWorkflow = async (taskId: string, name: string, parameters: CompileParameter[]) =>
+    (await this.request<{ workflow: Workflow }>("POST", `/api/agent/tasks/${encodeURIComponent(taskId)}/compile`, { json: { name, parameters } })).workflow;
+
+  // ----- v1.5: host bindings (role -> target on this PC) -----------------------------------
+  bindings = () => this.request<BindingsResponse>("GET", "/api/agent/bindings");
+  putBinding = async (role: string, kind: HostBinding["kind"], target: string) =>
+    (await this.request<{ binding: HostBinding }>("PUT", "/api/agent/bindings", { json: { role, kind, target } })).binding;
+  deleteBinding = (role: string) => this.request<{ ok: boolean }>("DELETE", `/api/agent/bindings/${encodeURIComponent(role)}`);
+
+  // ----- v1.5: teach ("Ablauf beibringen") ---------------------------------------------------
+  teachStatus = () => this.request<TeachStatus>("GET", "/api/agent/teach");
+  /** 409 `busy` while a task runs or another demonstration is active. */
+  teachStart = async (req: TeachStartRequest) => (await this.request<{ session: TeachSession }>("POST", "/api/agent/teach", { json: req })).session;
+  teachGet = async (sid: string) => (await this.request<{ session: TeachSession }>("GET", `/api/agent/teach/${encodeURIComponent(sid)}`)).session;
+  /** Window source: diffs the window; `invokeName` records that the user pressed that button. */
+  teachCapture = (sid: string, invokeName?: string) =>
+    this.request<TeachCaptureResponse>("POST", `/api/agent/teach/${encodeURIComponent(sid)}/capture`, { json: invokeName ? { invoke_name: invokeName } : {} });
+  teachAddCheck = (sid: string, check: SuccessCriterion) =>
+    this.request<{ step: TeachStep; session: TeachSession }>("POST", `/api/agent/teach/${encodeURIComponent(sid)}/check`, { json: { check } });
+  teachRemoveStep = async (sid: string, index: number) =>
+    (await this.request<{ session: TeachSession }>("DELETE", `/api/agent/teach/${encodeURIComponent(sid)}/steps/${index}`)).session;
+  teachFinish = (sid: string, parameters: CompileParameter[], checks: SuccessCriterion[]) =>
+    this.request<TeachFinishResponse>("POST", `/api/agent/teach/${encodeURIComponent(sid)}/finish`, { json: { parameters, checks } });
+  teachCancel = async (sid: string) => (await this.request<{ session: TeachSession }>("POST", `/api/agent/teach/${encodeURIComponent(sid)}/cancel`)).session;
   /** On-demand browser package for tasks (status). */
   agentBrowser = () => this.request<BrowserStatus>("GET", "/api/agent/browser");
   /** Starts the browser download (job kind `browser`, followed like a model download). */

@@ -128,6 +128,16 @@ export interface SpaiderBridge {
   /** Last 20 measured main-process samples (overlay hotkey -> show / painted). */
   getPerfSamples(): Promise<PerfSample[]>;
 
+  // ----- v1.5 (0.5): evidence files of tasks ----------------------------------------
+  /**
+   * Opens an existing absolute path with the default app - only for the text /
+   * document extensions in OPENABLE_EXTENSIONS; anything else is revealed in the
+   * file manager instead. Resolves false when the path was denied.
+   */
+  openPath(path: string): Promise<boolean>;
+  /** Shows an existing absolute path in the file manager (Explorer). */
+  revealPath(path: string): Promise<boolean>;
+
   // ----- shell-internal helpers (not part of the HTTP contract) -------------------
   /** Overlay renderer: fired on every show with the source hint of this show. */
   onOverlayShown(cb: (e: OverlayShownEvent) => void): () => void;
@@ -175,7 +185,32 @@ export const IPC = {
   requestTaskForm: "spaider:request-task-form",
   openConversationEvent: "spaider:open-conversation",
   openTaskFormEvent: "spaider:open-task-form",
+  // v1.5
+  openPath: "spaider:open-path",
+  revealPath: "spaider:reveal-path",
 } as const;
+
+/** File extensions `openPath` may hand to the default application (everything else is only revealed). */
+export const OPENABLE_EXTENSIONS = [".txt", ".md", ".markdown", ".csv", ".json", ".log", ".html", ".htm", ".xml", ".tsv", ".yaml", ".yml", ".eml", ".pdf"] as const;
+
+/** Lower-cased extension of a path including the dot ("" when there is none). */
+export function pathExtension(p: string): string {
+  const base = p.split(/[\\/]/).pop() ?? "";
+  const dot = base.lastIndexOf(".");
+  return dot <= 0 ? "" : base.slice(dot).toLowerCase();
+}
+
+export function isOpenableExtension(p: string): boolean {
+  return (OPENABLE_EXTENSIONS as readonly string[]).includes(pathExtension(p));
+}
+
+/** Absolute Windows (`C:\…`, `\\server\…`) or POSIX (`/…`) path without control characters. */
+export function isAbsoluteFilePath(p: string): boolean {
+  if (typeof p !== "string" || p.length === 0 || p.length > 4096) return false;
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000-\u001f]/.test(p)) return false;
+  return /^(?:[A-Za-z]:[\\/]|\\\\[^\\/]+[\\/]|\/)/.test(p);
+}
 
 /** URL prefixes the renderer may open in the system browser. */
 export const OPEN_EXTERNAL_ALLOWLIST = [

@@ -210,6 +210,20 @@ def _blob_to_vec(blob: bytes) -> np.ndarray:
 
 
 class LocalMemoryStore:
+    on_superseded = None  # Callable[[list[str], Optional[str]], None]: fact ids that just became stale (agent dependencies)
+
+    def _notify_superseded(self, new_id: Optional[str], ids: Optional[list[str]] = None) -> None:
+        cb = self.on_superseded
+        if cb is None:
+            return
+        try:
+            if ids is None and new_id:
+                ids = [r["id"] for r in self.db.query("SELECT id FROM nodes WHERE superseded = 1 AND superseded_by = ? AND type = 'FACT'", (new_id,))]
+            if ids:
+                cb(list(ids), new_id)
+        except Exception:  # noqa: BLE001
+            pass
+
     def __init__(self, db: Database, agent_id: str = "local"):
         self.db = db
         self.agent_id = agent_id
@@ -635,6 +649,8 @@ class LocalMemoryStore:
                         )
                         marked += 1
         self._matrix_dirty = True
+        if marked:
+            self._notify_superseded(new_id)
         return marked
 
     def apply_explicit_correction(self, new_fact_id: str, text: str, *, candidates: int = 40) -> list[str]:
@@ -716,6 +732,8 @@ class LocalMemoryStore:
                         (now, self.agent_id, old_desc[0]),
                     )
         self._matrix_dirty = True
+        if ids:
+            self._notify_superseded(new_fact_id, ids)
         return ids
 
     def superseded_facts_for_nodes(self, node_ids: Iterable[str], limit: int = 6) -> list[dict]:

@@ -578,3 +578,95 @@ Status), UI-Integration des Desktop-Agenten, dann Phase 6 (echte Tests, Paket 0.
 - Endstand ZIP: SpAIder-Foldable-0.4.0-win-x64.zip, 398 543 196 Bytes, SHA-256 220fe4d28c3dbc046acf4473969069709ab326ebdbc5170aab6257dcb8804eab,
   BUILD_MANIFEST_0.4.0.json daneben. Kern-Suite 129 bestanden / 6 uebersprungen, Desktop 104 Tests.
 - Bundle: backup/spaider-foldable-modelhub-final-20261111.bundle (verifiziert, alle Branches/Tags des Worktrees). Push-Versuch: genau ein `git push origin feature/spaider-foldable-modelhub-connectors` -> vom Server abgewiesen ("refusing to allow an OAuth App to create or update workflow .github/workflows/ci.yml without workflow scope"); kein weiterer Versuch, keine Auth-Aenderung. Freigabe durch Musa: gh auth refresh -h github.com -s workflow, dann Push (INTEGRATION_HANDOFF.md).
+
+
+## 0.5 Agent v2 (Auftrag 2026-11-11 abends): Ausführungskern, Abläufe, Abhängigkeiten
+
+Worktree `C:\Users\<Nutzer>\spaider-foldable\repo-agent`, Branch `feature/spaider-foldable-agent-v2`
+von `feature/spaider-foldable-0.4-review` (219828a = offizielles main 126ef75 + Foldable 0.1–0.4;
+PR #60 offen, nicht gemerged). Sicherung vorab: `backup/spaider-foldable-pre-agent-v2-20261111.bundle`.
+AGENTS.md existiert im Repo nicht; das Research-PDF war nicht beigefügt (Hinweis im Bericht).
+
+### Phase 1 (21:00–22:30): Bestand, Baseline, Kern
+- Bestand verifiziert: Agent 0.3 (Loop/Broker/Werkzeuge/Rezepte), Matrix 20 Aufgaben, Schema v5,
+  Anbieter-Events mit tool_call, kein HCU-Adapter, CI ohne Foldable.
+- Baseline (Basis-Commit 219828a, Qwen3-4B Q4_K_M Vulkan, Datei+Browser 10 Aufgaben x 3):
+  27/30, 1 Fehlerfolge-Meldung, Median 31,6 s -> `measure/agentv2/baseline-fb-qwen3-4b-219828a.json`.
+  Fenster/Bild-Baseline wartet idle-gesteuert (10 min Inaktivitaet) im Hintergrund.
+- Kern umgesetzt (Commit 551844b): Schema v6, contracts.py, deps.py, compiler.py, reuse.py,
+  bindings.py, verifier.py, planner.py (Grammatik + native Tool-Calls), inputguard.py, teach.py,
+  workflows.py (Lebenszyklus, Rezept-Migration), loop.py neu (reuse -> repair -> replan, Ableitung,
+  Ueberspringen nach Pruefung, Journal-Waechter, Pause bei Nutzereingabe, Epoche), Routen.
+  Tests: 25 neue (test_agent_v2.py, test_agent_v2_api.py), Kernsuite 154 bestanden / 6 uebersprungen.
+- Befund: `tests/matrix/run_matrix.py` im veroeffentlichten Branch hatte ein Backspace-Byte im
+  Standardpfad (`dev-app\browser`), entstanden durch ein `\b` in der Neutralisierung -> repariert.
+- Werkzeug-Lektion: Bash-Heredocs dieses Werkzeugs verfaelschen Backslashes; Patches nur ueber
+  Dateien (Write) oder Edit.
+
+### Wiederaufnahmepunkt
+- Laufend: Desktop-UI (Subagent, nur foldable/desktop), Smoke-Laeufe der Matrix v2
+  (`measure/agentv2/smoke2-v2-full.*`), danach `scratchpad/overnight_v2.py` (Datei+Browser in
+  full/simple/none, dann Fenster+Cross idle-gesteuert).
+- Offen: Testbericht mit Zahlen, KNOWN_LIMITATIONS 0.5, REVIEW_START_HERE, Paket 0.5.0,
+  Geheimnis-Scan, Push, Draft-PR gegen feature/spaider-foldable-0.4-review, Prerelease.
+
+### Phase 2 (22:30–23:00): Messharness, Oberflaeche, Befunde aus echten Laeufen
+- Matrix v2: `tests/matrix/tasks_v2.json` (60 Aufgaben, Lern-/Testfaelle, fact_change, variant),
+  `run_matrix_v2.py` (Arme none/simple/full, unabhaengige Pruefung, falsche Fertigmeldungen,
+  Nebenwirkungen, wiederholte Fehler, Spitzen-RSS, Gate-Zeit, idle-gesteuerte Fensteraufgaben,
+  Pausen-Resume nur bei Inaktivitaet), zweite WinForms-App `winforms_formapp.ps1`.
+- Smoke mit Qwen3-4B (`measure/agentv2/smoke2-v2-full.json`): Wiederholungen 6/6, Modellaufrufe
+  5,3 -> 1,0, Dauer -75 %. Befunde daraus und behoben: Browser-Ziele wurden ueber Referenzen
+  abgespielt (-> Rolle+Name, 8ad9245); Parameter der Harness enthielten Werte, die aus Dateien
+  gelesen werden muessen (-> nur Nutzereingaben als Parameter, Rest abgeleitet); Verifier-Regel
+  fuer zitierte Pflichttexte zuerst zu lax (F13 ohne "An:" galt als erfuellt), dann zu streng
+  (F7 "mit der Rolle „Leitung“" galt als Inhalt) -> 84a31c8 mit Regressionstest.
+- Desktop-UI (Subagent, von mir verifiziert: typecheck/lint/123 Tests, Paket gebaut): 952de90.
+- Versionen 0.5.0 (Kern, Desktop). Kernsuite 156 bestanden / 7 uebersprungen (ein neuer Echtlauf
+  `test_real_browser_recorder_compiles_a_candidate` mit echtem Chromium bestanden).
+- Betriebsfehler: taskkill ohne MSYS_NO_PATHCONV beendete nichts -> zeitweise zwei Messlaeufe
+  parallel auf der GPU; alle Baeume beendet, Messreihe um 22:28 sauber neu gestartet
+  (Teil-Logs als *.partialN.log behalten, nicht gewertet).
+
+### Phase 3 (23:00–08:30): Nachtmessung, Befunde, Paket, Produktdemo
+- Messreihe v2 mehrfach neu gestartet (Harness-Fehler: Projektname je Wiederholung neu gewuerfelt,
+  Parameter mit Dateiwerten, kaputte Seiten B8/B11 durch Escaping, einfacher Arm fiel auf den
+  Planer zurueck) – Endstand: Datei+Browser drei Arme (voll 37/42, ohne 45/50, einfach 24/44),
+  Cross-Aufgaben drei Arme, Fensteraufgaben nur Teildaten (Sitzung gesperrt; Sperr-Erkennung
+  e2b8257, Harness ueberspringt gesperrte Fensteraufgaben).
+- Befunde und Fixes aus echten Laeufen: Ableitung von Zahlen/Daten/Einzelwoertern (4620a89,
+  67deda7), Klickergebnisse als Lesequelle, Ein-Wert-Ableitungsprompt, Browser-Elementnamen aus
+  Labels, Feldwert-Nachbedingungen (60195ae, 02678fb); Verifier-Regel fuer zitierte Pflichttexte.
+- Pakete gebaut/geprueft nach jedem Code-Stand (zuletzt 02678fb: 37/37), Migration auf Kopie.
+- Produktdemo X10 im Nachlauf: Reparaturluecke (memory.search-Schritt an den Planer, Zwischendatei
+  als fehlende Eingabe) → behoben 0e6bdb4 (rein lesende Schritte erneut lesen, abgeleitete neu
+  ableiten, Zwischendateien keine Abhaengigkeit), Tests 158/9, Paket neu gebaut, Demo wiederholt.
+- Fenster/Bild-Baseline (0.3-Harness) lief hinter dem Sperrbildschirm: Vordergrund-Aufgaben
+  scheitern dort wie in 0.5; kein belastbarer Vergleichswert (Testbericht Abschnitt 9).
+- Betriebsbefund: `session_locked()` meldete einmal kurz „nicht gesperrt“ bei gesperrter Sitzung
+  (LockApp nicht im Vordergrund) → Harness abgebrochen; Abhilfe (WTS-Flags) dokumentiert, offen.
+
+### Wiederaufnahmepunkt (Stand Abschluss)
+- Erledigt: Kern, Oberflaeche, Tests, Messreihe, Paket 0.5.0 (Manifest/SHA im Testbericht Abschnitt 7),
+  Dokumente, Geheimnis-Scan ueber den gesamten Commit-Bereich.
+- Veroeffentlichung: siehe Abschnitt „Push/PR/Prerelease“ am Ende dieser Datei (wird beim Abschluss
+  ergaenzt: Commit, PR-Link oder Blocker, Prerelease).
+- Offen fuer eine naechste Phase: Fensteraufgaben in entsperrter, unbenutzter Sitzung messen
+  (`run_matrix_v2.py --groups windows --min-idle 120`), Offline-/CPU-Echtlaeufe auf 0.5 wiederholen,
+  WTS-Sperrflags im Kern, Reparatur fuer lesende Schritte mit Elementziel, echter Cloud-Anbieter
+  mit freigegebenem Budget, physischer Zwei-PC-Transfer.
+
+### Veroeffentlichung (2026-11-12 Vormittag)
+- Historie vor dem ersten Push lokal umgeschrieben (`git filter-branch --tree-filter`, 25 Commits):
+  Nutzerpfad aus Zwischenstaenden (WORKLOG, Messdateien) entfernt; alle Commit-IDs nach 551844b sind
+  neu, Verweise in Dokumenten und Messdateien angepasst (Zuordnung alt/neu im Scratchpad der
+  Sitzung). Kein Force-Push: der Branch war nie veroeffentlicht. Scan ueber den gesamten Bereich
+  (`scan_range.py`): 0 Befunde; der synthetische Harness-Token `matrix-token-…` in
+  `run_matrix_v2.py` ist kein Geheimnis.
+- Paket: `SpAIder-Foldable-0.5.0-win-x64.zip`, 402220402 Bytes, SHA-256 `7bb5b8e86d2d316420e3f999207c604a226e680abf8b050a05ff0f3799187fc9`, Build-Commit `e11400e`
+  (BUILD_INFO.txt im ZIP; Paketpruefung 37/37 auf diesem ZIP).
+- Push (nur Feature-Branch, ein Versuch): erfolgreich (08:10 Uhr, `git push official feature/spaider-foldable-agent-v2`, neuer Branch; Stand 9bbdaed, danach nur Worklog-Commits)
+- Draft-PR gegen `feature/spaider-foldable-0.4-review`: https://github.com/Spaider-studio/spaider/pull/61 (Draft, Basis = Branch von PR 60)
+- Prerelease `foldable-0.5.0-review` (neue Assets, 0.4-Assets unveraendert): https://github.com/Spaider-studio/spaider/releases/tag/foldable-0.5.0-review (ZIP, SHA256SUMS-0.5.0.txt, BUILD_MANIFEST_0.5.0.json)
+- Nicht beendet werden konnte Prozess 50444 (0.4-Paketkern vom 11.11. vormittags; Beenden vom
+  Werkzeugfilter abgelehnt) – bitte manuell schliessen.

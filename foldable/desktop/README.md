@@ -194,13 +194,22 @@ Seitenleiste → Bereich „Aufgaben“ (`components/tasks/`):
 - **Detail**: Kopf mit Badge, Schritten, Modellaufrufen, Zugriffen, Knöpfen,
   Ergebnis (geprüft/ungeprüft, Artefakte), Rückfrage-Dialog bei
   `pending_question` (Freigeben/Ablehnen bzw. Texteingabe →
-  `POST …/answer`), „Als Ablauf speichern“ (`POST …/save-recipe` mit Name und
-  optionalen Parametern), Aktions-Zeitstrahl (Werkzeug, kompakte Argumente,
-  Zustand, Ergebnis, Dauer, Beleg-Pfad zum Kopieren) aus
-  `GET /api/agent/tasks/{id}/events`, Erklärtext des Agenten (als Text, nicht als
-  Beleg).
-- **Abläufe**: `GET /api/agent/recipes` mit Löschen und „Mit diesem Ablauf
-  starten“ (füllt das Formular mit `recipe_id` und den Scopes vor).
+  `POST …/answer`; bei `question.binding` Ordner-/Fenster-Auswahl), „Als Ablauf
+  speichern“ (`POST …/compile`, v1.5), Ergebnisprüfung (erfüllt / nicht erfüllt /
+  ungeklärt mit allen Prüfungen und Beleg-Pfaden, die über die Bridge
+  `openPath` / `revealPath` geöffnet werden), Wiederverwendung (`task.reuse`:
+  Modus, Gründe, Abdeckung, Prüfdauer), „Tatsächliche Schritte“ aus
+  `event: step`, Aktions-Zeitstrahl (Werkzeug, kompakte Argumente, Zustand,
+  Ergebnis, Dauer, Beleg-Pfad) aus `GET /api/agent/tasks/{id}/events`,
+  Erklärtext des Agenten (als Text, nicht als Beleg).
+- **Abläufe** (v1.5, ersetzen die 0.3-Rezepte): `GET /api/agent/workflows` mit
+  Status, Herkunft, Schritten, Abhängigkeiten, Zuordnungen; „Starten“ (füllt
+  das Formular mit `workflow_id`, Scopes und Parametern vor →
+  `POST …/workflows/{id}/run`), „Prüfen“ (`GET …/check`, Plan inline),
+  „Negativprüfung“, „Zurückstufen“, „Löschen“.
+- **Ablauf beibringen** (v1.5 teach): Aufnahme im eigenen Browser oder in einem
+  Fenster (`POST /api/agent/teach`), Schritt erfassen / Element auslösen,
+  Prüfung hinzufügen, Parameter aus erfassten Werten, „Fertig“ → Kandidat.
 
 ## Einstellungen → Live & Agent
 
@@ -384,7 +393,7 @@ foldable/desktop/
     components/chat/       ChatArea, MessageBubble (StreamingText), ActivityLine, ThinkingBlock, Markdown, …
     components/overlay/    SourcePicker, OverlayInput
     components/tasks/      TasksArea, TaskCreateForm, TaskDetail (Rückfrage, Ablauf speichern),
-                           TasksSidebarList, RecipesList, TaskStateBadge
+                           TasksSidebarList, WorkflowsList, TeachPanel, TaskStateBadge
     components/models/     ModelPaths, RecommendationsPanel/Card, ModelSearchPanel, InstalledModelRow, …
     components/settings/   ModelsTab, PreferencesTab, LiveAgentTab, …
     screens/               BootScreen, SetupScreen, MainScreen, OverlayScreen

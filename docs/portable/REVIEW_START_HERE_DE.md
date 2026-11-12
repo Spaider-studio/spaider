@@ -1,5 +1,16 @@
 # SpAIder Foldable – Einstieg für die Review
 
+> **0.5 (Agent v2, 2026-11-12, Branch `feature/spaider-foldable-agent-v2`):** SpAIder führt
+> Computeraufgaben aus, prüft das Ergebnis selbst („erfüllt / nicht erfüllt / ungeklärt“ mit
+> Belegen) und speichert bewährte Abläufe mit expliziten Abhängigkeiten auf Dateien,
+> Gedächtnisfakten, Werkzeuge und Rechnerbindungen. Wiederholungen laufen ohne Modellaufrufe
+> (außer abgeleiteten Inhalten), geänderte Grundlagen werden gezielt repariert, sonst neu
+> geplant. Einstieg: `AGENT_V2_QUICKSTART_DE.md` (fünf Schritte, 20 Minuten), Architektur
+> und Abgrenzung: `AGENT_V2_ARCHITECTURE.md`, Messungen mit Baseline und drei Vergleichsarmen:
+> `AGENT_V2_TEST_REPORT.md`, Migration/Umzug: `AGENT_V2_MIGRATION.md`, Grenzen:
+> `KNOWN_LIMITATIONS.md` Abschnitt 0.5. Die Abschnitte unten beschreiben den Stand 0.3; 0.4
+> (Modellbibliothek, Anbieter, Gedächtnis-Connectoren) steht in `MODELHUB_QUICKSTART_DE.md`.
+
 Stand: 2026-11-04, Branch `feature/spaider-foldable-review` (Basis: gemeinsamer
 `main` bei `73762b3`, Tag `foldable-base-73762b3`). Diese Seite ist der kurze
 Einstieg; die Details stehen in den verlinkten Dokumenten unter `docs/portable/`.

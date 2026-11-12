@@ -1,0 +1,51 @@
+{
+  "product": "SpAIder Foldable",
+  "version": "0.5.0",
+  "review_prerelease": true,
+  "built_at": "2026-11-12T07:07:49Z",
+  "zip": {
+    "name": "SpAIder-Foldable-0.5.0-win-x64.zip",
+    "bytes": 402220402,
+    "sha256": "7bb5b8e86d2d316420e3f999207c604a226e680abf8b050a05ff0f3799187fc9",
+    "entries": 8935,
+    "uncompressed_bytes": 940483328
+  },
+  "git": {
+    "branch": "feature/spaider-foldable-agent-v2",
+    "commit": "e11400ecd447fd99ca92038d06833bb5fb0c3892",
+    "base_commit_pr60": "219828ad66bc00412b5fcb61d25eddbd18188a8a",
+    "dirty": false,
+    "commit_note": "commit recorded in BUILD_INFO.txt inside the zip (assembly); later commits of the branch change only docs and measurement files"
+  },
+  "components": {
+    "python": "3.12.10",
+    "python_packages": {
+      "fastapi": "0.141.1",
+      "uvicorn": "0.53.0",
+      "httpx": "0.28.1",
+      "mcp": "2.3.0",
+      "PyJWT": "2.15.1",
+      "cryptography": "50.0.2",
+      "pyinstaller": "6.22.3",
+      "pydantic": "2.14.2",
+      "playwright": "1.64.1",
+      "pywinauto": "0.6.9",
+      "sqlalchemy": "2.1.8",
+      "rapidfuzz": "3.14.6"
+    },
+    "electron": "45.2.1",
+    "llama_cpp_build": "b12032",
+    "runtime_variants": [
+      "cpu",
+      "vulkan"
+    ],
+    "chromium_package": "downloaded on demand (not in zip)",
+    "schema_version": 6,
+    "api_contract": "v1.5"
+  },
+  "builder": {
+    "os": "Windows 11 Enterprise 10.0.26200",
+    "host": "Entwicklungsrechner (Intel Arc 140V)"
+  },
+  "note": "Später geänderter Code erfordert einen Neubau; dieses Manifest gilt nur für den genannten Commit."
+}

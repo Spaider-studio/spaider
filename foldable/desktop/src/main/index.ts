@@ -17,7 +17,9 @@ import { validateAccelerator } from "../shared-types/accelerator";
 import {
   DEFAULT_HOTKEYS,
   IPC,
+  isAbsoluteFilePath,
   isAllowedExternalUrl,
+  isOpenableExtension,
   type AppInfo,
   type BackendStatus,
   type HotkeyConfig,
@@ -276,6 +278,53 @@ ipcMain.handle(IPC.openExternal, async (_event, url: unknown) => {
 });
 ipcMain.handle(IPC.requestQuit, async () => {
   await performQuit("renderer");
+});
+
+// ----- v1.5: evidence files of tasks (absolute, existing paths only) ----------------
+/** Validates a path from the renderer; returns null (and logs) when it is denied. */
+function checkLocalPath(kind: "openPath" | "revealPath", p: unknown): string | null {
+  if (typeof p !== "string" || !isAbsoluteFilePath(p) || !path.isAbsolute(p)) {
+    log(`${kind} denied: ${String(p).slice(0, 200)}`);
+    return null;
+  }
+  if (!fs.existsSync(p)) {
+    log(`${kind} denied (missing): ${p.slice(0, 200)}`);
+    return null;
+  }
+  return p;
+}
+ipcMain.handle(IPC.revealPath, (_event, p: unknown) => {
+  const target = checkLocalPath("revealPath", p);
+  if (!target) return false;
+  try {
+    shell.showItemInFolder(target);
+    return true;
+  } catch (e) {
+    log(`revealPath failed: ${e instanceof Error ? e.message : String(e)}`);
+    return false;
+  }
+});
+ipcMain.handle(IPC.openPath, async (_event, p: unknown) => {
+  const target = checkLocalPath("openPath", p);
+  if (!target) return false;
+  try {
+    // Only plain text / document types go to the default app; everything else
+    // (executables, scripts, unknown binaries) is merely shown in the file manager.
+    if (!isOpenableExtension(target) || fs.statSync(target).isDirectory()) {
+      log(`openPath: revealing instead of opening ${target.slice(0, 200)}`);
+      shell.showItemInFolder(target);
+      return true;
+    }
+    const problem = await shell.openPath(target);
+    if (problem) {
+      log(`openPath failed: ${problem}`);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    log(`openPath failed: ${e instanceof Error ? e.message : String(e)}`);
+    return false;
+  }
 });
 
 // ----- v1.2 ------------------------------------------------------------------

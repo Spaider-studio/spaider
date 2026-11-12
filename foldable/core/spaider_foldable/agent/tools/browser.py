@@ -27,6 +27,17 @@ from ..broker import Broker, Tool, ToolContext, ToolError, ToolOutcome
 
 logger = logging.getLogger(__name__)
 
+ELEMENT_NAME_JS = r"""
+el => {
+  const tag = el.tagName.toLowerCase();
+  const role = el.getAttribute('role') || ({a:'link',button:'button',input:(el.type||'text'),select:'combobox',textarea:'textbox',summary:'button',label:'label'}[tag] || tag);
+  const ownText = (l) => l ? Array.from(l.childNodes).filter(n => n.nodeType === 3).map(n => n.textContent).join(' ').replace(/\s+/g, ' ').trim() : '';
+  const lab = el.getAttribute('aria-label') || (el.id ? ownText(document.querySelector('label[for="' + el.id + '"]')) : '') || (el.closest ? ownText(el.closest('label')) : '');
+  const name = ((lab || '').trim() || el.innerText || el.placeholder || el.getAttribute('title') || el.alt || el.name || el.value || '').trim().slice(0,120);
+  return {role, name};
+}
+"""
+
 SNAPSHOT_JS = r"""
 (limit) => {
   const sel = 'a[href],button,input,select,textarea,[role=button],[role=link],[role=textbox],[role=checkbox],[role=radio],[role=tab],[role=menuitem],[contenteditable=true],summary,h1,h2,h3,label';
@@ -43,7 +54,9 @@ SNAPSHOT_JS = r"""
     el.setAttribute('data-spaider-ref', ref);
     const tag = el.tagName.toLowerCase();
     let role = el.getAttribute('role') || ({a:'link',button:'button',input:(el.type||'text'),select:'combobox',textarea:'textbox',summary:'button',label:'label'}[tag] || tag);
-    const name = (el.getAttribute('aria-label') || el.innerText || el.value || el.placeholder || el.getAttribute('title') || el.alt || '').trim().slice(0,120);
+    const ownText = (l) => l ? Array.from(l.childNodes).filter(n => n.nodeType === 3).map(n => n.textContent).join(' ').replace(/\s+/g, ' ').trim() : '';
+    const lab = el.getAttribute('aria-label') || (el.id ? ownText(document.querySelector('label[for="' + el.id + '"]')) : '') || (el.closest ? ownText(el.closest('label')) : '');
+    const name = ((lab || '').trim() || el.innerText || el.placeholder || el.getAttribute('title') || el.alt || el.name || el.value || '').trim().slice(0,120);
     let value = null;
     if (tag === 'input' || tag === 'textarea' || tag === 'select') value = (el.value || '').slice(0,200);
     if (tag === 'input' && (el.type === 'checkbox' || el.type === 'radio')) value = el.checked ? 'on' : 'off';
@@ -225,25 +238,36 @@ class BrowserAdapter:
         status = resp.status if resp else None
         return {"url": page.url, "title": await page.title(), "status": status, "ms": int((time.monotonic() - t0) * 1000)}
 
+    async def _describe(self, loc) -> dict:
+        """Role + accessible name of an element, computed like the snapshot does (label, aria-label,
+        text, placeholder, name) - recorded workflows target elements by this name, never by ref."""
+        try:
+            return await loc.evaluate(ELEMENT_NAME_JS, timeout=2000)
+        except Exception:  # noqa: BLE001
+            return {"role": "", "name": ""}
+
     async def click(self, ref: str) -> dict:
         loc = self._locator(ref)
-        name = (await loc.inner_text(timeout=2000)) if await loc.count() else ""
+        desc = await self._describe(loc) if await loc.count() else {"role": "", "name": ""}
+        name = desc.get("name") or ((await loc.inner_text(timeout=2000)) if await loc.count() else "")
         await loc.click(timeout=8000)
         await self._page.wait_for_load_state("domcontentloaded", timeout=10000)
         await asyncio.sleep(0.15)
-        return {"clicked": name[:80], "url": self._page.url, "title": await self._page.title(), "text_after": await self._body_text(900)}
+        return {"clicked": name[:80], "name": name[:120], "role": desc.get("role", ""), "url": self._page.url, "title": await self._page.title(), "text_after": await self._body_text(900)}
 
     async def fill(self, ref: str, text: str) -> dict:
         loc = self._locator(ref)
+        desc = await self._describe(loc)
         await loc.fill(text, timeout=8000)
         value = await loc.input_value(timeout=2000)
-        return {"value_after": value[:300], "verified": value == text}
+        return {"value_after": value[:300], "verified": value == text, "name": desc.get("name", ""), "role": desc.get("role", "")}
 
     async def select(self, ref: str, value: str) -> dict:
         loc = self._locator(ref)
+        desc = await self._describe(loc)
         chosen = await loc.select_option(value, timeout=8000)
         got = await loc.input_value(timeout=2000)
-        return {"selected": chosen, "value_after": got, "verified": bool(chosen), "text_after": await self._body_text(600)}
+        return {"selected": chosen, "value_after": got, "verified": bool(chosen), "name": desc.get("name", ""), "role": desc.get("role", ""), "text_after": await self._body_text(600)}
 
     async def press(self, ref: Optional[str], key: str) -> dict:
         if key not in ("Enter", "Tab", "Escape", "ArrowDown", "ArrowUp", "PageDown", "PageUp"):

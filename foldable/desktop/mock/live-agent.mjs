@@ -233,9 +233,14 @@ export function registerLiveAgent({ route, json, error, sseStart, sseSend, state
   const snapshots = new Map();
   const tasks = new Map();
   const taskActions = new Map(); // taskId -> Action[]
+  const taskSteps = new Map(); // taskId -> StepEvent[] (v1.5, replayed on reconnect)
   const taskTimers = new Map();
   const taskListeners = new Map(); // taskId -> Set<res>
   const recipes = new Map();
+  const workflows = new Map(); // v1.5
+  const workflowRuns = new Map(); // workflowId -> WorkflowRun[]
+  const hostBindings = new Map(); // role -> binding
+  const teachSessions = new Map(); // v1.5
 
   const findSource = (id) => WINDOWS.find((w) => w.id === id) ?? SCREENS.find((s) => s.id === id) ?? null;
   const isWindow = (s) => typeof s?.hwnd === "number";
@@ -398,13 +403,22 @@ export function registerLiveAgent({ route, json, error, sseStart, sseSend, state
     { name: "vision.locate", description_de: "Element per Bild finden", scope: "vision", side_effect: "none", available: false, reason_de: "Kein Bildmodell aktiv." },
     { name: "memory.search", description_de: "Gedächtnis durchsuchen", scope: "memory", side_effect: "none", available: true, reason_de: null },
   ];
+  const HOST_ID = "host_mock_7f3a9c21d4e5";
   route("GET", /^\/api\/agent\/capabilities$/, (ctx) =>
     json(ctx.res, 200, {
       tools: TOOLS,
-      model: { id: state.activeChat ?? "none", vision_input: false, image_grounding: "none", tool_call_format: "json_schema", structured_output: true },
+      model: { id: state.activeChat ?? "none", vision_input: false, image_grounding: "none", tool_call_format: "json_schema", structured_output: true, native_tool_calls: "untested" },
       browser: { installed: browser.installed, version: browserStatus().version, path: browserStatus().path },
       windows_automation: { available: true, reason_de: "UI Automation verfügbar." },
       desktop_interactive: true,
+      execution_core: {
+        version: "1.5",
+        workflows: workflows.size,
+        stale_workflows: [...workflows.values()].filter((w) => w.stats.dependencies.invalid > 0).length,
+        input_guard: { enabled: true, paused_by_user: 0, user_idle_ms: 4200 },
+        host_id: HOST_ID,
+        teach: { active: [...teachSessions.values()].filter((s) => s.state === "recording").length, sessions: [...teachSessions.values()].filter((s) => s.state === "recording") },
+      },
     }),
   );
 
@@ -444,6 +458,14 @@ export function registerLiveAgent({ route, json, error, sseStart, sseSend, state
     const ev = { request_id: t.id, seq: t._seq++, phase, state: st, t_ms: Date.now() - t._startedMs, at: now(), message_de, counters, source_ids: [] };
     const listeners = taskListeners.get(t.id);
     if (listeners) for (const res of listeners) sseSend(res, "activity", ev);
+  }
+  /** v1.5: a step that really happened (never a thought); kept for replay. */
+  function emitStep(t, kind, message_de, extra = {}) {
+    const ev = { kind, message_de, at: now(), ...extra };
+    if (!taskSteps.has(t.id)) taskSteps.set(t.id, []);
+    taskSteps.get(t.id).push(ev);
+    const listeners = taskListeners.get(t.id);
+    if (listeners) for (const res of listeners) sseSend(res, "step", ev);
   }
   function setState(t, st, summary) {
     t.state = st;
@@ -486,10 +508,18 @@ export function registerLiveAgent({ route, json, error, sseStart, sseSend, state
       if (t.state === "created") {
         setState(t, "observing", "Zielfenster und Gedächtnis werden gelesen");
         emitActivity(t, "capture", "started", "Quelle wird aufgenommen");
+        if (t.reuse) {
+          emitStep(t, "gate", `Wiederverwendung geprüft: ${t.reuse.mode === "reuse" ? "Ablauf wird wiederverwendet" : t.reuse.mode === "repair" ? "Ablauf wird repariert" : "Ablauf wird neu geplant"}`, {
+            mode: t.reuse.mode,
+            coverage: t.reuse.coverage,
+            repair_steps: t.reuse.repair_steps,
+          });
+        }
         return schedule(t, next);
       }
       if (t.state === "observing") {
         emitActivity(t, "capture", "done", "Quelle aufgenommen", { elements: 3 });
+        emitStep(t, "read", "Fenster gelesen: Protokoll.txt – Editor (3 Elemente, 142 Zeichen)");
         setState(t, "planning", "Plan wird erstellt");
         emitActivity(t, "generating", "started", "Plan wird geschrieben");
         emitToken(t, `Ich lese zuerst das Zielfenster und das Gedächtnis, dann ${plan.external ? "frage ich vor der externen Aktion nach" : "lege ich das Ergebnis ab"}. `);
@@ -524,6 +554,8 @@ export function registerLiveAgent({ route, json, error, sseStart, sseSend, state
           finished_at: null,
           duration_ms: null,
           result: null,
+          call_id: null,
+          origin: t.reuse ? (t.reuse.repair_steps.includes(idx) ? "repair" : t.reuse.mode === "reuse" || t.reuse.mode === "repair" ? "workflow" : "planner") : "planner",
         };
         actions.push(action);
         emitAction(t, action);
@@ -547,14 +579,44 @@ export function registerLiveAgent({ route, json, error, sseStart, sseSend, state
         setState(t, "verifying", "Ergebnis wird geprüft");
         return schedule(t, () => {
           if (t.state !== "verifying") return;
+          const file = `${plan.writeDir}\\zusammenfassung.md`;
+          const unclear = /ungeklärt|unklar/i.test(t.goal);
+          const outcome = unclear ? "unclear" : "fulfilled";
+          const criteria = t.success_criteria.length
+            ? t.success_criteria
+            : plan.external
+              ? [{ kind: "page_text", target: "https://intranet.example/sent/42", expect: ["Gesendet"], origin: "planner", description_de: "Bestätigungsseite zeigt „Gesendet“" }]
+              : [
+                  { kind: "file_exists", target: file, expect: [], origin: "planner", description_de: "zusammenfassung.md ist vorhanden" },
+                  { kind: "file_contains", target: file, expect: ["Zusammenfassung"], origin: "planner", description_de: "Datei enthält eine Überschrift „Zusammenfassung“" },
+                ];
+          t.outcome = outcome;
+          t.outcome_report = {
+            status: outcome,
+            checks: criteria.map((c, i) => ({
+              criterion: c,
+              ok: unclear && i === criteria.length - 1 ? null : true,
+              detail_de: unclear && i === criteria.length - 1 ? "Konnte nicht geprüft werden (Mock)." : c.kind === "file_exists" ? "Datei vorhanden (1,2 KB)" : "Text gefunden",
+              evidence: c.kind.startsWith("file") ? { path: c.target } : { url: c.target },
+            })),
+            causes_de: unclear ? ["Die letzte Prüfung lieferte kein eindeutiges Ergebnis."] : [],
+            evidence_paths: plan.external ? [] : [file],
+            verified_at: now(),
+            verified_by: "verifier",
+          };
+          emitStep(t, "verify", `Ergebnis geprüft: ${outcome === "fulfilled" ? "erfüllt" : "ungeklärt"}`, { ok: outcome === "fulfilled", status: outcome });
           t.result = {
             ok: true,
-            summary_de: plan.external ? "Formular gesendet und Bestätigung im Zielfenster gesehen." : `Zusammenfassung unter ${plan.writeDir}\\zusammenfassung.md abgelegt und geprüft.`,
+            summary_de: plan.external ? "Formular gesendet und Bestätigung im Zielfenster gesehen." : `Zusammenfassung unter ${file} abgelegt und geprüft.`,
             artifacts: plan.external
               ? [{ kind: "url", path: null, url: "https://intranet.example/sent/42", label: "Bestätigungsseite" }]
-              : [{ kind: "file", path: `${plan.writeDir}\\zusammenfassung.md`, url: null, label: "zusammenfassung.md" }],
+              : [{ kind: "file", path: file, url: null, label: "zusammenfassung.md" }],
             verified: true,
+            outcome,
+            evidence_paths: plan.external ? [] : [file],
+            verified_by: "verifier",
           };
+          if (t.workflow_id) recordRun(t);
           setState(t, "completed", "Aufgabe abgeschlossen");
         });
       }
@@ -588,7 +650,13 @@ export function registerLiveAgent({ route, json, error, sseStart, sseSend, state
         action.result = { ok: true, summary_de: def.summary, evidence: def.evidence, snapshot_id: def.evidence?.snapshot ?? null };
         action.observation_ref = def.evidence?.snapshot ?? null;
         task.step += 1;
-        task.llm_calls += 1;
+        if (action.origin === "workflow") emitStep(task, "skip", `Schritt ${idx + 1} aus Ablauf übernommen (kein Modellaufruf): ${def.tool}`, { action_id: action.action_id, step: idx + 1 });
+        else task.llm_calls += 1;
+        if (action.origin === "repair") emitStep(task, "repaired", `Schritt ${idx + 1} repariert: ${def.tool}`, { action_id: action.action_id, step: idx + 1, ok: true });
+        if (def.tool === "files.write") emitStep(task, "write", `Datei geschrieben: ${def.arguments.path}`, { action_id: action.action_id, step: idx + 1, ok: true });
+        else if (def.tool === "windows.read") emitStep(task, "read", `Fenster gelesen: ${def.expected_effect}`, { action_id: action.action_id, step: idx + 1, ok: true });
+        else if (def.tool === "memory.search") emitStep(task, "read", "Gedächtnis durchsucht: 2 Quellen", { action_id: action.action_id, step: idx + 1, ok: true });
+        else emitStep(task, "check", `${def.tool}: ${def.summary}`, { action_id: action.action_id, step: idx + 1, ok: true });
         emitAction(task, action);
         emitActivity(task, "observe", "done", `${def.tool} fertig`);
         emitTask(task);
@@ -600,11 +668,8 @@ export function registerLiveAgent({ route, json, error, sseStart, sseSend, state
   }
 
   route("GET", /^\/api\/agent\/tasks$/, (ctx) => json(ctx.res, 200, { tasks: [...tasks.values()].sort((a, b) => b.created_at.localeCompare(a.created_at)).map(taskView) }));
-  route("POST", /^\/api\/agent\/tasks$/, (ctx) => {
-    const goal = String(ctx.body?.goal ?? "").trim();
-    if (!goal) return error(ctx.res, 422, "Ziel fehlt.", "invalid_goal");
-    const scopes = ctx.body?.scopes ?? { files: null, browser: null, windows: null, memory: true, external_effects: false };
-    const budget = ctx.body?.budget ?? null;
+  /** Creates a task record (POST /tasks and POST /workflows/{id}/run) and starts it. */
+  function makeTask({ goal, scopes, budget, body = {}, workflow = null, reuse = null, parameters = null }) {
     const t = {
       id: `task_${randomUUID().slice(0, 8)}`,
       goal,
@@ -619,12 +684,21 @@ export function registerLiveAgent({ route, json, error, sseStart, sseSend, state
       result: null,
       scopes,
       pending_question: null,
-      conversation_id: ctx.body?.conversation_id ?? null,
-      live_session_id: ctx.body?.live_session_id ?? null,
-      recipe_id: ctx.body?.recipe_id ?? null,
+      conversation_id: body.conversation_id ?? null,
+      live_session_id: body.live_session_id ?? null,
+      recipe_id: body.recipe_id ?? null,
       llm_calls: 0,
       host_bound: Boolean(scopes.windows),
       last_error: null,
+      // v1.5
+      workflow_id: workflow?.id ?? body.workflow_id ?? null,
+      project_id: body.project_id ?? null,
+      connection_id: body.connection_id ?? null,
+      success_criteria: Array.isArray(body.success_criteria) ? body.success_criteria : (workflow?.checks ?? []),
+      outcome: null,
+      outcome_report: null,
+      reuse,
+      _parameters: parameters,
       _seq: 0,
       _startedMs: Date.now(),
       _answered: false,
@@ -632,9 +706,18 @@ export function registerLiveAgent({ route, json, error, sseStart, sseSend, state
     t._plan = planFor(t);
     tasks.set(t.id, t);
     taskActions.set(t.id, []);
-    json(ctx.res, 201, { task: taskView(t) });
+    taskSteps.set(t.id, []);
     broadcast("task", taskView(t));
     runTask(t);
+    return t;
+  }
+  route("POST", /^\/api\/agent\/tasks$/, (ctx) => {
+    const goal = String(ctx.body?.goal ?? "").trim();
+    if (!goal) return error(ctx.res, 422, "Ziel fehlt.", "invalid_goal");
+    const scopes = ctx.body?.scopes ?? { files: null, browser: null, windows: null, memory: true, external_effects: false };
+    const budget = ctx.body?.budget ?? null;
+    const t = makeTask({ goal, scopes, budget, body: ctx.body ?? {} });
+    json(ctx.res, 201, { task: privateView(t) });
   });
   const privateView = (t) => {
     const v = taskView(t);
@@ -651,6 +734,7 @@ export function registerLiveAgent({ route, json, error, sseStart, sseSend, state
     sseStart(ctx.res);
     sseSend(ctx.res, "task", privateView(t));
     for (const a of taskActions.get(t.id) ?? []) sseSend(ctx.res, "action", a);
+    for (const s of taskSteps.get(t.id) ?? []) sseSend(ctx.res, "step", s);
     if (t.pending_question) sseSend(ctx.res, "question", t.pending_question);
     if (["completed", "failed", "cancelled"].includes(t.state)) {
       sseSend(ctx.res, "done", privateView(t));
@@ -771,7 +855,8 @@ export function registerLiveAgent({ route, json, error, sseStart, sseSend, state
       known_limits_de: ["Mock-Ablauf: Schritte sind synthetisch."],
     };
     recipes.set(recipe.id, recipe);
-    json(ctx.res, 201, { recipe });
+    const workflow = compileTask(t, name, recipe.parameters);
+    json(ctx.res, 201, { recipe, workflow });
   });
 
   // ----- recipes ---------------------------------------------------------------------
@@ -805,8 +890,512 @@ export function registerLiveAgent({ route, json, error, sseStart, sseSend, state
     json(ctx.res, 200, { ok: true });
   });
 
+  // ----- v1.5: workflows ----------------------------------------------------------------
+  const dependency = (kind, key, { valid = true, origin = "observed", step_index = null, reason = null } = {}) => ({
+    id: `dep_${randomUUID().slice(0, 8)}`,
+    kind,
+    key,
+    revision: valid ? "r1" : "r0",
+    origin,
+    scope: kind === "file" ? "files" : kind === "app" ? "windows" : null,
+    step_index,
+    valid,
+    reason,
+    invalidated_by: valid ? null : "fact_update",
+    invalidated_at: valid ? null : now(),
+  });
+  function depStats(deps) {
+    const by_kind = {};
+    for (const d of deps) by_kind[d.kind] = (by_kind[d.kind] ?? 0) + 1;
+    return { total: deps.length, valid: deps.filter((d) => d.valid).length, invalid: deps.filter((d) => !d.valid).length, by_kind, inferred: deps.filter((d) => d.origin === "inferred").length };
+  }
+  function makeWorkflow({ id, name, purpose_de, status, parameters, bindings, steps, checks, dependencies, scope, origin, origin_kind, known_limits_de, requires, derived_steps, external_effects, stats = {} }) {
+    const wf = {
+      id,
+      version: 1,
+      name,
+      purpose_de,
+      status,
+      parameters,
+      preconditions: ["Zielfenster ist geöffnet und nicht minimiert."],
+      bindings,
+      steps,
+      checks,
+      dependencies,
+      scope,
+      origin,
+      tool_contract_hash: "tc_9a1b2c",
+      model_hint: state.activeChat ?? null,
+      known_limits_de,
+      created_at: now(),
+      updated_at: now(),
+      last_verified_at: stats.last_verified_at ?? null,
+      stats: {
+        success_runs: 0,
+        failed_runs: 0,
+        distinct_param_sets: 0,
+        negative_checked: false,
+        last_verified_at: null,
+        last_failed_at: null,
+        origin_kind,
+        ...stats,
+        dependencies: depStats(dependencies),
+      },
+      requires,
+      derived_steps,
+      external_effects,
+    };
+    workflows.set(wf.id, wf);
+    workflowRuns.set(wf.id, []);
+    return wf;
+  }
+  const wfStep = (index, tool, arguments_template, extra = {}) => ({
+    index,
+    tool,
+    arguments_template,
+    target: null,
+    read_set: [],
+    write_set: [],
+    preconditions: [],
+    postconditions: [],
+    side_effect: tool.includes("write") || tool.includes("click") ? "local" : "none",
+    depends_on: [],
+    derive: false,
+    derive_from: [],
+    check_de: "",
+    ...extra,
+  });
+  const seedScope = { files: { roots: ["C:\\Users\\mock\\Dokumente"], write_dir: "C:\\Users\\mock\\Dokumente" }, browser: null, windows: { source_ids: [], allowed_processes: ["notepad.exe"] }, memory: true, external_effects: false };
+  makeWorkflow({
+    id: "wf_seed0001",
+    name: "Protokoll aus Editor zusammenfassen",
+    purpose_de: "Das offene Protokoll im Editor lesen und eine Zusammenfassung als Datei ablegen.",
+    status: "verified",
+    parameters: [{ name: "zielordner", description_de: "Ordner für die Zusammenfassung", example: "C:\\Users\\mock\\Dokumente", kind: "path", required: true }],
+    bindings: [{ role: "editor", kind: "window", hint: "Editor-Fenster mit dem Protokoll", required: true, original: "win:132456:4120" }],
+    steps: [
+      wfStep(0, "windows.read", { process: "notepad.exe" }, { target: { role: "editor", name: "Protokoll.txt – Editor" }, read_set: ["window:editor"], check_de: "Text gelesen" }),
+      wfStep(1, "memory.search", { query: "{thema}" }, { read_set: ["memory"], check_de: "Quellen gefunden" }),
+      wfStep(2, "files.write", { path: "{zielordner}\\zusammenfassung.md" }, { write_set: ["{zielordner}\\zusammenfassung.md"], depends_on: ["0", "1"], derive: true, derive_from: [0, 1], check_de: "Datei vorhanden", postconditions: [{ kind: "file_exists", target: "{zielordner}\\zusammenfassung.md", expect: [], description_de: "Datei vorhanden" }] }),
+    ],
+    checks: [{ kind: "file_contains", target: "{zielordner}\\zusammenfassung.md", expect: ["Zusammenfassung"], origin: "user", description_de: "Datei enthält „Zusammenfassung“" }],
+    dependencies: [
+      dependency("app", "notepad.exe", { step_index: 0 }),
+      dependency("binding", "editor", { step_index: 0 }),
+      dependency("tool_contract", "tc_9a1b2c"),
+      dependency("fact", "protokoll.format", { origin: "inferred", step_index: 1 }),
+    ],
+    scope: seedScope,
+    origin: { task_id: "task_seed0001", created_at: "2026-11-02T09:30:00Z" },
+    origin_kind: "migrated",
+    known_limits_de: ["Funktioniert nur mit dem klassischen Editor (notepad.exe)."],
+    requires: { tools: ["windows.read", "memory.search", "files.write"], apps: ["notepad.exe"], vision: false },
+    derived_steps: [2],
+    external_effects: false,
+    stats: { success_runs: 3, failed_runs: 0, distinct_param_sets: 2, negative_checked: true, last_verified_at: "2026-11-09T09:35:00Z" },
+  });
+  makeWorkflow({
+    id: "wf_seed0002",
+    name: "Quartalsbericht herunterladen",
+    purpose_de: "Im Intranet den aktuellen Quartalsbericht öffnen und als PDF im Zielordner ablegen.",
+    status: "candidate",
+    parameters: [
+      { name: "quartal", description_de: "Quartal, z. B. Q3", example: "Q3", kind: "text", required: true },
+      { name: "stichtag", description_de: "Stichtag des Berichts", example: "2026-09-30", kind: "date", required: false },
+    ],
+    bindings: [{ role: "ablage", kind: "dir", hint: "Ordner für den Bericht", required: true, original: "C:\\Users\\mock\\Downloads" }],
+    steps: [
+      wfStep(0, "browser.navigate", { url: "https://intranet.example/berichte/{quartal}" }, { read_set: ["https://intranet.example"], check_de: "Seite geladen" }),
+      wfStep(1, "browser.click", { selector: "a.download" }, { depends_on: ["0"], check_de: "Download gestartet" }),
+      wfStep(2, "files.write", { path: "{ablage}\\quartalsbericht-{quartal}.pdf" }, { write_set: ["{ablage}\\quartalsbericht-{quartal}.pdf"], depends_on: ["1"], check_de: "PDF vorhanden" }),
+    ],
+    checks: [{ kind: "file_exists", target: "{ablage}\\quartalsbericht-{quartal}.pdf", expect: [], origin: "user", description_de: "PDF liegt im Zielordner" }],
+    dependencies: [
+      dependency("file", "https://intranet.example/berichte", { valid: false, step_index: 0, reason: "Seite hat sich seit der Aufnahme geändert" }),
+      dependency("binding", "ablage", { step_index: 2 }),
+      dependency("tool_contract", "tc_9a1b2c"),
+    ],
+    scope: { files: { roots: ["C:\\Users\\mock\\Downloads"], write_dir: "C:\\Users\\mock\\Downloads" }, browser: { enabled: true, allowed_origins: ["https://intranet.example"] }, windows: null, memory: false, external_effects: false },
+    origin: { teach_session: "teach_seed0001", created_at: "2026-11-10T14:00:00Z" },
+    origin_kind: "taught",
+    known_limits_de: [],
+    requires: { tools: ["browser.navigate", "browser.click", "files.write"], apps: [], vision: false },
+    derived_steps: [],
+    external_effects: false,
+  });
+
+  function checkPlan(wf, { strict = false } = {}) {
+    const invalid = wf.dependencies.filter((d) => !d.valid);
+    const missing = wf.bindings.filter((b) => b.required && !hostBindings.has(b.role));
+    const repair = [...new Set(invalid.map((d) => d.step_index).filter((i) => typeof i === "number"))];
+    const coverage = wf.steps.length ? (wf.steps.length - repair.length) / wf.steps.length : 1;
+    const mode = strict ? "replan_forced" : invalid.length === 0 ? "reuse" : coverage >= 0.5 ? "repair" : "replan";
+    const reasons_de = [];
+    if (mode === "reuse") reasons_de.push("Alle Abhängigkeiten sind gültig; die Schritte werden ohne Modellaufruf wiederholt.");
+    for (const d of invalid) reasons_de.push(`${d.kind} „${d.key}“ ungültig: ${d.reason ?? "geändert"}`);
+    if (missing.length) reasons_de.push(`Fehlende Zuordnungen: ${missing.map((b) => b.role).join(", ")}`);
+    if (strict) reasons_de.push("Vergleichslauf ohne Wiederverwendung angefordert.");
+    const bindings = {};
+    for (const b of wf.bindings) if (hostBindings.has(b.role)) bindings[b.role] = hostBindings.get(b.role).target;
+    return {
+      plan: {
+        mode,
+        reasons_de,
+        repair_steps: repair,
+        strict,
+        coverage: strict ? 0 : coverage,
+        unknown_dependencies: wf.dependencies.some((d) => d.origin === "inferred"),
+        invalid,
+        bindings,
+        missing_bindings: missing.map((b) => b.role),
+        gate_ms: 7 + Math.round(Math.random() * 9),
+        workflow_id: wf.id,
+        workflow_name: wf.name,
+        run_id: null,
+      },
+      dependencies: wf.dependencies,
+      bindings,
+      missing_bindings: missing,
+    };
+  }
+  function recordRun(t) {
+    const wf = workflows.get(t.workflow_id);
+    if (!wf) return;
+    const ok = t.outcome !== "not_fulfilled";
+    const run = {
+      id: `run_${randomUUID().slice(0, 8)}`,
+      workflow_id: wf.id,
+      task_id: t.id,
+      host_id: HOST_ID,
+      decision: t.reuse?.mode ?? "replan",
+      reason: t.reuse?.reasons_de?.[0] ?? "",
+      params_hash: `ph_${JSON.stringify(t._parameters ?? {}).length}`,
+      outcome: t.outcome,
+      llm_calls: t.llm_calls,
+      reused_steps: (taskActions.get(t.id) ?? []).filter((a) => a.origin === "workflow").length,
+      repaired_steps: JSON.stringify(t.reuse?.repair_steps ?? []),
+      skipped_steps: "[]",
+      gate_ms: t.reuse?.gate_ms ?? 0,
+      created_at: t.created_at,
+      finished_at: now(),
+    };
+    workflowRuns.get(wf.id).push(run);
+    if (ok) {
+      wf.stats.success_runs += 1;
+      wf.stats.last_verified_at = now();
+      wf.last_verified_at = now();
+      if (wf.status === "candidate") wf.status = "verified";
+      // A successful run re-validated the dependencies.
+      for (const d of wf.dependencies) {
+        d.valid = true;
+        d.reason = null;
+        d.invalidated_by = null;
+        d.invalidated_at = null;
+      }
+      wf.stats.dependencies = depStats(wf.dependencies);
+    } else {
+      wf.stats.failed_runs += 1;
+      wf.stats.last_failed_at = now();
+    }
+    wf.updated_at = now();
+  }
+  function compileTask(t, name, params) {
+    const actions = taskActions.get(t.id) ?? [];
+    const steps = actions.map((a, i) => wfStep(i, a.tool, a.arguments, { check_de: a.result?.summary_de ?? "", depends_on: i > 0 ? [String(i - 1)] : [] }));
+    const wf = makeWorkflow({
+      id: `wf_${randomUUID().slice(0, 8)}`,
+      name,
+      purpose_de: t.goal,
+      status: "candidate",
+      parameters: (Array.isArray(params) ? params : []).map((p) => ({ name: String(p.name ?? ""), description_de: String(p.description_de ?? ""), example: String(p.example ?? ""), kind: "text", required: true })),
+      bindings: t.scopes.windows?.source_ids?.length ? [{ role: "zielfenster", kind: "window", hint: "Fenster der Aufnahme", required: true, original: t.scopes.windows.source_ids[0] }] : [],
+      steps,
+      checks: t.success_criteria.length ? t.success_criteria : (t.outcome_report?.checks ?? []).map((c) => c.criterion),
+      dependencies: [dependency("tool_contract", "tc_9a1b2c"), ...(t.scopes.windows?.allowed_processes ?? []).map((p) => dependency("app", p, { step_index: 0 }))],
+      scope: t.scopes,
+      origin: { task_id: t.id, created_at: now() },
+      origin_kind: "compiled",
+      known_limits_de: ["Aus einer Aufgabe abgeleitet; erst ein Prüflauf bestätigt den Ablauf."],
+      requires: { tools: [...new Set(actions.map((a) => a.tool))], apps: t.scopes.windows?.allowed_processes ?? [], vision: false },
+      derived_steps: [],
+      external_effects: Boolean(t.scopes.external_effects),
+    });
+    broadcast("workflows", { stale: [], facts: null, by: "compile" });
+    return wf;
+  }
+
+  route("GET", /^\/api\/agent\/workflows$/, (ctx) => json(ctx.res, 200, { workflows: [...workflows.values()] }));
+  route("GET", /^\/api\/agent\/workflows\/([^/]+)$/, (ctx) => {
+    const wf = workflows.get(ctx.params[0]);
+    if (!wf) return error(ctx.res, 404, "Ablauf nicht gefunden.", "not_found");
+    const bindings = {};
+    for (const b of wf.bindings) if (hostBindings.has(b.role)) bindings[b.role] = hostBindings.get(b.role);
+    json(ctx.res, 200, { workflow: wf, dependencies: wf.dependencies, runs: workflowRuns.get(wf.id) ?? [], bindings });
+  });
+  route("PATCH", /^\/api\/agent\/workflows\/([^/]+)$/, (ctx) => {
+    const wf = workflows.get(ctx.params[0]);
+    if (!wf) return error(ctx.res, 404, "Ablauf nicht gefunden.", "not_found");
+    const b = ctx.body ?? {};
+    if (typeof b.name === "string" && b.name.trim()) wf.name = b.name.trim();
+    if (Array.isArray(b.parameters)) wf.parameters = b.parameters;
+    if (Array.isArray(b.known_limits_de)) wf.known_limits_de = b.known_limits_de;
+    if (Array.isArray(b.steps)) {
+      for (const patch of b.steps) {
+        const s = wf.steps.find((x) => x.index === patch.index);
+        if (!s) continue;
+        if (patch.arguments_template) s.arguments_template = patch.arguments_template;
+        if (patch.postconditions) s.postconditions = patch.postconditions;
+        if (typeof patch.check_de === "string") s.check_de = patch.check_de;
+      }
+    }
+    if (b.status !== undefined) {
+      if (!["candidate", "demoted", "retired"].includes(b.status)) return error(ctx.res, 422, "Ungültiger Status.", "invalid_status");
+      wf.status = b.status;
+    }
+    wf.updated_at = now();
+    wf.version += 1;
+    json(ctx.res, 200, { workflow: wf });
+  });
+  route("DELETE", /^\/api\/agent\/workflows\/([^/]+)$/, (ctx) => {
+    if (!workflows.delete(ctx.params[0])) return error(ctx.res, 404, "Ablauf nicht gefunden.", "not_found");
+    workflowRuns.delete(ctx.params[0]);
+    json(ctx.res, 200, { ok: true });
+  });
+  route("GET", /^\/api\/agent\/workflows\/([^/]+)\/check$/, (ctx) => {
+    const wf = workflows.get(ctx.params[0]);
+    if (!wf) return error(ctx.res, 404, "Ablauf nicht gefunden.", "not_found");
+    json(ctx.res, 200, checkPlan(wf));
+  });
+  route("POST", /^\/api\/agent\/workflows\/([^/]+)\/negative-check$/, (ctx) => {
+    const wf = workflows.get(ctx.params[0]);
+    if (!wf) return error(ctx.res, 404, "Ablauf nicht gefunden.", "not_found");
+    // Without its preconditions the gate must refuse to reuse the workflow.
+    const ok = wf.dependencies.length > 0;
+    wf.stats.negative_checked = ok;
+    wf.updated_at = now();
+    json(ctx.res, 200, {
+      result: { ok, mode: ok ? "replan" : "reuse", reasons_de: ok ? ["Ohne gültige Abhängigkeiten wählt die Prüfung „neu geplant“ – keine blinde Wiederverwendung."] : ["Der Ablauf hat keine Abhängigkeiten und würde immer wiederverwendet."] },
+      workflow: wf,
+    });
+  });
+  route("POST", /^\/api\/agent\/workflows\/([^/]+)\/run$/, (ctx) => {
+    const wf = workflows.get(ctx.params[0]);
+    if (!wf) return error(ctx.res, 404, "Ablauf nicht gefunden.", "not_found");
+    if (wf.status === "retired") return error(ctx.res, 409, "Der Ablauf ist stillgelegt.", "workflow_retired");
+    const params = ctx.body?.parameters && typeof ctx.body.parameters === "object" ? ctx.body.parameters : {};
+    const missing = wf.parameters.filter((p) => p.required && (params[p.name] === undefined || params[p.name] === null || params[p.name] === "")).map((p) => p.name);
+    if (missing.length) return json(ctx.res, 422, { detail: `Parameter fehlen: ${missing.join(", ")}.`, code: "parameters_missing", missing });
+    const strict = ctx.body?.mode === "replan";
+    const { plan } = checkPlan(wf, { strict });
+    plan.run_id = `run_${randomUUID().slice(0, 8)}`;
+    const paramText = Object.entries(params)
+      .map(([k, v]) => `${k}=${String(v)}`)
+      .join(", ");
+    const scopes = ctx.body?.scopes ?? wf.scope;
+    const t = makeTask({ goal: `${wf.purpose_de}${paramText ? ` (${paramText})` : ""}`, scopes, budget: ctx.body?.budget ?? null, body: ctx.body ?? {}, workflow: wf, reuse: plan, parameters: params });
+    wf.stats.distinct_param_sets += 1;
+    json(ctx.res, 201, { task: privateView(t) });
+  });
+  route("POST", /^\/api\/agent\/tasks\/([^/]+)\/compile$/, (ctx) => {
+    const t = tasks.get(ctx.params[0]);
+    if (!t) return error(ctx.res, 404, "Aufgabe nicht gefunden.", "not_found");
+    if (t.state !== "completed" || !t.result?.ok || t.outcome === "not_fulfilled") {
+      return error(ctx.res, 409, "Nur erfolgreich abgeschlossene Aufgaben mit erfülltem Ergebnis lassen sich als Ablauf speichern.", "not_completed");
+    }
+    const name = String(ctx.body?.name ?? "").trim();
+    if (!name) return error(ctx.res, 422, "Name fehlt.", "invalid_name");
+    json(ctx.res, 201, { workflow: compileTask(t, name, ctx.body?.parameters) });
+  });
+
+  // ----- v1.5: host bindings ---------------------------------------------------------------
+  route("GET", /^\/api\/agent\/bindings$/, (ctx) => json(ctx.res, 200, { host_id: HOST_ID, bindings: [...hostBindings.values()] }));
+  route("PUT", /^\/api\/agent\/bindings$/, (ctx) => {
+    const role = String(ctx.body?.role ?? "").trim();
+    const kind = String(ctx.body?.kind ?? "");
+    const target = String(ctx.body?.target ?? "").trim();
+    if (!role || !target) return error(ctx.res, 422, "Rolle und Ziel sind nötig.", "invalid_binding");
+    if (!["dir", "file", "app", "window", "url", "account", "model"].includes(kind)) return error(ctx.res, 422, "Unbekannte Art der Zuordnung.", "invalid_binding");
+    const binding = { host_id: HOST_ID, role, kind, target, verified_at: now(), created_at: hostBindings.get(role)?.created_at ?? now() };
+    hostBindings.set(role, binding);
+    json(ctx.res, 200, { binding });
+  });
+  route("DELETE", /^\/api\/agent\/bindings\/([^/]+)$/, (ctx) => {
+    if (!hostBindings.delete(ctx.params[0])) return error(ctx.res, 404, "Zuordnung nicht gefunden.", "not_found");
+    json(ctx.res, 200, { ok: true });
+  });
+
+  // ----- v1.5: teach ("Ablauf beibringen") ---------------------------------------------------
+  const teachView = (s) => {
+    const v = { ...s };
+    for (const k of Object.keys(v)) if (k.startsWith("_")) delete v[k];
+    return v;
+  };
+  const teachEvent = (s) => broadcast("teach", { id: s.id, state: s.state, steps: s.steps.length });
+  const taskRunning = () => [...tasks.values()].some((t) => !["completed", "failed", "cancelled"].includes(t.state));
+  route("GET", /^\/api\/agent\/teach$/, (ctx) => {
+    const list = [...teachSessions.values()].map(teachView);
+    json(ctx.res, 200, { active: list.filter((s) => s.state === "recording").length, sessions: list });
+  });
+  route("POST", /^\/api\/agent\/teach$/, (ctx) => {
+    const b = ctx.body ?? {};
+    const name = String(b.name ?? "").trim();
+    const source = b.source;
+    if (!name) return error(ctx.res, 422, "Name fehlt.", "invalid_name");
+    if (!["browser", "window"].includes(source)) return error(ctx.res, 422, "Quelle muss browser oder window sein.", "invalid_source");
+    if (source === "browser" && !/^https?:\/\//.test(String(b.url ?? ""))) return error(ctx.res, 422, "Startadresse fehlt.", "invalid_url");
+    if (source === "window" && !findSource(b.source_id)) return error(ctx.res, 422, "Fenster nicht gefunden.", "invalid_source_id");
+    if (source === "browser" && !b.scopes?.browser?.enabled) return error(ctx.res, 422, "Browser-Zugriff fehlt.", "invalid_scopes");
+    if (source === "window" && !b.scopes?.windows) return error(ctx.res, 422, "Fenster-Zugriff fehlt.", "invalid_scopes");
+    if (taskRunning() || [...teachSessions.values()].some((s) => s.state === "recording")) return error(ctx.res, 409, "Gerade läuft eine Aufgabe oder eine Aufnahme.", "busy");
+    const session = {
+      id: `teach_${randomUUID().slice(0, 8)}`,
+      name,
+      source,
+      url: source === "browser" ? String(b.url) : null,
+      source_id: source === "window" ? String(b.source_id) : null,
+      state: "recording",
+      steps: [],
+      created_at: now(),
+      finished_at: null,
+      events: 0,
+      workflow_id: null,
+      note_de: source === "browser" ? "Mock: Die Seite zeichnet alle 3 s einen synthetischen Schritt auf." : "Mock: Jedes „Schritt erfassen“ liefert einen synthetischen Feldwert.",
+      scopes: b.scopes,
+      _counter: 0,
+    };
+    teachSessions.set(session.id, session);
+    if (source === "browser") {
+      // The own browser page records clicks / inputs by itself: simulate that.
+      const tick = () => {
+        if (session.state !== "recording") return;
+        session._counter += 1;
+        const n = session._counter;
+        session.steps.push(
+          n === 1
+            ? { tool: "browser.navigate", arguments: { url: session.url }, check_de: "Seite geladen", evidence: { title: "Intranet" }, target: null, at: now() }
+            : n % 2 === 0
+              ? { tool: "browser.fill", arguments: { selector: `#feld${n}`, text: n === 2 ? "Müller GmbH" : `Wert ${n}` }, check_de: "Feld ausgefüllt", evidence: null, target: { role: "edit", name: n === 2 ? "Firmenname" : `Feld ${n}` }, at: now() }
+              : { tool: "browser.click", arguments: { selector: `button#weiter${n}` }, check_de: "Weiter geklickt", evidence: null, target: { role: "button", name: "Weiter" }, at: now() },
+        );
+        session.events += 1;
+        teachEvent(session);
+        if (n < 6) timers.set(`teach_${session.id}`, setTimeout(tick, 3000));
+      };
+      timers.set(`teach_${session.id}`, setTimeout(tick, 1500));
+    }
+    teachEvent(session);
+    json(ctx.res, 201, { session: teachView(session) });
+  });
+  route("GET", /^\/api\/agent\/teach\/([^/]+)$/, (ctx) => {
+    const s = teachSessions.get(ctx.params[0]);
+    return s ? json(ctx.res, 200, { session: teachView(s) }) : error(ctx.res, 404, "Aufnahme nicht gefunden.", "not_found");
+  });
+  route("POST", /^\/api\/agent\/teach\/([^/]+)\/capture$/, (ctx) => {
+    const s = teachSessions.get(ctx.params[0]);
+    if (!s) return error(ctx.res, 404, "Aufnahme nicht gefunden.", "not_found");
+    if (s.state !== "recording") return error(ctx.res, 409, "Die Aufnahme ist beendet.", "not_recording");
+    const invoke = typeof ctx.body?.invoke_name === "string" ? ctx.body.invoke_name.trim() : "";
+    const added = [];
+    if (s.source === "window") {
+      s._counter += 1;
+      const src = findSource(s.source_id);
+      const fields = ["Betreff", "Betrag", "Empfänger", "Notiz"];
+      const field = fields[(s._counter - 1) % fields.length];
+      added.push({ tool: "windows.set_value", arguments: { source_id: s.source_id, element: field, value: `Beispielwert ${s._counter}` }, check_de: `Feld „${field}“ hat einen Wert`, evidence: { before: "", after: `Beispielwert ${s._counter}` }, target: { role: "edit", name: field }, at: now() });
+      if (invoke) added.push({ tool: "windows.invoke", arguments: { source_id: s.source_id, name: invoke }, check_de: `„${invoke}“ ausgelöst`, evidence: { window: src?.title ?? null }, target: { role: "button", name: invoke }, at: now() });
+    } else {
+      added.push({ tool: "browser.read", arguments: { url: s.url }, check_de: "Seite erneut gelesen", evidence: { elements: 12 }, target: null, at: now() });
+    }
+    s.steps.push(...added);
+    s.events += 1;
+    teachEvent(s);
+    json(ctx.res, 200, { new_steps: added.length, session: teachView(s) });
+  });
+  route("POST", /^\/api\/agent\/teach\/([^/]+)\/check$/, (ctx) => {
+    const s = teachSessions.get(ctx.params[0]);
+    if (!s) return error(ctx.res, 404, "Aufnahme nicht gefunden.", "not_found");
+    if (s.state !== "recording") return error(ctx.res, 409, "Die Aufnahme ist beendet.", "not_recording");
+    const check = ctx.body?.check;
+    if (!check || typeof check.kind !== "string" || !Array.isArray(check.expect)) return error(ctx.res, 422, "Prüfung unvollständig.", "invalid_check");
+    const allowed = s.source === "browser" ? ["page_text"] : ["window_text", "element_value"];
+    if (!allowed.includes(check.kind)) return error(ctx.res, 422, `Für diese Quelle sind nur ${allowed.join(", ")} erlaubt.`, "invalid_check");
+    const step = { tool: "verify.check", arguments: { check }, check_de: check.description_de || `„${check.expect.join("“, „")}“ sichtbar`, evidence: { found: true }, target: null, at: now() };
+    s.steps.push(step);
+    s.events += 1;
+    teachEvent(s);
+    json(ctx.res, 200, { step, session: teachView(s) });
+  });
+  route("DELETE", /^\/api\/agent\/teach\/([^/]+)\/steps\/([^/]+)$/, (ctx) => {
+    const s = teachSessions.get(ctx.params[0]);
+    if (!s) return error(ctx.res, 404, "Aufnahme nicht gefunden.", "not_found");
+    const index = Number(ctx.params[1]);
+    if (!Number.isInteger(index) || index < 0 || index >= s.steps.length) return error(ctx.res, 404, "Schritt nicht gefunden.", "not_found");
+    s.steps.splice(index, 1);
+    teachEvent(s);
+    json(ctx.res, 200, { session: teachView(s) });
+  });
+  route("POST", /^\/api\/agent\/teach\/([^/]+)\/finish$/, (ctx) => {
+    const s = teachSessions.get(ctx.params[0]);
+    if (!s) return error(ctx.res, 404, "Aufnahme nicht gefunden.", "not_found");
+    if (s.state !== "recording") return error(ctx.res, 409, "Die Aufnahme ist beendet.", "not_recording");
+    if (s.steps.length === 0) return error(ctx.res, 422, "Keine Schritte aufgezeichnet.", "no_steps");
+    const params = Array.isArray(ctx.body?.parameters) ? ctx.body.parameters : [];
+    const checks = Array.isArray(ctx.body?.checks) ? ctx.body.checks : [];
+    clearTimeout(timers.get(`teach_${s.id}`));
+    const steps = s.steps.map((st, i) => {
+      const args = { ...st.arguments };
+      for (const p of params) for (const k of Object.keys(args)) if (typeof args[k] === "string" && p.value && args[k] === p.value) args[k] = `{${p.name}}`;
+      return wfStep(i, st.tool, args, { target: st.target, check_de: st.check_de, depends_on: i > 0 ? [String(i - 1)] : [] });
+    });
+    const wf = makeWorkflow({
+      id: `wf_${randomUUID().slice(0, 8)}`,
+      name: s.name,
+      purpose_de: `Beigebracht: ${s.name}`,
+      status: "candidate",
+      parameters: params.map((p) => ({ name: String(p.name ?? ""), description_de: String(p.description_de ?? ""), example: String(p.example ?? p.value ?? ""), kind: "text", required: true })),
+      bindings: s.source === "window" ? [{ role: "zielfenster", kind: "window", hint: "Fenster der Aufnahme", required: true, original: s.source_id }] : [],
+      steps,
+      checks,
+      dependencies: [dependency("tool_contract", "tc_9a1b2c"), s.source === "browser" ? dependency("file", s.url, { step_index: 0 }) : dependency("binding", "zielfenster", { step_index: 0 })],
+      scope: s.scopes,
+      origin: { teach_session: s.id, created_at: now() },
+      origin_kind: "taught",
+      known_limits_de: ["Beigebracht; erst ein Prüflauf bestätigt den Ablauf."],
+      requires: { tools: [...new Set(steps.map((x) => x.tool))], apps: s.scopes.windows?.allowed_processes ?? [], vision: false },
+      derived_steps: [],
+      external_effects: false,
+    });
+    s.state = "finished";
+    s.finished_at = now();
+    s.workflow_id = wf.id;
+    teachEvent(s);
+    broadcast("workflows", { stale: [], facts: null, by: "teach" });
+    json(ctx.res, 201, { session: teachView(s), workflow: wf, task_id: null });
+  });
+  route("POST", /^\/api\/agent\/teach\/([^/]+)\/cancel$/, (ctx) => {
+    const s = teachSessions.get(ctx.params[0]);
+    if (!s) return error(ctx.res, 404, "Aufnahme nicht gefunden.", "not_found");
+    clearTimeout(timers.get(`teach_${s.id}`));
+    if (s.state === "recording") {
+      s.state = "cancelled";
+      s.finished_at = now();
+      teachEvent(s);
+    }
+    json(ctx.res, 200, { session: teachView(s) });
+  });
+
   // ----- global stop ------------------------------------------------------------------
   route("POST", /^\/api\/agent\/stop$/, (ctx) => {
+    const lockStart = Date.now();
+    let stoppedTeach = 0;
+    for (const s of teachSessions.values()) {
+      if (s.state !== "recording") continue;
+      clearTimeout(timers.get(`teach_${s.id}`));
+      s.state = "cancelled";
+      s.finished_at = now();
+      teachEvent(s);
+      stoppedTeach += 1;
+    }
     let stoppedTasks = 0;
     for (const t of tasks.values()) {
       if (["completed", "failed", "cancelled"].includes(t.state)) continue;
@@ -829,7 +1418,7 @@ export function registerLiveAgent({ route, json, error, sseStart, sseSend, state
       stoppedLive += 1;
     }
     broadcast("stop", { source: "api", at: now() });
-    json(ctx.res, 200, { stopped_tasks: stoppedTasks, stopped_live: stoppedLive });
+    json(ctx.res, 200, { stopped_tasks: stoppedTasks, stopped_live: stoppedLive, ended_sessions: 0, released_keys: 0, stopped_teach: stoppedTeach, lock_ms: Date.now() - lockStart });
   });
 
   return { sessions, tasks };

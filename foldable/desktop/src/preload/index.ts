@@ -48,6 +48,8 @@ const CH = {
   requestTaskForm: "spaider:request-task-form",
   openConversationEvent: "spaider:open-conversation",
   openTaskFormEvent: "spaider:open-task-form",
+  openPath: "spaider:open-path",
+  revealPath: "spaider:reveal-path",
 } as const;
 
 function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
@@ -119,6 +121,14 @@ const bridge: SpaiderBridge = {
   },
   getPerfSamples(): Promise<PerfSample[]> {
     return ipcRenderer.invoke(CH.getPerfSamples);
+  },
+
+  // ----- v1.5 -----------------------------------------------------------------
+  openPath(path: string): Promise<boolean> {
+    return ipcRenderer.invoke(CH.openPath, String(path));
+  },
+  revealPath(path: string): Promise<boolean> {
+    return ipcRenderer.invoke(CH.revealPath, String(path));
   },
 
   // ----- shell-internal ---------------------------------------------------------

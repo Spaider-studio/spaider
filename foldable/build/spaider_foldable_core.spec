@@ -41,6 +41,7 @@ datas += [
     (str(_PKG / "db" / "schema_v3.sql"), "spaider_foldable/db"),
     (str(_PKG / "db" / "schema_v4.sql"), "spaider_foldable/db"),
     (str(_PKG / "db" / "schema_v5.sql"), "spaider_foldable/db"),
+    (str(_PKG / "db" / "schema_v6.sql"), "spaider_foldable/db"),
     (str(_PKG / "models" / "families.json"), "spaider_foldable/models"),
 ]
 # SpAIder prompt files used by the compressor.

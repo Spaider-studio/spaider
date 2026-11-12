@@ -17,13 +17,13 @@ class TaskStore:
         self.host_id = host_id
 
     # ---- tasks -------------------------------------------------------------------
-    def create(self, *, goal: str, scopes: Scopes, max_steps: int, max_seconds: int, conversation_id: Optional[str], live_session_id: Optional[str], recipe_id: Optional[str], parameters: Optional[dict]) -> Task:
+    def create(self, *, goal: str, scopes: Scopes, max_steps: int, max_seconds: int, conversation_id: Optional[str], live_session_id: Optional[str], recipe_id: Optional[str], parameters: Optional[dict], workflow_id: Optional[str] = None, project_id: Optional[str] = None, connection_id: Optional[str] = None, success_criteria: Optional[list[dict]] = None) -> Task:
         now = utcnow()
         tid = f"task_{uuid.uuid4().hex[:12]}"
         self.db.execute(
             "INSERT INTO agent_tasks(id, goal, state, step, max_steps, max_seconds, scopes_json, conversation_id, live_session_id, "
-            "recipe_id, parameters_json, summary_de, host_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            (tid, goal, "created", 0, max_steps, max_seconds, scopes.model_dump_json(), conversation_id, live_session_id, recipe_id, json.dumps(parameters) if parameters else None, "", self.host_id, now, now),
+            "recipe_id, parameters_json, summary_de, host_id, created_at, updated_at, workflow_id, project_id, connection_id, success_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (tid, goal, "created", 0, max_steps, max_seconds, scopes.model_dump_json(), conversation_id, live_session_id, recipe_id, json.dumps(parameters, ensure_ascii=False) if parameters else None, "", self.host_id, now, now, workflow_id or recipe_id, project_id, connection_id, json.dumps(success_criteria, ensure_ascii=False) if success_criteria else None),
         )
         return self.get(tid)
 
@@ -38,7 +38,7 @@ class TaskStore:
         return [self._row_to_task(r) for r in rows]
 
     def update(self, task_id: str, **fields) -> Task:
-        allowed = {"state", "step", "summary_de", "result_json", "pending_question_json", "last_error", "llm_calls", "started_at", "finished_at", "cancel_generation", "scopes_json"}
+        allowed = {"state", "step", "summary_de", "result_json", "pending_question_json", "last_error", "llm_calls", "started_at", "finished_at", "cancel_generation", "scopes_json", "success_json", "outcome", "outcome_json", "workflow_id", "reuse_json", "parameters_json"}
         cols = {k: v for k, v in fields.items() if k in allowed}
         cols["updated_at"] = utcnow()
         sets = ", ".join(f"{k} = ?" for k in cols)
@@ -91,17 +91,24 @@ class TaskStore:
             llm_calls=row["llm_calls"],
             host_bound=row["host_id"] == self.host_id,
             last_error=row["last_error"],
+            workflow_id=row["workflow_id"],
+            project_id=row["project_id"],
+            connection_id=row["connection_id"],
+            success_criteria=json.loads(row["success_json"]) if row["success_json"] else [],
+            outcome=row["outcome"],
+            outcome_report=json.loads(row["outcome_json"]) if row["outcome_json"] else None,
+            reuse=json.loads(row["reuse_json"]) if row["reuse_json"] else None,
         )
 
     # ---- actions -------------------------------------------------------------------
-    def add_action(self, task_id: str, *, tool: str, arguments: dict, expected_effect: str, observation_ref: Optional[str], side_effect: str, state: str = "proposed", reason_de: Optional[str] = None) -> Action:
+    def add_action(self, task_id: str, *, tool: str, arguments: dict, expected_effect: str, observation_ref: Optional[str], side_effect: str, state: str = "proposed", reason_de: Optional[str] = None, call_id: Optional[str] = None, origin: str = "planner") -> Action:
         seq = int(self.db.scalar("SELECT COALESCE(MAX(seq), 0) + 1 FROM agent_actions WHERE task_id = ?", (task_id,)) or 1)
         aid = f"act_{uuid.uuid4().hex[:12]}"
         now = utcnow()
         self.db.execute(
-            "INSERT INTO agent_actions(action_id, task_id, seq, tool, arguments_json, state, reason_de, expected_effect, observation_ref, side_effect, created_at) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-            (aid, task_id, seq, tool, json.dumps(arguments, ensure_ascii=False), state, reason_de, expected_effect, observation_ref, side_effect, now),
+            "INSERT INTO agent_actions(action_id, task_id, seq, tool, arguments_json, state, reason_de, expected_effect, observation_ref, side_effect, created_at, call_id, origin) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (aid, task_id, seq, tool, json.dumps(arguments, ensure_ascii=False), state, reason_de, expected_effect, observation_ref, side_effect, now, call_id, origin),
         )
         return self.get_action(aid)
 
@@ -142,6 +149,8 @@ class TaskStore:
             action_id=row["action_id"],
             task_id=row["task_id"],
             seq=row["seq"],
+            call_id=row["call_id"],
+            origin=row["origin"] or "planner",
             tool=row["tool"],
             arguments=json.loads(row["arguments_json"] or "{}"),
             state=row["state"],
@@ -179,3 +188,12 @@ class TaskStore:
 
     def is_terminal(self, state: str) -> bool:
         return state in TERMINAL_STATES
+
+    def find_executed(self, task_id: str, tool: str, arguments: dict) -> Optional[Action]:
+        """An action of this task that already ran with the same tool and arguments (journal
+        guard against repeating a side effect)."""
+        key = json.dumps(arguments, sort_keys=True, ensure_ascii=False)
+        for a in self.actions(task_id):
+            if a.tool == tool and a.state in ("done", "unknown_outcome") and json.dumps(a.arguments, sort_keys=True, ensure_ascii=False) == key:
+                return a
+        return None

@@ -362,3 +362,36 @@ Alle Routen unter `/api`, Token-Header wie bisher. Secrets erscheinen in keiner 
 - `POST /conversations/{id}/messages` verlangt ein laufendes lokales Modell nur noch für Gespräche mit Bindung `local`; verbindungsgebundene Gespräche laufen ohne lokales Modell
 - Abruf aus dem Gedächtnis für Gespräche mit Bindung an eine Verbindung mit `execution ≠ local` schließt Erinnerungen aus Projekten mit `local_only` aus (Herkunft Gespräch/Dokument/Connector)
 - Schema v5: `ingest_queue.kind` zusätzlich `fact`
+
+## Addendum v1.5 (0.5.0): Ausführungskern, Abläufe, Abhängigkeiten, Bindungen, Beibringen
+
+Stand 2026-11-12. Alle Pfade unter `/api`, Token-geschützt wie bisher. Die 0.3-Endpunkte bleiben gültig; `recipes` liefert ab 0.5 die Abläufe im alten Format.
+
+### Aufgaben (Ergänzungen)
+
+- `POST /agent/tasks` zusätzlich: `workflow_id` (Ablauf wiederverwenden), `project_id`, `connection_id` (Planung über eine Anbieterverbindung; nur mit Freigabe des Projekts und nie für „Nur lokal“-Projekte → 403 `local_only`, ohne Freigabe 409 `consent_required`), `success_criteria` (optional; sonst aus dem Auftrag abgeleitet).
+- `Task` zusätzlich: `workflow_id`, `project_id`, `connection_id`, `success_criteria[]` (`kind` ∈ file_exists | file_contains | file_not_contains | page_text | window_text | element_value | action_evidence, `target`, `expect[]`, `origin`, `description_de`), `outcome` (`fulfilled` | `not_fulfilled` | `unclear` | null), `outcome_report` (`status`, `checks[]` mit `ok` true/false/null und `detail_de`, `causes_de[]`, `evidence_paths[]`, `verified_at`, `verified_by`), `reuse` (Entscheidung des ReuseGate: `mode` reuse | repair | replan | replan_forced | simple_forced, `reasons_de[]`, `repair_steps[]`, `strict`, `coverage` 0–1, `unknown_dependencies`, `invalid[]`, `bindings`, `missing_bindings[]`, `gate_ms`, `workflow_id`, `workflow_name`, `run_id`).
+- `TaskResult` zusätzlich `outcome`, `evidence_paths[]`. `Action` zusätzlich `call_id` (Aufruf-ID des Modells bzw. des Ablaufs) und `origin` (planner | workflow | repair | teach | verifier).
+- `PendingQuestion.binding` (`{role, kind, hint}`): die Antwort `text` ist ein Ziel auf diesem Rechner (Ordnerpfad, Fenster-ID, Programmname).
+- Ereignisstrom `GET /agent/tasks/{id}/events`: neues `event: step` mit `{kind: read|write|check|verify|skip|repair|repaired|replan|gate|derive|pause, message_de, at, ok?, status?, action_id?, step?, mode?, repair_steps?, coverage?}` – tatsächlich geschehene Schritte („Datei gelesen: x“, „Ergebnis geprüft: erfüllt“), keine Gedanken. Beim Wiederverbinden werden vergangene `step`-Ereignisse vor `done` erneut gesendet.
+- `GET /agent/capabilities`: `model.native_tool_calls` (untested | verified | failed), `execution_core` (`version` „1.5“, `workflows`, `stale_workflows`, `input_guard {enabled, paused_by_user, user_idle_ms}`, `host_id`, `teach`). `POST /agent/capabilities/probe` testet Chat, Grammatik-Entscheidung, native Tool-Calls, Bildeingabe und Grounding getrennt am aktiven lokalen Modell (begrenzte Aufrufe) und speichert das Ergebnis am Modell.
+- `POST /agent/stop` liefert zusätzlich `ended_sessions`, `released_keys` (gelöste Modifier-Tasten), `stopped_teach`, `lock_ms`.
+
+### Abläufe (VerifiedWorkflow)
+
+- `POST /agent/tasks/{id}/compile` `{name, parameters: [{name, description_de, example, value}]}` → 201 `{workflow}`: übersetzt das Aktionsjournal einer erfolgreich abgeschlossenen Aufgabe (`outcome` ≠ not_fulfilled) in einen Kandidaten. `POST …/save-recipe` bleibt als Alias (`{recipe, workflow}`).
+- `GET /agent/workflows` → `{workflows[]}`; `GET /agent/workflows/{id}` → `{workflow, dependencies[], runs[], bindings}`; `PATCH /agent/workflows/{id}` (`name`, `parameters`, `known_limits_de`, `steps[{index, arguments_template, postconditions, check_de}]` – Werkzeug und Wirkungsklasse eines Schritts sind nicht änderbar –, `status` candidate | demoted | retired); `DELETE /agent/workflows/{id}`.
+- `GET /agent/workflows/{id}/check` → `{plan, dependencies, bindings, missing_bindings}`: Probelauf des Gates auf diesem Rechner ohne Ausführung.
+- `POST /agent/workflows/{id}/negative-check` → `{result {ok, mode, reasons_de}, workflow}`: synthetischer Fehlerfall (alle Faktenabhängigkeiten ungültig, alle Bindungen fehlen) – das Gate muss die Wiederverwendung verweigern. Pflicht für die Einstufung „geprüft“.
+- `POST /agent/workflows/{id}/run` `{parameters, scopes?, budget?, project_id?, connection_id?, mode: auto | replan | simple}` → 201 `{task}`. `replan` plant ohne Wiederverwendung, `simple` spielt den Ablauf wie ein 0.3-Rezept wörtlich ab (beides nur für Vergleiche). Fehlende Pflichtparameter → 422 `parameters_missing`.
+- Ablauf: `id`, `version`, `name`, `purpose_de` (mit Platzhaltern), `status` (candidate | verified | demoted | retired), `parameters[]` (`kind` text | path | number | date | choice, `required`), `preconditions[]`, `bindings[]` (`role`, `kind` dir | file | app | window | url | account | model, `hint`, `required`, `original`), `steps[]` (`index`, `tool`, `arguments_template`, `target {role, name}`, `read_set[]`, `write_set[]`, `preconditions[]`, `postconditions[]`, `side_effect`, `depends_on[]`, `derive`, `derive_from[]`, `check_de`), `checks[]`, `dependencies[]`, `scope`, `origin`, `tool_contract_hash`, `known_limits_de[]`, `stats {success_runs, failed_runs, distinct_param_sets, negative_checked, origin_kind compiled | taught | migrated, dependencies {total, valid, invalid, by_kind, inferred}}`, `requires`, `derived_steps[]`, `external_effects`.
+- Abhängigkeit: `kind` fact | file | binding | app | tool_contract | model | workflow, `key`, `revision`, `origin` observed | declared | inferred (vermutet – zählt nie als Nachweis), `step_index`, `valid`, `reason`, `invalidated_by`, `invalidated_at`. Globaler Kanal: `event: workflows` `{stale[], facts[], by}` nach einer Faktenkorrektur.
+- Lebenszyklus: Kandidat → geprüft (≥ 2 erfolgreiche Läufe mit ≥ 2 verschiedenen Parametersätzen und bestandene Negativprüfung) → zurückgestuft (ein fehlgeschlagener Wiederverwendungs-/Reparaturlauf); zurückgestufte Abläufe werden nie automatisch wiederverwendet.
+
+### Bindungen (dieser Rechner)
+
+- `GET /agent/bindings` → `{host_id, bindings[]}`; `PUT /agent/bindings` `{role, kind, target}`; `DELETE /agent/bindings/{role}`. Bindungen sind an die Rechner-Kennung gebunden; ein Ordner außerhalb der freigegebenen Ordner einer Aufgabe wird nie verwendet.
+
+### Beibringen (Demonstration)
+
+- `GET /agent/teach`; `POST /agent/teach` `{name, source: browser | window, url?, source_id?, scopes}` → 201 `{session}` (409 `busy` während einer laufenden Aufgabe/Demonstration); `GET /agent/teach/{sid}`; `POST /agent/teach/{sid}/capture` `{invoke_name?}` (Fenster: Diff der Oberfläche, geänderte Feldwerte und der benannte Knopf; Browser: Seite neu lesen); `POST /agent/teach/{sid}/check` `{check}`; `DELETE /agent/teach/{sid}/steps/{index}`; `POST /agent/teach/{sid}/finish` `{parameters, checks}` → 201 `{session, workflow, task_id}` (Kandidat, noch nicht ausgeführt); `POST /agent/teach/{sid}/cancel`. Aufgezeichnet wird nur innerhalb der gewählten Quelle; keine globale Tastaturaufzeichnung, keine Bildschirmaufnahme. Globaler Kanal: `event: teach` `{id, state, steps}`.

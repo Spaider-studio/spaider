@@ -1,0 +1,632 @@
+{
+  "version": 2,
+  "model": "qwen3-4b-q4_k_m",
+  "catalog_id": "qwen3-4b-q4_k_m",
+  "mode": "full",
+  "started_at": "2026-11-12T06:54:19Z",
+  "repeat": 3,
+  "task_timeout_s": 300,
+  "seed": 8,
+  "runs": [
+    {
+      "id": "X10",
+      "set": "learn",
+      "condition": "unknown",
+      "goal": "Produktdemo: Lies die Projektdateien in C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix2-jtjc4cna\\X10-0\\Projekt Polarstern (notizen.txt, risiken.md, kontakte.csv), erzeuge C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix2-jtjc4cna\\X10-0\\Ausgabe/bericht.md (Kickoff, Budget, höchstes Risiko, Projektleitung), prüfe den Inhalt durch Rücklesen und bereite C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix2-jtjc4cna\\X10-0\\Ausgabe/mail_entwurf.txt vor (An: E-Mail der aktuellen Projektleitung laut Gedächtnis/memory.search, Betreff „Bericht Polarstern“). Kein Versand.",
+      "success": true,
+      "false_success_claim": false,
+      "claimed": true,
+      "state": "completed",
+      "outcome": "fulfilled",
+      "steps": 11,
+      "llm_calls": 11,
+      "wall_s": 147.6,
+      "questions": 0,
+      "interventions": [],
+      "side_effect_files": [],
+      "external_actions": [],
+      "repeated_failures": 0,
+      "rejected": 0,
+      "peak_rss_mb": 7022,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix2-jtjc4cna\\X10-0\\Ausgabe\\mail_entwurf.txt",
+        "exists": true,
+        "missing": [],
+        "extra_ok": true,
+        "extra_missing": []
+      },
+      "summary": "Projektdateien wurden gelesen, Bericht wurde erstellt, E-Mail-Entwurf wurde vorbereitet und zurückgelesen. Alle Schritte wurden erfolgreich abgeschlossen.",
+      "timings": {
+        "observe_ms": 0,
+        "executing_ms": 91,
+        "verify_ms": 16,
+        "wait_ms": 0,
+        "planning_ms": 147355
+      },
+      "reuse": null,
+      "false_reuse": false,
+      "verify_ms": 16,
+      "events": [
+        "Ordner gelesen: Projekt Polarstern",
+        "Datei gelesen: notizen.txt",
+        "Datei gelesen: risiken.md",
+        "Datei gelesen: kontakte.csv",
+        "Datei geschrieben und zurückgelesen: bericht.md",
+        "Datei gelesen: bericht.md",
+        "Gedächtnis durchsucht: „Projektleitung“",
+        "Gedächtnis durchsucht: „Projektleitung email“",
+        "Datei gelesen: bericht.md",
+        "Datei geschrieben und zurückgelesen: mail_entwurf.txt",
+        "Ergebnis geprüft: erfüllt"
+      ],
+      "actions": [
+        [
+          1,
+          "files.list",
+          "planner",
+          "done"
+        ],
+        [
+          2,
+          "files.read",
+          "planner",
+          "done"
+        ],
+        [
+          3,
+          "files.read",
+          "planner",
+          "done"
+        ],
+        [
+          4,
+          "files.read",
+          "planner",
+          "done"
+        ],
+        [
+          5,
+          "files.write",
+          "planner",
+          "done"
+        ],
+        [
+          6,
+          "files.read",
+          "planner",
+          "done"
+        ],
+        [
+          7,
+          "memory.search",
+          "planner",
+          "done"
+        ],
+        [
+          8,
+          "memory.search",
+          "planner",
+          "done"
+        ],
+        [
+          9,
+          "files.read",
+          "planner",
+          "done"
+        ],
+        [
+          10,
+          "files.write",
+          "planner",
+          "done"
+        ]
+      ],
+      "task_id": "task_bf81d447a472",
+      "compiled_workflow": "wf_13f6eaa213",
+      "fact_change": false,
+      "app_variant": 1,
+      "group": "cross",
+      "repeat": 0
+    },
+    {
+      "id": "X10",
+      "set": "learn",
+      "condition": "full",
+      "goal": "Produktdemo: Lies die Projektdateien in C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix2-jtjc4cna\\X10-1\\Projekt Polarstern (notizen.txt, risiken.md, kontakte.csv), erzeuge C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix2-jtjc4cna\\X10-1\\Ausgabe/bericht.md (Kickoff, Budget, höchstes Risiko, Projektleitung), prüfe den Inhalt durch Rücklesen und bereite C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix2-jtjc4cna\\X10-1\\Ausgabe/mail_entwurf.txt vor (An: E-Mail der aktuelle",
+      "success": true,
+      "false_success_claim": false,
+      "claimed": true,
+      "state": "completed",
+      "outcome": "fulfilled",
+      "steps": 13,
+      "llm_calls": 4,
+      "wall_s": 84.3,
+      "questions": 0,
+      "interventions": [],
+      "side_effect_files": [],
+      "external_actions": [],
+      "repeated_failures": 0,
+      "rejected": 0,
+      "peak_rss_mb": 8182,
+      "check": {
+        "ok": true,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix2-jtjc4cna\\X10-1\\Ausgabe\\mail_entwurf.txt",
+        "exists": true,
+        "missing": [],
+        "extra_ok": true,
+        "extra_missing": []
+      },
+      "summary": "Ablauf „X10 Produktdemo: Lies die Projektdateien in “ ausgeführt: 6 Schritte wiederverwendet, 0 übersprungen (bereits erfüllt), 3 repariert, 4 Modellaufrufe.",
+      "timings": {
+        "observe_ms": 0,
+        "executing_ms": 78,
+        "verify_ms": 16,
+        "wait_ms": 0,
+        "planning_ms": 84028
+      },
+      "reuse": {
+        "mode": "repair",
+        "coverage": 0.9,
+        "repair_steps": [
+          6,
+          7,
+          9
+        ],
+        "strict": true,
+        "gate_ms": 77,
+        "missing_bindings": [],
+        "reasons_de": [
+          "Fakt 3772603b-010… Fakt wurde ersetzt oder vergessen (ersetzt durch c66ab364-5aa…)"
+        ]
+      },
+      "false_reuse": false,
+      "verify_ms": 16,
+      "events": [
+        "Ablauf „X10 Produktdemo: Lies die Projektdateien in “ wird repariert: Fakt 3772603b-010… Fakt wurde ersetzt oder vergessen (ersetzt durch c66ab364-5aa…) (Abdeck",
+        "Ordner gelesen: Projekt Polarstern",
+        "Datei gelesen: notizen.txt",
+        "Datei gelesen: risiken.md",
+        "Datei gelesen: kontakte.csv",
+        "Datei gelesen: risiken.md",
+        "Datei gelesen: kontakte.csv",
+        "Schritt 5 (files.write) aus aktuellen Daten neu abgeleitet (1 Modellaufruf).",
+        "Datei geschrieben und zurückgelesen: bericht.md",
+        "Schritt 5 geprüft: erfüllt",
+        "Datei gelesen: bericht.md",
+        "Schritt 7 (memory.search) wird repariert: Fakt 3772603b-010… Fakt wurde ersetzt oder vergessen (ersetzt durch c66ab364-5aa…) – wird erneut gelesen (ohne Modella",
+        "Gedächtnis durchsucht: „Projektleitung“",
+        "Schritt 7 (memory.search) repariert (erneut gelesen).",
+        "Schritt 8 (memory.search) wird repariert: Fakt 3772603b-010… Fakt wurde ersetzt oder vergessen (ersetzt durch c66ab364-5aa…) – wird erneut gelesen (ohne Modella",
+        "Gedächtnis durchsucht: „Projektleitung email“",
+        "Schritt 8 (memory.search) repariert (erneut gelesen).",
+        "Datei gelesen: bericht.md",
+        "Schritt 10 (files.write) wird repariert: Fakt 3772603b-010… Fakt wurde ersetzt oder vergessen (ersetzt durch c66ab364-5aa…) – Inhalt wird aus aktuellen Daten ne",
+        "Schritt 10 (files.write) aus aktuellen Daten neu abgeleitet (1 Modellaufruf).",
+        "Datei geschrieben und zurückgelesen: mail_entwurf.txt",
+        "Schritt 10 geprüft: nicht erfüllt (Inhalt fehlt in mail_entwurf.txt: Polarstern)",
+        "Schritt 10 (files.write) wird repariert: Nachbedingung nicht erfüllt: Inhalt fehlt in mail_entwurf.txt: Polarstern",
+        "Datei geschrieben und zurückgelesen: mail_entwurf.txt – fehlgeschlagen: Datei existiert bereits: mail_entwurf.txt. Für Änderungen mode=\"overwrite\" mit i",
+        "Datei geschrieben und zurückgelesen: mail_entwurf.txt",
+        "Schritt 10 geprüft: erfüllt",
+        "Schritt 10 (files.write) repariert (2 Aktionen).",
+        "Ergebnis geprüft: erfüllt"
+      ],
+      "actions": [
+        [
+          1,
+          "files.list",
+          "workflow",
+          "done"
+        ],
+        [
+          2,
+          "files.read",
+          "workflow",
+          "done"
+        ],
+        [
+          3,
+          "files.read",
+          "workflow",
+          "done"
+        ],
+        [
+          4,
+          "files.read",
+          "workflow",
+          "done"
+        ],
+        [
+          5,
+          "files.write",
+          "workflow",
+          "done"
+        ],
+        [
+          6,
+          "files.read",
+          "workflow",
+          "done"
+        ],
+        [
+          7,
+          "memory.search",
+          "repair",
+          "done"
+        ],
+        [
+          8,
+          "memory.search",
+          "repair",
+          "done"
+        ],
+        [
+          9,
+          "files.read",
+          "workflow",
+          "done"
+        ],
+        [
+          10,
+          "files.write",
+          "repair",
+          "done"
+        ],
+        [
+          11,
+          "files.write",
+          "repair",
+          "failed",
+          "exists"
+        ],
+        [
+          12,
+          "files.write",
+          "repair",
+          "done"
+        ]
+      ],
+      "task_id": "task_acebbb90141a",
+      "fact_change": true,
+      "app_variant": 1,
+      "group": "cross",
+      "repeat": 1
+    },
+    {
+      "id": "X10",
+      "set": "learn",
+      "condition": "full",
+      "goal": "Produktdemo: Lies die Projektdateien in C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix2-jtjc4cna\\X10-2\\Projekt Polarstern (notizen.txt, risiken.md, kontakte.csv), erzeuge C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix2-jtjc4cna\\X10-2\\Ausgabe/bericht.md (Kickoff, Budget, höchstes Risiko, Projektleitung), prüfe den Inhalt durch Rücklesen und bereite C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix2-jtjc4cna\\X10-2\\Ausgabe/mail_entwurf.txt vor (An: E-Mail der aktuelle",
+      "success": false,
+      "false_success_claim": true,
+      "claimed": true,
+      "state": "completed",
+      "outcome": "fulfilled",
+      "steps": 14,
+      "llm_calls": 5,
+      "wall_s": 104.8,
+      "questions": 0,
+      "interventions": [],
+      "side_effect_files": [],
+      "external_actions": [],
+      "repeated_failures": 0,
+      "rejected": 0,
+      "peak_rss_mb": 9550,
+      "check": {
+        "ok": false,
+        "file": "C:\\Users\\<Nutzer>\\AppData\\Local\\Temp\\spaider-matrix2-jtjc4cna\\X10-2\\Ausgabe\\mail_entwurf.txt",
+        "exists": true,
+        "missing": [
+          "ayla.demo@beispiel.test"
+        ],
+        "extra_ok": true,
+        "extra_missing": []
+      },
+      "summary": "Ablauf „X10 Produktdemo: Lies die Projektdateien in “ ausgeführt: 6 Schritte wiederverwendet, 0 übersprungen (bereits erfüllt), 3 repariert, 5 Modellaufrufe.",
+      "timings": {
+        "observe_ms": 0,
+        "executing_ms": 31,
+        "verify_ms": 16,
+        "wait_ms": 0,
+        "planning_ms": 104435
+      },
+      "reuse": {
+        "mode": "repair",
+        "coverage": 0.9,
+        "repair_steps": [
+          6,
+          7,
+          9
+        ],
+        "strict": true,
+        "gate_ms": 63,
+        "missing_bindings": [],
+        "reasons_de": [
+          "Fakt 3772603b-010… Fakt wurde ersetzt oder vergessen (ersetzt durch c66ab364-5aa…)"
+        ]
+      },
+      "false_reuse": true,
+      "verify_ms": 16,
+      "events": [
+        "Ablauf „X10 Produktdemo: Lies die Projektdateien in “ wird repariert: Fakt 3772603b-010… Fakt wurde ersetzt oder vergessen (ersetzt durch c66ab364-5aa…) (Abdeck",
+        "Ordner gelesen: Projekt Polarstern",
+        "Datei gelesen: notizen.txt",
+        "Datei gelesen: risiken.md",
+        "Datei gelesen: kontakte.csv",
+        "Datei gelesen: kontakte.csv",
+        "Schritt 5 (files.write) aus aktuellen Daten neu abgeleitet (1 Modellaufruf).",
+        "Datei geschrieben und zurückgelesen: bericht.md",
+        "Schritt 5 geprüft: erfüllt",
+        "Datei gelesen: bericht.md",
+        "Schritt 7 (memory.search) wird repariert: Fakt 3772603b-010… Fakt wurde ersetzt oder vergessen (ersetzt durch c66ab364-5aa…) – wird erneut gelesen (ohne Modella",
+        "Gedächtnis durchsucht: „Projektleitung“",
+        "Schritt 7 (memory.search) repariert (erneut gelesen).",
+        "Schritt 8 (memory.search) wird repariert: Fakt 3772603b-010… Fakt wurde ersetzt oder vergessen (ersetzt durch c66ab364-5aa…) – wird erneut gelesen (ohne Modella",
+        "Gedächtnis durchsucht: „Projektleitung email“",
+        "Schritt 8 (memory.search) repariert (erneut gelesen).",
+        "Datei gelesen: bericht.md",
+        "Schritt 10 (files.write) wird repariert: Fakt 3772603b-010… Fakt wurde ersetzt oder vergessen (ersetzt durch c66ab364-5aa…) – Inhalt wird aus aktuellen Daten ne",
+        "Schritt 10 (files.write) aus aktuellen Daten neu abgeleitet (1 Modellaufruf).",
+        "Datei geschrieben und zurückgelesen: mail_entwurf.txt",
+        "Schritt 10 geprüft: nicht erfüllt (Inhalt fehlt in mail_entwurf.txt: Polarstern)",
+        "Schritt 10 (files.write) wird repariert: Nachbedingung nicht erfüllt: Inhalt fehlt in mail_entwurf.txt: Polarstern",
+        "Datei geschrieben und zurückgelesen: mail_entwurf.txt – fehlgeschlagen: Datei existiert bereits: mail_entwurf.txt. Für Änderungen mode=\"overwrite\" mit i",
+        "Datei gelesen: mail_entwurf.txt",
+        "Datei geschrieben und zurückgelesen: mail_entwurf.txt",
+        "Schritt 10 geprüft: erfüllt",
+        "Schritt 10 (files.write) repariert (3 Aktionen).",
+        "Ergebnis geprüft: erfüllt"
+      ],
+      "actions": [
+        [
+          1,
+          "files.list",
+          "workflow",
+          "done"
+        ],
+        [
+          2,
+          "files.read",
+          "workflow",
+          "done"
+        ],
+        [
+          3,
+          "files.read",
+          "workflow",
+          "done"
+        ],
+        [
+          4,
+          "files.read",
+          "workflow",
+          "done"
+        ],
+        [
+          5,
+          "files.write",
+          "workflow",
+          "done"
+        ],
+        [
+          6,
+          "files.read",
+          "workflow",
+          "done"
+        ],
+        [
+          7,
+          "memory.search",
+          "repair",
+          "done"
+        ],
+        [
+          8,
+          "memory.search",
+          "repair",
+          "done"
+        ],
+        [
+          9,
+          "files.read",
+          "workflow",
+          "done"
+        ],
+        [
+          10,
+          "files.write",
+          "repair",
+          "done"
+        ],
+        [
+          11,
+          "files.write",
+          "repair",
+          "failed",
+          "exists"
+        ],
+        [
+          12,
+          "files.read",
+          "repair",
+          "done"
+        ],
+        [
+          13,
+          "files.write",
+          "repair",
+          "done"
+        ]
+      ],
+      "task_id": "task_4392973f8e3f",
+      "fact_change": true,
+      "app_variant": 1,
+      "group": "cross",
+      "repeat": 2
+    }
+  ],
+  "host": {
+    "desktop_interactive": true
+  },
+  "code": "e11400e",
+  "runtime": {
+    "backend": "vulkan",
+    "device": "Vulkan0",
+    "gpu_layers": 999,
+    "threads": 8,
+    "threads_batch": 8,
+    "prio": 0,
+    "reason_de": "Alle Schichten auf Intel(R) Arc(TM) 140V GPU (16GB) (geschätzt 5.6 GB von 17.2 GB frei).",
+    "mmproj_offload": true,
+    "image_max_tokens": null,
+    "mmproj": null
+  },
+  "capabilities": {
+    "id": "qwen3-4b-q4_k_m",
+    "vision_input": false,
+    "image_grounding": "none",
+    "tool_call_format": "json_schema",
+    "native_tool_calls": "untested",
+    "structured_output": true
+  },
+  "execution_core": {
+    "version": "1.5",
+    "workflows": 0,
+    "stale_workflows": 0,
+    "input_guard": {
+      "enabled": true,
+      "paused_by_user": 0,
+      "user_idle_ms": 0
+    },
+    "host_id": "4785575201e4e4887c7b9e9b75f349ac",
+    "teach": {
+      "active": 0,
+      "sessions": []
+    }
+  },
+  "summary": {
+    "all": {
+      "n": 3,
+      "success": 2,
+      "false_success_claims": 1,
+      "false_reuse": 1,
+      "questions": 0,
+      "side_effect_files": 0,
+      "external_actions": 0,
+      "repeated_failures": 0,
+      "llm_calls_mean": 6.67,
+      "wall_median_s": 104.8,
+      "wall_mean_s": 112.2,
+      "gate_ms_mean": 46.7,
+      "repaired_steps": 6,
+      "peak_rss_mb_max": 9550
+    },
+    "by_condition": {
+      "full": {
+        "n": 2,
+        "success": 1,
+        "false_success_claims": 1,
+        "false_reuse": 1,
+        "questions": 0,
+        "side_effect_files": 0,
+        "external_actions": 0,
+        "repeated_failures": 0,
+        "llm_calls_mean": 4.5,
+        "wall_median_s": 104.8,
+        "wall_mean_s": 94.5,
+        "gate_ms_mean": 70.0,
+        "repaired_steps": 6,
+        "peak_rss_mb_max": 9550
+      },
+      "unknown": {
+        "n": 1,
+        "success": 1,
+        "false_success_claims": 0,
+        "false_reuse": 0,
+        "questions": 0,
+        "side_effect_files": 0,
+        "external_actions": 0,
+        "repeated_failures": 0,
+        "llm_calls_mean": 11.0,
+        "wall_median_s": 147.6,
+        "wall_mean_s": 147.6,
+        "gate_ms_mean": 0.0,
+        "repaired_steps": 0,
+        "peak_rss_mb_max": 7022
+      }
+    },
+    "by_group": {
+      "cross": {
+        "n": 3,
+        "success": 2,
+        "false_success_claims": 1,
+        "false_reuse": 1,
+        "questions": 0,
+        "side_effect_files": 0,
+        "external_actions": 0,
+        "repeated_failures": 0,
+        "llm_calls_mean": 6.67,
+        "wall_median_s": 104.8,
+        "wall_mean_s": 112.2,
+        "gate_ms_mean": 46.7,
+        "repaired_steps": 6,
+        "peak_rss_mb_max": 9550
+      }
+    },
+    "by_set": {
+      "learn": {
+        "n": 3,
+        "success": 2,
+        "false_success_claims": 1,
+        "false_reuse": 1,
+        "questions": 0,
+        "side_effect_files": 0,
+        "external_actions": 0,
+        "repeated_failures": 0,
+        "llm_calls_mean": 6.67,
+        "wall_median_s": 104.8,
+        "wall_mean_s": 112.2,
+        "gate_ms_mean": 46.7,
+        "repaired_steps": 6,
+        "peak_rss_mb_max": 9550
+      }
+    },
+    "repeated_vs_first": {
+      "first": {
+        "n": 1,
+        "success": 1,
+        "false_success_claims": 0,
+        "false_reuse": 0,
+        "questions": 0,
+        "side_effect_files": 0,
+        "external_actions": 0,
+        "repeated_failures": 0,
+        "llm_calls_mean": 11.0,
+        "wall_median_s": 147.6,
+        "wall_mean_s": 147.6,
+        "gate_ms_mean": 0.0,
+        "repaired_steps": 0,
+        "peak_rss_mb_max": 7022
+      },
+      "repeated": {
+        "n": 2,
+        "success": 1,
+        "false_success_claims": 1,
+        "false_reuse": 1,
+        "questions": 0,
+        "side_effect_files": 0,
+        "external_actions": 0,
+        "repeated_failures": 0,
+        "llm_calls_mean": 4.5,
+        "wall_median_s": 104.8,
+        "wall_mean_s": 94.5,
+        "gate_ms_mean": 70.0,
+        "repaired_steps": 6,
+        "peak_rss_mb_max": 9550
+      },
+      "llm_calls_reduction_pct": 59.1,
+      "wall_reduction_pct": 36.0
+    }
+  }
+}

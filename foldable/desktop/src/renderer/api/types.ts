@@ -682,10 +682,24 @@ export interface AgentCapabilities {
     image_grounding: "none" | "untested" | "verified";
     tool_call_format: "json_schema" | "native" | "none";
     structured_output: boolean;
+    /** v1.5: whether the model's native tool calls were verified against the core. */
+    native_tool_calls: "untested" | "verified" | "failed";
   };
   browser: { installed: boolean; version: string | null; path: string | null };
   windows_automation: { available: boolean; reason_de: string };
   desktop_interactive: boolean;
+  /** v1.5 (0.5): execution core ("Agent v2"); missing on older cores. */
+  execution_core: ExecutionCoreInfo | null;
+}
+
+/** v1.5: `AgentCapabilities.execution_core`. */
+export interface ExecutionCoreInfo {
+  version: string;
+  workflows: number;
+  stale_workflows: number;
+  input_guard: { enabled: boolean; paused_by_user: number; user_idle_ms: number | null };
+  host_id: string;
+  teach: { active: number; sessions: TeachSession[] } | null;
 }
 
 export interface Scopes {
@@ -709,6 +723,11 @@ export interface CreateTaskRequest {
   scopes: Scopes;
   budget: TaskBudget | null;
   parameters: Record<string, unknown> | null;
+  /** v1.5 */
+  workflow_id?: string | null;
+  project_id?: string | null;
+  connection_id?: string | null;
+  success_criteria?: SuccessCriterion[];
 }
 
 export type TaskState =
@@ -737,6 +756,10 @@ export interface TaskResult {
   summary_de: string;
   artifacts: TaskArtifact[];
   verified: boolean;
+  /** v1.5: result of the verifier (null on older cores / before verification). */
+  outcome: TaskOutcome | null;
+  evidence_paths: string[];
+  verified_by: string | null;
 }
 
 export type ActionState = "proposed" | "validated" | "rejected" | "executing" | "done" | "failed" | "unknown_outcome" | "cancelled";
@@ -755,6 +778,19 @@ export interface Action {
   finished_at: string | null;
   duration_ms: number | null;
   result: { ok: boolean; summary_de: string; evidence: Record<string, unknown> | null; snapshot_id: string | null } | null;
+  /** v1.5: id of the model's tool call (native tool calls), null otherwise. */
+  call_id: string | null;
+  /** v1.5: who proposed the action. */
+  origin: ActionOrigin;
+}
+
+export type ActionOrigin = "planner" | "workflow" | "repair" | "teach" | "verifier";
+
+/** v1.5: the expected answer of an `input` question is a target on this PC. */
+export interface QuestionBinding {
+  role: string;
+  kind: BindingKind;
+  hint: string;
 }
 
 export interface PendingQuestion {
@@ -762,6 +798,8 @@ export interface PendingQuestion {
   text_de: string;
   kind: "approval" | "input";
   action: Action | null;
+  /** v1.5: when set, `text` of the answer must be a target of this kind. */
+  binding: QuestionBinding | null;
 }
 
 export interface Task {
@@ -784,6 +822,14 @@ export interface Task {
   llm_calls: number;
   host_bound: boolean;
   last_error: string | null;
+  // ----- v1.5 (execution core) -----
+  workflow_id: string | null;
+  project_id: string | null;
+  connection_id: string | null;
+  success_criteria: SuccessCriterion[];
+  outcome: TaskOutcome | null;
+  outcome_report: OutcomeReport | null;
+  reuse: ReusePlan | null;
 }
 
 export interface AnswerRequest {
@@ -817,6 +863,11 @@ export interface Recipe {
 export interface AgentStopResult {
   stopped_tasks: number;
   stopped_live: number;
+  /** v1.5 */
+  ended_sessions?: number;
+  released_keys?: number;
+  stopped_teach?: number;
+  lock_ms?: number;
 }
 
 /** `event: stop` on the global channel. */
@@ -832,7 +883,331 @@ export type TaskStreamEvent =
   | { type: "activity"; data: ActivityEvent }
   | { type: "token"; data: { text: string } }
   | { type: "question"; data: PendingQuestion }
+  | { type: "step"; data: StepEvent }
   | { type: "done"; data: Task };
+
+// ----- v1.5 (0.5): execution core - success criteria, outcome, reuse, steps --------------
+
+export type SuccessCriterionKind = "file_exists" | "file_contains" | "file_not_contains" | "page_text" | "window_text" | "element_value" | "action_evidence";
+
+export interface SuccessCriterion {
+  kind: SuccessCriterionKind;
+  target: string;
+  expect: string[];
+  /** Who defined the criterion (user / planner / workflow …); not required when sending one. */
+  origin?: string;
+  description_de: string;
+}
+
+export type TaskOutcome = "fulfilled" | "not_fulfilled" | "unclear";
+
+export interface OutcomeCheck {
+  criterion: SuccessCriterion;
+  /** null = could not be checked. */
+  ok: boolean | null;
+  detail_de: string;
+  evidence: Record<string, unknown>;
+}
+
+export interface OutcomeReport {
+  status: TaskOutcome;
+  checks: OutcomeCheck[];
+  causes_de: string[];
+  evidence_paths: string[];
+  verified_at: string | null;
+  verified_by: string | null;
+}
+
+export type ReuseMode = "reuse" | "repair" | "replan" | "replan_forced";
+
+/** Decision of the reuse gate (task.reuse, GET /workflows/{id}/check). */
+export interface ReusePlan {
+  mode: ReuseMode;
+  reasons_de: string[];
+  repair_steps: number[];
+  strict: boolean;
+  /** 0..1 */
+  coverage: number;
+  unknown_dependencies: boolean;
+  invalid: Dependency[];
+  bindings: Record<string, string>;
+  missing_bindings: string[];
+  gate_ms: number;
+  workflow_id: string | null;
+  workflow_name: string | null;
+  run_id: string | null;
+}
+
+export type StepKind = "read" | "write" | "check" | "verify" | "skip" | "repair" | "repaired" | "replan" | "gate" | "derive" | "pause";
+
+/** `event: step` of the task stream: a step that really happened (never a thought). */
+export interface StepEvent {
+  kind: StepKind;
+  message_de: string;
+  at: string;
+  ok?: boolean | null;
+  status?: string;
+  action_id?: string;
+  step?: number;
+  mode?: string;
+  repair_steps?: number[];
+  coverage?: number;
+}
+
+// ----- v1.5: workflows ----------------------------------------------------------------------
+
+export type WorkflowStatus = "candidate" | "verified" | "demoted" | "retired";
+export type WorkflowParameterKind = "text" | "path" | "number" | "date" | "choice";
+export type BindingKind = "dir" | "file" | "app" | "window" | "url" | "account" | "model";
+export type DependencyKind = "fact" | "file" | "binding" | "app" | "tool_contract" | "model" | "workflow";
+export type DependencyOrigin = "observed" | "declared" | "inferred";
+export type WorkflowOriginKind = "compiled" | "taught" | "migrated";
+
+export interface WorkflowParameter {
+  name: string;
+  description_de: string;
+  example: string;
+  kind: WorkflowParameterKind;
+  required: boolean;
+}
+
+export interface WorkflowBinding {
+  role: string;
+  kind: BindingKind;
+  hint: string;
+  required: boolean;
+  /** The target on the PC the workflow was recorded on. */
+  original: string | null;
+}
+
+export type WorkflowPostcondition = Omit<SuccessCriterion, "origin">;
+
+export interface WorkflowStep {
+  index: number;
+  tool: string;
+  arguments_template: Record<string, unknown>;
+  target: { role: string; name: string } | null;
+  read_set: string[];
+  write_set: string[];
+  preconditions: string[];
+  postconditions: WorkflowPostcondition[];
+  side_effect: "none" | "local" | "external";
+  depends_on: string[];
+  derive: boolean;
+  derive_from: number[];
+  check_de: string;
+}
+
+export interface Dependency {
+  id: string;
+  kind: DependencyKind;
+  key: string;
+  revision: string | null;
+  origin: DependencyOrigin;
+  scope: string | null;
+  step_index: number | null;
+  valid: boolean;
+  reason: string | null;
+  invalidated_by: string | null;
+  invalidated_at: string | null;
+}
+
+export interface WorkflowDependencyStats {
+  total: number;
+  valid: number;
+  invalid: number;
+  by_kind: Record<string, number>;
+  inferred: number;
+}
+
+export interface WorkflowStats {
+  success_runs: number;
+  failed_runs: number;
+  distinct_param_sets: number;
+  negative_checked: boolean;
+  last_verified_at: string | null;
+  last_failed_at: string | null;
+  origin_kind: WorkflowOriginKind;
+  dependencies: WorkflowDependencyStats;
+}
+
+export interface Workflow {
+  id: string;
+  version: number;
+  name: string;
+  purpose_de: string;
+  status: WorkflowStatus;
+  parameters: WorkflowParameter[];
+  preconditions: string[];
+  bindings: WorkflowBinding[];
+  steps: WorkflowStep[];
+  checks: SuccessCriterion[];
+  dependencies: Dependency[];
+  scope: Scopes;
+  origin: Record<string, unknown>;
+  tool_contract_hash: string;
+  model_hint: string | null;
+  known_limits_de: string[];
+  created_at: string;
+  updated_at: string;
+  last_verified_at: string | null;
+  stats: WorkflowStats;
+  requires: { tools: string[]; apps: string[]; vision: boolean };
+  derived_steps: number[];
+  external_effects: boolean;
+}
+
+export interface WorkflowRun {
+  id: string;
+  workflow_id: string;
+  task_id: string;
+  host_id: string;
+  decision: string;
+  reason: string;
+  params_hash: string;
+  outcome: string | null;
+  llm_calls: number;
+  reused_steps: number;
+  /** JSON string (list of step indexes). */
+  repaired_steps: string;
+  /** JSON string (list of step indexes). */
+  skipped_steps: string;
+  gate_ms: number;
+  created_at: string;
+  finished_at: string | null;
+}
+
+/** A role bound to a target on this PC (GET /api/agent/bindings). */
+export interface HostBinding {
+  host_id: string;
+  role: string;
+  kind: BindingKind;
+  target: string;
+  verified_at: string | null;
+  created_at: string;
+}
+
+export interface BindingsResponse {
+  host_id: string;
+  bindings: HostBinding[];
+}
+
+/** `GET /api/agent/workflows/{id}` */
+export interface WorkflowDetail {
+  workflow: Workflow;
+  dependencies: Dependency[];
+  runs: WorkflowRun[];
+  bindings: Record<string, HostBinding>;
+}
+
+export interface PatchWorkflowRequest {
+  name?: string;
+  parameters?: WorkflowParameter[];
+  known_limits_de?: string[];
+  steps?: { index: number; arguments_template?: Record<string, unknown>; postconditions?: WorkflowPostcondition[]; check_de?: string }[];
+  status?: "candidate" | "demoted" | "retired";
+}
+
+/** `GET /api/agent/workflows/{id}/check` – dry run of the reuse gate on this PC. */
+export interface WorkflowCheckResult {
+  plan: ReusePlan;
+  dependencies: Dependency[];
+  bindings: Record<string, string>;
+  missing_bindings: WorkflowBinding[];
+}
+
+export interface NegativeCheckResult {
+  result: { ok: boolean; mode: string; reasons_de: string[] };
+  workflow: Workflow;
+}
+
+export interface RunWorkflowRequest {
+  parameters: Record<string, unknown>;
+  scopes?: Scopes;
+  budget?: TaskBudget;
+  project_id?: string | null;
+  connection_id?: string | null;
+  /** `replan` = comparison run without reuse. */
+  mode?: "auto" | "replan";
+}
+
+/** Parameter of `POST /tasks/{id}/compile` and `POST /teach/{sid}/finish`. */
+export interface CompileParameter {
+  name: string;
+  description_de: string;
+  example: string;
+  /** The recorded value that becomes the placeholder (required for teach). */
+  value?: string;
+}
+
+// ----- v1.5: teach ("Ablauf beibringen") ------------------------------------------------------
+
+export type TeachSource = "browser" | "window";
+export type TeachState = "recording" | "finished" | "cancelled";
+
+export interface TeachStep {
+  tool: string;
+  arguments: Record<string, unknown>;
+  check_de: string;
+  evidence: Record<string, unknown> | null;
+  target: { role: string; name: string } | null;
+  at: string;
+}
+
+export interface TeachSession {
+  id: string;
+  name: string;
+  source: TeachSource;
+  url: string | null;
+  source_id: string | null;
+  state: TeachState;
+  steps: TeachStep[];
+  created_at: string;
+  finished_at: string | null;
+  events: unknown;
+  workflow_id: string | null;
+  note_de: string;
+  scopes: Scopes;
+}
+
+export interface TeachStatus {
+  active: number;
+  sessions: TeachSession[];
+}
+
+export interface TeachStartRequest {
+  name: string;
+  source: TeachSource;
+  url?: string;
+  source_id?: string;
+  scopes: Scopes;
+}
+
+export interface TeachCaptureResponse {
+  /** Count or list of the steps added by this capture (core versions differ). */
+  new_steps: number | TeachStep[];
+  session: TeachSession;
+}
+
+export interface TeachFinishResponse {
+  session: TeachSession;
+  workflow: Workflow;
+  task_id: string | null;
+}
+
+/** `event: teach` on the global channel. */
+export interface TeachEvent {
+  id: string;
+  state: TeachState;
+  steps: number | TeachStep[];
+}
+
+/** `event: workflows` on the global channel: dependencies of these workflows changed. */
+export interface WorkflowsEvent {
+  stale: string[];
+  facts?: unknown;
+  by?: string;
+}
 
 // ----- v1.2: on-demand browser package for agent tasks ----------------------------------
 
