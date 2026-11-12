@@ -114,8 +114,8 @@ Profil-Umzug und Hardwareerkennung; gepackt siehe Abschnitt 7).
 
 ## 7. Paket (echt)
 
-`SpAIder-Foldable-0.5.0-win-x64.zip`, 402 217 519 Bytes, SHA-256
-`5df139ff5c51899bc68f9a68c1df841bcae01d9b5946fd750b1978ce92040ba2`, Build-Commit `1ff65b8`
+`SpAIder-Foldable-0.5.0-win-x64.zip`, 402 217 929 Bytes, SHA-256
+`23e347829ae8973d1e5558e004d219353be9c727cd1cc296c5dd25083aaa1906`, Build-Commit `a6e2d83`
 (Manifest `BUILD_MANIFEST_0.5.0.json`; spätere Commits des Branches ändern nur Dokumente und
 Messdateien). Kein Modell, keine Nutzerdaten, kein Browserprofil, keine Schlüssel im ZIP
 (geprüft: 8 935 Einträge).

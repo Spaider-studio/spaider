@@ -2,17 +2,17 @@
  "product": "SpAIder Foldable",
  "version": "0.5.0",
  "review_prerelease": true,
- "built_at": "2026-11-11T23:37:57Z",
+ "built_at": "2026-11-12T01:36:09Z",
  "zip": {
   "name": "SpAIder-Foldable-0.5.0-win-x64.zip",
-  "bytes": 402217519,
-  "sha256": "5df139ff5c51899bc68f9a68c1df841bcae01d9b5946fd750b1978ce92040ba2",
+  "bytes": 402217929,
+  "sha256": "23e347829ae8973d1e5558e004d219353be9c727cd1cc296c5dd25083aaa1906",
   "entries": 8935,
-  "uncompressed_bytes": 940480449
+  "uncompressed_bytes": 940480894
  },
  "git": {
   "branch": "feature/spaider-foldable-agent-v2",
-  "commit": "1ff65b84236e70cd3eb7a903dd64b360590f56f4",
+  "commit": "a6e2d83844dc5ea6dd2b6e0cac849b8910c23a64",
   "base_commit_pr60": "219828ad66bc00412b5fcb61d25eddbd18188a8a",
   "dirty": true
  },
