@@ -586,6 +586,13 @@ def main():
                 repeats = args.repeat if task.get("set") == "learn" else 1
                 for i in range(repeats):
                     h.wait_idle(task)
+                    if task["fixture"] in DESKTOP_FIXTURES and W.session_locked():
+                        # the Windows lock screen owns the foreground: input and activation cannot
+                        # work; record the fact instead of counting a failure
+                        report["runs"].append({"id": task["id"], "set": task.get("set"), "group": g, "repeat": i, "skipped": "Sperrbildschirm aktiv (Fenstereingaben nicht möglich)"})
+                        print(json.dumps({"id": task["id"], "repeat": i, "skipped": "Sperrbildschirm"}, ensure_ascii=False), flush=True)
+                        out.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+                        continue
                     v = h.values(task, i, prev)
                     try:
                         v = h.fixture(task, i, v)

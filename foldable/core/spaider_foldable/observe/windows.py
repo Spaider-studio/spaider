@@ -391,6 +391,27 @@ def last_input_age_ms() -> Optional[int]:
         return None
 
 
+LOCK_SCREEN_PROCESSES = {"lockapp.exe", "logonui.exe"}
+
+
+def session_locked() -> bool:
+    """True while the Windows lock screen owns the foreground. After an idle timeout Windows 10/11
+    shows LockApp.exe on the *Default* desktop (the input desktop check alone stays 'interactive');
+    foreground activation and input then fail although UI Automation still works."""
+    if not IS_WIN:
+        return False
+    try:
+        fg = user32.GetForegroundWindow()
+        if not fg:
+            return False
+        pid = wintypes.DWORD(0)
+        user32.GetWindowThreadProcessId(fg, ctypes.byref(pid))
+        name, _ = process_name(int(pid.value))
+        return (name or "").lower() in LOCK_SCREEN_PROCESSES
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def desktop_interactive() -> bool:
     """False on the secure desktop / lock screen / no input desktop (no capture or input then)."""
     if not IS_WIN:
@@ -403,7 +424,9 @@ def desktop_interactive() -> bool:
         n = wintypes.DWORD()
         user32.GetUserObjectInformationW(h, 2, buf, ctypes.sizeof(buf), ctypes.byref(n))  # UOI_NAME
         user32.CloseDesktop(h)
-        return buf.value.lower() == "default"
+        if buf.value.lower() != "default":
+            return False
+        return not session_locked()
     except Exception:  # noqa: BLE001
         return False
 
