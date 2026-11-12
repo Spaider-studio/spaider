@@ -141,6 +141,17 @@ Entwicklungskern mit demselben Code; der 0.3-Paketvolltest mit Modell wurde nich
 
 - Zwei-PC-/USB-Transfer physisch (ein Rechner); Ersatz: automatisierte Umzugstests + Anleitung.
 - Echte Cloud-Anbieter (0 €): native Tool-Calls nur gegen Fake-Adapter und lokale Probe.
-- Browser-Recorder (Beibringen) nur im Dev-Kern mit eigener Testseite geprüft (PLATZHALTER_TEACH).
-- Fensteraufgaben liefen unter Idle-Gating (nur bei Inaktivität des Nutzers); Läufe, die durch
-  Nutzereingaben pausiert wurden, sind im JSON als solche erkennbar (`events` enthält „pausiert“).
+- Browser-Recorder (Beibringen): echt geprüft mit eigener Testseite im Dev-Kern
+  (`test_real_browser_recorder_compiles_a_candidate`: Klick/Eingabe/Auswahl aufgezeichnet,
+  Kandidat mit Rolle+Name-Zielen kompiliert); Fenster-Diff nur mit Fake-Snapshots (`test_teach.py`).
+- **Fensteraufgaben mit Vordergrund/Eingabe (W1, W4, W6, W8, W9, W10, W12–W15, X1, X3, X5, X7)
+  konnten in der Nacht nicht gemessen werden:** die Sitzung stand nach dem Leerlauf-Timeout auf dem
+  Windows-Sperrbildschirm (LockApp im Vordergrund). Der Kern erkannte das zunächst nicht
+  (Eingabe-Desktop meldet „Default“) und meldete `windows.focus` ehrlich als gescheitert; seit
+  Commit a6e2d83 gilt der Sperrbildschirm als nicht interaktiv (Pause), und die Harness überspringt
+  Fensteraufgaben, solange die Sitzung gesperrt ist (`skipped: Sperrbildschirm`). Die Teildaten
+  des ersten Fensterlaufs (UIA-Aufgaben W2, W3, W5, W7 erfolgreich wiederverwendet; Vordergrund-
+  Aufgaben gescheitert) stehen in `matrix2-full-windows-cross.locked1.json`. Eine Messung der
+  Vordergrund-Aufgaben erfordert eine entsperrte, unbenutzte Sitzung (z. B. tagsüber mit
+  `--min-idle 120`).
+- Die Sicherheitsrichtlinie (Sperre nach Leerlauf) wurde nicht verändert.

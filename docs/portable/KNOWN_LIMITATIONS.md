@@ -398,3 +398,31 @@ Stand des Branches `feature/spaider-foldable-agent-v2`; Zahlen in `AGENT_V2_TEST
   über die API (`PATCH /agent/workflows/{id}`) möglich.
 - Belege öffnen nur Textformate mit der Standardanwendung; alles andere wird im Ordner
   gezeigt.
+
+### Befunde aus der Messreihe (2026-11-12, im Branch behoben, soweit markiert)
+
+- Sperrbildschirm: Nach dem Leerlauf-Timeout zeigt Windows `LockApp.exe` auf dem *Default*-Desktop;
+  die Prüfung des Eingabe-Desktops allein hielt die Sitzung für interaktiv, Vordergrund und
+  Eingaben scheiterten. Behoben (a6e2d83): Sperrbildschirm = nicht interaktiv → Aufgabe pausiert
+  und setzt nach dem Entsperren fort. UI-Automation-Schritte (`set_value`, `invoke`, `read`)
+  funktionieren auch hinter dem Sperrbildschirm, werden aber bewusst ebenfalls pausiert.
+- Ableitung von Schrittinhalten: Werte, die aus gelesenen Daten stammen, wurden zunächst nur
+  über Wortüberschneidungen erkannt; Zahlen/Daten (F8, F10), ein einzelnes Statuswort (B10) und
+  Daten aus Klickergebnissen wurden wörtlich wiederholt („falsche Wiederverwendung“). Behoben in
+  drei Schritten (39ae82b, 1ff65b8, 95ee575): Werte zählen, ein geteiltes Inhaltswort genügt, jedes
+  Werkzeugergebnis gilt als Lesequelle. Restrisiko: ein Inhalt, der aus Daten stammt, aber kein
+  Wort und keinen Wert mit ihnen teilt (Paraphrase), wird wörtlich wiederholt; die Nachbedingungen
+  und die Ergebnisprüfung fangen das nur, wenn der Auftrag prüfbare Inhalte nennt.
+- Abgeleitete Feldwerte: Beim Neu-Ableiten eines einzelnen Feldwerts kopierte das Modell (Qwen3-4B)
+  ganze Dateien oder „Beschriftung: Wert“ in das Feld (B1, B14). Der Ableitungsprompt verlangt
+  seit 95ee575 genau einen Wert ohne Beschriftung; die Nachbedingung (Feldwert) erkennt Abweichungen.
+  Die Messreihe vor diesem Commit zeigt die Fälle als falsche Wiederverwendung.
+- Elementnamen aus Labels: Ein `<select>` innerhalb eines `<label>` bekam die Optionstexte in den
+  Namen (abhängig vom gewählten Wert) → Ziel nicht wiedergefunden. Behoben (95ee575): nur die
+  eigenen Textknoten des Labels bilden den Namen.
+- Vergleichsarm „einfache Rezepte“: ohne gebundene Rollen fielen Rezepte sofort an den Planer
+  zurück (wie 0.3 bei geändertem Pfad); seit 95ee575 behalten sie Rollen/Parameter und werden
+  wörtlich wiedergegeben – so misst der Arm tatsächlich „Wiedergabe ohne Abhängigkeiten“.
+- Ergebnisprüfung ohne Inhaltsvorgabe: Aufgaben, deren Auftrag keine prüfbaren Inhalte nennt
+  (z. B. „zähle die Einträge“), können mit falschem Inhalt als „erfüllt“ gelten; die unabhängige
+  Prüfung der Matrix zählt das als Fehlerfolge-Meldung (B13, F12, F19).
