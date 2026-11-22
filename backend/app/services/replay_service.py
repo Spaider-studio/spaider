@@ -74,17 +74,9 @@ class ReplayService:
         """Best-effort ClickHouse connection. The audit log degrades to the
         Kafka scan when ClickHouse is down — never blocks event recording."""
         try:
-            import clickhouse_connect
+            from app.core.clickhouse import create_client
 
-            self._ch_client = await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: clickhouse_connect.get_client(
-                    host=settings.clickhouse_host,
-                    port=settings.clickhouse_port,
-                    username=settings.clickhouse_user,
-                    password=settings.clickhouse_password,
-                ),
-            )
+            self._ch_client = await asyncio.get_event_loop().run_in_executor(None, create_client)
             for ddl in _WORKFLOW_EVENTS_DDL:
                 await asyncio.get_event_loop().run_in_executor(
                     None, lambda q=ddl: self._ch_client.command(q)

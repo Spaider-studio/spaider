@@ -5,6 +5,8 @@ service and ClickHouse agree on the SQL, or that concurrent callers are safe.
 """
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from app.services.replay_service import ReplayService
@@ -100,3 +102,41 @@ async def test_a_hostile_kb_id_cannot_read_other_kbs(clickhouse_test):
     overview = await service.get_overview("x' OR '1'='1")
 
     assert overview["ingest"].get("total_ingests", 0) == 0
+
+
+@pytest.mark.asyncio
+async def test_concurrent_audit_listings_all_succeed(clickhouse_test):
+    """One client is shared by every request. ClickHouse refuses parallel queries in one session."""
+    service = await _started_service()
+    await _record(service, "wf-1", "kb-a")
+
+    runs = await asyncio.gather(*[service._list_workflows_clickhouse(agent_id=None, limit=10) for _ in range(30)])
+
+    failed = sum(run is None for run in runs)
+    assert failed == 0, f"{failed} of 30 concurrent audit listings failed"
+    assert all(len(run) == 1 for run in runs)
+
+
+@pytest.mark.asyncio
+async def test_concurrent_analytics_queries_all_succeed(clickhouse_test):
+    service = await _recorded_analytics("kb-a")
+
+    overviews = await asyncio.gather(*[service.get_overview("kb-a") for _ in range(30)])
+
+    failed = sum(overview["ingest"].get("total_ingests") != 1 for overview in overviews)
+    assert failed == 0, f"{failed} of 30 concurrent analytics queries returned nothing"
+
+
+@pytest.mark.asyncio
+async def test_audit_and_analytics_can_run_at_the_same_time(clickhouse_test):
+    audit = await _started_service()
+    await _record(audit, "wf-1", "kb-a")
+    analytics = await _recorded_analytics("kb-a")
+
+    listings, overviews = await asyncio.gather(
+        asyncio.gather(*[audit._list_workflows_clickhouse(agent_id="kb-a", limit=10) for _ in range(10)]),
+        asyncio.gather(*[analytics.get_overview("kb-a") for _ in range(10)]),
+    )
+
+    assert all(run is not None for run in listings)
+    assert all(overview["ingest"].get("total_ingests") == 1 for overview in overviews)

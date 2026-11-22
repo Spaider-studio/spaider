@@ -96,19 +96,10 @@ class AnalyticsService:
     async def initialize(self) -> None:
         """Connect to ClickHouse and create tables. Called once at startup."""
         try:
-            import clickhouse_connect
-
             from app.config import settings
+            from app.core.clickhouse import create_client
 
-            self._client = await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: clickhouse_connect.get_client(
-                    host=settings.clickhouse_host,
-                    port=settings.clickhouse_port,
-                    username=settings.clickhouse_user,
-                    password=settings.clickhouse_password,
-                ),
-            )
+            self._client = await asyncio.get_event_loop().run_in_executor(None, create_client)
             for ddl in _DDL:
                 await asyncio.get_event_loop().run_in_executor(
                     None, lambda q=ddl: self._client.command(q)
