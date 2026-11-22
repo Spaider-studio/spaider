@@ -218,6 +218,7 @@ export default function QueryPanel() {
         {loading ? (
           <button
             onClick={handleStop}
+            aria-label="Stop the question"
             className="flex items-center justify-center bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 rounded-lg px-3 py-2 transition-colors"
           >
             <X className="w-4 h-4" />
@@ -226,6 +227,7 @@ export default function QueryPanel() {
           <button
             onClick={handleQuery}
             disabled={!question.trim()}
+            aria-label="Ask the knowledge graph"
             className="flex items-center justify-center bg-[#1A1A25] hover:bg-[#2A2A35] border border-[#2A2A35] disabled:opacity-40 text-gray-300 rounded-lg px-3 py-2 transition-colors"
           >
             <Search className="w-4 h-4" />
@@ -236,7 +238,7 @@ export default function QueryPanel() {
       {/* Retrieval depth slider */}
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] text-gray-500 uppercase tracking-wider">Retrieval depth</span>
+          <span className="text-[10px] text-gray-400 uppercase tracking-wider">Retrieval depth</span>
           <span className="text-[10px] text-gray-400 font-mono">
             {TOP_K_STEPS[topKIndex].label}
             <span className="text-gray-600 ml-1">· top_k={TOP_K_STEPS[topKIndex].value}</span>
@@ -244,6 +246,8 @@ export default function QueryPanel() {
         </div>
         <input
           type="range"
+          aria-label="Retrieval depth"
+          aria-valuetext={TOP_K_STEPS[topKIndex].label}
           min={0}
           max={TOP_K_STEPS.length - 1}
           step={1}
@@ -276,7 +280,7 @@ export default function QueryPanel() {
           <span>{highlightedIds.size} nodes highlighted</span>
           <button
             onClick={clearHighlights}
-            className="ml-auto flex items-center gap-1 text-gray-500 hover:text-gray-300 transition-colors"
+            className="ml-auto flex items-center gap-1 text-gray-400 hover:text-gray-300 transition-colors"
           >
             <X className="w-3 h-3" /> Clear
           </button>

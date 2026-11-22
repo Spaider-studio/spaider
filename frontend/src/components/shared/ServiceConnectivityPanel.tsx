@@ -167,7 +167,7 @@ export default function ServiceConnectivityPanel() {
         <button
           onClick={runCheck}
           disabled={checking}
-          className="flex items-center gap-1.5 text-xs text-[#6B7280] hover:text-[#A1A1AA] transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 text-xs text-[#8B93A3] hover:text-[#A1A1AA] transition-colors disabled:opacity-50"
         >
           <RefreshCw className={`w-3 h-3 ${checking ? "animate-spin" : ""}`} />
           Refresh
@@ -201,7 +201,7 @@ export default function ServiceConnectivityPanel() {
 
       {/* ── Timestamp ─────────────────────────────────────────────────── */}
       {lastChecked && (
-        <div className="text-[10px] text-[#6B7280] text-right">
+        <div className="text-[10px] text-[#8B93A3] text-right">
           Last checked: {lastChecked.toLocaleTimeString()} · auto-refresh every{" "}
           {POLL_INTERVAL_MS / 1000}s
         </div>
@@ -225,12 +225,12 @@ function SectionBlock({ title, icon, muted = false, children }: SectionBlockProp
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-1.5 mb-1">
-        <span className={`${muted ? "text-[#4B5563]" : "text-[#6B7280]"}`}>
+        <span className={`${muted ? "text-[#8B93A3]" : "text-[#8B93A3]"}`}>
           {icon}
         </span>
         <span
           className={`text-[10px] font-semibold uppercase tracking-widest ${
-            muted ? "text-[#4B5563]" : "text-[#6B7280]"
+            muted ? "text-[#8B93A3]" : "text-[#8B93A3]"
           }`}
         >
           {title}
@@ -276,8 +276,8 @@ function ServiceRow({ svc, isLast }: ServiceRowProps) {
       <div className="flex items-center gap-2">
         {isStatic ? (
           <>
-            <span className="text-xs text-[#6B7280]">Not used in this setup</span>
-            <Circle className="w-3.5 h-3.5 text-[#6B7280]" />
+            <span className="text-xs text-[#8B93A3]">Not used in this setup</span>
+            <Circle className="w-3.5 h-3.5 text-[#8B93A3]" />
           </>
         ) : isOk ? (
           <>
@@ -315,11 +315,11 @@ function SwarmSection({ swarmHealth }: SwarmSectionProps) {
         /* ── Standby state ─────────────────────────────────────────────── */
         <div className="flex items-center gap-2.5 py-3 px-1">
           <div className="w-7 h-7 rounded-lg bg-[#F59E0B]/5 border border-[#F59E0B]/10 flex items-center justify-center flex-shrink-0">
-            <Activity className="w-3.5 h-3.5 text-[#4B5563]" />
+            <Activity className="w-3.5 h-3.5 text-[#8B93A3]" />
           </div>
-          <p className="text-xs text-[#4B5563] leading-relaxed">
+          <p className="text-xs text-[#8B93A3] leading-relaxed">
             No active swarm workers detected.{" "}
-            <span className="text-[#6B7280]">System in standby.</span>
+            <span className="text-[#8B93A3]">System in standby.</span>
           </p>
         </div>
       ) : (
@@ -327,7 +327,7 @@ function SwarmSection({ swarmHealth }: SwarmSectionProps) {
         <div className="flex flex-col gap-0">
           {/* Worker count header */}
           <div className="flex items-center justify-between py-2 px-1 border-b border-[#1A1A25]">
-            <span className="text-xs text-[#6B7280]">
+            <span className="text-xs text-[#8B93A3]">
               Active workers
             </span>
             <span className="text-xs font-semibold text-[#10B981]">

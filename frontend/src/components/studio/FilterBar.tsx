@@ -55,7 +55,7 @@ export default function FilterBar({ onFiltersChange }: Props) {
         {isFiltered && (
           <button
             onClick={reset}
-            className="text-xs text-gray-500 hover:text-gray-300 flex items-center gap-1 transition-colors"
+            className="text-xs text-gray-400 hover:text-gray-300 flex items-center gap-1 transition-colors"
           >
             <X className="w-3 h-3" />
             Reset

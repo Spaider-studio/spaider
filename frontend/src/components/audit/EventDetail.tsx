@@ -38,7 +38,7 @@ export default function EventDetail({ event }: EventDetailProps) {
   if (!event) {
     return (
       <div className="flex items-center justify-center h-full">
-        <p className="text-xs text-[#6B7280]">
+        <p className="text-xs text-[#8B93A3]">
           Select an event to inspect its recorded payload.
         </p>
       </div>
@@ -60,15 +60,15 @@ export default function EventDetail({ event }: EventDetailProps) {
         </div>
         <div className="flex flex-col gap-2 text-[11px] text-[#A1A1AA]">
           <span className="flex items-center gap-2">
-            <Hash className="w-3 h-3 text-[#6B7280]" />
+            <Hash className="w-3 h-3 text-[#8B93A3]" />
             <span className="font-mono">{event.id}</span>
           </span>
           <span className="flex items-center gap-2">
-            <Clock className="w-3 h-3 text-[#6B7280]" />
+            <Clock className="w-3 h-3 text-[#8B93A3]" />
             {new Date(event.timestamp).toLocaleString()}
           </span>
           <span className="flex items-center gap-2">
-            <Bot className="w-3 h-3 text-[#6B7280]" />
+            <Bot className="w-3 h-3 text-[#8B93A3]" />
             {event.agent_name || event.agent_id || "—"}
           </span>
         </div>
@@ -80,12 +80,12 @@ export default function EventDetail({ event }: EventDetailProps) {
           Recorded payload
         </h3>
         {entries.length === 0 ? (
-          <p className="text-xs text-[#6B7280]">No payload recorded for this event.</p>
+          <p className="text-xs text-[#8B93A3]">No payload recorded for this event.</p>
         ) : (
           <dl className="flex flex-col gap-2.5">
             {entries.map(([key, value]) => (
               <div key={key} className="flex items-start gap-3">
-                <dt className="w-36 flex-shrink-0 text-[11px] text-[#6B7280]">
+                <dt className="w-36 flex-shrink-0 text-[11px] text-[#8B93A3]">
                   {FIELD_LABELS[key] ?? key}
                 </dt>
                 <dd className="flex-1 min-w-0 text-[11px] text-[#E4E4E7] whitespace-pre-wrap break-words font-mono">
@@ -97,7 +97,7 @@ export default function EventDetail({ event }: EventDetailProps) {
         )}
       </div>
 
-      <p className="mt-4 text-[10px] text-[#6B7280] leading-relaxed">
+      <p className="mt-4 text-[10px] text-[#8B93A3] leading-relaxed">
         Events are persisted to ClickHouse, so the audit trail survives Kafka
         retention. Re-running a query against the graph state at event time
         (true replay) is on the roadmap.

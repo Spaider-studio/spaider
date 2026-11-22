@@ -255,13 +255,13 @@ export default function NeuralMultiverse() {
                   <p className="text-white/90 text-sm font-semibold leading-tight">
                     {cluster.name}
                   </p>
-                  <p className="text-white/35 text-[10px]">
+                  <p className="text-white/55 text-[10px]">
                     {cluster.nodeCount} nodes · {cluster.edgeCount} relations
                   </p>
                 </div>
                 <button
                   onClick={() => handleSelectAgent(null)}
-                  className="ml-2 p-0.5 rounded hover:bg-white/10 text-white/30 hover:text-white/70 transition-colors"
+                  className="ml-2 p-0.5 rounded hover:bg-white/10 text-white/55 hover:text-white/70 transition-colors"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -301,7 +301,7 @@ export default function NeuralMultiverse() {
               <p className="text-cyan-400/50 text-[10px] ml-1">Swarm Focus</p>
               <button
                 onClick={() => handleSelectSwarm(null)}
-                className="ml-1 p-0.5 rounded hover:bg-white/10 text-white/30 hover:text-white/70 transition-colors"
+                className="ml-1 p-0.5 rounded hover:bg-white/10 text-white/55 hover:text-white/70 transition-colors"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -324,7 +324,7 @@ export default function NeuralMultiverse() {
               </div>
               <button
                 onClick={() => setHoveredNode(null)}
-                className="p-0.5 text-white/30 hover:text-white/70 transition-colors flex-shrink-0"
+                className="p-0.5 text-white/55 hover:text-white/70 transition-colors flex-shrink-0"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -338,8 +338,8 @@ export default function NeuralMultiverse() {
               </p>
             )}
             <div className="mt-2 pt-2 border-t border-white/8 flex items-center gap-1.5">
-              <Info className="w-3 h-3 text-white/20 flex-shrink-0" />
-              <p className="text-white/25 text-[10px] truncate">
+              <Info className="w-3 h-3 text-white/55 flex-shrink-0" />
+              <p className="text-white/55 text-[10px] truncate">
                 Agent: {hoveredNode.agent_id ?? "—"}
               </p>
             </div>
@@ -347,7 +347,7 @@ export default function NeuralMultiverse() {
         )}
 
         {/* Bottom-left: status */}
-        <div className="absolute bottom-3 left-3 z-10 text-white/15 text-[10px] font-mono pointer-events-none">
+        <div className="absolute bottom-3 left-3 z-10 text-white/55 text-[10px] font-mono pointer-events-none">
           Neural Multiverse · {nodes.length} nodes · {edges.length} edges · refreshed{" "}
           {lastRefresh.toLocaleTimeString()}
         </div>

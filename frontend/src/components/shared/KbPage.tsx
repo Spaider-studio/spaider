@@ -54,7 +54,7 @@ export default function KbPage({
         ) : current ? (
           children(current.id)
         ) : agents.length === 0 ? (
-          <p className="text-sm text-zinc-500">No knowledge bases yet.</p>
+          <p className="text-sm text-zinc-400">No knowledge bases yet.</p>
         ) : null}
       </div>
     </DashboardShell>

@@ -197,7 +197,7 @@ export default function LivePheromoneStream() {
       >
         {events.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <span className="text-white/20 text-[10px]">
+            <span className="text-white/55 text-[10px]">
               {connected ? "Awaiting swarm events…" : "Connecting…"}
             </span>
           </div>
@@ -211,10 +211,10 @@ export default function LivePheromoneStream() {
 
             return (
               <div key={ev.id} className="leading-5 whitespace-pre-wrap break-all">
-                <span className="text-white/20">{ts} </span>
+                <span className="text-white/55">{ts} </span>
                 <span className={`${color} font-semibold`}>{prefix} </span>
                 {agent && (
-                  <span className="text-white/30">{agent}</span>
+                  <span className="text-white/55">{agent}</span>
                 )}
                 <span className={color}>{msg}</span>
               </div>
@@ -224,7 +224,7 @@ export default function LivePheromoneStream() {
       </div>
 
       {/* Footer: event count */}
-      <div className="text-[9px] text-white/20 text-right font-mono">
+      <div className="text-[9px] text-white/55 text-right font-mono">
         {events.length}/{MAX_EVENTS} events
       </div>
     </div>

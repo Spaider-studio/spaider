@@ -88,7 +88,7 @@ export default function AgentSettingsForm({ agent, onAgentUpdated }: Props) {
             <Brain
               className={[
                 "w-4 h-4 transition-colors duration-300",
-                memoryEnabled ? "text-purple-400" : "text-[#6B7280]",
+                memoryEnabled ? "text-purple-400" : "text-[#8B93A3]",
               ].join(" ")}
             />
           </div>
@@ -105,7 +105,7 @@ export default function AgentSettingsForm({ agent, onAgentUpdated }: Props) {
                 </span>
               )}
             </div>
-            <p className="text-[11px] text-[#6B7280] leading-tight">
+            <p className="text-[11px] text-[#8B93A3] leading-tight">
               {memoryEnabled
                 ? "Every query is stored as an episodic memory node linked to its source facts."
                 : "Enable to record query/response pairs as InteractionNodes in the knowledge graph."}
@@ -139,7 +139,7 @@ export default function AgentSettingsForm({ agent, onAgentUpdated }: Props) {
             ].join(" ")}
           >
             {toggling && (
-              <Loader2 className="w-3 h-3 text-[#6B7280] animate-spin" />
+              <Loader2 className="w-3 h-3 text-[#8B93A3] animate-spin" />
             )}
           </span>
         </button>
@@ -155,7 +155,7 @@ export default function AgentSettingsForm({ agent, onAgentUpdated }: Props) {
             <p className="text-sm font-medium text-[#E4E4E7]">
               Clear Interaction Memory
             </p>
-            <p className="text-[11px] text-[#6B7280] leading-tight mt-0.5">
+            <p className="text-[11px] text-[#8B93A3] leading-tight mt-0.5">
               Permanently delete all episodic memory records for this agent.
               Knowledge graph nodes are never affected.
             </p>

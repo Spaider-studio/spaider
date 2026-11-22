@@ -47,13 +47,13 @@ export default function AuditPage() {
             <h1 className="text-lg font-bold text-[#E4E4E7]">
               Audit Log
             </h1>
-            <p className="text-xs text-[#6B7280]">
+            <p className="text-xs text-[#8B93A3]">
               Durable event log of every ingest and query — ClickHouse-backed
             </p>
           </div>
           {selectedRun && (
             <div className="ml-auto flex items-center gap-2">
-              <span className="text-[10px] text-[#6B7280] px-2 py-1 bg-white/[0.03] rounded-lg border border-[#2A2A35]">
+              <span className="text-[10px] text-[#8B93A3] px-2 py-1 bg-white/[0.03] rounded-lg border border-[#2A2A35]">
                 {selectedRun.workflow_id}
               </span>
               <span className="text-[10px] text-[#A1A1AA]">

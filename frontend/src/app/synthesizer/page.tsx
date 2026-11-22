@@ -186,7 +186,7 @@ export default function SynthesizerPage() {
                 >
                   <div className="mb-2">{STRATEGY_ICONS[s.id]}</div>
                   <div className="text-sm font-medium mb-1">{s.label}</div>
-                  <div className="text-xs text-[#6B7280] leading-relaxed">{s.description}</div>
+                  <div className="text-xs text-[#8B93A3] leading-relaxed">{s.description}</div>
                 </button>
               ))}
             </div>
@@ -200,10 +200,10 @@ export default function SynthesizerPage() {
 
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-[#A1A1AA] font-medium">
+                  <label className="text-xs text-[#A1A1AA] font-medium" htmlFor="synth-field-1">
                     Agent <span className="text-[#EF4444]">*</span>
                   </label>
-                  <select
+                  <select id="synth-field-1"
                     value={config.agent_id}
                     onChange={(e) => setConfig((c) => ({ ...c, agent_id: e.target.value }))}
                     className="bg-[#0A0A0F] border border-[#2A2A35] rounded-lg px-3 py-2 text-sm text-[#E4E4E7] focus:outline-none focus:border-[#3B82F6]/50 transition-colors"
@@ -219,8 +219,8 @@ export default function SynthesizerPage() {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-[#A1A1AA] font-medium">Output Format</label>
-                  <select
+                  <label className="text-xs text-[#A1A1AA] font-medium" htmlFor="synth-field-2">Output Format</label>
+                  <select id="synth-field-2"
                     value={config.output_format}
                     onChange={(e) => setConfig((c) => ({ ...c, output_format: e.target.value }))}
                     className="bg-[#0A0A0F] border border-[#2A2A35] rounded-lg px-3 py-2 text-sm text-[#E4E4E7] focus:outline-none focus:border-[#3B82F6]/50 transition-colors"
@@ -233,10 +233,10 @@ export default function SynthesizerPage() {
               </div>
 
               <div className="flex flex-col gap-1.5 mb-4">
-                <label className="text-xs text-[#A1A1AA] font-medium">
+                <label className="text-xs text-[#A1A1AA] font-medium" htmlFor="synth-field-3">
                   Max Samples: {config.max_samples}
                 </label>
-                <input
+                <input id="synth-field-3"
                   type="range"
                   min={10}
                   max={1000}
@@ -247,7 +247,7 @@ export default function SynthesizerPage() {
                   }
                   className="accent-[#3B82F6]"
                 />
-                <div className="flex justify-between text-[10px] text-[#6B7280]">
+                <div className="flex justify-between text-[10px] text-[#8B93A3]">
                   <span>10</span>
                   <span>1,000</span>
                 </div>
@@ -255,10 +255,10 @@ export default function SynthesizerPage() {
 
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-[#A1A1AA] font-medium">
+                  <label className="text-xs text-[#A1A1AA] font-medium" htmlFor="synth-field-4">
                     Min Confidence: {config.min_confidence.toFixed(1)}
                   </label>
-                  <input
+                  <input id="synth-field-4"
                     type="range"
                     min={0}
                     max={1}
@@ -271,10 +271,10 @@ export default function SynthesizerPage() {
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-[#A1A1AA] font-medium">
+                  <label className="text-xs text-[#A1A1AA] font-medium" htmlFor="synth-field-5">
                     Min Path Length: {config.min_path_length}
                   </label>
-                  <input
+                  <input id="synth-field-5"
                     type="range"
                     min={1}
                     max={5}
@@ -291,7 +291,7 @@ export default function SynthesizerPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#3B82F6] hover:bg-[#2563EB] text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
               >
                 {loading ? (
                   <>
@@ -316,7 +316,7 @@ export default function SynthesizerPage() {
                   Teacher LLM · SLM Fine-Tuning
                 </span>
               </div>
-              <p className="text-xs text-[#6B7280] mb-5 leading-relaxed">
+              <p className="text-xs text-[#8B93A3] mb-5 leading-relaxed">
                 Uses a strong Teacher LLM to synthesise realistic 5-turn{" "}
                 <code className="text-violet-400/80 bg-[#0A0A0F] px-1 py-0.5 rounded text-[11px]">tool_call</code>{" "}
                 trajectories. Samples random sub-graphs across{" "}
@@ -327,11 +327,11 @@ export default function SynthesizerPage() {
 
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-[#A1A1AA] font-medium flex items-center gap-1.5">
+                  <label className="text-xs text-[#A1A1AA] font-medium flex items-center gap-1.5" htmlFor="synth-field-6">
                     <Globe className="w-3 h-3" />
                     Scope
                   </label>
-                  <select
+                  <select id="synth-field-6"
                     value={agenticAgentId}
                     onChange={(e) => setAgenticAgentId(e.target.value)}
                     className="bg-[#0A0A0F] border border-[#2A2A35] rounded-lg px-3 py-2 text-sm text-[#E4E4E7] focus:outline-none focus:border-violet-500/40 transition-colors"
@@ -346,11 +346,11 @@ export default function SynthesizerPage() {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-[#A1A1AA] font-medium flex items-center gap-1.5">
+                  <label className="text-xs text-[#A1A1AA] font-medium flex items-center gap-1.5" htmlFor="synth-field-7">
                     <Sliders className="w-3 h-3" />
                     Concurrency: {agenticConcurrency} parallel LLM calls
                   </label>
-                  <input
+                  <input id="synth-field-7"
                     type="range"
                     min={1}
                     max={20}
@@ -363,10 +363,10 @@ export default function SynthesizerPage() {
               </div>
 
               <div className="flex flex-col gap-1.5 mb-5">
-                <label className="text-xs text-[#A1A1AA] font-medium">
+                <label className="text-xs text-[#A1A1AA] font-medium" htmlFor="synth-field-8">
                   Trajectories: {agenticSamples}
                 </label>
-                <input
+                <input id="synth-field-8"
                   type="range"
                   min={5}
                   max={500}
@@ -375,7 +375,7 @@ export default function SynthesizerPage() {
                   onChange={(e) => setAgenticSamples(Number(e.target.value))}
                   className="accent-violet-500"
                 />
-                <div className="flex justify-between text-[10px] text-[#6B7280]">
+                <div className="flex justify-between text-[10px] text-[#8B93A3]">
                   <span>5</span>
                   <span>500</span>
                 </div>
@@ -401,7 +401,7 @@ export default function SynthesizerPage() {
 
               {/* Format preview */}
               <div className="mt-4 bg-[#0A0A0F] border border-[#2A2A35] rounded-lg p-3">
-                <div className="text-[10px] text-[#6B7280] mb-2 font-medium uppercase tracking-wider">Output format per line</div>
+                <div className="text-[10px] text-[#8B93A3] mb-2 font-medium uppercase tracking-wider">Output format per line</div>
                 <pre className="text-[10px] text-violet-400/70 font-mono leading-relaxed overflow-x-auto">{`{ "messages": [
   { "role": "system",    "content": "You are a SpAIder agent..." },
   { "role": "user",      "content": "<user question>" },
@@ -421,7 +421,7 @@ export default function SynthesizerPage() {
                   {exportFormat === "dpo" ? "TRL · Unsloth" : "OpenAI · LM-Studio"}
                 </span>
               </div>
-              <p className="text-xs text-[#6B7280] mb-5 leading-relaxed">
+              <p className="text-xs text-[#8B93A3] mb-5 leading-relaxed">
                 {exportFormat === "dpo" ? (
                   <>
                     Stream <code className="text-cyan-400/80 bg-[#0A0A0F] px-1 py-0.5 rounded text-[11px]">{`{prompt, chosen, rejected}`}</code> preference
@@ -438,8 +438,8 @@ export default function SynthesizerPage() {
 
               <div className="flex gap-3 items-end">
                 <div className="flex flex-col gap-1.5 w-44">
-                  <label className="text-xs text-[#A1A1AA] font-medium">Format</label>
-                  <select
+                  <label className="text-xs text-[#A1A1AA] font-medium" htmlFor="synth-field-9">Format</label>
+                  <select id="synth-field-9"
                     value={exportFormat}
                     onChange={(e) => setExportFormat(e.target.value as "chatml" | "dpo")}
                     className="bg-[#0A0A0F] border border-[#2A2A35] rounded-lg px-3 py-2 text-sm text-[#E4E4E7] focus:outline-none focus:border-cyan-400/40 transition-colors"
@@ -450,11 +450,11 @@ export default function SynthesizerPage() {
                 </div>
 
                 <div className="flex flex-col gap-1.5 flex-1">
-                  <label className="text-xs text-[#A1A1AA] font-medium flex items-center gap-1.5">
+                  <label className="text-xs text-[#A1A1AA] font-medium flex items-center gap-1.5" htmlFor="synth-field-10">
                     <Globe className="w-3 h-3" />
                     Scope
                   </label>
-                  <select
+                  <select id="synth-field-10"
                     value={exportAgentId}
                     onChange={(e) => setExportAgentId(e.target.value)}
                     className="bg-[#0A0A0F] border border-[#2A2A35] rounded-lg px-3 py-2 text-sm text-[#E4E4E7] focus:outline-none focus:border-cyan-400/40 transition-colors"
@@ -509,9 +509,9 @@ export default function SynthesizerPage() {
                 ).map((item) => (
                   <div
                     key={item.label}
-                    className="flex items-center gap-1.5 text-[10px] text-[#6B7280]"
+                    className="flex items-center gap-1.5 text-[10px] text-[#8B93A3]"
                   >
-                    <span className="text-white/20">·</span>
+                    <span className="text-white/55">·</span>
                     <span>{item.label}:</span>
                     <span className="text-[#A1A1AA]">{item.value}</span>
                   </div>
@@ -531,7 +531,7 @@ export default function SynthesizerPage() {
                       <div className="text-sm font-semibold text-[#E4E4E7]">
                         {exampleCount} examples generated
                       </div>
-                      <div className="text-xs text-[#6B7280]">
+                      <div className="text-xs text-[#8B93A3]">
                         Strategy: {result.strategy ?? config.strategy} · Format:{" "}
                         {result.output_format ?? config.output_format}
                       </div>
@@ -554,7 +554,7 @@ export default function SynthesizerPage() {
                     )}
                     <button
                       onClick={handleDownload}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#3B82F6] hover:bg-[#2563EB] text-white rounded-lg text-xs font-medium transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-lg text-xs font-medium transition-colors"
                     >
                       <Download className="w-3.5 h-3.5" />
                       Download JSONL
@@ -571,7 +571,7 @@ export default function SynthesizerPage() {
                   ].map((s) => (
                     <div key={s.label} className="px-5 py-3">
                       <div className="text-lg font-bold text-[#E4E4E7] font-mono">{s.value}</div>
-                      <div className="text-xs text-[#6B7280]">{s.label}</div>
+                      <div className="text-xs text-[#8B93A3]">{s.label}</div>
                     </div>
                   ))}
                 </div>
@@ -579,7 +579,7 @@ export default function SynthesizerPage() {
                 {/* Preview */}
                 {previewOpen && result.preview && result.preview.length > 0 && (
                   <div className="p-4">
-                    <div className="text-xs text-[#6B7280] mb-2 font-medium">
+                    <div className="text-xs text-[#8B93A3] mb-2 font-medium">
                       Preview (first 3 examples)
                     </div>
                     <div className="flex flex-col gap-2">

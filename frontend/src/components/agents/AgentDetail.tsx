@@ -54,7 +54,7 @@ function ImportResultBanner({ result, onDismiss }: ImportResultBannerProps) {
         </span>
         <button
           onClick={onDismiss}
-          className="text-[#6B7280] hover:text-[#A1A1AA] transition-colors text-[10px]"
+          className="text-[#8B93A3] hover:text-[#A1A1AA] transition-colors text-[10px]"
         >
           dismiss
         </button>
@@ -74,7 +74,7 @@ function ImportResultBanner({ result, onDismiss }: ImportResultBannerProps) {
           edges
         </span>
         {result.skipped > 0 && (
-          <span className="text-[#6B7280]">{result.skipped} skipped</span>
+          <span className="text-[#8B93A3]">{result.skipped} skipped</span>
         )}
       </div>
 
@@ -89,7 +89,7 @@ function ImportResultBanner({ result, onDismiss }: ImportResultBannerProps) {
           </code>
           <button
             onClick={copyKey}
-            className="flex-shrink-0 p-1 text-[#6B7280] hover:text-[#A1A1AA] transition-colors"
+            className="flex-shrink-0 p-1 text-[#8B93A3] hover:text-[#A1A1AA] transition-colors"
             title="Copy new API key"
           >
             {keyCopied ? (
@@ -188,7 +188,7 @@ export default function AgentDetail({ agent, onDelete, onRotate }: Props) {
         <div className="flex items-center justify-between gap-4 flex-wrap">
 
           {/* Left: section label */}
-          <div className="flex items-center gap-1.5 text-[#6B7280]">
+          <div className="flex items-center gap-1.5 text-[#8B93A3]">
             <BrainCircuit className="w-3.5 h-3.5" />
             <span className="text-[11px] font-medium tracking-wide uppercase">
               Hibernation
@@ -229,7 +229,7 @@ export default function AgentDetail({ agent, onDelete, onRotate }: Props) {
                   )}
                 </div>
               </div>
-              <span className="text-[11px] text-[#6B7280] group-hover:text-[#A1A1AA] transition-colors">
+              <span className="text-[11px] text-[#8B93A3] group-hover:text-[#A1A1AA] transition-colors">
                 Include embeddings
               </span>
             </label>

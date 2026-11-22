@@ -87,7 +87,7 @@ export default function AgentRegistrationForm({ onSuccess, onClose }: Props) {
         <h2 className="text-sm font-semibold text-[#E4E4E7]">Register New Agent</h2>
         <button
           onClick={onClose}
-          className="text-[#6B7280] hover:text-[#A1A1AA] transition-colors"
+          className="text-[#8B93A3] hover:text-[#A1A1AA] transition-colors"
           aria-label="Close registration form"
         >
           <X className="w-4 h-4" />
@@ -135,7 +135,7 @@ export default function AgentRegistrationForm({ onSuccess, onClose }: Props) {
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
                   permissions.has(p)
                     ? "bg-[#3B82F6]/15 border-[#3B82F6]/30 text-[#3B82F6]"
-                    : "bg-[#0A0A0F] border-[#2A2A35] text-[#6B7280] hover:border-[#3A3A45]"
+                    : "bg-[#0A0A0F] border-[#2A2A35] text-[#8B93A3] hover:border-[#3A3A45]"
                 }`}
               >
                 {p}
@@ -173,7 +173,7 @@ export default function AgentRegistrationForm({ onSuccess, onClose }: Props) {
                     focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3B82F6]/50
                     ${isActive
                       ? LEVEL_ACTIVE[lvl]
-                      : "bg-[#0A0A0F] border-[#2A2A35] text-[#6B7280] hover:border-[#3A3A45] hover:text-[#A1A1AA]"
+                      : "bg-[#0A0A0F] border-[#2A2A35] text-[#8B93A3] hover:border-[#3A3A45] hover:text-[#A1A1AA]"
                     }
                   `}
                 >
@@ -197,7 +197,7 @@ export default function AgentRegistrationForm({ onSuccess, onClose }: Props) {
             <span className={`text-xs font-medium ${LEVEL_LABEL_COLOR[clearanceLevel]}`}>
               Level {clearanceLevel} — {CLEARANCE_LABELS[clearanceLevel]}
             </span>
-            <span className="ml-auto text-[10px] text-[#4B5563]">
+            <span className="ml-auto text-[10px] text-[#8B93A3]">
               {clearanceLevel <= 2
                 ? "Nodes up to this level visible"
                 : clearanceLevel <= 3
@@ -221,7 +221,7 @@ export default function AgentRegistrationForm({ onSuccess, onClose }: Props) {
           <button
             type="submit"
             disabled={creating || !name.trim()}
-            className="flex items-center gap-2 px-4 py-2 bg-[#3B82F6] hover:bg-[#2563EB] text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
           >
             {creating ? <LoadingSpinner size="sm" /> : <Plus className="w-3.5 h-3.5" />}
             {creating ? "Creating..." : "Create Agent"}

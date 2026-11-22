@@ -43,7 +43,7 @@ function Learning({ agentId }: { agentId: string }) {
             Last run {new Date(report.finished_at).toLocaleString()}: {report.status}
           </p>
           <table className="w-full text-left text-sm">
-            <thead className="text-zinc-500">
+            <thead className="text-zinc-400">
               <tr>
                 <th className="py-1 font-normal">Pass</th>
                 <th className="py-1 font-normal">Status</th>

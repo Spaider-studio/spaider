@@ -83,7 +83,17 @@ def _tar_tree() -> bytes:
     buffer = io.BytesIO()
     with tarfile.open(fileobj=buffer, mode="w") as archive:
         for name in _tree_files():
-            archive.add(ROOT / name, arcname=name, recursive=False)
+            path = ROOT / name
+            info = archive.gettarinfo(str(path), arcname=name)
+            # Whole seconds: the BusyBox tar in the rig turns a fractional time into 0 for every
+            # file, and Docker then takes an edit of the same size for "unchanged" and builds
+            # from its cached copy of the old file.
+            info.mtime = int(info.mtime)
+            if info.isreg():
+                with open(path, "rb") as handle:
+                    archive.addfile(info, handle)
+            else:
+                archive.addfile(info)
     return buffer.getvalue()
 
 

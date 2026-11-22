@@ -66,7 +66,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               {t.message}
             </ToastPrimitive.Description>
             <ToastPrimitive.Close asChild>
-              <button className="text-gray-500 hover:text-gray-300 transition-colors">
+              <button className="text-gray-400 hover:text-gray-300 transition-colors">
                 <X className="w-3.5 h-3.5" />
               </button>
             </ToastPrimitive.Close>

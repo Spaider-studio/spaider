@@ -99,12 +99,12 @@ function AgentDropdown({
                 style={{ background: agentColor(a.id) }}
               />
               <span className="truncate flex-1 text-left">{a.name}</span>
-              {agentId === a.id && <span className="text-white/30 text-[10px]">active</span>}
+              {agentId === a.id && <span className="text-white/55 text-[10px]">active</span>}
             </button>
           ))}
 
           {agents.length === 0 && (
-            <p className="px-3 py-2 text-xs text-white/30">No agents yet</p>
+            <p className="px-3 py-2 text-xs text-white/55">No agents yet</p>
           )}
         </div>
       )}
@@ -142,7 +142,7 @@ function LODToggle({
         onClick={() => onChange("auto")}
         className={cn(
           "flex items-center gap-1 px-2.5 py-1.5 text-[11px] transition-colors",
-          mode === "auto" ? "bg-cyan-500/20 text-cyan-300" : "text-white/40 hover:text-white/70"
+          mode === "auto" ? "bg-cyan-500/20 text-cyan-300" : "text-white/55 hover:text-white/70"
         )}
       >
         Auto
@@ -151,7 +151,7 @@ function LODToggle({
         onClick={() => onChange("clusters")}
         className={cn(
           "px-2.5 py-1.5 text-[11px] transition-colors",
-          mode === "clusters" ? "bg-cyan-500/20 text-cyan-300" : "text-white/40 hover:text-white/70"
+          mode === "clusters" ? "bg-cyan-500/20 text-cyan-300" : "text-white/55 hover:text-white/70"
         )}
       >
         Cluster
@@ -160,7 +160,7 @@ function LODToggle({
         onClick={() => onChange("full")}
         className={cn(
           "px-2.5 py-1.5 text-[11px] transition-colors",
-          mode === "full" ? "bg-cyan-500/20 text-cyan-300" : "text-white/40 hover:text-white/70"
+          mode === "full" ? "bg-cyan-500/20 text-cyan-300" : "text-white/55 hover:text-white/70"
         )}
       >
         Full
@@ -337,7 +337,7 @@ export default function StudioPage() {
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center">
                 <div className="w-20 h-20 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md flex items-center justify-center mx-auto mb-5 shadow-2xl">
-                  <svg viewBox="0 0 24 24" className="w-10 h-10 text-white/20" fill="none" stroke="currentColor" strokeWidth="1">
+                  <svg viewBox="0 0 24 24" className="w-10 h-10 text-white/55" fill="none" stroke="currentColor" strokeWidth="1">
                     <circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" />
                     <line x1="12" y1="2" x2="12" y2="22" /><line x1="2" y1="12" x2="22" y2="12" />
                     <line x1="4.9" y1="4.9" x2="19.1" y2="19.1" /><line x1="19.1" y1="4.9" x2="4.9" y2="19.1" />
@@ -345,14 +345,14 @@ export default function StudioPage() {
                 </div>
                 <p className="text-white/50 text-sm mb-1 font-medium">No graph data</p>
                 {agentId === null && agents.length === 0 ? (
-                  <p className="text-white/25 text-xs">
+                  <p className="text-white/55 text-xs">
                     You have no agents yet —{" "}
                     <a href="/agents" className="text-cyan-400 hover:text-cyan-300 underline underline-offset-2">
                       Create your first agent →
                     </a>
                   </p>
                 ) : (
-                  <p className="text-white/25 text-xs">
+                  <p className="text-white/55 text-xs">
                     {agentId === null
                       ? "Switch to an agent to ingest knowledge"
                       : "Ingest text in the left panel to build your knowledge graph"}
@@ -369,16 +369,16 @@ export default function StudioPage() {
 
         {/* ── Toolbar ── */}
         <div className="absolute top-0 left-0 right-0 h-10 z-20 backdrop-blur-md bg-black/40 border-b border-white/10 flex items-center px-4 gap-3">
-          <div className="flex items-center gap-1.5 text-xs text-white/40">
+          <div className="flex items-center gap-1.5 text-xs text-white/55">
             <Layers className="w-3.5 h-3.5" />
             <span className="text-blue-400 font-mono font-medium">{displayNodes.length}</span>
             <span>{showClusters ? "clusters" : "nodes"}</span>
-            <span className="text-white/20 mx-0.5">/</span>
+            <span className="text-white/55 mx-0.5">/</span>
             <span className="text-emerald-400 font-mono font-medium">{displayEdges.length}</span>
             <span>edges</span>
             {showClusters && totalNodeCount > 0 && (
               <>
-                <span className="text-white/20 mx-0.5">·</span>
+                <span className="text-white/55 mx-0.5">·</span>
                 <span className="text-purple-400/80">
                   {totalNodeCount.toLocaleString()} total nodes
                 </span>
@@ -386,7 +386,7 @@ export default function StudioPage() {
             )}
             {isTruncated && !showClusters && (
               <>
-                <span className="text-white/20 mx-0.5">·</span>
+                <span className="text-white/55 mx-0.5">·</span>
                 <span
                   className="text-amber-400/80"
                   title={`Graph has ${serverNodeCount.toLocaleString()} nodes. Showing top ${displayNodes.length.toLocaleString()} by connectivity. Switch to Clusters view to explore the full graph.`}
@@ -396,7 +396,7 @@ export default function StudioPage() {
               </>
             )}
             {highlightedIds.size > 0 && (
-              <><span className="text-white/20 mx-0.5">·</span><span className="text-amber-400">{highlightedIds.size} highlighted</span></>
+              <><span className="text-white/55 mx-0.5">·</span><span className="text-amber-400">{highlightedIds.size} highlighted</span></>
             )}
           </div>
 
@@ -417,10 +417,10 @@ export default function StudioPage() {
 
           {/* 2D/3D toggle */}
           <div className="flex items-center bg-white/5 border border-white/10 rounded-lg overflow-hidden">
-            <button onClick={() => setIs3D(true)} className={cn("flex items-center gap-1.5 px-3 py-1.5 text-xs transition-colors", is3D ? "bg-violet-500/20 text-violet-300" : "text-white/40 hover:text-white/70")}>
+            <button onClick={() => setIs3D(true)} className={cn("flex items-center gap-1.5 px-3 py-1.5 text-xs transition-colors", is3D ? "bg-violet-500/20 text-violet-300" : "text-white/55 hover:text-white/70")}>
               <Box className="w-3 h-3" />3D
             </button>
-            <button onClick={() => setIs3D(false)} className={cn("flex items-center gap-1.5 px-3 py-1.5 text-xs transition-colors", !is3D ? "bg-violet-500/20 text-violet-300" : "text-white/40 hover:text-white/70")}>
+            <button onClick={() => setIs3D(false)} className={cn("flex items-center gap-1.5 px-3 py-1.5 text-xs transition-colors", !is3D ? "bg-violet-500/20 text-violet-300" : "text-white/55 hover:text-white/70")}>
               <Grid2X2 className="w-3 h-3" />2D
             </button>
           </div>
@@ -453,8 +453,8 @@ export default function StudioPage() {
           {selectedNode && detailOpen && (
             <div className="p-4">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold text-white/40 uppercase tracking-wider">Node Detail</span>
-                <button onClick={() => setSelectedNode(null)} className="text-white/30 hover:text-white/70 transition-colors">
+                <span className="text-xs font-semibold text-white/55 uppercase tracking-wider">Node Detail</span>
+                <button onClick={() => setSelectedNode(null)} className="text-white/55 hover:text-white/70 transition-colors">
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>

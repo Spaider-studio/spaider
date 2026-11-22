@@ -122,6 +122,7 @@ export default function AgentsPage() {
                 <button
                   onClick={load}
                   disabled={loading}
+                  aria-label="Refresh the agent list"
                   className="flex items-center gap-2 px-3 py-2 bg-[#1A1A25] border border-[#2A2A35] rounded-lg text-xs text-[#A1A1AA] hover:text-[#E4E4E7] transition-colors disabled:opacity-50"
                 >
                   <RefreshCw
@@ -130,7 +131,7 @@ export default function AgentsPage() {
                 </button>
                 <button
                   onClick={() => setShowForm(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#3B82F6] hover:bg-[#2563EB] text-white text-sm font-medium rounded-lg transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-sm font-medium rounded-lg transition-colors"
                 >
                   <Plus className="w-4 h-4" />
                   New Agent
@@ -181,12 +182,12 @@ export default function AgentsPage() {
                 ) : agents.length === 0 ? (
                   <div className="text-center py-20">
                     <div className="w-14 h-14 rounded-xl bg-[#12121A] border border-[#2A2A35] flex items-center justify-center mx-auto mb-4">
-                      <Users className="w-7 h-7 text-[#6B7280]" />
+                      <Users className="w-7 h-7 text-[#8B93A3]" />
                     </div>
                     <p className="text-[#A1A1AA] text-sm mb-1">
                       No agents registered
                     </p>
-                    <p className="text-[#6B7280] text-xs">
+                    <p className="text-[#8B93A3] text-xs">
                       Create your first agent to get started
                     </p>
                   </div>

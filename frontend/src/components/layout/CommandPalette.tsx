@@ -162,7 +162,7 @@ export default function CommandPalette({ open, onClose }: Props) {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
           />
-          <kbd className="px-2 py-0.5 text-[10px] text-[#6B7280] bg-[#1A1A25] border border-[#2A2A35] rounded font-mono">
+          <kbd className="px-2 py-0.5 text-[10px] text-[#8B93A3] bg-[#1A1A25] border border-[#2A2A35] rounded font-mono">
             ESC
           </kbd>
         </div>
@@ -170,13 +170,13 @@ export default function CommandPalette({ open, onClose }: Props) {
         {/* Results */}
         <div className="max-h-[400px] overflow-y-auto py-2">
           {allItems.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-[#6B7280]">
+            <div className="px-4 py-8 text-center text-sm text-[#8B93A3]">
               No results found for &quot;{query}&quot;
             </div>
           ) : (
             Object.entries(grouped).map(([category, items]) => (
               <div key={category}>
-                <div className="px-4 py-2 text-[10px] font-semibold text-[#6B7280] uppercase tracking-wider">
+                <div className="px-4 py-2 text-[10px] font-semibold text-[#8B93A3] uppercase tracking-wider">
                   {category}
                 </div>
                 {items.map((item) => {
@@ -199,7 +199,7 @@ export default function CommandPalette({ open, onClose }: Props) {
                           {item.label}
                         </div>
                         {item.description && (
-                          <div className="text-xs text-[#6B7280] truncate">
+                          <div className="text-xs text-[#8B93A3] truncate">
                             {truncate(item.description, 50)}
                           </div>
                         )}
@@ -216,7 +216,7 @@ export default function CommandPalette({ open, onClose }: Props) {
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-2 border-t border-[#2A2A35] flex items-center gap-4 text-[10px] text-[#6B7280]">
+        <div className="px-4 py-2 border-t border-[#2A2A35] flex items-center gap-4 text-[10px] text-[#8B93A3]">
           <span>
             <kbd className="font-mono">↑↓</kbd> navigate
           </span>

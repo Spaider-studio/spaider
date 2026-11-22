@@ -54,7 +54,7 @@ export default function ReplayTimeline({
   if (events.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
-        <p className="text-xs text-[#6B7280]">
+        <p className="text-xs text-[#8B93A3]">
           Select a workflow run to view its timeline.
         </p>
       </div>
@@ -116,7 +116,7 @@ export default function ReplayTimeline({
                     >
                       {config.label}
                     </span>
-                    <span className="text-[10px] text-[#6B7280]">
+                    <span className="text-[10px] text-[#8B93A3]">
                       {formatTimestamp(event.timestamp)}
                     </span>
                     {event.agent_name && (
@@ -134,7 +134,7 @@ export default function ReplayTimeline({
                 </div>
 
                 {/* Step number */}
-                <span className="text-[10px] text-[#6B7280] font-mono flex-shrink-0 pt-1">
+                <span className="text-[10px] text-[#8B93A3] font-mono flex-shrink-0 pt-1">
                   #{idx + 1}
                 </span>
               </button>

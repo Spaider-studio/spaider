@@ -121,7 +121,7 @@ function Train({ agentId }: { agentId: string }) {
           Go back to the default model
         </Button>
       </form>
-      <p className="mb-4 text-xs text-zinc-500">
+      <p className="mb-4 text-xs text-zinc-400">
         {meta.docs ? (
           <a href={meta.docs} target="_blank" rel="noreferrer" className="underline">
             See which models {meta.label} can train
@@ -135,14 +135,14 @@ function Train({ agentId }: { agentId: string }) {
         {versions.map((version) => (
           <li key={version.id} className="flex items-center justify-between gap-3 py-2 text-sm">
             <span className="min-w-0 truncate">
-              {version.provider} / {version.base_model} <span className="text-zinc-500">{version.status}</span>
+              {version.provider} / {version.base_model} <span className="text-zinc-400">{version.status}</span>
               {version.error && <span className="text-red-400"> {version.error}</span>}
             </span>
             <span className="flex shrink-0 gap-1">
               {version.status === "training" && (
                 <Button onClick={() => act(refreshModelVersion(version.id))}>Refresh</Button>
               )}
-              {version.status === "trained" && <span className="text-xs text-zinc-500">Ready to evaluate</span>}
+              {version.status === "trained" && <span className="text-xs text-zinc-400">Ready to evaluate</span>}
               {version.status === "evaluated" && (
                 <Button onClick={() => act(promoteModelVersion(version.id))}>Promote</Button>
               )}

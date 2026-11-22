@@ -71,7 +71,7 @@ export default function WorkflowSelector({
       {/* Filters */}
       <div className="p-3 border-b border-[#2A2A35] space-y-2">
         <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6B7280]" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#8B93A3]" />
           <input
             type="text"
             placeholder="Search workflows..."
@@ -90,7 +90,7 @@ export default function WorkflowSelector({
           </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12 px-4">
-            <p className="text-xs text-[#6B7280]">
+            <p className="text-xs text-[#8B93A3]">
               {failed
                 ? "The run list could not be loaded. See the message above."
                 : runs.length === 0
@@ -123,10 +123,10 @@ export default function WorkflowSelector({
                     </span>
                   </div>
                   <div className="flex items-center gap-2 ml-5.5">
-                    <span className="text-[10px] text-[#6B7280]">
+                    <span className="text-[10px] text-[#8B93A3]">
                       {kbName(run)}
                     </span>
-                    <span className="text-[10px] text-[#6B7280]">
+                    <span className="text-[10px] text-[#8B93A3]">
                       {formatTime(run.started_at)}
                     </span>
                     <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full", status.bg, status.color)}>

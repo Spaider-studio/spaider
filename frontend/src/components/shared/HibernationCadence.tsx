@@ -82,13 +82,14 @@ export default function HibernationCadence({
 
   return (
     <div className="flex items-center gap-2">
-      <Moon className="w-3 h-3 text-[#6B7280] flex-shrink-0" />
-      <span className="text-[11px] text-[#6B7280]">Consolidate</span>
+      <Moon className="w-3 h-3 text-[#8B93A3] flex-shrink-0" />
+      <span className="text-[11px] text-[#8B93A3]">Consolidate</span>
       <select
         value={ready ? String(hours) : "0"}
         disabled={!ready || saving}
         onChange={(e) => onChange(Number(e.target.value))}
         className="bg-[#12121A] border border-[#2A2A35] text-[#E4E4E7] text-[11px] rounded-lg px-2 py-1 focus:outline-none focus:border-[#3B82F6] cursor-pointer disabled:opacity-40 transition-colors"
+        aria-label="How often this agent consolidates"
         title="How often this agent autonomously consolidates (prune, fuse, decay)."
       >
         {OPTIONS.map((o) => (
