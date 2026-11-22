@@ -19,7 +19,10 @@ logger = logging.getLogger(__name__)
 
 HEBBIAN_STEP = 0.1
 _MAX_CO_ACTIVATED = 8
-_CITATION = re.compile(r"\[n(\d+)\]")
+# A bracket that holds only evidence tags: "[n3]", but also "[Evidence: n3]" or "[n3, n5]", which is
+# how models often paraphrase the instruction. Anything else in a bracket is not a citation.
+_CITATION_GROUP = re.compile(r"\[\s*(?:[A-Za-z]+\s*:\s*)?(n\d+(?:\s*(?:,|;|\band\b)\s*n\d+)*)\s*\]", re.IGNORECASE)
+_TAG = re.compile(r"n(\d+)", re.IGNORECASE)
 
 
 def node_clearance(node) -> int:
@@ -37,8 +40,8 @@ def parse_citations(answer: str, context_nodes: list) -> list[dict]:
     seen: set[int] = set()
     cited_ids: set[str] = set()
     citations = []
-    for match in _CITATION.finditer(answer or ""):
-        number = int(match.group(1))
+    numbers = [int(tag) for group in _CITATION_GROUP.finditer(answer or "") for tag in _TAG.findall(group.group(1))]
+    for number in numbers:
         if number in seen or not 1 <= number <= len(context_nodes):
             continue
         seen.add(number)
