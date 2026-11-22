@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import DashboardShell from "@/components/layout/DashboardShell";
 import { getAgents } from "@/lib/api";
 import type { Agent } from "@/lib/types";
@@ -15,15 +15,26 @@ export default function KbPage({
 }) {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [agentId, setAgentId] = useState("");
+  const [failure, setFailure] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     getAgents()
       .then((found) => {
         setAgents(found);
         setAgentId((current) => current || found[0]?.id || "");
       })
-      .catch(() => setAgents([]));
+      .catch((error: unknown) => {
+        // A rate limit or a server error must not look like an install with no KBs.
+        setFailure(error instanceof Error ? error.message : "unknown error");
+      });
   }, []);
+
+  useEffect(load, [load]);
+
+  const retry = () => {
+    setFailure(null);
+    load();
+  };
 
   return (
     <DashboardShell>
@@ -45,7 +56,18 @@ export default function KbPage({
             </select>
           </label>
         </div>
-        {agentId ? children(agentId) : <p className="text-sm text-zinc-500">No knowledge bases yet.</p>}
+        {failure ? (
+          <div role="alert" className="text-sm text-red-400">
+            <p>Could not load your knowledge bases: {failure}</p>
+            <button onClick={retry} className="mt-2 rounded border border-white/10 px-3 py-1 text-zinc-200">
+              Try again
+            </button>
+          </div>
+        ) : agentId ? (
+          children(agentId)
+        ) : (
+          <p className="text-sm text-zinc-500">No knowledge bases yet.</p>
+        )}
       </div>
     </DashboardShell>
   );
