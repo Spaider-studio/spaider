@@ -17,6 +17,50 @@ Running, scaling, and maintaining a self-hosted SpAIder deployment.
 | `frontend` | 3000 | ./frontend | Next.js Studio UI |
 | `kong` | 8080 (proxy), 8001 (admin) | kong:3.7 | API gateway (rate-limiting, CORS, routing) |
 
+## After a restart of Docker or the machine
+
+Docker starts every container at once and ignores the order the compose file asks
+for. Neo4j, Redis, ClickHouse, Postgres and Kafka each need longer than the API and
+the worker, so for the first half minute or so they are not there yet. Nothing needs
+to be restarted by hand:
+
+- The API and the worker try each service again with growing waits (1, 2, 4 ... up
+  to 30 seconds) until it answers, and start what depends on it then: the Neo4j
+  indexes and migrations, the swarm listener once Redis is up, the audit store, the
+  connector tables and the Kafka producer.
+- Audit and analytics rows that could not be written while ClickHouse was away are
+  kept in memory (5000 per table) and written when it is back. A restart of the API
+  loses whatever was still waiting.
+- Kong keeps a DNS answer for five seconds, so a recreated container is found
+  quickly instead of after minutes of `502`.
+
+`GET /health` shows where things stand. Each service is `ok`, `unavailable` (switched
+on and not answering) or `disabled` (not configured, which is normal in the Lite
+profile), and `status` is `ok`, `degraded` or `down`. `spaider doctor` warns for every
+service that is switched on and not answering. After a restart it should be `ok`
+within about two minutes. If a service stays `unavailable` longer, look at that
+container's log.
+
+If the audit page says it shows only recent runs, the audit store (ClickHouse) did not
+answer and the list comes from Kafka's retention, seven days. If it says the audit store
+is unavailable, nothing could be read at all. Both clear by themselves when ClickHouse
+is back.
+
+## Serving the Studio from another host or port
+
+Most calls from the Studio go through its own proxy. Uploads, exports and long
+LLM calls go to the API directly, so two settings matter when the Studio is not on
+`localhost:3000`:
+
+- `CORS_ORIGINS` (API): the origins allowed to call the API from a browser, comma
+  separated. The default covers `localhost` and `127.0.0.1` on ports 3000, 3001 and 8080.
+- `NEXT_PUBLIC_BACKEND_URL` (Studio build): where the browser reaches the API. Without
+  it the address follows the host the Studio was opened on, on port 8000. The value is
+  fixed when the image is built.
+
+The shipped limit is 600 requests a minute per key (`RATE_LIMIT_REQUESTS_PER_MINUTE`);
+the Studio makes a few requests per page and polls in the background.
+
 ## Scaling `backend-worker`
 
 The Kafka consumer / compressor pipeline is horizontally scalable. Bring up N replicas:
