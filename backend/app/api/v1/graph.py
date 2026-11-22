@@ -237,20 +237,11 @@ async def get_graph_stats(
         node_count = stats["node_count"]
         edge_count = stats["edge_count"]
 
-        # get_graph_stats returns node_types as a list of distinct type strings.
-        # Build a type→count distribution via a second focused Cypher call if
-        # needed; for now surface the flat counts the service already provides.
-        type_distribution: dict[str, int] = {
-            t: 0 for t in (stats.get("node_types") or [])
-        }
-
-        # Relation distribution is not returned by get_graph_stats (it only
-        # returns relation *types*, not counts) — use get_schema to stay
-        # memory-safe rather than loading all edges.
-        schema = await graph.get_schema(agent_id=agent_id, max_clearance=auth.clearance_level)
-        relation_distribution: dict[str, int] = {
-            r: 0 for r in (schema.get("relation_types") or [])
-        }
+        # Counted in the database, so the payload is bounded by the number of
+        # distinct types however large the graph is.
+        counts = await graph.get_type_counts(agent_id=agent_id, max_clearance=auth.clearance_level)
+        type_distribution: dict[str, int] = counts["node_types"]
+        relation_distribution: dict[str, int] = counts["relation_types"]
 
         # Graph density: edges / (nodes * (nodes - 1)) for directed graph
         max_edges = node_count * (node_count - 1) if node_count > 1 else 1

@@ -1408,6 +1408,35 @@ class GraphService:
             "node_types": record["node_types"],
         }
 
+    async def get_type_counts(self, agent_id: str, max_clearance: int = 5) -> dict:
+        """How many nodes of each type and edges of each relation the caller may see."""
+        async with self._driver.session() as session:
+            node_result = await session.run(
+                """
+                MATCH (n:SpaiderNode {agent_id: $agent_id})
+                WHERE coalesce(n.clearance_level, 1) <= $max_clearance
+                RETURN coalesce(n.type, 'unknown') AS name, count(n) AS total
+                """,
+                agent_id=agent_id,
+                max_clearance=max_clearance,
+            )
+            nodes = await node_result.data()
+            edge_result = await session.run(
+                """
+                MATCH (a:SpaiderNode {agent_id: $agent_id})-[r:RELATION]->(b:SpaiderNode {agent_id: $agent_id})
+                WHERE coalesce(a.clearance_level, 1) <= $max_clearance
+                  AND coalesce(b.clearance_level, 1) <= $max_clearance
+                RETURN coalesce(r.relation, 'unknown') AS name, count(r) AS total
+                """,
+                agent_id=agent_id,
+                max_clearance=max_clearance,
+            )
+            edges = await edge_result.data()
+        return {
+            "node_types": {row["name"]: row["total"] for row in nodes},
+            "relation_types": {row["name"]: row["total"] for row in edges},
+        }
+
     async def get_schema(self, agent_id: str, max_clearance: int = 5) -> dict:
         """Return all node types and edge relation types for an agent."""
         async with self._driver.session() as session:
