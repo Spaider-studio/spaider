@@ -173,7 +173,7 @@ async def test_the_worker_waits_for_kafka_instead_of_crashing(monkeypatch):
 
     graph = MagicMock()
     graph.initialize = AsyncMock()
-    monkeypatch.setattr(worker, "GraphService", MagicMock(return_value=graph))
+    monkeypatch.setattr(worker, "get_graph_service", lambda: graph)
     for name in ("EmbeddingService", "SemanticCompressor", "EntityResolver", "KafkaConsumerService"):
         monkeypatch.setattr(worker, name, MagicMock())
     waiting = AsyncMock(side_effect=Reached)
@@ -183,3 +183,30 @@ async def test_the_worker_waits_for_kafka_instead_of_crashing(monkeypatch):
         await worker._run()
 
     waiting.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_the_worker_initialises_the_graph_service_the_pipeline_uses(monkeypatch):
+    """The ingest pipeline asks for the process-wide GraphService.
+
+    The worker used to initialise a separate instance, so the one the pipeline
+    got never learned that the vector index exists and silently skipped semantic
+    duplicate matching for every message the worker processed.
+    """
+    import app.worker as worker
+    from app.services import graph_service as graph_module
+
+    class Reached(Exception):
+        pass
+
+    shared = MagicMock()
+    shared.initialize = AsyncMock()
+    monkeypatch.setattr(graph_module, "_shared_graph_service", shared)
+    for name in ("EmbeddingService", "SemanticCompressor", "EntityResolver", "KafkaConsumerService"):
+        monkeypatch.setattr(worker, name, MagicMock())
+    monkeypatch.setattr(worker, "start_with_retry", AsyncMock(side_effect=Reached))
+
+    with pytest.raises(Reached):
+        await worker._run()
+
+    shared.initialize.assert_awaited_once()
