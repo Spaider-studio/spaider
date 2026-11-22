@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Search, ChevronRight, Command } from "lucide-react";
 import { useGraph } from "@/hooks/useGraph";
 import CommandPalette from "./CommandPalette";
+import { useCommandShortcut } from "./useCommandShortcut";
 
 const PAGE_LABELS: Record<string, string> = {
   "/studio": "Neural Studio",
@@ -29,17 +30,7 @@ export default function Header() {
     void loadAgents();
   }, [loadAgents]);
 
-  // Global Cmd+K / Ctrl+K listener
-  useEffect(() => {
-    function handler(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setCmdOpen((v) => !v);
-      }
-    }
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
+  useCommandShortcut(useCallback(() => setCmdOpen((value) => !value), []));
 
   return (
     <>

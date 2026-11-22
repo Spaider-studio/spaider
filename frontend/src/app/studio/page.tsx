@@ -12,6 +12,7 @@ import NodeDetailPanel from "@/components/studio/NodeDetailPanel";
 import SwarmDashboard from "@/components/studio/SwarmDashboard";
 import LivePheromoneStream from "@/components/studio/LivePheromoneStream";
 import Sidebar from "@/components/layout/Sidebar";
+import CommandPaletteHost from "@/components/layout/CommandPaletteHost";
 import type { Agent } from "@/lib/types";
 import { Layers, RefreshCw, Trash2, Box, Grid2X2, X, ChevronDown, Globe2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -329,6 +330,7 @@ export default function StudioPage() {
   return (
     <div className="flex h-screen overflow-hidden bg-[#050508]">
       <Sidebar />
+      <CommandPaletteHost />
 
       <div className="flex-1 relative overflow-hidden">
         {/* ── Full-bleed graph canvas ── */}
