@@ -13,6 +13,11 @@ function run(id: string, kb: string) {
   };
 }
 
+/** The audit page has two KB pickers: the header's, which switches the whole app, and this one. */
+function auditFilter(page: Page) {
+  return page.locator("select", { has: page.locator("option", { hasText: "All Agents" }) });
+}
+
 function countListRequests(page: Page): () => number {
   let count = 0;
   page.on("request", (request) => {
@@ -39,12 +44,12 @@ test("filtering by KB shows that KB's runs", async ({ page }) => {
   await page.goto("/audit");
   await page.waitForLoadState("networkidle");
 
-  await page.locator("select").first().selectOption({ label: "rig-alpha" });
+  await auditFilter(page).selectOption({ label: "rig-alpha" });
   await page.waitForLoadState("networkidle");
 
   expect(asked()).toBe(2);
-  await expect(page.getByRole("button", { name: /\d+ events/ }).first()).toBeVisible();
-  await expect(page.getByText("rig-alpha").first()).toBeVisible();
+  // Each run row names its KB (not the first eight characters of its id).
+  await expect(page.getByRole("button", { name: /rig-alpha.*\d+ events/ }).first()).toBeVisible();
 });
 
 test("a partial answer says so", async ({ page }) => {
@@ -93,7 +98,7 @@ test("switching KB while the first list is still loading never shows the older a
   });
 
   await page.goto("/audit");
-  await page.locator("select").first().selectOption({ label: "rig-alpha" });
+  await auditFilter(page).selectOption({ label: "rig-alpha" });
   await expect(page.getByText("newer-answer")).toBeVisible();
   await page.waitForTimeout(3500); // the older, slower answer has arrived by now
 

@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, type Page } from "@playwright/test";
@@ -48,4 +49,9 @@ export async function login(page: Page, who: string): Promise<void> {
   await page.getByLabel("API key").fill(rig().keys[who]);
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/studio/);
+}
+
+/** Runs docker inside the rig container, to stop and start its services. It can only reach the rig. */
+export function rigDocker(...args: string[]): string {
+  return execFileSync("docker", ["exec", "spaider-rig", "docker", ...args], { encoding: "utf-8" });
 }
