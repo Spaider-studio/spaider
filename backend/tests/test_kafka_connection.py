@@ -161,3 +161,25 @@ async def test_health_does_not_ask_the_broker_on_every_request(monkeypatch):
             await client.get("/health")
 
     assert producer.is_reachable.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_the_worker_waits_for_kafka_instead_of_crashing(monkeypatch):
+    """A worker that exits when Kafka is not up yet restarts in a loop until it is."""
+    import app.worker as worker
+
+    class Reached(Exception):
+        pass
+
+    graph = MagicMock()
+    graph.initialize = AsyncMock()
+    monkeypatch.setattr(worker, "GraphService", MagicMock(return_value=graph))
+    for name in ("EmbeddingService", "SemanticCompressor", "EntityResolver", "KafkaConsumerService"):
+        monkeypatch.setattr(worker, name, MagicMock())
+    waiting = AsyncMock(side_effect=Reached)
+    monkeypatch.setattr(worker, "start_with_retry", waiting)
+
+    with pytest.raises(Reached):
+        await worker._run()
+
+    waiting.assert_awaited_once()
