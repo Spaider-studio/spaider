@@ -2540,6 +2540,11 @@
       },
       "WorkflowEventsResponse": {
         "properties": {
+          "complete": {
+            "default": true,
+            "title": "Complete",
+            "type": "boolean"
+          },
           "events": {
             "items": {
               "additionalProperties": true,
@@ -2547,6 +2552,11 @@
             },
             "title": "Events",
             "type": "array"
+          },
+          "source": {
+            "default": "clickhouse",
+            "title": "Source",
+            "type": "string"
           },
           "total": {
             "title": "Total",
@@ -2567,6 +2577,16 @@
       },
       "WorkflowListResponse": {
         "properties": {
+          "complete": {
+            "default": true,
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "source": {
+            "default": "clickhouse",
+            "title": "Source",
+            "type": "string"
+          },
           "total": {
             "title": "Total",
             "type": "integer"
