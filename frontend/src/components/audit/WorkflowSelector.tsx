@@ -17,6 +17,8 @@ interface WorkflowSelectorProps {
   runs: WorkflowRun[];
   selectedRun: WorkflowRun | null;
   loading: boolean;
+  /** Loading the list failed, so an empty list does not mean there are no runs. */
+  failed?: boolean;
   onSelectRun: (run: WorkflowRun) => void;
   onFilterChange: (agentId?: string, workflowId?: string) => void;
 }
@@ -31,6 +33,7 @@ export default function WorkflowSelector({
   runs,
   selectedRun,
   loading,
+  failed = false,
   onSelectRun,
   onFilterChange,
 }: WorkflowSelectorProps) {
@@ -45,10 +48,6 @@ export default function WorkflowSelector({
         console.error("Failed to load agents:", error);
       });
   }, []);
-
-  useEffect(() => {
-    onFilterChange(agentFilter || undefined, undefined);
-  }, [agentFilter, onFilterChange]);
 
   const filtered = runs.filter((run) => {
     if (!searchQuery) return true;
@@ -88,7 +87,10 @@ export default function WorkflowSelector({
           <Bot className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6B7280]" />
           <select
             value={agentFilter}
-            onChange={(e) => setAgentFilter(e.target.value)}
+            onChange={(e) => {
+              setAgentFilter(e.target.value);
+              onFilterChange(e.target.value || undefined, undefined);
+            }}
             className="w-full pl-8 pr-7 py-1.5 bg-[#0A0A0F] border border-[#2A2A35] rounded-lg text-xs text-[#E4E4E7] focus:outline-none focus:border-[#3B82F6]/50 transition-colors appearance-none"
           >
             <option value="">All Agents</option>
@@ -111,9 +113,11 @@ export default function WorkflowSelector({
         ) : filtered.length === 0 ? (
           <div className="text-center py-12 px-4">
             <p className="text-xs text-[#6B7280]">
-              {runs.length === 0
-                ? "No workflow runs yet. Events appear here as soon as an ingest or query runs."
-                : "No runs match your filter."}
+              {failed
+                ? "The run list could not be loaded. See the message above."
+                : runs.length === 0
+                  ? "No workflow runs yet. Events appear here as soon as an ingest or query runs."
+                  : "No runs match your filter."}
             </p>
           </div>
         ) : (
@@ -142,7 +146,7 @@ export default function WorkflowSelector({
                   </div>
                   <div className="flex items-center gap-2 ml-5.5">
                     <span className="text-[10px] text-[#6B7280]">
-                      {run.agent_name || run.agent_id.slice(0, 8)}
+                      {run.agent_name || agents.find((a) => a.id === run.agent_id)?.name || run.agent_id.slice(0, 8)}
                     </span>
                     <span className="text-[10px] text-[#6B7280]">
                       {formatTime(run.started_at)}

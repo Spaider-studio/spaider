@@ -17,6 +17,7 @@ export default function AuditPage() {
     selectedEvent,
     loadingRuns,
     loadingEvents,
+    partial,
     error,
     fetchRuns,
     selectRun,
@@ -65,6 +66,17 @@ export default function AuditPage() {
           </div>
         )}
 
+        {/* The audit store did not answer: this is only what Kafka still holds. */}
+        {partial && !error && (
+          <div
+            role="status"
+            className="mx-6 mt-3 px-4 py-2.5 bg-[#F59E0B]/10 border border-[#F59E0B]/20 rounded-lg text-xs text-[#F59E0B]"
+          >
+            The audit store did not answer, so this list shows only recent runs. Older runs may be missing. Try again
+            in a moment.
+          </div>
+        )}
+
         {/* Three-panel layout */}
         <div className="flex-1 flex overflow-hidden">
           {/* Left: Workflow selector */}
@@ -73,6 +85,7 @@ export default function AuditPage() {
               runs={runs}
               selectedRun={selectedRun}
               loading={loadingRuns}
+              failed={Boolean(error) && runs.length === 0}
               onSelectRun={selectRun}
               onFilterChange={fetchRuns}
             />
