@@ -75,6 +75,7 @@ export default function SupersessionToggle({
       >
         <button
           onClick={() => toggle(false)}
+          aria-pressed={ready && !on}
           disabled={busy || !ready}
           className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all duration-200 ${
             ready && !on
@@ -86,6 +87,7 @@ export default function SupersessionToggle({
         </button>
         <button
           onClick={() => toggle(true)}
+          aria-pressed={ready && !!on}
           disabled={busy || !ready}
           className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium transition-all duration-200 ${
             on

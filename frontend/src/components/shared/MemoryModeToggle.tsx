@@ -77,6 +77,7 @@ export default function MemoryModeToggle({
       >
         <button
           onClick={() => toggle("off")}
+          aria-pressed={ready && !isOn}
           disabled={busy || !ready}
           className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all duration-200 ${
             ready && !isOn
@@ -88,6 +89,7 @@ export default function MemoryModeToggle({
         </button>
         <button
           onClick={() => toggle("on")}
+          aria-pressed={ready && isOn}
           disabled={busy || !ready}
           className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium transition-all duration-200 ${
             isOn

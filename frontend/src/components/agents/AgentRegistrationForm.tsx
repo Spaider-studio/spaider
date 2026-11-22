@@ -105,7 +105,7 @@ export default function AgentRegistrationForm({ onSuccess, onClose }: Props) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. research-agent-01"
-            className="bg-[#0A0A0F] border border-[#2A2A35] rounded-lg px-3 py-2 text-sm text-[#E4E4E7] placeholder-[#6B7280] focus:outline-none focus:border-[#3B82F6]/50 transition-colors"
+            className="bg-[#0A0A0F] border border-[#2A2A35] rounded-lg px-3 py-2 text-sm text-[#E4E4E7] placeholder-[#8B93A3] focus:outline-none focus:border-[#3B82F6]/50 transition-colors"
             required
             autoFocus
           />
@@ -119,7 +119,7 @@ export default function AgentRegistrationForm({ onSuccess, onClose }: Props) {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Optional description"
-            className="bg-[#0A0A0F] border border-[#2A2A35] rounded-lg px-3 py-2 text-sm text-[#E4E4E7] placeholder-[#6B7280] focus:outline-none focus:border-[#3B82F6]/50 transition-colors"
+            className="bg-[#0A0A0F] border border-[#2A2A35] rounded-lg px-3 py-2 text-sm text-[#E4E4E7] placeholder-[#8B93A3] focus:outline-none focus:border-[#3B82F6]/50 transition-colors"
           />
         </div>
 

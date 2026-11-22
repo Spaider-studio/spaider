@@ -156,7 +156,7 @@ export default function CommandPalette({ open, onClose }: Props) {
           <Search className="w-4 h-4 text-[#A1A1AA] flex-shrink-0" />
           <input
             autoFocus
-            className="flex-1 bg-transparent text-[#E4E4E7] placeholder-[#6B7280] text-sm focus:outline-none"
+            className="flex-1 bg-transparent text-[#E4E4E7] placeholder-[#8B93A3] text-sm focus:outline-none"
             placeholder="Search pages, nodes, actions..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}

@@ -77,7 +77,7 @@ export default function WorkflowSelector({
             placeholder="Search workflows..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 bg-[#0A0A0F] border border-[#2A2A35] rounded-lg text-xs text-[#E4E4E7] placeholder-[#6B7280] focus:outline-none focus:border-[#3B82F6]/50 transition-colors"
+            className="w-full pl-8 pr-3 py-1.5 bg-[#0A0A0F] border border-[#2A2A35] rounded-lg text-xs text-[#E4E4E7] placeholder-[#8B93A3] focus:outline-none focus:border-[#3B82F6]/50 transition-colors"
           />
         </div>
       </div>
