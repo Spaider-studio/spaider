@@ -3,6 +3,7 @@ Tests for ReplayService and Replay API endpoints.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
 from datetime import datetime, timezone
@@ -82,7 +83,7 @@ class TestRecordEvent:
     async def test_record_event_raises_when_not_started(self):
         """record_event should raise RuntimeError if not started."""
         svc = ReplayService()
-        with pytest.raises(RuntimeError, match="not started"):
+        with pytest.raises(RuntimeError, match="No audit store is reachable"):
             await svc.record_event(
                 workflow_id="wf-1",
                 agent_id="agent-a",
@@ -524,3 +525,110 @@ class TestAuditFallback:
         body = response.json()
         assert response.status_code == 200
         assert (body["source"], body["complete"]) == ("kafka", False)
+
+
+class TestAuditDoesNotNeedKafka:
+    """ClickHouse is the audit store. Kafka is a second copy and the 7-day fallback.
+
+    The service used to refuse to start without a Kafka producer, so while Kafka was
+    down or late, audit reads answered 503 and new audit events were thrown away,
+    although ClickHouse was running.
+    """
+
+    @staticmethod
+    def _kafka_down(monkeypatch):
+        producer = MagicMock()
+        producer.start = AsyncMock(side_effect=ConnectionError("kafka is not up"))
+        producer.stop = AsyncMock()
+        monkeypatch.setattr("app.services.replay_service.AIOKafkaProducer", lambda **_: producer)
+
+    @pytest.mark.asyncio
+    async def test_it_starts_without_kafka_when_clickhouse_is_there(self, monkeypatch):
+        self._kafka_down(monkeypatch)
+        svc = ReplayService()
+
+        async def clickhouse_up():
+            svc._ch_ready = True
+
+        monkeypatch.setattr(svc, "_init_clickhouse", clickhouse_up)
+
+        await svc.start()
+
+        assert svc._producer is None
+        assert svc._ch_ready is True
+
+    @pytest.mark.asyncio
+    async def test_it_still_refuses_to_start_when_nothing_works(self, monkeypatch):
+        self._kafka_down(monkeypatch)
+        svc = ReplayService()
+
+        async def clickhouse_down():
+            svc._ch_ready = False
+
+        monkeypatch.setattr(svc, "_init_clickhouse", clickhouse_down)
+
+        with pytest.raises(RuntimeError):
+            await svc.start()
+
+    @pytest.mark.asyncio
+    async def test_an_event_is_written_to_clickhouse_when_there_is_no_kafka_producer(self):
+        svc = ReplayService()
+        svc._ch_ready = True
+        svc._ch_client = MagicMock()
+
+        event_id = await svc.record_event("wf-1", "kb", "query", {"q": 1})
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+
+        assert event_id
+        assert svc._ch_client.insert.call_args.args[0] == "spaider.workflow_events"
+
+    @pytest.mark.asyncio
+    async def test_an_event_is_written_to_clickhouse_when_kafka_refuses_it(self):
+        svc = ReplayService()
+        svc._producer = AsyncMock()
+        svc._producer.send_and_wait.side_effect = ConnectionError("kafka went away")
+        svc._ch_ready = True
+        svc._ch_client = MagicMock()
+
+        event_id = await svc.record_event("wf-1", "kb", "query", {"q": 1})
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+
+        assert event_id
+        assert svc._ch_client.insert.called
+
+    @pytest.mark.asyncio
+    async def test_it_reconnects_to_clickhouse_that_came_up_after_the_service(self, monkeypatch):
+        svc = ReplayService()
+        monkeypatch.setattr("app.services.replay_service.settings.clickhouse_host", "clickhouse")
+        attempts = []
+
+        async def init():
+            attempts.append(1)
+            svc._ch_ready = len(attempts) >= 2
+
+        monkeypatch.setattr(svc, "_init_clickhouse", init)
+        monkeypatch.setattr("app.services.replay_service._RECONNECT_SECONDS", 0)
+
+        await svc._ensure_connected()
+        assert svc._ch_ready is False
+        await svc._ensure_connected()
+
+        assert svc._ch_ready is True
+
+    @pytest.mark.asyncio
+    async def test_it_does_not_hammer_clickhouse_while_it_is_down(self, monkeypatch):
+        svc = ReplayService()
+        monkeypatch.setattr("app.services.replay_service.settings.clickhouse_host", "clickhouse")
+        attempts = []
+
+        async def init():
+            attempts.append(1)
+
+        monkeypatch.setattr(svc, "_init_clickhouse", init)
+
+        for _ in range(5):
+            await svc._ensure_connected()
+
+        assert len(attempts) == 1

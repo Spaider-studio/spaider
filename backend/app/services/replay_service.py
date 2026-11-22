@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -26,6 +27,7 @@ from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 
 from app.config import settings
 from app.core.clickhouse import BACKLOG_RETRY_SECONDS, WriteBuffer, log_write_failure
+from app.core.throttled_log import warn_throttled
 from app.services.audit_result import AuditResult, AuditStoreUnavailable
 
 logger = logging.getLogger(__name__)
@@ -51,6 +53,10 @@ _WORKFLOW_EVENTS_DDL = [
 ]
 
 
+# How often a service that was not there is tried again.
+_RECONNECT_SECONDS = 30.0
+
+
 class ReplayService:
     """Records workflow events (Kafka + ClickHouse) and serves the audit log."""
 
@@ -60,19 +66,55 @@ class ReplayService:
         self._ch_ready = False
         self._buffer = WriteBuffer()
         self._retry_task: Optional[asyncio.Task] = None
+        self._last_connect_try = float("-inf")
 
     async def start(self) -> None:
-        """Start the Kafka producer and connect the ClickHouse audit store."""
-        self._producer = AIOKafkaProducer(
+        """Connect the ClickHouse audit store and the Kafka producer.
+
+        ClickHouse is the audit store and Kafka is a second copy and the seven-day
+        fallback, so either one is enough to start. The service used to need Kafka,
+        which meant audit reads answered 503 and new events were dropped whenever
+        Kafka was down or late, although ClickHouse was running.
+        """
+        await self._start_producer()
+        await self._init_clickhouse()
+        if self._producer is None and not self._ch_ready:
+            raise RuntimeError("Neither Kafka nor ClickHouse is reachable")
+
+    async def _start_producer(self) -> None:
+        producer = AIOKafkaProducer(
             bootstrap_servers=settings.kafka_bootstrap_servers,
             value_serializer=lambda v: json.dumps(v).encode("utf-8"),
             key_serializer=lambda k: k.encode("utf-8") if k else None,
             acks="all",
             enable_idempotence=True,
         )
-        await self._producer.start()
+        try:
+            await producer.start()
+        except Exception as exc:  # noqa: BLE001
+            try:
+                await producer.stop()
+            except Exception:  # noqa: BLE001 - the start error is the one that matters
+                pass
+            logger.warning("ReplayService: Kafka is not reachable (%s); events go to ClickHouse only for now", exc)
+            return
+        self._producer = producer
         logger.info("ReplayService producer started")
-        await self._init_clickhouse()
+
+    async def _ensure_connected(self) -> None:
+        """Pick up ClickHouse or Kafka that was not there when the service started, at most every 30 seconds."""
+        want_clickhouse = bool(settings.clickhouse_host) and not self._ch_ready
+        want_kafka = bool(settings.kafka_bootstrap_servers) and self._producer is None
+        if not (want_clickhouse or want_kafka):
+            return
+        now = time.monotonic()
+        if now - self._last_connect_try < _RECONNECT_SECONDS:
+            return
+        self._last_connect_try = now
+        if want_clickhouse:
+            await self._init_clickhouse()
+        if want_kafka:
+            await self._start_producer()
 
     async def _init_clickhouse(self) -> None:
         """Best-effort ClickHouse connection. The audit log degrades to the
@@ -139,8 +181,9 @@ class ReplayService:
         Returns:
             event_id: Unique identifier for this event.
         """
-        if self._producer is None:
-            raise RuntimeError("ReplayService is not started. Call start() first.")
+        await self._ensure_connected()
+        if self._producer is None and not self._ch_ready:
+            raise RuntimeError("No audit store is reachable (neither Kafka nor ClickHouse).")
 
         event_id = str(uuid.uuid4())
         event = {
@@ -154,11 +197,15 @@ class ReplayService:
             "schema_version": "1.0",
         }
 
-        await self._producer.send_and_wait(
-            topic=settings.kafka_topic_workflow_events,
-            value=event,
-            key=workflow_id,
-        )
+        if self._producer is not None:
+            try:
+                await self._producer.send_and_wait(
+                    topic=settings.kafka_topic_workflow_events,
+                    value=event,
+                    key=workflow_id,
+                )
+            except Exception as exc:  # noqa: BLE001 - ClickHouse still gets the event
+                warn_throttled(logger, "replay_kafka_send", "Audit event could not be sent to Kafka: %s", exc)
         # Durable copy: fire-and-forget into ClickHouse so the audit trail
         # survives Kafka's retention window. Never blocks the caller.
         if self._ch_ready:
@@ -270,6 +317,7 @@ class ReplayService:
         Returns:
             List of event dicts, ordered by timestamp.
         """
+        await self._ensure_connected()
         clickhouse_failed = False
         if self._ch_ready:
             events = await self._get_workflow_events_clickhouse(
@@ -451,6 +499,7 @@ class ReplayService:
         List distinct workflow runs (workflow_id, agent_id, first/last event
         timestamps, event count). ClickHouse-first; Kafka-scan fallback.
         """
+        await self._ensure_connected()
         clickhouse_failed = False
         if self._ch_ready:
             workflows = await self._list_workflows_clickhouse(

@@ -23,6 +23,7 @@ from typing import Awaitable, Callable, Optional
 from app.core.jobs import get_job_queue, spawn
 from app.core.kb_lock import kb_write_lock
 from app.core.kv import bump_cache_generation
+from app.core.throttled_log import warn_throttled
 from app.models.schemas import Edge, GraphPayload, Node
 from app.services.episode_store import EpisodeInput, EpisodeStore
 from app.services.supersession import resolve_supersession
@@ -105,6 +106,12 @@ def fire_replay_event(
 
             service = await get_replay_service()
             if service is None:
+                warn_throttled(
+                    logger,
+                    "replay_event",
+                    "Audit event %s was not recorded: the audit service is not available",
+                    event_type,
+                )
                 return
             body = dict(payload or {})
             if not str(body.get("trace_summary", "")).strip():
@@ -119,7 +126,7 @@ def fire_replay_event(
         except asyncio.CancelledError:
             return
         except Exception as exc:  # noqa: BLE001
-            logger.debug("Replay event skipped (%s): %s", event_type, exc)
+            warn_throttled(logger, "replay_event", "Audit event %s was not recorded: %s", event_type, exc)
 
     try:
         spawn(_emit())
