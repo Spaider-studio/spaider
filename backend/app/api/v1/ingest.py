@@ -247,6 +247,11 @@ _fire_replay_event = fire_replay_event
 async def _get_kafka_producer():
     """Lazy initialised Kafka producer singleton."""
     global _kafka_producer
+    import app.main as _main
+
+    shared = getattr(_main, "_kafka_producer", None)
+    if shared is not None:
+        return shared  # one producer per process, connected by the app at startup
     if _kafka_producer is None:
         try:
             from app.services.kafka_producer import KafkaProducerService

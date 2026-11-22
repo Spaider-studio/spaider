@@ -31,8 +31,12 @@ class KafkaProducerService:
         self._base_backoff = 0.5  # seconds
 
     async def start(self) -> None:
-        """Start the Kafka producer."""
-        self._producer = AIOKafkaProducer(
+        """Start the Kafka producer.
+
+        A failed start closes the half-built client; otherwise every attempt
+        leaks one ("Unclosed AIOKafkaProducer").
+        """
+        producer = AIOKafkaProducer(
             bootstrap_servers=settings.kafka_bootstrap_servers,
             value_serializer=lambda v: json.dumps(v).encode("utf-8"),
             key_serializer=lambda k: k.encode("utf-8") if k else None,
@@ -41,11 +45,33 @@ class KafkaProducerService:
             max_batch_size=16384,
             compression_type="gzip",
         )
-        await self._producer.start()
+        try:
+            await producer.start()
+        except BaseException:
+            try:
+                await producer.stop()
+            except Exception:  # noqa: BLE001 - the original error is the one that matters
+                pass
+            raise
+        self._producer = producer
         logger.info(
             "KafkaProducerService started. Bootstrap servers: %s",
             settings.kafka_bootstrap_servers,
         )
+
+    async def is_reachable(self, timeout: float = 1.0) -> bool:
+        """Whether the broker answers a metadata request right now.
+
+        A producer object that exists proves nothing: the broker may have gone
+        away since it was started.
+        """
+        if self._producer is None:
+            return False
+        try:
+            await asyncio.wait_for(self._producer.client.fetch_all_metadata(), timeout)
+        except Exception:  # noqa: BLE001
+            return False
+        return True
 
     async def stop(self) -> None:
         """Gracefully stop the Kafka producer."""
@@ -147,3 +173,31 @@ class KafkaProducerService:
             )
         except KafkaError as exc:
             logger.error("Failed to send to DLQ: %s", exc)
+
+
+async def start_with_retry(
+    *,
+    factory=lambda: KafkaProducerService(),
+    delays: tuple[float, ...] = (1, 2, 4, 8, 16, 30),
+    sleep=asyncio.sleep,
+) -> KafkaProducerService:
+    """Start a producer, retrying until Kafka answers.
+
+    After a Docker restart every container starts at once and Kafka needs longer
+    than the API. Giving up after one try left the API reporting Kafka as down
+    for as long as it ran.
+    """
+    attempt = 0
+    while True:
+        service = factory()
+        try:
+            await service.start()
+            return service
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            delay = delays[min(attempt, len(delays) - 1)]
+            log = logger.warning if attempt == 0 else logger.info
+            log("Kafka is not reachable yet (%s). Trying again in %ss.", exc, delay)
+            attempt += 1
+            await sleep(delay)

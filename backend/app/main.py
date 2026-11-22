@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Any
 
@@ -164,6 +165,7 @@ async def check_embedding_dimension_consistency(driver) -> None:
 
 _graph_service = None
 _kafka_producer = None
+_kafka_connect_task = None
 _redis_client = None
 _analytics_service = None
 _swarm_listener_task = None
@@ -179,6 +181,7 @@ _mcp_exit_stack: "AsyncExitStack | None" = None
 async def lifespan(app: FastAPI):
     """Startup and shutdown hooks."""
     global _graph_service, _kafka_producer, _redis_client, _analytics_service, _swarm_listener_task
+    global _kafka_connect_task
     global _mcp_exit_stack
 
     # --- Startup ---
@@ -237,14 +240,9 @@ async def lifespan(app: FastAPI):
 
     # 3. Kafka producer
     if settings.kafka_bootstrap_servers:
-        try:
-            from app.services.kafka_producer import KafkaProducerService
-            _kafka_producer = KafkaProducerService()
-            await _kafka_producer.start()
-            logger.info("Kafka producer started")
-        except Exception as exc:
-            logger.warning("Kafka producer start failed (async ingest unavailable): %s", exc)
-            _kafka_producer = None
+        # In the background: Kafka often comes up after the API, and the API
+        # must not wait for it or give up on it.
+        _kafka_connect_task = asyncio.create_task(_connect_kafka())
 
     # 4. ClickHouse analytics
     if settings.clickhouse_host:
@@ -351,6 +349,10 @@ async def lifespan(app: FastAPI):
             await _analytics_service.close()
         except Exception:
             pass
+
+    if _kafka_connect_task is not None:
+        _kafka_connect_task.cancel()
+        await asyncio.gather(_kafka_connect_task, return_exceptions=True)
 
     if _kafka_producer is not None:
         try:
@@ -461,6 +463,35 @@ app.include_router(_ws_router)
 # ---------------------------------------------------------------------------
 
 
+_KAFKA_HEALTH_TTL_SECONDS = 10.0
+_kafka_health: "tuple[float, bool] | None" = None
+
+
+def reset_kafka_health_cache() -> None:
+    global _kafka_health
+    _kafka_health = None
+
+
+async def _kafka_reachable() -> bool:
+    """Ask the broker at most once every ten seconds, however often /health is polled."""
+    global _kafka_health
+    now = time.monotonic()
+    if _kafka_health is not None and now - _kafka_health[0] < _KAFKA_HEALTH_TTL_SECONDS:
+        return _kafka_health[1]
+    reachable = _kafka_producer is not None and await _kafka_producer.is_reachable()
+    _kafka_health = (now, reachable)
+    return reachable
+
+
+async def _connect_kafka() -> None:
+    """Connect the API's Kafka producer, however long Kafka takes to appear."""
+    global _kafka_producer
+    from app.services.kafka_producer import start_with_retry
+
+    _kafka_producer = await start_with_retry()
+    logger.info("Kafka producer started")
+
+
 @app.get("/health", tags=["health"], summary="Service health check")
 async def health() -> dict[str, Any]:
     """
@@ -494,9 +525,12 @@ async def health() -> dict[str, Any]:
         logger.debug("Redis health check failed: %s", exc)
     status["services"]["redis"] = "ok" if redis_ok else "unavailable"
 
-    # Kafka
-    kafka_ok = _kafka_producer is not None
-    status["services"]["kafka"] = "ok" if kafka_ok else "unavailable"
+    # Kafka: "disabled" when it is not configured (the Lite profile), otherwise
+    # whether the broker really answers, not whether a producer object exists.
+    if not settings.kafka_bootstrap_servers:
+        status["services"]["kafka"] = "disabled"
+    else:
+        status["services"]["kafka"] = "ok" if await _kafka_reachable() else "unavailable"
 
     # Neo4j vector index — surfaced separately so operators can tell
     # "DB reachable but semantic search broken" apart from "DB down".
