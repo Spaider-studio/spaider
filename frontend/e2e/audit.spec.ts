@@ -15,7 +15,7 @@ function run(id: string, kb: string) {
 
 /** The one place to choose a knowledge base: the picker in the header. */
 function kbPicker(page: Page) {
-  return page.getByLabel("Knowledge base");
+  return page.getByLabel("Knowledge base", { exact: true });
 }
 
 function countListRequests(page: Page): () => number {
