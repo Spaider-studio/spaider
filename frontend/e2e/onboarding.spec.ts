@@ -74,7 +74,18 @@ test("J1/J2: create a knowledge base, add knowledge, ask, and rate the answer", 
   // With Synaptic Memory off the panel asks "Was this right?", with it on the Hebbian panel shows
   // the strength of the facts used. Either one carries the rating.
   await expect(page.getByText(/Was this right\?|Hebbian update:/)).toBeVisible({ timeout: 90_000 * SLOW });
-  if (REAL) await expect(page.getByText(/Mara Quist/).first()).toBeVisible();
+  if (REAL) {
+    // The name is also in the graph, so the page proves nothing. Ask the API again, worded
+    // differently so the answer cache does not answer, and check the answer and its evidence.
+    const again = await page.request.post("/api/v1/query", {
+      headers: { "X-Api-Key": rig().keys.owner },
+      data: { question: "Which person is in charge of project Orion?", agent_id: kbId },
+      timeout: 120_000,
+    });
+    const body = await again.json();
+    expect(body.answer).toMatch(/Mara Quist/);
+    expect(body.citations.length, "a real answer carries its evidence").toBeGreaterThan(0);
+  }
 
   const rated = page.waitForResponse((r) => r.url().includes("/system/feedback"));
   await page.getByRole("button", { name: /^(Yes|Good)$/ }).click();
