@@ -1,9 +1,9 @@
 /**
  * Accessibility (axe) and layout at the widths people really use.
  *
- * axe findings of "serious" or "critical" impact are reported per page. The test
- * fails when a page has more than the number recorded in KNOWN, so existing
- * findings are visible and can only go down, and a new one fails the build.
+ * axe findings of "serious" or "critical" impact fail the page they are on. KNOWN can
+ * record a number of allowed kinds per page, so a finding that cannot be fixed yet stays
+ * visible, but it starts empty.
  */
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
@@ -12,21 +12,9 @@ import { login } from "./rig";
 const PAGES = ["/studio", "/multiverse", "/agents", "/synthesizer", "/members", "/sharing", "/learning", "/train", "/audit", "/settings"];
 
 // Findings recorded when the check was added. Fix the cause, then lower the number.
-// Kinds of finding per page, measured on the rig. Almost all of it is colour contrast,
-// a design change that is the user's call. The rest are controls without a name
-// (sliders and selects on the synthesizer page, one button each on Studio and Agents).
-const KNOWN: Record<string, number> = {
-  "/studio": 2,
-  "/multiverse": 1,
-  "/agents": 3,
-  "/synthesizer": 3,
-  "/members": 1,
-  "/sharing": 1,
-  "/learning": 1,
-  "/train": 1,
-  "/audit": 1,
-  "/settings": 1,
-};
+// Kinds of serious or critical finding allowed per page. Nothing is allowed: every page was
+// brought to zero (low contrast, unnamed buttons, sliders and selects). A new finding fails.
+const KNOWN: Record<string, number> = {};
 
 for (const route of PAGES) {
   test(`${route} has no serious accessibility findings beyond the recorded ones`, async ({ page }) => {

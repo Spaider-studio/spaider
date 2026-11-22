@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 const NAV_ITEMS = [
   { href: "/studio", label: "Neural Studio", icon: Network, color: "#3B82F6" },
   { href: "/multiverse", label: "Multiverse", icon: Globe2, color: "#06B6D4" },
-  { href: "/agents", label: "Agents", icon: Users, color: "#8B5CF6" },
+  { href: "/agents", label: "Agents", icon: Users, color: "#A78BFA" },
   { href: "/synthesizer", label: "Synthesizer", icon: Database, color: "#10B981" },
   { href: "/members", label: "Members", icon: UserCog, color: "#F472B6" },
   { href: "/sharing", label: "Sharing", icon: Share2, color: "#22D3EE" },
