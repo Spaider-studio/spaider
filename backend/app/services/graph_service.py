@@ -268,6 +268,11 @@ class DeleteResult:
 # GraphService
 # ---------------------------------------------------------------------------
 
+def _is_schema_race(exc: BaseException) -> bool:
+    """Another process was setting up the same schema at the same moment, so trying again will succeed."""
+    return isinstance(exc, TransientError) or (isinstance(exc, Neo4jError) and exc.code in _SCHEMA_RACE_CODES)
+
+
 class GraphService:
     """
     Async Neo4j graph service with:
@@ -315,8 +320,7 @@ class GraphService:
                 await self._initialize_schema()
                 return
             except Neo4jError as exc:
-                raced = isinstance(exc, TransientError) or exc.code in _SCHEMA_RACE_CODES
-                if not raced or attempt == _SCHEMA_INIT_ATTEMPTS - 1:
+                if not _is_schema_race(exc) or attempt == _SCHEMA_INIT_ATTEMPTS - 1:
                     raise
                 logger.info("Schema setup retrying after a transient error: %s", exc.code)
                 await asyncio.sleep(0.5 * 2**attempt + random.random())
@@ -452,6 +456,10 @@ class GraphService:
                             settings.embedding_dimensions,
                         )
                     except Exception as exc:
+                        if _is_schema_race(exc):
+                            # The worker created it a moment before us. Let initialize() try again,
+                            # which then finds the index. Swallowing this left search off for good.
+                            raise
                         self.vector_index_available = False
                         logger.error(
                             "Failed to create vector index on empty DB "

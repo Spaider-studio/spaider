@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.core.schema import FOUNDATION_SCHEMA
-
 from app.models.schemas import Edge, GraphPayload, Node
 
 
@@ -514,3 +513,87 @@ async def test_initialize_does_not_retry_other_errors():
         await gs.initialize()
 
     assert setup.await_count == 1
+
+
+class _SchemaRaceSession:
+    """A fake Neo4j session that answers by the Cypher it gets, for the vector index race.
+
+    On the first attempt the index does not exist yet and another process creates it
+    just before ours does, so the CREATE fails. On the second attempt it is there.
+    """
+
+    def __init__(self, create_error: Exception) -> None:
+        self.create_error = create_error
+        self.attempt = 1
+        self.creates = 0
+
+    async def run(self, query, **_):
+        result = AsyncMock()
+        text = " ".join(query.split())
+        if "SHOW INDEXES" in text and "spaider_embedding" in text:
+            present = self.attempt >= 2
+            result.single = AsyncMock(return_value={"name": "spaider_embedding"} if present else None)
+            self.attempt += 1 if present else 0
+        elif "count(n)" in text:
+            result.single = AsyncMock(return_value={"c": 0})
+        elif "CREATE VECTOR INDEX spaider_embedding" in text:
+            self.creates += 1
+            self.attempt = 2
+            raise self.create_error
+        else:
+            result.single = AsyncMock(return_value=None)
+            result.data = AsyncMock(return_value=[])
+        return result
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *_):
+        return False
+
+
+def _graph_with(session):
+    from app.services.graph_service import GraphService
+
+    with patch("app.services.graph_service.AsyncGraphDatabase") as MockDB:
+        MockDB.driver.return_value = MagicMock()
+        gs = GraphService()
+    gs._driver.session = MagicMock(return_value=session)
+    return gs
+
+
+@pytest.mark.asyncio
+async def test_a_vector_index_created_by_another_process_at_the_same_moment_is_found_on_the_retry():
+    """The worker and the API set up an empty database together. The loser saw
+    "equivalent index already exists", marked the index as unavailable and carried on,
+    so semantic search stayed off until the API was restarted."""
+    from neo4j.exceptions import ClientError
+
+    class Race(ClientError):
+        code = "Neo.ClientError.Schema.EquivalentSchemaRuleAlreadyExists"
+
+    session = _SchemaRaceSession(Race("An equivalent index already exists"))
+    gs = _graph_with(session)
+
+    with patch("app.services.graph_service.asyncio.sleep", AsyncMock()):
+        await gs.initialize()
+
+    assert gs.vector_index_available is True
+    assert session.creates == 1
+
+
+@pytest.mark.asyncio
+async def test_a_vector_index_that_cannot_be_created_for_another_reason_leaves_search_off_without_failing_startup():
+    from neo4j.exceptions import ClientError
+
+    class NoPlugin(ClientError):
+        code = "Neo.ClientError.Statement.SyntaxError"
+
+    session = _SchemaRaceSession(NoPlugin("vector indexes need Neo4j 5.11"))
+    gs = _graph_with(session)
+
+    with patch("app.services.graph_service.asyncio.sleep", AsyncMock()):
+        await gs.initialize()
+
+    assert gs.vector_index_available is False
+    assert session.creates == 1
