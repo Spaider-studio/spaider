@@ -6,14 +6,10 @@ host's loopback:
 
     13000  Studio        18000  API        18080  Kong gateway
 
-It runs against a deterministic LLM stub, with generated secrets. Two rig-only
-edits are made to the copy of the source that goes into the container, and each
-one fails loudly if the code has drifted:
-
-* the frontend image gets build args for ``NEXT_PUBLIC_API_URL`` and
-  ``NEXT_PUBLIC_BACKEND_URL``, because the browser would otherwise call
-  ``localhost:8000``, which is the real stack;
-* the rig's Studio origin is added to the API's CORS allow-list.
+It runs against a deterministic LLM stub, with generated secrets. The browser must
+not reach the real stack on 8000, so the Studio image is built with
+NEXT_PUBLIC_BACKEND_URL pointing at the rig's API (see docker-compose.rig.yml) and
+the API allows the rig's Studio origin through CORS_ORIGINS.
 
 Usage (from the repository root):
 
@@ -55,6 +51,8 @@ ENV_OVERRIDES = {
     "COMPOSE_PROFILES": "full",
     "SPAIDER_BIND": "0.0.0.0",
     "ENVIRONMENT": "development",
+    # The Studio is served on 13000 here, not 3000.
+    "CORS_ORIGINS": "http://localhost:13000",
     "LLM_PROVIDER": "openai",
     "LLM_MODEL": "gpt-4o-mini",
     "LLM_API_KEY": "stub-key",
@@ -75,33 +73,6 @@ def in_rig(command: str, check: bool = True, capture: bool = False):
     return run("docker", "exec", NAME, "sh", "-c", command, check=check, capture=capture)
 
 
-# --- patches applied to the copy that goes into the rig ----------------------
-
-
-def _patch_dockerfile(text: str) -> str:
-    anchor = "ENV BACKEND_API_URL=${BACKEND_API_URL}\n"
-    assert anchor in text, "frontend/Dockerfile changed: update the rig patch"
-    return text.replace(
-        anchor,
-        anchor
-        + "ARG NEXT_PUBLIC_API_URL\nENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}\n"
-        + "ARG NEXT_PUBLIC_BACKEND_URL\nENV NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL}\n",
-        1,
-    )
-
-
-def _patch_cors(text: str) -> str:
-    anchor = '        "http://localhost:3000",\n'
-    assert anchor in text, "backend/app/main.py CORS list changed: update the rig patch"
-    return text.replace(anchor, anchor + f'        "{STUDIO}",\n', 1)
-
-
-PATCHES = {
-    "frontend/Dockerfile": _patch_dockerfile,
-    "backend/app/main.py": _patch_cors,
-}
-
-
 def _tree_files() -> list[str]:
     listing = run("git", "-C", str(ROOT), "ls-files", "-z", "--cached", "--others", "--exclude-standard", capture=True)
     names = [n for n in listing.stdout.split("\0") if n]
@@ -112,15 +83,7 @@ def _tar_tree() -> bytes:
     buffer = io.BytesIO()
     with tarfile.open(fileobj=buffer, mode="w") as archive:
         for name in _tree_files():
-            path = ROOT / name
-            if name in PATCHES:
-                data = PATCHES[name](path.read_text(encoding="utf-8")).encode("utf-8")
-                info = tarfile.TarInfo(name)
-                info.size = len(data)
-                info.mode = path.stat().st_mode & 0o777
-                archive.addfile(info, io.BytesIO(data))
-            else:
-                archive.add(path, arcname=name, recursive=False)
+            archive.add(ROOT / name, arcname=name, recursive=False)
     return buffer.getvalue()
 
 

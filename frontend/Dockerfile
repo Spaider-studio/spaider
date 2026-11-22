@@ -15,6 +15,11 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # time for other topologies.
 ARG BACKEND_API_URL=http://kong:8000/api
 ENV BACKEND_API_URL=${BACKEND_API_URL}
+# Where the browser reaches the API directly (uploads, exports, long LLM calls).
+# NEXT_PUBLIC_* values are fixed at build time. Empty means "the host the Studio
+# was opened on, port 8000".
+ARG NEXT_PUBLIC_BACKEND_URL=
+ENV NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL}
 RUN npm run build
 
 FROM node:20-alpine AS runner

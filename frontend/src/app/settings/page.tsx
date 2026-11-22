@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getAgents, deleteAgent } from "@/lib/api";
 import type { Agent } from "@/lib/types";
+import { backendUrl } from "@/lib/constants";
 import {
   Settings,
   Shield,
@@ -112,8 +113,8 @@ export default function SettingsPage() {
               <div className="flex flex-col gap-3">
                 <ConfigRow
                   label="API Endpoint"
-                  value={process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1"}
-                  hint="Set NEXT_PUBLIC_API_URL in your .env file"
+                  value={backendUrl()}
+                  hint="Set NEXT_PUBLIC_BACKEND_URL when the Studio is built to change it"
                 />
               </div>
               <a

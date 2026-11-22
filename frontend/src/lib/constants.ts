@@ -37,8 +37,26 @@ export const ALL_NODE_TYPES = Object.keys(NODE_TYPE_COLORS);
 
 export const GRAPH_MAX_NODES = 500;
 
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
+/**
+ * Where the browser reaches the backend API directly. Most calls go through the
+ * Studio's own proxy, but uploads, exports and long LLM calls do not (the proxy
+ * cuts them off), so they need an address.
+ *
+ * Set NEXT_PUBLIC_BACKEND_URL when the Studio is built if the API is somewhere
+ * else. Without it the address follows the host the Studio was opened on, so
+ * opening it as 127.0.0.1 or from another machine keeps working. The API must
+ * allow the Studio's origin (CORS_ORIGINS).
+ */
+export function backendUrl(
+  configured: string | undefined = process.env.NEXT_PUBLIC_BACKEND_URL,
+  where: Pick<Location, "protocol" | "hostname"> | undefined = typeof window !== "undefined"
+    ? window.location
+    : undefined
+): string {
+  if (configured) return configured;
+  if (where) return `${where.protocol}//${where.hostname}:8000/api/v1`;
+  return "http://localhost:8000/api/v1";
+}
 
 export const PERMISSIONS = ["read", "write", "query", "admin"] as const;
 export type Permission = (typeof PERMISSIONS)[number];

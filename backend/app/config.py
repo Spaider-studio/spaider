@@ -96,6 +96,19 @@ class Settings(BaseSettings):
     # Rate Limiting
     rate_limit_requests_per_minute: int = 600
 
+    # Web origins that may call the API from a browser, comma separated. The
+    # Studio reaches the API through its own proxy for most calls, but uploads,
+    # exports and long LLM calls go to the API directly, and those need the
+    # Studio's origin here. Set CORS_ORIGINS when it is served from another host or port.
+    cors_origins: str = (
+        "http://localhost:3000,http://localhost:3001,http://localhost:8080,"
+        "http://127.0.0.1:3000,http://127.0.0.1:3001,http://127.0.0.1:8080"
+    )
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
     # LiteLLM call retry — exponential backoff on transient provider
     # errors (RateLimitError, APIConnectionError, Timeout, 5xx). Without
     # this, gpt-4o-class models under burst load reliably produce 429s

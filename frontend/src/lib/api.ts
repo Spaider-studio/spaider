@@ -1,4 +1,5 @@
 import { authFetch } from "./auth";
+import { backendUrl } from "./constants";
 import type {
   ClusterGraphPayload,
   GraphPayload,
@@ -293,10 +294,7 @@ export async function importAgentGraph(
   targetAgentId?: string,
   merge: boolean = false
 ): Promise<AgentImportResponse> {
-  const backendUrl =
-    typeof window !== "undefined"
-      ? (process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000/api/v1")
-      : "http://localhost:8000/api/v1";
+  const target = backendUrl();
 
   const params = new URLSearchParams({ merge: String(merge) });
   if (targetAgentId) {
@@ -305,7 +303,7 @@ export async function importAgentGraph(
   const formData = new FormData();
   formData.append("file", file);
 
-  const res = await authFetch(`${backendUrl}/agents/import?${params}`, {
+  const res = await authFetch(`${target}/agents/import?${params}`, {
     method: "POST",
     body: formData,
   });

@@ -255,6 +255,7 @@ services:
       context: ./frontend
       args:
         BACKEND_API_URL: "http://kong:8000/api"
+        NEXT_PUBLIC_BACKEND_URL: "${NEXT_PUBLIC_BACKEND_URL:-}"
     container_name: spaider-frontend
     ports:
       - "${SPAIDER_BIND:-127.0.0.1}:3000:3000"
@@ -266,7 +267,6 @@ services:
     environment:
       BACKEND_API_URL: "http://kong:8000/api"
       BACKEND_HEALTH_URL: "http://spaider-backend-api:8000"
-      NEXT_PUBLIC_API_URL: "http://localhost:8080/api"
     restart: unless-stopped
 
   kong:

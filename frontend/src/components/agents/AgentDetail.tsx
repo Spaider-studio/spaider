@@ -1,6 +1,7 @@
 "use client";
 
 import { authFetch } from "@/lib/auth";
+import { backendUrl } from "@/lib/constants";
 import { useRef, useState } from "react";
 import {
   Download,
@@ -20,10 +21,7 @@ import AgentCard from "./AgentCard";
 // Direct backend URL — bypasses the Next.js proxy for large streaming
 // transfers (export) and large file uploads (import).
 // ---------------------------------------------------------------------------
-const BACKEND_URL =
-  typeof window !== "undefined"
-    ? (process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000/api/v1")
-    : "http://localhost:8000/api/v1";
+const BACKEND_URL = backendUrl();
 
 // ---------------------------------------------------------------------------
 // ImportResultBanner

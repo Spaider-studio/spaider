@@ -15,7 +15,6 @@ import {
   Globe2,
   History, UserCog, Share2, Moon, GraduationCap } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { API_BASE } from "@/lib/constants";
 
 const NAV_ITEMS = [
   { href: "/studio", label: "Neural Studio", icon: Network, color: "#3B82F6" },
@@ -38,8 +37,9 @@ export default function Sidebar() {
   useEffect(() => {
     async function checkHealth() {
       try {
-        const base = API_BASE.replace("/api/v1", "");
-        const res = await fetch(`${base}/health`, {
+        // The Studio's own route, which asks the API server-side. Calling the API
+        // from the browser needed a fixed host and port and a CORS entry.
+        const res = await fetch("/api/health", {
           signal: AbortSignal.timeout(3000),
         });
         setConnected(res.ok);
