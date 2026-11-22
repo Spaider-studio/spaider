@@ -599,6 +599,28 @@ class TestAuditDoesNotNeedKafka:
         assert svc._ch_client.insert.called
 
     @pytest.mark.asyncio
+    async def test_clickhouse_does_not_wait_for_a_kafka_that_does_not_answer(self, monkeypatch):
+        """A dead broker makes send_and_wait block for tens of seconds. The audit row must not wait for that."""
+        monkeypatch.setattr("app.services.replay_service._KAFKA_SEND_TIMEOUT", 0.05)
+
+        async def hang(**_):
+            await asyncio.sleep(30)
+
+        svc = ReplayService()
+        svc._producer = MagicMock()
+        svc._producer.send_and_wait = hang
+        svc._ch_ready = True
+        svc._ch_client = MagicMock()
+
+        started = asyncio.get_event_loop().time()
+        task = asyncio.create_task(svc.record_event("wf-1", "kb", "query", {"q": 1}))
+        await asyncio.sleep(0.01)  # well before the Kafka send gives up
+
+        assert svc._ch_client.insert.called, "the audit row waited for Kafka"
+        await task
+        assert asyncio.get_event_loop().time() - started < 2
+
+    @pytest.mark.asyncio
     async def test_it_reconnects_to_clickhouse_that_came_up_after_the_service(self, monkeypatch):
         svc = ReplayService()
         monkeypatch.setattr("app.services.replay_service.settings.clickhouse_host", "clickhouse")

@@ -55,6 +55,9 @@ _WORKFLOW_EVENTS_DDL = [
 
 # How often a service that was not there is tried again.
 _RECONNECT_SECONDS = 30.0
+# How long an event waits for Kafka before it is given up on. A dead broker otherwise
+# blocks the send for tens of seconds.
+_KAFKA_SEND_TIMEOUT = 5.0
 
 
 class ReplayService:
@@ -197,19 +200,23 @@ class ReplayService:
             "schema_version": "1.0",
         }
 
-        if self._producer is not None:
-            try:
-                await self._producer.send_and_wait(
-                    topic=settings.kafka_topic_workflow_events,
-                    value=event,
-                    key=workflow_id,
-                )
-            except Exception as exc:  # noqa: BLE001 - ClickHouse still gets the event
-                warn_throttled(logger, "replay_kafka_send", "Audit event could not be sent to Kafka: %s", exc)
-        # Durable copy: fire-and-forget into ClickHouse so the audit trail
-        # survives Kafka's retention window. Never blocks the caller.
+        # ClickHouse is the audit store, so its row is scheduled first and never waits for Kafka.
         if self._ch_ready:
             asyncio.create_task(self._insert_event_clickhouse(event))
+        if self._producer is not None:
+            try:
+                await asyncio.wait_for(
+                    self._producer.send_and_wait(
+                        topic=settings.kafka_topic_workflow_events,
+                        value=event,
+                        key=workflow_id,
+                    ),
+                    timeout=_KAFKA_SEND_TIMEOUT,
+                )
+            except Exception as exc:  # noqa: BLE001 - the event is already on its way to ClickHouse
+                warn_throttled(
+                    logger, "replay_kafka_send", "Audit event could not be sent to Kafka: %s", exc or type(exc).__name__
+                )
         logger.info(
             "Recorded workflow event | event_id=%s workflow_id=%s type=%s",
             event_id,
