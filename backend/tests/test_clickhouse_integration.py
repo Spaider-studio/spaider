@@ -39,3 +39,16 @@ async def test_a_recorded_event_is_listed(clickhouse_test):
     runs = await service.list_workflows(limit=10)
 
     assert [(run["workflow_id"], run["agent_id"], run["event_count"]) for run in runs] == [("wf-1", "kb-a", 1)]
+
+
+@pytest.mark.asyncio
+async def test_the_listing_can_be_filtered_by_kb(clickhouse_test):
+    """Calls ClickHouse directly: through list_workflows a Kafka fallback hides a rejected query."""
+    service = await _started_service()
+    await _record(service, "wf-a", "kb-a")
+    await _record(service, "wf-b", "kb-b")
+
+    runs = await service._list_workflows_clickhouse(agent_id="kb-a", limit=10)
+
+    assert runs is not None, "ClickHouse rejected the filtered query"
+    assert [(run["workflow_id"], run["agent_id"]) for run in runs] == [("wf-a", "kb-a")]

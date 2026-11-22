@@ -401,7 +401,7 @@ class TestClickHouseAuditStore:
         first = datetime(2026, 6, 10, 11, 0, 0)
         last = datetime(2026, 6, 10, 12, 0, 0)
         svc._ch_client.query.return_value = _ch_result(
-            ["workflow_id", "agent_id", "first_event", "last_event", "event_count"],
+            ["workflow_id", "run_agent_id", "first_event", "last_event", "event_count"],
             [["wf-1", "agent-a", first, last, 4]],
         )
 

@@ -438,7 +438,9 @@ class ReplayService:
         """Aggregate workflow summaries from the audit table. Returns None on
         failure so the caller falls back to Kafka."""
         sql = (
-            "SELECT workflow_id, any(agent_id) AS agent_id, "
+            # The alias must not be agent_id: ClickHouse then reads the WHERE
+            # below as a filter on the aggregate and rejects the query.
+            "SELECT workflow_id, any(agent_id) AS run_agent_id, "
             "min(timestamp) AS first_event, max(timestamp) AS last_event, "
             "count() AS event_count "
             "FROM spaider.workflow_events"
@@ -472,7 +474,7 @@ class ReplayService:
             record = dict(zip(result.column_names, row))
             out.append({
                 "workflow_id": record.get("workflow_id", ""),
-                "agent_id": record.get("agent_id", ""),
+                "agent_id": record.get("run_agent_id", ""),
                 "first_event": _iso(record.get("first_event")),
                 "last_event": _iso(record.get("last_event")),
                 "event_count": int(record.get("event_count") or 0),
