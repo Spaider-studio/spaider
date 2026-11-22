@@ -426,14 +426,16 @@ export function decideKpr(id: string, decision: "approve" | "reject" | "revert")
 
 /** Approved grants, in the shape the agent views draw as links. */
 export async function listSwarmLinks(): Promise<SwarmLink[]> {
-  const grants = await listGrants();
+  // The names are a courtesy: a KB the caller cannot list keeps its id.
+  const [grants, agents] = await Promise.all([listGrants(), getAgents().catch(() => [] as Agent[])]);
+  const nameOf = (id: string) => agents.find((agent) => agent.id === id)?.name ?? id;
   return grants
     .filter((grant) => grant.status === "approved")
     .map((grant) => ({
       source_id: grant.target_kb,
-      source_name: grant.target_kb,
+      source_name: nameOf(grant.target_kb),
       target_id: grant.source_kb,
-      target_name: grant.source_kb,
+      target_name: nameOf(grant.source_kb),
       grant_id: grant.id,
     }));
 }
