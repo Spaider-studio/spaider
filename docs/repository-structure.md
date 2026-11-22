@@ -51,11 +51,13 @@ spaider/
 │   │   └── api/v1/             REST route handlers
 │   └── tests/
 │       ├── unit/               Fast unit tests (no external deps)
-│       └── eval/               Extraction evaluation framework
+│       ├── eval/               Extraction evaluation framework
+│       └── rig/                Throwaway full stack in Docker for browser, restart and load checks
 ├── cli/                        `spaider` CLI (Apache-2.0)
 ├── sdk/python/                 Python SDK (Apache-2.0)
 ├── benchmarks/                 Benchmark runner, scorecards, dashboard
 └── frontend/
+    ├── e2e/                    Playwright browser tests (run against the rig)
     └── src/
         ├── app/                Next.js App Router pages
         ├── components/         React components (GraphCanvas3D, etc.)
