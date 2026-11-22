@@ -6,7 +6,6 @@ import { Button, Empty, ErrorNote, reason } from "@/components/shared/ui";
 import {
   approveGrant,
   decideKpr,
-  getAgents,
   denyGrant,
   getKpr,
   listGrants,
@@ -16,6 +15,7 @@ import {
   type Grant,
   type KnowledgePR,
 } from "@/lib/api";
+import { useGraph } from "@/hooks/useGraph";
 import { CLEARANCE_LEVELS } from "@/lib/access";
 
 const OTHER = "__other__";
@@ -32,7 +32,9 @@ function Sharing({ agentId }: { agentId: string }) {
   const [grants, setGrants] = useState<Grant[]>([]);
   const [kprs, setKprs] = useState<KnowledgePR[]>([]);
   const [open, setOpen] = useState<KnowledgePR | null>(null);
-  const [names, setNames] = useState<Record<string, string>>({});
+  // The names come from the list the whole app shares, loaded once by the page around this one.
+  const agents = useGraph((s) => s.agents);
+  const names = Object.fromEntries(agents.map((agent) => [agent.id, agent.name]));
   const [source, setSource] = useState("");
   const [custom, setCustom] = useState("");
   const [ceiling, setCeiling] = useState(1);
@@ -48,12 +50,6 @@ function Sharing({ agentId }: { agentId: string }) {
   }, [agentId]);
 
   useEffect(load, [load]);
-
-  useEffect(() => {
-    getAgents()
-      .then((agents) => setNames(Object.fromEntries(agents.map((agent) => [agent.id, agent.name]))))
-      .catch(() => setNames({}));
-  }, []);
 
   const nameOf = (id: string) => names[id] ?? id;
   const sourceId = source === OTHER ? custom.trim() : source;

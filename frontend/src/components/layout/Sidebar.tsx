@@ -182,6 +182,8 @@ export default function Sidebar() {
       {/* Collapse toggle */}
       <button
         onClick={() => setExpanded((v) => !v)}
+        aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
+        aria-expanded={expanded}
         className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/60 border border-white/15 flex items-center justify-center text-[#A1A1AA] hover:text-[#E4E4E7] hover:border-[#3A3A45] transition-all z-10 shadow-md"
       >
         {expanded ? (
