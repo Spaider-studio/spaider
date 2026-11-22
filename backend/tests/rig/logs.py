@@ -32,6 +32,10 @@ ALLOWED = [
         "Kong runs as an unprivileged user in its image",
     ),
     (
+        r"decompose_question non-JSON output: 'ok'",
+        "the rig's test model answers 'ok' to everything, so the question is not decomposed",
+    ),
+    (
         r"an upstream response is buffered to a temporary file .*graph/multiverse",
         "the multiverse graph is a large JSON body; nginx spools it to disk, which is harmless",
     ),
