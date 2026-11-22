@@ -12,6 +12,8 @@ import math
 from datetime import datetime, timezone
 from typing import Optional
 
+from app.core.clickhouse import log_write_failure
+
 logger = logging.getLogger(__name__)
 
 # ClickHouse DDL — executed once on startup
@@ -332,7 +334,7 @@ class AnalyticsService:
                 lambda: self._client.insert("spaider.ingest_events", data, column_names=cols),
             )
         except Exception as exc:
-            logger.debug("ClickHouse ingest insert failed: %s", exc)
+            log_write_failure("ingest", exc)
 
     async def _insert_query(self, **kwargs) -> None:
         try:
@@ -357,7 +359,7 @@ class AnalyticsService:
                 lambda: self._client.insert("spaider.query_events", data, column_names=cols),
             )
         except Exception as exc:
-            logger.debug("ClickHouse query insert failed: %s", exc)
+            log_write_failure("query", exc)
 
     async def _insert_extraction_failed(self, **kwargs) -> None:
         try:
@@ -380,7 +382,7 @@ class AnalyticsService:
                 ),
             )
         except Exception as exc:
-            logger.debug("ClickHouse extraction_failed insert failed: %s", exc)
+            log_write_failure("extraction_failed", exc)
 
     async def _query(self, sql: str, parameters: Optional[dict] = None) -> list[dict]:
         try:

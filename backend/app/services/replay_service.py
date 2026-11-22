@@ -25,6 +25,7 @@ from typing import Optional
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 
 from app.config import settings
+from app.core.clickhouse import log_write_failure
 from app.services.audit_result import AuditResult, AuditStoreUnavailable
 
 logger = logging.getLogger(__name__)
@@ -188,7 +189,7 @@ class ReplayService:
                 ),
             )
         except Exception as exc:
-            logger.debug("ClickHouse workflow_events insert failed: %s", exc)
+            log_write_failure("workflow_events", exc)
 
     @staticmethod
     def _parse_event_ts(ts_str: str) -> Optional[datetime]:

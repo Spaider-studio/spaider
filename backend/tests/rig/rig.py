@@ -21,6 +21,8 @@ Usage (from the repository root):
     python backend/tests/rig/rig.py sync        # copy the working tree in
     python backend/tests/rig/rig.py up          # build and start the stack
     python backend/tests/rig/rig.py reset       # empty databases, same images
+    python backend/tests/rig/rig.py env KEY=VALUE ...   # change .env and recreate what depends on it
+    python backend/tests/rig/rig.py rebuild [service ...]   # sync, rebuild and restart services
     python backend/tests/rig/rig.py exec -- docker ps
     python backend/tests/rig/rig.py down        # remove everything
 """
@@ -201,6 +203,33 @@ def reset() -> None:
     _wait_healthy()
 
 
+def set_env(pairs: list[str]) -> None:
+    """Change values in the rig's .env and recreate the services that use them."""
+    for pair in pairs:
+        key, _, value = pair.partition("=")
+        if not re.fullmatch(r"[A-Z0-9_]+", key) or "'" in value or "\n" in value:
+            sys.exit(f"bad setting: {pair!r}")
+        in_rig(
+            f"cd {REMOTE} && if grep -q '^{key}=' .env; then sed -i 's|^{key}=.*|{key}={value}|' .env; "
+            f"else echo '{key}={value}' >> .env; fi"
+        )
+    result = in_rig(f"cd {REMOTE} && {COMPOSE} up -d", check=False, capture=True)
+    if result.returncode != 0:
+        sys.exit("compose up failed: " + (result.stderr or "")[-500:])
+    _wait_healthy()
+
+
+def rebuild(services: list[str]) -> None:
+    """Copy the working tree in again and rebuild only the named services (default: the backend)."""
+    sync()
+    names = " ".join(services or ["backend-api", "backend-worker"])
+    result = in_rig(f"cd {REMOTE} && {COMPOSE} up -d --build {names}", check=False, capture=True)
+    if result.returncode != 0:
+        sys.exit("compose up failed: " + (result.stderr or "")[-500:])
+    in_rig("docker restart spaider-kong >/dev/null 2>&1 || true", check=False)
+    _wait_healthy()
+
+
 def down() -> None:
     run("docker", "rm", "-fv", NAME, check=False, capture=True)
     STATE.unlink(missing_ok=True)
@@ -213,11 +242,15 @@ def exec_(command: list[str]) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("command", choices=["create", "sync", "up", "reset", "down", "exec"])
+    parser.add_argument("command", choices=["create", "sync", "up", "reset", "env", "rebuild", "down", "exec"])
     parser.add_argument("rest", nargs="*")
     args = parser.parse_args()
     if args.command == "exec":
         exec_([part for part in args.rest if part != "--"])
+    elif args.command == "env":
+        set_env(args.rest)
+    elif args.command == "rebuild":
+        rebuild(args.rest)
     else:
         {"create": create, "sync": sync, "up": up, "reset": reset, "down": down}[args.command]()
 
