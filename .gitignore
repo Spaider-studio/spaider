@@ -100,3 +100,7 @@ sdk/typescript/dist/
 
 # Test rig state: generated secrets and keys.
 backend/tests/rig/.rig-*
+
+# Playwright output
+frontend/test-results/
+frontend/playwright-report/
