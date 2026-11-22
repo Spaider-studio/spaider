@@ -222,10 +222,16 @@ def set_env(pairs: list[str]) -> None:
 def rebuild(services: list[str]) -> None:
     """Copy the working tree in again and rebuild only the named services (default: the backend)."""
     sync()
-    names = " ".join(services or ["backend-api", "backend-worker"])
-    result = in_rig(f"cd {REMOTE} && {COMPOSE} up -d --build {names}", check=False, capture=True)
+    wanted = services or ["backend-api", "backend-worker"]
+    if "frontend" in wanted:
+        # The Next.js build needs several GB, and the rig shares the Docker VM's
+        # memory with everything else. Without this it fails with "cannot allocate
+        # memory" and the old frontend keeps running. Volumes keep the data.
+        in_rig(f"cd {REMOTE} && {COMPOSE} stop", check=False, capture=True)
+    result = in_rig(f"cd {REMOTE} && {COMPOSE} up -d --build {' '.join(wanted)}", check=False, capture=True)
     if result.returncode != 0:
-        sys.exit("compose up failed: " + (result.stderr or "")[-500:])
+        sys.exit("compose up failed: " + (result.stdout or "")[-300:] + (result.stderr or "")[-700:])
+    in_rig(f"cd {REMOTE} && {COMPOSE} up -d", check=False, capture=True)
     in_rig("docker restart spaider-kong >/dev/null 2>&1 || true", check=False)
     _wait_healthy()
 
