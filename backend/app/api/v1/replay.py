@@ -12,7 +12,16 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.config import settings
-from app.core.authz import Action, Principal, accessible_kbs, authorize, can, get_principal, resolve_kb
+from app.core.authz import (
+    Action,
+    Principal,
+    accessible_kbs,
+    authorize,
+    can,
+    get_principal,
+    has_org_wide_access,
+    resolve_kb,
+)
 from app.services.audit_result import AuditStoreUnavailable
 
 logger = logging.getLogger(__name__)
@@ -171,6 +180,15 @@ async def list_workflows(
     allowed: Optional[set[str]] = None
     if agent_id is None and auth.default_kb is None and not auth.insecure:
         allowed = set(await accessible_kbs(auth, Action.AUDIT))
+        if not allowed and not has_org_wide_access(auth, Action.AUDIT):
+            # An empty list would read as "no runs yet" to someone who simply may not look.
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "You do not have access to the audit log of any knowledge base. "
+                    "Ask a steward to make you an auditor."
+                ),
+            )
     else:
         agent_id = resolve_kb(auth, agent_id)
     if agent_id is not None:

@@ -181,6 +181,11 @@ def _org_grants(principal: Principal, action: Action) -> bool:
     return principal.org_role == OrgRole.AUDITOR and action == Action.AUDIT
 
 
+def has_org_wide_access(principal: Principal, action: Action) -> bool:
+    """Whether the org-level role allows ``action`` on every knowledge base, including ones created later."""
+    return _org_grants(principal, action)
+
+
 async def can(principal: Principal, agent_id: str, action: Action) -> bool:
     if principal.insecure:
         return True
