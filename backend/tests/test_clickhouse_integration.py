@@ -52,3 +52,51 @@ async def test_the_listing_can_be_filtered_by_kb(clickhouse_test):
 
     assert runs is not None, "ClickHouse rejected the filtered query"
     assert [(run["workflow_id"], run["agent_id"]) for run in runs] == [("wf-a", "kb-a")]
+
+
+async def _recorded_analytics(agent_id: str):
+    from app.services.analytics_service import AnalyticsService
+
+    service = AnalyticsService()
+    await service.initialize()
+    assert service._ready, "the analytics service could not reach the test ClickHouse"
+    await service._insert_ingest(
+        agent_id=agent_id,
+        text_length=10,
+        chunk_count=1,
+        nodes_created=2,
+        nodes_merged=0,
+        edges_created=1,
+        latency_ms=12.5,
+    )
+    return service
+
+
+@pytest.mark.asyncio
+async def test_the_analytics_route_reads_what_ingest_recorded(auth_world, clickhouse_test, monkeypatch):
+    """Ingest writes to the service the app started, so the route has to read from that one."""
+    import app.main as main
+
+    kb = await auth_world.create_kb("analytics-kb")
+    monkeypatch.setattr(main, "_analytics_service", await _recorded_analytics(kb["id"]))
+
+    response = await auth_world.client.get(
+        "/api/v1/analytics/overview",
+        params={"agent_id": kb["id"]},
+        headers=auth_world.headers(auth_world.owner_key),
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["ingest"]["total_ingests"] == 1
+    # No query was recorded, so ClickHouse averages nothing. That is null, not nan.
+    assert response.json()["query"]["avg_query_latency_ms"] is None
+
+
+@pytest.mark.asyncio
+async def test_a_hostile_kb_id_cannot_read_other_kbs(clickhouse_test):
+    """The value is checked against the KB list before it gets here, but the SQL must not rely on that."""
+    service = await _recorded_analytics("kb-a")
+
+    overview = await service.get_overview("x' OR '1'='1")
+
+    assert overview["ingest"].get("total_ingests", 0) == 0

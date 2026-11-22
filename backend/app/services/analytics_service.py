@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 from datetime import datetime, timezone
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +73,13 @@ _MIGRATIONS = [
     "ALTER TABLE spaider.query_events "
     "ADD COLUMN IF NOT EXISTS completion_tokens UInt32 DEFAULT 0",
 ]
+
+
+def _json_safe(value):
+    """ClickHouse averages an empty set to nan, which JSON cannot carry."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    return value
 
 
 class AnalyticsService:
@@ -225,7 +234,7 @@ class AnalyticsService:
         """Hourly ingest volume and latency for the last N days."""
         if not self._ready:
             return []
-        sql = f"""
+        sql = """
             SELECT
                 toStartOfHour(timestamp)          AS hour,
                 count()                           AS ingests,
@@ -233,12 +242,12 @@ class AnalyticsService:
                 sum(edges_created)                AS total_edges,
                 avg(latency_ms)                   AS avg_latency_ms
             FROM spaider.ingest_events
-            WHERE agent_id = '{agent_id}'
-              AND timestamp >= now() - INTERVAL {days} DAY
+            WHERE agent_id = {agent:String}
+              AND timestamp >= now() - INTERVAL {days:UInt16} DAY
             GROUP BY hour
             ORDER BY hour
         """
-        return await self._query(sql)
+        return await self._query(sql, {"agent": agent_id, "days": days})
 
     async def get_query_timeseries(
         self, agent_id: str, days: int = 7
@@ -246,7 +255,7 @@ class AnalyticsService:
         """Hourly query volume and latency for the last N days."""
         if not self._ready:
             return []
-        sql = f"""
+        sql = """
             SELECT
                 toStartOfHour(timestamp) AS hour,
                 count()                  AS queries,
@@ -254,19 +263,19 @@ class AnalyticsService:
                 avg(nodes_in_result)     AS avg_nodes_returned,
                 sum(cypher_used)         AS cypher_queries
             FROM spaider.query_events
-            WHERE agent_id = '{agent_id}'
-              AND timestamp >= now() - INTERVAL {days} DAY
+            WHERE agent_id = {agent:String}
+              AND timestamp >= now() - INTERVAL {days:UInt16} DAY
             GROUP BY hour
             ORDER BY hour
         """
-        return await self._query(sql)
+        return await self._query(sql, {"agent": agent_id, "days": days})
 
     async def get_overview(self, agent_id: str) -> dict:
         """Aggregate overview stats for an agent."""
         if not self._ready:
             return {}
 
-        ingest_sql = f"""
+        ingest_sql = """
             SELECT
                 count()            AS total_ingests,
                 sum(nodes_created) AS total_nodes_created,
@@ -274,18 +283,18 @@ class AnalyticsService:
                 avg(latency_ms)    AS avg_ingest_latency_ms,
                 max(latency_ms)    AS max_ingest_latency_ms
             FROM spaider.ingest_events
-            WHERE agent_id = '{agent_id}'
+            WHERE agent_id = {agent:String}
         """
-        query_sql = f"""
+        query_sql = """
             SELECT
                 count()          AS total_queries,
                 avg(latency_ms)  AS avg_query_latency_ms,
                 max(latency_ms)  AS max_query_latency_ms
             FROM spaider.query_events
-            WHERE agent_id = '{agent_id}'
+            WHERE agent_id = {agent:String}
         """
-        ingest_rows = await self._query(ingest_sql)
-        query_rows = await self._query(query_sql)
+        ingest_rows = await self._query(ingest_sql, {"agent": agent_id})
+        query_rows = await self._query(query_sql, {"agent": agent_id})
         return {
             "ingest": ingest_rows[0] if ingest_rows else {},
             "query": query_rows[0] if query_rows else {},
@@ -295,7 +304,7 @@ class AnalyticsService:
         """Most active agents by ingest count."""
         if not self._ready:
             return []
-        sql = f"""
+        sql = """
             SELECT
                 agent_id,
                 count()            AS ingests,
@@ -304,9 +313,9 @@ class AnalyticsService:
             FROM spaider.ingest_events
             GROUP BY agent_id
             ORDER BY ingests DESC
-            LIMIT {limit}
+            LIMIT {limit:UInt16}
         """
-        return await self._query(sql)
+        return await self._query(sql, {"limit": limit})
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -382,13 +391,16 @@ class AnalyticsService:
         except Exception as exc:
             logger.debug("ClickHouse extraction_failed insert failed: %s", exc)
 
-    async def _query(self, sql: str) -> list[dict]:
+    async def _query(self, sql: str, parameters: Optional[dict] = None) -> list[dict]:
         try:
             result = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: self._client.query(sql)
+                None, lambda: self._client.query(sql, parameters=parameters)
             )
             cols = result.column_names
-            return [dict(zip(cols, row)) for row in result.result_rows]
+            return [
+                {col: _json_safe(value) for col, value in zip(cols, row)}
+                for row in result.result_rows
+            ]
         except Exception as exc:
             logger.warning("ClickHouse query failed: %s", exc)
             return []
