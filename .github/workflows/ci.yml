@@ -155,6 +155,7 @@ jobs:
           SPAIDER_TEST_NEO4J_URI: bolt://localhost:17687
           SPAIDER_TEST_NEO4J_PASSWORD: testpassword123
           SPAIDER_TEST_REDIS_URL: redis://localhost:16379/0
+          SPAIDER_TEST_CLICKHOUSE_URL: http://localhost:18123
         run: .venv/bin/python -m pytest tests/ -q --ignore=tests/eval -p no:cacheprovider --deselect tests/test_e2e_spaider.py
 
       - name: Database logs on failure

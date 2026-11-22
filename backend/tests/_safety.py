@@ -24,6 +24,10 @@ from urllib.parse import urlsplit
 TEST_NEO4J_URI = "bolt://localhost:17687"
 TEST_NEO4J_PASSWORD = "testpassword123"
 TEST_REDIS_URL = "redis://localhost:16379/0"
+TEST_CLICKHOUSE_URL = "http://localhost:18123"
+TEST_CLICKHOUSE_PASSWORD = "testpassword123"
+# Created by the test compose file. The fixture drops nothing without it.
+CLICKHOUSE_MARKER_DB = "spaider_test_marker"
 
 # Neo4j, Redis, Kafka, ZooKeeper, Postgres, ClickHouse, and the app + gateway.
 BLOCKED_LOOPBACK_PORTS = frozenset(
@@ -59,6 +63,10 @@ def redis_url_for_tests() -> str:
     return os.environ.get("SPAIDER_TEST_REDIS_URL", TEST_REDIS_URL)
 
 
+def clickhouse_url_for_tests() -> str:
+    return os.environ.get("SPAIDER_TEST_CLICKHOUSE_URL", TEST_CLICKHOUSE_URL)
+
+
 def is_blocked_address(host: str, port: int) -> bool:
     return host in _LOOPBACK_HOSTS and port in BLOCKED_LOOPBACK_PORTS
 
@@ -77,6 +85,7 @@ def install_test_environment() -> None:
     """Point every service setting at throwaway test targets."""
     assert_safe_url(neo4j_uri_for_tests())
     assert_safe_url(redis_url_for_tests())
+    assert_safe_url(clickhouse_url_for_tests())
     os.environ["NEO4J_URI"] = neo4j_uri_for_tests()
     os.environ["NEO4J_USER"] = "neo4j"
     os.environ["NEO4J_PASSWORD"] = neo4j_password_for_tests()
