@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
+import { createRoot } from "react-dom/client";
 import type { GraphNode, GraphEdge } from "@/lib/types";
 import { NODE_TYPE_COLORS } from "@/lib/constants";
 import { truncate } from "@/lib/utils";
@@ -77,7 +78,6 @@ export default function GraphCanvas2D({
     import("react-force-graph-2d").then((mod) => {
       if (!mounted || !container) return;
       const ForceGraph2D = mod.default;
-      const { createRoot } = require("react-dom/client");
 
       container.innerHTML = "";
       const elem = document.createElement("div");
