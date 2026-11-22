@@ -25,7 +25,7 @@ from typing import Optional
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 
 from app.config import settings
-from app.core.clickhouse import log_write_failure
+from app.core.clickhouse import BACKLOG_RETRY_SECONDS, WriteBuffer, log_write_failure
 from app.services.audit_result import AuditResult, AuditStoreUnavailable
 
 logger = logging.getLogger(__name__)
@@ -58,6 +58,8 @@ class ReplayService:
         self._producer: Optional[AIOKafkaProducer] = None
         self._ch_client = None
         self._ch_ready = False
+        self._buffer = WriteBuffer()
+        self._retry_task: Optional[asyncio.Task] = None
 
     async def start(self) -> None:
         """Start the Kafka producer and connect the ClickHouse audit store."""
@@ -84,6 +86,8 @@ class ReplayService:
                     None, lambda q=ddl: self._ch_client.command(q)
                 )
             self._ch_ready = True
+            if self._retry_task is None:
+                self._retry_task = asyncio.create_task(self._retry_loop())
             logger.info("ReplayService: ClickHouse audit store ready")
         except Exception as exc:
             logger.warning(
@@ -94,6 +98,9 @@ class ReplayService:
 
     async def stop(self) -> None:
         """Stop the internal producer and the ClickHouse client."""
+        if self._retry_task is not None:
+            self._retry_task.cancel()
+            self._retry_task = None
         if self._producer is not None:
             await self._producer.stop()
             self._producer = None
@@ -164,6 +171,35 @@ class ReplayService:
         )
         return event_id
 
+    async def _insert_rows(self, table: str, columns: list[str], rows: list) -> None:
+        await asyncio.get_event_loop().run_in_executor(
+            None, lambda: self._ch_client.insert(table, rows, column_names=columns)
+        )
+
+    async def _write(self, table: str, rows: list, columns: list[str]) -> None:
+        """Insert rows; if ClickHouse cannot take them now, keep them for the retry loop."""
+        try:
+            await self._insert_rows(table, columns, rows)
+        except Exception as exc:  # noqa: BLE001
+            log_write_failure(table.rsplit(".", 1)[-1], exc)
+            for row in rows:
+                self._buffer.add(table, columns, row)
+
+    async def flush_buffer(self) -> int:
+        written = await self._buffer.flush(self._insert_rows)
+        if written:
+            logger.info("Wrote %d audit events that had been waiting for ClickHouse", written)
+        return written
+
+    async def _retry_loop(self) -> None:
+        """Try the rows that could not be written every few seconds, for as long as the service runs."""
+        while True:
+            await asyncio.sleep(BACKLOG_RETRY_SECONDS)
+            try:
+                await self.flush_buffer()
+            except Exception as exc:  # noqa: BLE001 - never let the retry loop die
+                logger.debug("ClickHouse backlog retry failed: %s", exc)
+
     async def _insert_event_clickhouse(self, event: dict) -> None:
         try:
             ts = self._parse_event_ts(event.get("timestamp", ""))
@@ -182,12 +218,7 @@ class ReplayService:
             ]]
             cols = ["timestamp", "event_id", "workflow_id", "agent_id",
                     "event_type", "payload", "graph_state_hash"]
-            await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: self._ch_client.insert(
-                    "spaider.workflow_events", data, column_names=cols
-                ),
-            )
+            await self._write("spaider.workflow_events", data, cols)
         except Exception as exc:
             log_write_failure("workflow_events", exc)
 

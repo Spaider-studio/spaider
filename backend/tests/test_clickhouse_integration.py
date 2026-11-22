@@ -140,3 +140,36 @@ async def test_audit_and_analytics_can_run_at_the_same_time(clickhouse_test):
 
     assert all(run is not None for run in listings)
     assert all(overview["ingest"].get("total_ingests") == 1 for overview in overviews)
+
+
+class _DownOnce:
+    """A real ClickHouse client whose inserts fail for a while, as during an outage."""
+
+    def __init__(self, real, failures: int) -> None:
+        self._real, self.failures = real, failures
+
+    def insert(self, *args, **kwargs):
+        if self.failures > 0:
+            self.failures -= 1
+            raise RuntimeError("clickhouse is down")
+        return self._real.insert(*args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._real, name)
+
+
+@pytest.mark.asyncio
+async def test_audit_events_written_during_an_outage_arrive_when_clickhouse_is_back(clickhouse_test):
+    service = await _started_service()
+    service._ch_client = _DownOnce(service._ch_client, failures=3)
+
+    for number in range(3):
+        await _record(service, f"wf-{number}", "kb-a")
+    assert service._buffer.pending() == 3
+    assert await service._list_workflows_clickhouse(agent_id=None, limit=10) == []
+
+    await service.flush_buffer()
+
+    runs = await service._list_workflows_clickhouse(agent_id=None, limit=10)
+    assert sorted(run["workflow_id"] for run in runs) == ["wf-0", "wf-1", "wf-2"]
+    assert service._buffer.pending() == 0

@@ -12,7 +12,7 @@ import math
 from datetime import datetime, timezone
 from typing import Optional
 
-from app.core.clickhouse import log_write_failure
+from app.core.clickhouse import BACKLOG_RETRY_SECONDS, WriteBuffer, log_write_failure
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +94,8 @@ class AnalyticsService:
     def __init__(self) -> None:
         self._client = None
         self._ready = False
+        self._buffer = WriteBuffer()
+        self._retry_task: Optional[asyncio.Task] = None
 
     async def initialize(self) -> None:
         """Connect to ClickHouse and create tables. Called once at startup."""
@@ -114,6 +116,8 @@ class AnalyticsService:
                     None, lambda q=mig: self._client.command(q)
                 )
             self._ready = True
+            if self._retry_task is None:
+                self._retry_task = asyncio.create_task(self._retry_loop())
             logger.info(
                 "ClickHouse connected at %s:%s — analytics tables ready",
                 settings.clickhouse_host,
@@ -134,6 +138,9 @@ class AnalyticsService:
         return True
 
     async def close(self) -> None:
+        if self._retry_task is not None:
+            self._retry_task.cancel()
+            self._retry_task = None
         if self._client is not None:
             try:
                 await asyncio.get_event_loop().run_in_executor(None, self._client.close)
@@ -324,6 +331,35 @@ class AnalyticsService:
     # Internal helpers
     # ------------------------------------------------------------------
 
+    async def _insert_rows(self, table: str, columns: list[str], rows: list) -> None:
+        await asyncio.get_event_loop().run_in_executor(
+            None, lambda: self._client.insert(table, rows, column_names=columns)
+        )
+
+    async def _write(self, table: str, rows: list, columns: list[str]) -> None:
+        """Insert rows; if ClickHouse cannot take them now, keep them for the retry loop."""
+        try:
+            await self._insert_rows(table, columns, rows)
+        except Exception as exc:  # noqa: BLE001
+            log_write_failure(table.rsplit(".", 1)[-1], exc)
+            for row in rows:
+                self._buffer.add(table, columns, row)
+
+    async def flush_buffer(self) -> int:
+        written = await self._buffer.flush(self._insert_rows)
+        if written:
+            logger.info("Wrote %d analytics rows that had been waiting for ClickHouse", written)
+        return written
+
+    async def _retry_loop(self) -> None:
+        """Try the rows that could not be written every few seconds, for as long as the service runs."""
+        while True:
+            await asyncio.sleep(BACKLOG_RETRY_SECONDS)
+            try:
+                await self.flush_buffer()
+            except Exception as exc:  # noqa: BLE001 - never let the retry loop die
+                logger.debug("ClickHouse backlog retry failed: %s", exc)
+
     async def _insert_ingest(self, **kwargs) -> None:
         try:
             now = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -339,10 +375,7 @@ class AnalyticsService:
             ]]
             cols = ["timestamp", "agent_id", "text_length", "chunk_count",
                     "nodes_created", "nodes_merged", "edges_created", "latency_ms"]
-            await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: self._client.insert("spaider.ingest_events", data, column_names=cols),
-            )
+            await self._write("spaider.ingest_events", data, cols)
         except Exception as exc:
             log_write_failure("ingest", exc)
 
@@ -364,10 +397,7 @@ class AnalyticsService:
             cols = ["timestamp", "agent_id", "question_length", "answer_length",
                     "nodes_in_result", "edges_in_result", "cypher_used", "latency_ms",
                     "prompt_tokens", "completion_tokens"]
-            await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: self._client.insert("spaider.query_events", data, column_names=cols),
-            )
+            await self._write("spaider.query_events", data, cols)
         except Exception as exc:
             log_write_failure("query", exc)
 
@@ -385,12 +415,7 @@ class AnalyticsService:
                 last_error,
             ]]
             cols = ["timestamp", "agent_id", "source", "text_length", "attempts", "last_error"]
-            await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: self._client.insert(
-                    "spaider.extraction_failed_events", data, column_names=cols
-                ),
-            )
+            await self._write("spaider.extraction_failed_events", data, cols)
         except Exception as exc:
             log_write_failure("extraction_failed", exc)
 
