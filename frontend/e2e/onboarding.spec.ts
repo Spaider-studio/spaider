@@ -11,9 +11,11 @@ import { expect, test } from "@playwright/test";
 import { login, rig, watch } from "./rig";
 
 const REAL = process.env.RIG_REAL_LLM === "1";
+// A real model needs seconds per call and an ingest makes several; the stub answers at once.
+const SLOW = REAL ? 6 : 1;
 
 test("J1/J2: create a knowledge base, add knowledge, ask, and rate the answer", async ({ page }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(240_000 * SLOW);
   const seen = watch(page);
   const name = `J1 ${Date.now()}`;
   await login(page, "owner");
@@ -59,7 +61,7 @@ test("J1/J2: create a knowledge base, add knowledge, ask, and rate the answer", 
         const res = await page.request.get(`/api/v1/graph/stats?agent_id=${kbId}`, { headers: { "X-Api-Key": rig().keys.owner } });
         return (await res.json()).node_count as number;
       },
-      { timeout: 60_000 }
+      { timeout: 60_000 * SLOW }
     )
     .toBeGreaterThan(0);
 
@@ -71,7 +73,7 @@ test("J1/J2: create a knowledge base, add knowledge, ask, and rate the answer", 
   expect((await asked).status()).toBe(200);
   // With Synaptic Memory off the panel asks "Was this right?", with it on the Hebbian panel shows
   // the strength of the facts used. Either one carries the rating.
-  await expect(page.getByText(/Was this right\?|Hebbian update:/)).toBeVisible({ timeout: 90_000 });
+  await expect(page.getByText(/Was this right\?|Hebbian update:/)).toBeVisible({ timeout: 90_000 * SLOW });
   if (REAL) await expect(page.getByText(/Mara Quist/).first()).toBeVisible();
 
   const rated = page.waitForResponse((r) => r.url().includes("/system/feedback"));

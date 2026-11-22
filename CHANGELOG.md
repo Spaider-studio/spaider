@@ -49,12 +49,26 @@ a fresh install exposed.
   off as failed. `/health` now reports `disabled` for them and `spaider doctor` no longer says
   "All clear" while a service is down.
 - `npm run lint` did not work and CI did not run it.
+- A reader without audit access to any knowledge base saw an empty audit log. The API now answers
+  `403` with the reason and the page shows it.
+- On a fresh database the vector index could stay missing: the API and the worker created the same
+  schema at the same moment, and the loser's "already exists" error was swallowed. It is retried.
+- Every page now passes the axe accessibility checks: low contrast text and the primary button, buttons
+  and sliders without a name, and the synthesizer's labels that were not tied to their fields. The
+  memory and supersession switches say which side is on.
+- Cmd+K (Ctrl+K) did not open the command palette on the Studio and the Multiverse.
+- An answer that cited its evidence as `[Evidence: n4]` or `[n3, n5]`, as real models often do, came
+  back with no citations. Both forms are read now.
 
 ### Added
 - `/health` reports `clickhouse` and `postgres`, and a `status` of `ok`, `degraded` or `down`.
 - Audit list and event responses carry `complete` and `source`.
 - A test rig (`backend/tests/rig`) for browser, load and restart tests, Playwright journeys, and a
   check of every Studio API call against the OpenAPI file.
+
+### Changed
+- Docker images and CI use Node 24. Dependency updates: FastAPI 0.162, Uvicorn 0.54, the Neo4j driver 6.4,
+  Next.js 16.4, React 19.3, framer-motion 14, ESLint 10 and others.
 
 ## [0.5.0] - 2026-11-08
 
