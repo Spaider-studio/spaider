@@ -166,6 +166,8 @@ async def check_embedding_dimension_consistency(driver) -> None:
 _graph_service = None
 _kafka_producer = None
 _kafka_connect_task = None
+# Tasks that wait for a service that was not up at startup. Cancelled on shutdown.
+_startup_tasks: list = []
 _redis_client = None
 _analytics_service = None
 _swarm_listener_task = None
@@ -194,49 +196,14 @@ async def lifespan(app: FastAPI):
     if settings.environment != "development" and settings.neo4j_password == _DEFAULT_NEO4J_PASSWORD:
         raise RuntimeError("Refusing to start: NEO4J_PASSWORD is still the default.")
 
-    # 1. Neo4j
-    try:
-        from app.services.graph_service import get_graph_service
-        _graph_service = get_graph_service()
-        await _graph_service.initialize()
-        logger.info("Neo4j connected and initialised")
-    except Exception as exc:
-        logger.error("Neo4j initialisation failed: %s", exc)
+    # Neo4j, Redis, ClickHouse and Postgres: set each up now if it answers,
+    # otherwise keep trying in the background. After a Docker restart they all
+    # come up at the same time as the API, usually a little later.
+    # 1. Neo4j: indexes, migrations, embedding dimension check.
+    await _set_up_or_keep_trying("neo4j", _prepare_neo4j)
 
-    # 1a. Graph migrations (non-fatal — runs after Neo4j is ready)
-    if _graph_service is not None:
-        try:
-            await run_graph_migrations(_graph_service._driver)
-            logger.info("Graph migrations complete")
-        except Exception as exc:
-            logger.error("Graph migration runner failed: %s", exc)
-
-    # 1b. Embedding dimension consistency check. Catches the
-    # operator-switched-providers-without-reseed corruption case before it
-    # produces silently-wrong search results.
-    if _graph_service is not None:
-        try:
-            await check_embedding_dimension_consistency(_graph_service._driver)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Embedding dimension check failed unexpectedly: %s", exc)
-
-    # 2. Redis
-    try:
-        from app.core.kv import get_kv, kv_is_external
-        _redis_client = get_kv()
-        await _redis_client.ping()
-        logger.info("Key-value store ready (%s)", "redis" if kv_is_external() else "in-process")
-    except Exception as exc:
-        logger.warning("Redis connection failed: %s", exc)
-        _redis_client = None
-
-    # 2b. Redis Stream + Consumer Group bootstrap (idempotent)
-    if _redis_client is not None:
-        try:
-            from app.services.redis_service import initialize_stream
-            await initialize_stream(_redis_client)
-        except Exception as exc:
-            logger.warning("Redis Stream init failed (non-fatal): %s", exc)
+    # 2. Redis (and its stream; the swarm listener starts once it answers).
+    await _set_up_or_keep_trying("redis", _prepare_redis)
 
     # 3. Kafka producer
     if settings.kafka_bootstrap_servers:
@@ -246,26 +213,13 @@ async def lifespan(app: FastAPI):
 
     # 4. ClickHouse analytics
     if settings.clickhouse_host:
-        try:
-            from app.services.analytics_service import AnalyticsService
-            _analytics_service = AnalyticsService()
-            await _analytics_service.initialize()
-            # expose globally so routes can import it
-            import app.main as _self
-            _self._analytics_service = _analytics_service
-        except Exception as exc:
-            logger.warning("ClickHouse analytics init failed (non-fatal): %s", exc)
-            _analytics_service = None
+        await _set_up_or_keep_trying("clickhouse", _prepare_analytics)
 
     logger.info("%s started in %s mode", settings.app_name, settings.environment)
 
     # 4.5. Postgres — create connector tables (idempotent)
-    try:
-        from app.db.postgres import init_db
-        await init_db()
-        logger.info("Connector tables ready")
-    except Exception as exc:
-        logger.warning("Connector table init failed (non-fatal): %s", exc)
+    if settings.postgres_url:
+        await _set_up_or_keep_trying("postgres", _prepare_postgres)
 
     # 5. Connector scheduler — polls connector configs every 5 min for
     #    SQL/URL ingest dispatch (non-blocking). NOT memory consolidation —
@@ -289,20 +243,10 @@ async def lifespan(app: FastAPI):
     # Only started when both Redis and Neo4j are available, as the listener
     # depends on both.  Missing either is non-fatal: the app runs without the
     # swarm routing layer (pheromones accumulate in Neo4j until next boot).
-    if _redis_client is not None and _graph_service is not None:
-        from app.workers.swarm_listener import swarm_listener
-        _swarm_listener_task = asyncio.create_task(
-            swarm_listener(
-                redis_client=_redis_client,
-                graph_service=_graph_service,
-            ),
-            name="swarm-listener",
-        )
-        logger.info("Swarm listener started — subscribed to Redis channel 'swarm_events'")
-    else:
+    _start_swarm_listener()
+    if _swarm_listener_task is None:
         logger.warning(
-            "Swarm listener NOT started (Redis=%s, Neo4j=%s) — "
-            "event-driven routing unavailable",
+            "Swarm listener NOT started yet (Redis=%s, Neo4j=%s) — it starts as soon as Redis answers",
             "ok" if _redis_client else "unavailable",
             "ok" if _graph_service else "unavailable",
         )
@@ -353,6 +297,11 @@ async def lifespan(app: FastAPI):
     if _kafka_connect_task is not None:
         _kafka_connect_task.cancel()
         await asyncio.gather(_kafka_connect_task, return_exceptions=True)
+
+    for task in _startup_tasks:
+        task.cancel()
+    await asyncio.gather(*_startup_tasks, return_exceptions=True)
+    _startup_tasks.clear()
 
     if _kafka_producer is not None:
         try:
@@ -500,6 +449,107 @@ async def _postgres_reachable() -> bool:
 
     async with get_engine().connect() as connection:
         await asyncio.wait_for(connection.execute(text("SELECT 1")), 1.0)
+    return True
+
+
+async def _set_up_or_keep_trying(name: str, prepare) -> None:
+    """Try once now. If the service does not answer yet, keep trying in the background."""
+    from app.core.startup import retry_until_ready
+
+    try:
+        ready = await prepare()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("%s setup raised: %s", name, exc)
+        ready = False
+    if not ready:
+        _startup_tasks.append(asyncio.create_task(retry_until_ready(name, prepare), name=f"{name}-setup"))
+
+
+async def _prepare_neo4j() -> bool:
+    """Indexes, migrations and the embedding dimension check. False while Neo4j does not answer."""
+    global _graph_service
+    from app.services.graph_service import get_graph_service
+
+    _graph_service = get_graph_service()
+    try:
+        await _graph_service.initialize()
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Neo4j initialisation failed: %s", exc)
+        return False
+    logger.info("Neo4j connected and initialised")
+    try:
+        await run_graph_migrations(_graph_service._driver)
+        logger.info("Graph migrations complete")
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Graph migration runner failed: %s", exc)
+    # Catches the operator-switched-providers-without-reseed corruption case
+    # before it produces silently-wrong search results.
+    try:
+        await check_embedding_dimension_consistency(_graph_service._driver)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Embedding dimension check failed unexpectedly: %s", exc)
+    return True
+
+
+async def _prepare_redis() -> bool:
+    """The key-value store and its stream. The swarm listener starts once it answers."""
+    global _redis_client
+    try:
+        from app.core.kv import get_kv, kv_is_external
+
+        client = get_kv()
+        await client.ping()
+        logger.info("Key-value store ready (%s)", "redis" if kv_is_external() else "in-process")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Redis connection failed: %s", exc)
+        return False
+    _redis_client = client
+    try:
+        from app.services.redis_service import initialize_stream
+
+        await initialize_stream(client)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Redis Stream init failed: %s", exc)
+        return False
+    _start_swarm_listener()
+    return True
+
+
+def _start_swarm_listener() -> None:
+    """Start the swarm listener once, as soon as both Redis and Neo4j objects exist."""
+    global _swarm_listener_task
+    if _swarm_listener_task is not None or _redis_client is None or _graph_service is None:
+        return
+    from app.workers.swarm_listener import swarm_listener
+
+    _swarm_listener_task = asyncio.create_task(
+        swarm_listener(redis_client=_redis_client, graph_service=_graph_service),
+        name="swarm-listener",
+    )
+    logger.info("Swarm listener started — subscribed to Redis channel 'swarm_events'")
+
+
+async def _prepare_analytics() -> bool:
+    global _analytics_service
+    from app.services.analytics_service import AnalyticsService
+
+    service = _analytics_service or AnalyticsService()
+    await service.initialize()
+    if not service._ready:
+        return False
+    _analytics_service = service
+    return True
+
+
+async def _prepare_postgres() -> bool:
+    from app.db.postgres import init_db
+
+    try:
+        await init_db()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Connector table init failed: %s", exc)
+        return False
+    logger.info("Connector tables ready")
     return True
 
 
