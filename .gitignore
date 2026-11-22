@@ -97,3 +97,6 @@ benchmarks/.venv-*
 benchmarks/.bench_data/
 sdk/typescript/node_modules/
 sdk/typescript/dist/
+
+# Test rig state: generated secrets and keys.
+backend/tests/rig/.rig-*
