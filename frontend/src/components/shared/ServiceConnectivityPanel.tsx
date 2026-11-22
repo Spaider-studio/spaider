@@ -14,21 +14,20 @@ import type { ServiceHealthResponse, SwarmHealthResponse } from "@/lib/api";
  *  A 10 s poll guarantees we see a new worker within one TTL window. */
 const POLL_INTERVAL_MS = 10_000;
 
-/** Infrastructure services — reported live by the backend /health endpoint. */
-const INFRA_KEYS = ["neo4j", "redis", "kafka"] as const;
-type InfraKey = (typeof INFRA_KEYS)[number];
-
-/** External / legacy services — never reported by the backend.
- *  Always rendered as "Not configured" independently of the API response. */
-const EXTERNAL_KEYS = ["flink", "schema_registry"] as const;
-
+/** How the services are named and ordered. The list itself comes from the
+ *  backend's /health, so a service that is added there shows up here, and one
+ *  that does not exist (this panel used to invent Flink and a Schema Registry)
+ *  never does. A key that is not listed here is shown under its own name. */
 const SERVICE_META: Record<string, { label: string; color: string }> = {
-  neo4j:           { label: "Neo4j",           color: "#10B981" },
-  redis:           { label: "Redis",            color: "#F59E0B" },
-  kafka:           { label: "Kafka",            color: "#3B82F6" },
-  flink:           { label: "Flink",            color: "#8B5CF6" },
-  schema_registry: { label: "Schema Registry",  color: "#EC4899" },
+  neo4j:        { label: "Neo4j",        color: "#10B981" },
+  redis:        { label: "Redis",        color: "#F59E0B" },
+  kafka:        { label: "Kafka",        color: "#3B82F6" },
+  clickhouse:   { label: "ClickHouse",   color: "#8B5CF6" },
+  postgres:     { label: "Postgres",     color: "#EC4899" },
+  vector_index: { label: "Vector index", color: "#06B6D4" },
 };
+const SERVICE_ORDER = Object.keys(SERVICE_META);
+const FALLBACK_COLOR = "#6B7280";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -38,7 +37,8 @@ interface SectionService {
   key:   string;
   label: string;
   color: string;
-  status: "ok" | "unavailable" | "static";
+  /** "disabled" is switched off on purpose (the Lite profile), not broken. */
+  status: "ok" | "unavailable" | "disabled";
 }
 
 // ---------------------------------------------------------------------------
@@ -113,28 +113,24 @@ export default function ServiceConnectivityPanel() {
 
   const rawServices = health?.services ?? {};
 
-  /** Infrastructure section: only the three known infra keys, in fixed order. */
-  const infraServices: SectionService[] = INFRA_KEYS.map((key) => ({
-    key,
-    label:  SERVICE_META[key].label,
-    color:  SERVICE_META[key].color,
-    status: (rawServices[key] ?? "unavailable") as "ok" | "unavailable",
-  }));
-
-  /** External section: static keys not present in the API response. */
-  const externalServices: SectionService[] = EXTERNAL_KEYS
-    .filter((key) => !rawServices[key])
+  /** Exactly the services /health reports, known ones first in a fixed order. */
+  const services: SectionService[] = Object.keys(rawServices)
+    .sort((a, b) => {
+      const ia = SERVICE_ORDER.indexOf(a);
+      const ib = SERVICE_ORDER.indexOf(b);
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib) || a.localeCompare(b);
+    })
     .map((key) => ({
       key,
-      label:  SERVICE_META[key].label,
-      color:  SERVICE_META[key].color,
-      status: "static" as const,
+      label:  SERVICE_META[key]?.label ?? key,
+      color:  SERVICE_META[key]?.color ?? FALLBACK_COLOR,
+      status: rawServices[key] as SectionService["status"],
     }));
 
-  /** Overall infrastructure health — .every() over infra keys only. */
-  const allInfraOk     = infraServices.every((s) => s.status === "ok");
-  const someInfraDown  = infraServices.some((s) => s.status === "unavailable");
-  const infraConnected = health !== null;
+  /** Only a service that is switched on and does not answer counts as down. */
+  const down      = services.filter((s) => s.status === "unavailable");
+  const connected = health !== null;
+  const allOk     = connected && down.length === 0;
 
   // ── Render ───────────────────────────────────────────────────────────────
 
@@ -147,25 +143,25 @@ export default function ServiceConnectivityPanel() {
           <div className="relative">
             <div
               className={`w-2.5 h-2.5 rounded-full ${
-                !infraConnected
+                !connected
                   ? "bg-[#6B7280]"
-                  : allInfraOk
+                  : allOk
                   ? "bg-[#10B981]"
                   : "bg-[#EF4444]"
               }`}
             />
-            {allInfraOk && infraConnected && (
+            {allOk && (
               <div className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-[#10B981] animate-ping opacity-40" />
             )}
           </div>
           <span className="text-sm text-[#E4E4E7] font-medium">
-            {!infraConnected
+            {!connected
               ? "Checking services..."
-              : allInfraOk
+              : allOk
               ? "All services healthy"
-              : someInfraDown
-              ? "Some services unavailable"
-              : "Checking services..."}
+              : `${down.length} ${down.length === 1 ? "service" : "services"} unavailable: ${down
+                  .map((d) => d.label)
+                  .join(", ")}`}
           </span>
         </div>
         <button
@@ -191,34 +187,17 @@ export default function ServiceConnectivityPanel() {
         title="Infrastructure"
         icon={<Wifi className="w-3 h-3" />}
       >
-        {infraServices.map((svc, i) => (
+        {services.map((svc, i) => (
           <ServiceRow
             key={svc.key}
             svc={svc}
-            isLast={i === infraServices.length - 1}
+            isLast={i === services.length - 1}
           />
         ))}
       </SectionBlock>
 
       {/* ── Section 2: Swarm Intelligence (animated worker dots) ──────── */}
       <SwarmSection swarmHealth={swarmHealth} />
-
-      {/* ── Section 3: External Systems ───────────────────────────────── */}
-      {infraConnected && externalServices.length > 0 && (
-        <SectionBlock
-          title="External Systems"
-          icon={<Circle className="w-3 h-3" />}
-          muted
-        >
-          {externalServices.map((svc, i) => (
-            <ServiceRow
-              key={svc.key}
-              svc={svc}
-              isLast={i === externalServices.length - 1}
-            />
-          ))}
-        </SectionBlock>
-      )}
 
       {/* ── Timestamp ─────────────────────────────────────────────────── */}
       {lastChecked && (
@@ -274,7 +253,7 @@ interface ServiceRowProps {
 
 function ServiceRow({ svc, isLast }: ServiceRowProps) {
   const isOk     = svc.status === "ok";
-  const isStatic = svc.status === "static";
+  const isStatic = svc.status === "disabled";
 
   return (
     <div
@@ -297,7 +276,7 @@ function ServiceRow({ svc, isLast }: ServiceRowProps) {
       <div className="flex items-center gap-2">
         {isStatic ? (
           <>
-            <span className="text-xs text-[#6B7280]">Not configured</span>
+            <span className="text-xs text-[#6B7280]">Not used in this setup</span>
             <Circle className="w-3.5 h-3.5 text-[#6B7280]" />
           </>
         ) : isOk ? (

@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint . --max-warnings 86",
+    "lint": "eslint . --max-warnings 85",
     "test": "vitest run"
   },
   "dependencies": {
