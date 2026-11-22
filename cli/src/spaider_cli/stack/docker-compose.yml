@@ -283,6 +283,10 @@ services:
       KONG_PROXY_ERROR_LOG: /dev/stderr
       KONG_ADMIN_ERROR_LOG: /dev/stderr
       KONG_ADMIN_LISTEN: "127.0.0.1:8001"
+      # Docker gives a recreated container a new IP. Kong keeps the old address for
+      # the lifetime of the DNS record, which is minutes, and answers 502 until then.
+      KONG_DNS_VALID_TTL: "5"
+      KONG_DNS_STALE_TTL: "5"
     volumes:
       - ./gateway/kong.yml:/etc/kong/kong.yml:ro
     depends_on:
