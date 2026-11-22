@@ -25,6 +25,7 @@ from typing import Optional
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 
 from app.config import settings
+from app.services.audit_result import AuditResult, AuditStoreUnavailable
 
 logger = logging.getLogger(__name__)
 
@@ -237,6 +238,7 @@ class ReplayService:
         Returns:
             List of event dicts, ordered by timestamp.
         """
+        clickhouse_failed = False
         if self._ch_ready:
             events = await self._get_workflow_events_clickhouse(
                 workflow_id,
@@ -246,14 +248,18 @@ class ReplayService:
                 limit=limit,
             )
             if events is not None:
-                return events
-        return await self._get_workflow_events_kafka(
+                return AuditResult(events)
+            clickhouse_failed = True
+        events = await self._get_workflow_events_kafka(
             workflow_id,
             start_time=start_time,
             end_time=end_time,
             event_types=event_types,
             limit=limit,
         )
+        if clickhouse_failed and not events:
+            raise AuditStoreUnavailable("ClickHouse failed and the Kafka fallback found no events.")
+        return AuditResult(events, source="kafka", complete=False)
 
     async def _get_workflow_events_clickhouse(
         self,
@@ -413,13 +419,18 @@ class ReplayService:
         List distinct workflow runs (workflow_id, agent_id, first/last event
         timestamps, event count). ClickHouse-first; Kafka-scan fallback.
         """
+        clickhouse_failed = False
         if self._ch_ready:
             workflows = await self._list_workflows_clickhouse(
                 agent_id=agent_id, limit=limit
             )
             if workflows is not None:
-                return workflows
-        return await self._list_workflows_kafka(agent_id=agent_id, limit=limit)
+                return AuditResult(workflows)
+            clickhouse_failed = True
+        workflows = await self._list_workflows_kafka(agent_id=agent_id, limit=limit)
+        if clickhouse_failed and not workflows:
+            raise AuditStoreUnavailable("ClickHouse failed and the Kafka fallback found no workflows.")
+        return AuditResult(workflows, source="kafka", complete=False)
 
     async def _list_workflows_clickhouse(
         self,

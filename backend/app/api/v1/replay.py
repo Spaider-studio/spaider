@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.core.authz import Action, Principal, accessible_kbs, authorize, can, get_principal, resolve_kb
+from app.services.audit_result import AuditStoreUnavailable
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,10 @@ class WorkflowEventsResponse(BaseModel):
     workflow_id: str
     events: list[dict]
     total: int
+    # "kafka" and complete=False mean ClickHouse could not answer and this is
+    # only what Kafka still retains.
+    source: str = "clickhouse"
+    complete: bool = True
 
 
 class WorkflowSummary(BaseModel):
@@ -53,11 +58,15 @@ class WorkflowSummary(BaseModel):
 class WorkflowListResponse(BaseModel):
     workflows: list[WorkflowSummary]
     total: int
+    source: str = "clickhouse"
+    complete: bool = True
 
 
 # ---------------------------------------------------------------------------
 # Lazy-initialised singleton (concurrency-safe)
 # ---------------------------------------------------------------------------
+
+_STORE_UNAVAILABLE = "The audit store is unavailable. Try again shortly."
 
 _replay_service = None
 _replay_service_lock = asyncio.Lock()
@@ -172,10 +181,18 @@ async def list_workflows(
         raise HTTPException(status_code=503, detail="Replay service unavailable.")
 
     try:
-        workflows = await svc.list_workflows(agent_id=agent_id, limit=200 if allowed is not None else limit)
+        found = await svc.list_workflows(agent_id=agent_id, limit=200 if allowed is not None else limit)
+        workflows = found
         if allowed is not None:
-            workflows = [run for run in workflows if run["agent_id"] in allowed][:limit]
-        return WorkflowListResponse(workflows=workflows, total=len(workflows))
+            workflows = [run for run in found if run["agent_id"] in allowed][:limit]
+        return WorkflowListResponse(
+            workflows=workflows,
+            total=len(workflows),
+            source=getattr(found, "source", "clickhouse"),
+            complete=getattr(found, "complete", True),
+        )
+    except AuditStoreUnavailable:
+        raise HTTPException(status_code=503, detail=_STORE_UNAVAILABLE)
     except Exception as exc:
         logger.error("Failed to list workflows: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc))
@@ -204,7 +221,7 @@ async def get_workflow_events(
         type_filter = [t.strip() for t in event_types.split(",") if t.strip()]
 
     try:
-        events = await svc.get_workflow_events(
+        found = await svc.get_workflow_events(
             workflow_id=workflow_id,
             start_time=start_time,
             end_time=end_time,
@@ -212,15 +229,19 @@ async def get_workflow_events(
             limit=limit,
         )
         allowed = {
-            kb for kb in {e.get("agent_id") or "" for e in events}
+            kb for kb in {e.get("agent_id") or "" for e in found}
             if await can(auth, kb, Action.AUDIT)
         }
-        events = [e for e in events if (e.get("agent_id") or "") in allowed]
+        events = [e for e in found if (e.get("agent_id") or "") in allowed]
         return WorkflowEventsResponse(
             workflow_id=workflow_id,
             events=events,
             total=len(events),
+            source=getattr(found, "source", "clickhouse"),
+            complete=getattr(found, "complete", True),
         )
+    except AuditStoreUnavailable:
+        raise HTTPException(status_code=503, detail=_STORE_UNAVAILABLE)
     except Exception as exc:
         logger.error("Failed to fetch workflow events: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc))

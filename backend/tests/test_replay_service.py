@@ -10,8 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.services.replay_service import ReplayService
-
+from app.services.replay_service import AuditResult, AuditStoreUnavailable, ReplayService
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -228,8 +227,9 @@ class TestReplayAPI:
     async def test_record_event_endpoint(self):
         """POST /replay/events should record and return event_id."""
         from httpx import ASGITransport, AsyncClient
-        from app.main import app
+
         from app.api.v1 import replay as replay_module
+        from app.main import app
 
         mock_svc = AsyncMock()
         mock_svc.record_event = AsyncMock(return_value="evt-123")
@@ -260,8 +260,9 @@ class TestReplayAPI:
     async def test_list_workflows_endpoint(self):
         """GET /replay/workflows should return workflow summaries."""
         from httpx import ASGITransport, AsyncClient
-        from app.main import app
+
         from app.api.v1 import replay as replay_module
+        from app.main import app
 
         mock_svc = AsyncMock()
         mock_svc.list_workflows = AsyncMock(
@@ -294,8 +295,9 @@ class TestReplayAPI:
     async def test_get_workflow_events_endpoint(self):
         """GET /replay/workflows/{id}/events should return events."""
         from httpx import ASGITransport, AsyncClient
-        from app.main import app
+
         from app.api.v1 import replay as replay_module
+        from app.main import app
 
         mock_svc = AsyncMock()
         mock_svc.get_workflow_events = AsyncMock(
@@ -417,3 +419,108 @@ class TestClickHouseAuditStore:
         params = svc._ch_client.query.call_args[1]["parameters"]
         assert params["agent"] == "agent-a"
         assert params["lim"] == 10
+
+
+class TestAuditFallback:
+    """When ClickHouse cannot answer, the caller has to be told what it got."""
+
+    @staticmethod
+    def _failing_clickhouse() -> ReplayService:
+        svc = ReplayService()
+        svc._ch_ready = True
+        svc._ch_client = MagicMock()
+        svc._ch_client.query.side_effect = RuntimeError("clickhouse is down")
+        return svc
+
+    @pytest.mark.asyncio
+    async def test_a_healthy_listing_is_complete(self):
+        svc = ReplayService()
+        svc._ch_ready = True
+        svc._ch_client = MagicMock()
+        svc._ch_client.query.return_value = _ch_result(
+            ["workflow_id", "run_agent_id", "first_event", "last_event", "event_count"],
+            [["wf-1", "agent-a", datetime(2026, 6, 10, 11), datetime(2026, 6, 10, 12), 4]],
+        )
+
+        workflows = await svc.list_workflows(limit=10)
+
+        assert workflows.source == "clickhouse"
+        assert workflows.complete is True
+
+    @pytest.mark.asyncio
+    async def test_a_listing_from_the_kafka_fallback_says_it_is_partial(self):
+        svc = self._failing_clickhouse()
+        recent = [{"workflow_id": "wf-1", "agent_id": "agent-a", "event_count": 1}]
+
+        with patch.object(svc, "_list_workflows_kafka", AsyncMock(return_value=recent)):
+            workflows = await svc.list_workflows(limit=10)
+
+        assert list(workflows) == recent
+        assert workflows.source == "kafka"
+        assert workflows.complete is False
+
+    @pytest.mark.asyncio
+    async def test_an_empty_fallback_is_an_error_not_an_empty_audit_log(self):
+        svc = self._failing_clickhouse()
+
+        with patch.object(svc, "_list_workflows_kafka", AsyncMock(return_value=[])):
+            with pytest.raises(AuditStoreUnavailable):
+                await svc.list_workflows(limit=10)
+
+    @pytest.mark.asyncio
+    async def test_an_empty_event_log_after_a_failure_is_an_error(self):
+        svc = self._failing_clickhouse()
+
+        with patch.object(svc, "_get_workflow_events_kafka", AsyncMock(return_value=[])):
+            with pytest.raises(AuditStoreUnavailable):
+                await svc.get_workflow_events("wf-1")
+
+    @pytest.mark.asyncio
+    async def test_the_route_answers_503_when_the_audit_store_is_unavailable(self):
+        from httpx import ASGITransport, AsyncClient
+
+        from app.api.v1 import replay as replay_module
+        from app.main import app
+
+        mock_svc = AsyncMock()
+        mock_svc.list_workflows = AsyncMock(side_effect=AuditStoreUnavailable("down"))
+        replay_module._replay_service = mock_svc
+        try:
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+                response = await client.get("/api/v1/replay/workflows")
+        finally:
+            replay_module._replay_service = None
+
+        assert response.status_code == 503
+        assert "audit store" in response.json()["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_the_route_passes_on_that_a_listing_is_partial(self):
+        from httpx import ASGITransport, AsyncClient
+
+        from app.api.v1 import replay as replay_module
+        from app.main import app
+
+        partial = AuditResult(
+            [{
+                "workflow_id": "wf-1",
+                "agent_id": "agent-a",
+                "first_event": "2026-01-01T00:00:00+00:00",
+                "last_event": "2026-01-01T01:00:00+00:00",
+                "event_count": 5,
+            }],
+            source="kafka",
+            complete=False,
+        )
+        mock_svc = AsyncMock()
+        mock_svc.list_workflows = AsyncMock(return_value=partial)
+        replay_module._replay_service = mock_svc
+        try:
+            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+                response = await client.get("/api/v1/replay/workflows")
+        finally:
+            replay_module._replay_service = None
+
+        body = response.json()
+        assert response.status_code == 200
+        assert (body["source"], body["complete"]) == ("kafka", False)
