@@ -69,8 +69,8 @@ class TestDoctorAllGreen:
             "spaider_cli.commands.doctor.llm_lib.validate_openai_key",
             return_value=KeyCheckResult(ok=True, detail=""),
         ), patch(
-            "spaider_cli.commands.doctor.api_client.health",
-            return_value=True,
+            "spaider_cli.commands.doctor.api_client.health_report",
+            return_value={"healthy": True, "services": {}},
         ), patch(
             "spaider_cli.commands.doctor.api_client.embedding_health",
             return_value={
@@ -98,8 +98,8 @@ class TestDoctorRedItems:
             "spaider_cli.commands.doctor.llm_lib.validate_openai_key",
             return_value=KeyCheckResult(ok=True, detail=""),
         ), patch(
-            "spaider_cli.commands.doctor.api_client.health",
-            return_value=False,
+            "spaider_cli.commands.doctor.api_client.health_report",
+            return_value=None,
         ):
             result = runner.invoke(app, ["doctor", "--repo", str(repo)])
 
@@ -118,8 +118,8 @@ class TestDoctorRedItems:
             "spaider_cli.commands.doctor.docker_lib.check_docker_available",
             return_value=_good_docker(),
         ), patch(
-            "spaider_cli.commands.doctor.api_client.health",
-            return_value=True,
+            "spaider_cli.commands.doctor.api_client.health_report",
+            return_value={"healthy": True, "services": {}},
         ):
             result = runner.invoke(app, ["doctor", "--repo", str(repo)])
 
@@ -135,8 +135,8 @@ class TestDoctorRedItems:
             "spaider_cli.commands.doctor.docker_lib.check_docker_available",
             return_value=_good_docker(),
         ), patch(
-            "spaider_cli.commands.doctor.api_client.health",
-            return_value=False,
+            "spaider_cli.commands.doctor.api_client.health_report",
+            return_value=None,
         ):
             result = runner.invoke(app, ["doctor", "--repo", str(tmp_path)])
 
@@ -159,8 +159,8 @@ class TestDoctorEmbeddingDimensions:
             "spaider_cli.commands.doctor.llm_lib.validate_openai_key",
             return_value=KeyCheckResult(ok=True, detail=""),
         ), patch(
-            "spaider_cli.commands.doctor.api_client.health",
-            return_value=True,
+            "spaider_cli.commands.doctor.api_client.health_report",
+            return_value={"healthy": True, "services": {}},
         ), patch(
             "spaider_cli.commands.doctor.api_client.embedding_health",
             return_value={
@@ -187,8 +187,8 @@ class TestDoctorEmbeddingDimensions:
             "spaider_cli.commands.doctor.llm_lib.validate_openai_key",
             return_value=KeyCheckResult(ok=True, detail=""),
         ), patch(
-            "spaider_cli.commands.doctor.api_client.health",
-            return_value=True,
+            "spaider_cli.commands.doctor.api_client.health_report",
+            return_value={"healthy": True, "services": {}},
         ), patch(
             "spaider_cli.commands.doctor.api_client.embedding_health",
             return_value={
@@ -218,8 +218,8 @@ class TestDoctorWarnings:
             "spaider_cli.commands.doctor.llm_lib.validate_openai_key",
             return_value=KeyCheckResult(ok=True, detail=""),
         ), patch(
-            "spaider_cli.commands.doctor.api_client.health",
-            return_value=True,
+            "spaider_cli.commands.doctor.api_client.health_report",
+            return_value={"healthy": True, "services": {}},
         ):
             result = runner.invoke(app, ["doctor", "--repo", str(repo)])
 
@@ -240,8 +240,8 @@ class TestDoctorWarnings:
             "spaider_cli.commands.doctor.llm_lib.validate_openai_key",
             return_value=KeyCheckResult(ok=True, detail=""),
         ), patch(
-            "spaider_cli.commands.doctor.api_client.health",
-            return_value=True,
+            "spaider_cli.commands.doctor.api_client.health_report",
+            return_value={"healthy": True, "services": {}},
         ):
             result = runner.invoke(app, ["doctor", "--repo", str(repo)])
 

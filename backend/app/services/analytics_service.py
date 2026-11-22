@@ -123,6 +123,16 @@ class AnalyticsService:
             logger.warning("ClickHouse unavailable — analytics disabled: %s", exc)
             self._ready = False
 
+    async def ping(self) -> bool:
+        """Whether ClickHouse answers a query right now."""
+        if not self._ready:
+            return False
+        try:
+            await asyncio.get_event_loop().run_in_executor(None, lambda: self._client.command("SELECT 1"))
+        except Exception:  # noqa: BLE001
+            return False
+        return True
+
     async def close(self) -> None:
         if self._client is not None:
             try:

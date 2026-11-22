@@ -106,7 +106,7 @@ async def _health(monkeypatch, *, bootstrap: str, producer) -> dict:
 
     monkeypatch.setattr(settings, "kafka_bootstrap_servers", bootstrap)
     monkeypatch.setattr(main, "_kafka_producer", producer)
-    main.reset_kafka_health_cache()
+    main.reset_health_cache()
     async with AsyncClient(transport=ASGITransport(app=main.app), base_url="http://t") as client:
         return (await client.get("/health")).json()
 

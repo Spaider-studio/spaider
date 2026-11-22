@@ -463,24 +463,48 @@ app.include_router(_ws_router)
 # ---------------------------------------------------------------------------
 
 
-_KAFKA_HEALTH_TTL_SECONDS = 10.0
-_kafka_health: "tuple[float, bool] | None" = None
+_HEALTH_TTL_SECONDS = 10.0
+_health_cache: "dict[str, tuple[float, bool]]" = {}
 
 
-def reset_kafka_health_cache() -> None:
-    global _kafka_health
-    _kafka_health = None
+def reset_health_cache() -> None:
+    _health_cache.clear()
+
+
+async def _probe(name: str, check) -> bool:
+    """Ask a service whether it answers, at most once every ten seconds.
+
+    /health is polled by the Studio, Docker and the CLI, so a real check per
+    request would be a load of its own.
+    """
+    now = time.monotonic()
+    cached = _health_cache.get(name)
+    if cached is not None and now - cached[0] < _HEALTH_TTL_SECONDS:
+        return cached[1]
+    try:
+        reachable = bool(await check())
+    except Exception:  # noqa: BLE001 - a probe that raises means the service is not answering
+        reachable = False
+    _health_cache[name] = (now, reachable)
+    return reachable
 
 
 async def _kafka_reachable() -> bool:
-    """Ask the broker at most once every ten seconds, however often /health is polled."""
-    global _kafka_health
-    now = time.monotonic()
-    if _kafka_health is not None and now - _kafka_health[0] < _KAFKA_HEALTH_TTL_SECONDS:
-        return _kafka_health[1]
-    reachable = _kafka_producer is not None and await _kafka_producer.is_reachable()
-    _kafka_health = (now, reachable)
-    return reachable
+    return _kafka_producer is not None and await _kafka_producer.is_reachable()
+
+
+async def _clickhouse_reachable() -> bool:
+    return _analytics_service is not None and await _analytics_service.ping()
+
+
+async def _postgres_reachable() -> bool:
+    from sqlalchemy import text
+
+    from app.db.postgres import get_engine
+
+    async with get_engine().connect() as connection:
+        await asyncio.wait_for(connection.execute(text("SELECT 1")), 1.0)
+    return True
 
 
 async def _connect_kafka() -> None:
@@ -515,7 +539,8 @@ async def health() -> dict[str, Any]:
         logger.debug("Neo4j health check failed: %s", exc)
     status["services"]["neo4j"] = "ok" if neo4j_ok else "unavailable"
 
-    # Redis
+    # Redis. Without REDIS_URL the key-value store runs in the process, which
+    # is a choice (the Lite profile), not a failure.
     redis_ok = False
     try:
         if _redis_client is not None:
@@ -523,14 +548,30 @@ async def health() -> dict[str, Any]:
             redis_ok = True
     except Exception as exc:
         logger.debug("Redis health check failed: %s", exc)
-    status["services"]["redis"] = "ok" if redis_ok else "unavailable"
+    if not settings.redis_url:
+        status["services"]["redis"] = "disabled"
+    else:
+        status["services"]["redis"] = "ok" if redis_ok else "unavailable"
 
     # Kafka: "disabled" when it is not configured (the Lite profile), otherwise
     # whether the broker really answers, not whether a producer object exists.
     if not settings.kafka_bootstrap_servers:
         status["services"]["kafka"] = "disabled"
     else:
-        status["services"]["kafka"] = "ok" if await _kafka_reachable() else "unavailable"
+        status["services"]["kafka"] = "ok" if await _probe("kafka", _kafka_reachable) else "unavailable"
+
+    # ClickHouse (audit log and analytics) and Postgres (connector state): off
+    # unless configured, otherwise a real query decides.
+    if not settings.clickhouse_host:
+        status["services"]["clickhouse"] = "disabled"
+    else:
+        reachable = await _probe("clickhouse", _clickhouse_reachable)
+        status["services"]["clickhouse"] = "ok" if reachable else "unavailable"
+    if not settings.postgres_url:
+        status["services"]["postgres"] = "disabled"
+    else:
+        reachable = await _probe("postgres", lambda: _postgres_reachable())
+        status["services"]["postgres"] = "ok" if reachable else "unavailable"
 
     # Neo4j vector index — surfaced separately so operators can tell
     # "DB reachable but semantic search broken" apart from "DB down".
@@ -541,6 +582,15 @@ async def health() -> dict[str, Any]:
 
     all_ok = neo4j_ok and redis_ok
     status["healthy"] = all_ok
+    # "healthy" stays for older clients. "status" is what a person should read:
+    # down without Neo4j, degraded when anything that is switched on does not
+    # answer, ok otherwise.
+    if not neo4j_ok:
+        status["status"] = "down"
+    elif "unavailable" in status["services"].values():
+        status["status"] = "degraded"
+    else:
+        status["status"] = "ok"
 
     return status
 
