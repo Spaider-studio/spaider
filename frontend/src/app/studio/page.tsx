@@ -12,7 +12,6 @@ import NodeDetailPanel from "@/components/studio/NodeDetailPanel";
 import SwarmDashboard from "@/components/studio/SwarmDashboard";
 import LivePheromoneStream from "@/components/studio/LivePheromoneStream";
 import Sidebar from "@/components/layout/Sidebar";
-import { getAgents } from "@/lib/api";
 import type { Agent } from "@/lib/types";
 import { Layers, RefreshCw, Trash2, Box, Grid2X2, X, ChevronDown, Globe2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -222,12 +221,12 @@ export default function StudioPage() {
     selectedNode, setSelectedNode,
     highlightedIds, isLoading,
     agentId, setAgentId,
+    agents, loadAgents,
     viewMode, setViewMode,
     isTruncated, serverNodeCount,
   } = useGraph();
 
   const [is3D, setIs3D] = useState(true);
-  const [agents, setAgents] = useState<Agent[]>([]);
   const [filters, setFilters] = useState<Filters>({
     nodeTypes: new Set(),
     minConfidence: 0,
@@ -239,11 +238,16 @@ export default function StudioPage() {
   // automatically — no ghost shell left behind).
   const detailOpen = selectedNode !== null;
 
+  // Choosing a knowledge base only records the choice; this page is the one that
+  // shows a graph, so it loads one, now and whenever the choice changes.
   useEffect(() => {
     fetchAll();
     fetchStats();
-    getAgents().then(setAgents).catch(() => {});
-  }, [fetchAll, fetchStats]);
+  }, [agentId, fetchAll, fetchStats]);
+
+  useEffect(() => {
+    void loadAgents();
+  }, [loadAgents]);
 
   async function handleRefresh() {
     await fetchAll();

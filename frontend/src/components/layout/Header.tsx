@@ -4,8 +4,6 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Search, ChevronRight, Command } from "lucide-react";
 import { useGraph } from "@/hooks/useGraph";
-import { getAgents } from "@/lib/api";
-import type { Agent } from "@/lib/types";
 import CommandPalette from "./CommandPalette";
 
 const PAGE_LABELS: Record<string, string> = {
@@ -17,8 +15,10 @@ const PAGE_LABELS: Record<string, string> = {
 
 export default function Header() {
   const pathname = usePathname();
-  const { agentId, setAgentId, nodes, edges } = useGraph();
-  const [agents, setAgents] = useState<Agent[]>([]);
+  const agentId = useGraph((s) => s.agentId);
+  const setAgentId = useGraph((s) => s.setAgentId);
+  const agents = useGraph((s) => s.agents);
+  const loadAgents = useGraph((s) => s.loadAgents);
   const [cmdOpen, setCmdOpen] = useState(false);
 
   const page =
@@ -26,10 +26,8 @@ export default function Header() {
     "Home";
 
   useEffect(() => {
-    getAgents()
-      .then(setAgents)
-      .catch(() => {});
-  }, []);
+    void loadAgents();
+  }, [loadAgents]);
 
   // Global Cmd+K / Ctrl+K listener
   useEffect(() => {
@@ -55,34 +53,30 @@ export default function Header() {
 
         <div className="flex-1" />
 
-        {/* Agent selector */}
+        {/* The one place to choose which knowledge base the whole app looks at. */}
         {agents.length > 1 ? (
-          <select
-            value={agentId ?? ""}
-            onChange={(e) => setAgentId(e.target.value)}
-            className="bg-[#1A1A25] border border-[#2A2A35] text-[#E4E4E7] text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#3B82F6] transition-colors cursor-pointer"
-          >
-            {agents.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
-        ) : (
+          <label className="flex items-center gap-2 text-xs text-[#6B7280]">
+            <span className="hidden sm:inline">Knowledge base</span>
+            <select
+              aria-label="Knowledge base"
+              value={agentId ?? ""}
+              onChange={(e) => setAgentId(e.target.value || null)}
+              className="bg-[#1A1A25] border border-[#2A2A35] text-[#E4E4E7] text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#3B82F6]/50"
+            >
+              <option value="">All knowledge bases</option>
+              {agents.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : agents.length === 1 ? (
           <div className="flex items-center gap-1.5 text-xs text-[#6B7280]">
-            <span className="text-[#A1A1AA]">Agent:</span>
-            <span className="font-mono text-[#3B82F6]">{agentId}</span>
+            <span className="text-[#A1A1AA]">Knowledge base:</span>
+            <span className="text-[#3B82F6]">{agents[0].name}</span>
           </div>
-        )}
-
-        {/* Stats */}
-        <div className="hidden sm:flex items-center gap-1 text-xs text-[#6B7280]">
-          <span className="text-[#3B82F6] font-medium">{nodes.length}</span>
-          <span>N</span>
-          <span className="text-[#2A2A35] mx-0.5">/</span>
-          <span className="text-[#10B981] font-medium">{edges.length}</span>
-          <span>E</span>
-        </div>
+        ) : null}
 
         {/* Search / Command palette trigger */}
         <button

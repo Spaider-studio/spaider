@@ -13,9 +13,9 @@ function run(id: string, kb: string) {
   };
 }
 
-/** The audit page has two KB pickers: the header's, which switches the whole app, and this one. */
-function auditFilter(page: Page) {
-  return page.locator("select", { has: page.locator("option", { hasText: "All Agents" }) });
+/** The one place to choose a knowledge base: the picker in the header. */
+function kbPicker(page: Page) {
+  return page.getByLabel("Knowledge base");
 }
 
 function countListRequests(page: Page): () => number {
@@ -44,12 +44,28 @@ test("filtering by KB shows that KB's runs", async ({ page }) => {
   await page.goto("/audit");
   await page.waitForLoadState("networkidle");
 
-  await auditFilter(page).selectOption({ label: "rig-alpha" });
+  await kbPicker(page).selectOption({ label: "rig-alpha" });
   await page.waitForLoadState("networkidle");
 
   expect(asked()).toBe(2);
   // Each run row names its KB (not the first eight characters of its id).
   await expect(page.getByRole("button", { name: /rig-alpha.*\d+ events/ }).first()).toBeVisible();
+});
+
+test("the audit log follows the knowledge base chosen in the header, even when it was chosen on another page", async ({ page }) => {
+  await page.goto("/members");
+  await kbPicker(page).selectOption({ label: "rig-beta" });
+  const asked: string[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.pathname === "/api/v1/replay/workflows") asked.push(url.searchParams.get("agent_id") ?? "all");
+  });
+
+  await page.locator('a[href="/audit"]').click();
+  await page.waitForLoadState("networkidle");
+
+  expect(asked).toEqual([rig().kbs["rig-beta"]]);
+  await expect(kbPicker(page)).toHaveValue(rig().kbs["rig-beta"]);
 });
 
 test("a partial answer says so", async ({ page }) => {
@@ -98,7 +114,7 @@ test("switching KB while the first list is still loading never shows the older a
   });
 
   await page.goto("/audit");
-  await auditFilter(page).selectOption({ label: "rig-alpha" });
+  await kbPicker(page).selectOption({ label: "rig-alpha" });
   await expect(page.getByText("newer-answer")).toBeVisible();
   await page.waitForTimeout(3500); // the older, slower answer has arrived by now
 

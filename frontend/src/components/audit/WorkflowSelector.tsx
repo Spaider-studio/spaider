@@ -1,16 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getAgents } from "@/lib/api";
-import type { Agent, WorkflowRun } from "@/lib/types";
+import { useGraph } from "@/hooks/useGraph";
+import type { WorkflowRun } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
   Search,
-  ChevronDown,
   CheckCircle2,
   XCircle,
   Clock,
-  Bot,
 } from "lucide-react";
 
 interface WorkflowSelectorProps {
@@ -20,7 +18,6 @@ interface WorkflowSelectorProps {
   /** Loading the list failed, so an empty list does not mean there are no runs. */
   failed?: boolean;
   onSelectRun: (run: WorkflowRun) => void;
-  onFilterChange: (agentId?: string, workflowId?: string) => void;
 }
 
 const STATUS_CONFIG = {
@@ -35,26 +32,26 @@ export default function WorkflowSelector({
   loading,
   failed = false,
   onSelectRun,
-  onFilterChange,
 }: WorkflowSelectorProps) {
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [agentFilter, setAgentFilter] = useState("");
+  // Which knowledge base the list is for is chosen in the header; this component
+  // only needs the names, to say whose run each one is.
+  const agents = useGraph((s) => s.agents);
+  const loadAgents = useGraph((s) => s.loadAgents);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    getAgents()
-      .then(setAgents)
-      .catch((error) => {
-        console.error("Failed to load agents:", error);
-      });
-  }, []);
+    void loadAgents();
+  }, [loadAgents]);
+
+  const kbName = (run: WorkflowRun) =>
+    run.agent_name || agents.find((a) => a.id === run.agent_id)?.name || run.agent_id.slice(0, 8);
 
   const filtered = runs.filter((run) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
       run.workflow_id.toLowerCase().includes(q) ||
-      run.agent_name?.toLowerCase().includes(q) ||
+      kbName(run).toLowerCase().includes(q) ||
       run.topic?.toLowerCase().includes(q)
     );
   });
@@ -82,25 +79,6 @@ export default function WorkflowSelector({
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-8 pr-3 py-1.5 bg-[#0A0A0F] border border-[#2A2A35] rounded-lg text-xs text-[#E4E4E7] placeholder-[#6B7280] focus:outline-none focus:border-[#3B82F6]/50 transition-colors"
           />
-        </div>
-        <div className="relative">
-          <Bot className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#6B7280]" />
-          <select
-            value={agentFilter}
-            onChange={(e) => {
-              setAgentFilter(e.target.value);
-              onFilterChange(e.target.value || undefined, undefined);
-            }}
-            className="w-full pl-8 pr-7 py-1.5 bg-[#0A0A0F] border border-[#2A2A35] rounded-lg text-xs text-[#E4E4E7] focus:outline-none focus:border-[#3B82F6]/50 transition-colors appearance-none"
-          >
-            <option value="">All Agents</option>
-            {agents.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-[#6B7280] pointer-events-none" />
         </div>
       </div>
 
@@ -146,7 +124,7 @@ export default function WorkflowSelector({
                   </div>
                   <div className="flex items-center gap-2 ml-5.5">
                     <span className="text-[10px] text-[#6B7280]">
-                      {run.agent_name || agents.find((a) => a.id === run.agent_id)?.name || run.agent_id.slice(0, 8)}
+                      {kbName(run)}
                     </span>
                     <span className="text-[10px] text-[#6B7280]">
                       {formatTime(run.started_at)}

@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/api", () => ({
@@ -6,43 +6,72 @@ vi.mock("@/lib/api", () => ({
     { id: "kb-1", name: "Alpha" },
     { id: "kb-2", name: "Beta" },
   ]),
+  getGraph: vi.fn(),
+  getGraphClusters: vi.fn(),
+  getGraphStats: vi.fn(),
+  getMultiverseGraph: vi.fn(),
 }));
 
+import { useGraph } from "@/hooks/useGraph";
+import type { WorkflowRun } from "@/lib/types";
 import WorkflowSelector from "./WorkflowSelector";
 
-const props = { runs: [], selectedRun: null, loading: false, onSelectRun: vi.fn() };
+function run(id: string, kb: string): WorkflowRun {
+  return { id, workflow_id: id, agent_id: kb, status: "completed", started_at: "2026-01-01T00:00:00Z", event_count: 3 };
+}
 
-beforeEach(() => vi.clearAllMocks());
+const props = { selectedRun: null, loading: false, onSelectRun: vi.fn() };
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  useGraph.setState({
+    agents: [
+      { id: "kb-1", name: "Alpha" },
+      { id: "kb-2", name: "Beta" },
+    ] as never,
+  });
+});
 
 describe("WorkflowSelector", () => {
-  it("does not load anything by itself when it appears", async () => {
-    const onFilterChange = vi.fn();
-    const { container } = render(<WorkflowSelector {...props} onFilterChange={onFilterChange} />);
-    await waitFor(() => expect(container.querySelectorAll("option").length).toBeGreaterThan(1));
+  it("has no knowledge base picker of its own: the header's choice applies", () => {
+    // The audit page used to have a second picker with a different meaning next to the header's.
+    const { container } = render(<WorkflowSelector {...props} runs={[]} />);
 
-    expect(onFilterChange).not.toHaveBeenCalled();
+    expect(container.querySelector("select")).toBeNull();
   });
 
-  it("asks for the runs of the chosen KB when the user picks one", async () => {
-    const onFilterChange = vi.fn();
-    const { container } = render(<WorkflowSelector {...props} onFilterChange={onFilterChange} />);
-    await waitFor(() => expect(container.querySelectorAll("option").length).toBeGreaterThan(1));
+  it("names the knowledge base of each run, not the start of its id", () => {
+    render(<WorkflowSelector {...props} runs={[run("run-a", "kb-1"), run("run-b", "kb-2")]} />);
 
-    fireEvent.change(container.querySelector("select")!, { target: { value: "kb-2" } });
-
-    expect(onFilterChange).toHaveBeenCalledTimes(1);
-    expect(onFilterChange).toHaveBeenCalledWith("kb-2", undefined);
+    expect(screen.getByText("Alpha")).toBeTruthy();
+    expect(screen.getByText("Beta")).toBeTruthy();
   });
 
-  it("goes back to all KBs when the filter is cleared", async () => {
-    const onFilterChange = vi.fn();
-    const { container } = render(<WorkflowSelector {...props} onFilterChange={onFilterChange} />);
-    await waitFor(() => expect(container.querySelectorAll("option").length).toBeGreaterThan(1));
-    const select = container.querySelector("select")!;
+  it("falls back to the start of the id for a knowledge base it does not know", () => {
+    render(<WorkflowSelector {...props} runs={[run("run-a", "d5f139aa-a873-4b29")]} />);
 
-    fireEvent.change(select, { target: { value: "kb-2" } });
-    fireEvent.change(select, { target: { value: "" } });
+    expect(screen.getByText("d5f139aa")).toBeTruthy();
+  });
 
-    expect(onFilterChange).toHaveBeenLastCalledWith(undefined, undefined);
+  it("filters the list by what is typed", () => {
+    render(<WorkflowSelector {...props} runs={[run("alpha-run", "kb-1"), run("beta-run", "kb-2")]} />);
+
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "beta" } });
+
+    expect(screen.queryByText("alpha-run")).toBeNull();
+    expect(screen.getByText("beta-run")).toBeTruthy();
+  });
+
+  it("says there are no runs yet only when that is true", () => {
+    render(<WorkflowSelector {...props} runs={[]} />);
+
+    expect(screen.getByText(/No workflow runs yet/)).toBeTruthy();
+  });
+
+  it("does not claim there are no runs when loading them failed", () => {
+    render(<WorkflowSelector {...props} runs={[]} failed />);
+
+    expect(screen.queryByText(/No workflow runs yet/)).toBeNull();
+    expect(screen.getByText(/could not be loaded/)).toBeTruthy();
   });
 });

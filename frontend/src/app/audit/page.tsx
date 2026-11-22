@@ -7,6 +7,7 @@ import Header from "@/components/layout/Header";
 import WorkflowSelector from "@/components/audit/WorkflowSelector";
 import ReplayTimeline from "@/components/audit/ReplayTimeline";
 import EventDetail from "@/components/audit/EventDetail";
+import { useGraph } from "@/hooks/useGraph";
 import { useReplay } from "@/hooks/useReplay";
 
 export default function AuditPage() {
@@ -24,9 +25,12 @@ export default function AuditPage() {
     selectEvent,
   } = useReplay();
 
+  // Which knowledge base is chosen in the header. Null is all of them.
+  const agentId = useGraph((s) => s.agentId);
+
   useEffect(() => {
-    fetchRuns();
-  }, [fetchRuns]);
+    void fetchRuns(agentId ?? undefined);
+  }, [agentId, fetchRuns]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#0A0A0F]">
@@ -87,7 +91,6 @@ export default function AuditPage() {
               loading={loadingRuns}
               failed={Boolean(error) && runs.length === 0}
               onSelectRun={selectRun}
-              onFilterChange={fetchRuns}
             />
           </div>
 
