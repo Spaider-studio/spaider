@@ -1,0 +1,37 @@
+# Test rig overrides. Used inside the rig container only, never on a developer
+# machine's own Docker. See rig.py.
+#
+#   docker compose -f docker-compose.yml -f backend/tests/rig/docker-compose.rig.yml up -d --build
+services:
+  # A deterministic OpenAI-compatible server, so no model or API key is needed.
+  llm-stub:
+    profiles: ["full"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: spaider-rig-llm-stub
+    command: ["python", "-m", "tests.stubs.serve", "--host", "0.0.0.0", "--port", "9999"]
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:9999/health')\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  backend-api:
+    depends_on:
+      llm-stub:
+        condition: service_healthy
+
+  backend-worker:
+    depends_on:
+      llm-stub:
+        condition: service_healthy
+
+  # The browser reaches the API on the rig's published port, not on 8000, which
+  # on the host belongs to the real stack.
+  frontend:
+    build:
+      args:
+        BACKEND_API_URL: "http://kong:8000/api"
+        NEXT_PUBLIC_BACKEND_URL: "http://localhost:18000/api/v1"

@@ -45,7 +45,7 @@ export default function SystemSettingsToggle() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-[#1A1A25] border border-[#2A2A35] flex items-center justify-center">
-            <Brain className="w-4 h-4 text-[#6B7280]" />
+            <Brain className="w-4 h-4 text-[#8B93A3]" />
           </div>
           <div className="flex flex-col gap-1">
             <div className="h-3 w-40 bg-[#2A2A35] rounded animate-pulse" />
@@ -83,7 +83,7 @@ export default function SystemSettingsToggle() {
           <Brain
             className={[
               "w-4 h-4 transition-colors duration-300",
-              enabled ? "text-green-400" : "text-[#6B7280]",
+              enabled ? "text-green-400" : "text-[#8B93A3]",
             ].join(" ")}
           />
         </div>
@@ -102,7 +102,7 @@ export default function SystemSettingsToggle() {
               </span>
             )}
           </div>
-          <p className="text-[11px] text-[#6B7280] leading-tight">
+          <p className="text-[11px] text-[#8B93A3] leading-tight">
             {enabled
               ? "Scheduled consolidation is active — pruning orphans, fusing duplicates, and decaying unused synapses."
               : "Hippocampus is dormant. Enable to begin scheduled memory consolidation."}
@@ -139,7 +139,7 @@ export default function SystemSettingsToggle() {
           ].join(" ")}
         >
           {toggling && (
-            <Loader2 className="w-3 h-3 text-[#6B7280] animate-spin" />
+            <Loader2 className="w-3 h-3 text-[#8B93A3] animate-spin" />
           )}
         </span>
       </button>

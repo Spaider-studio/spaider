@@ -268,6 +268,11 @@ class DeleteResult:
 # GraphService
 # ---------------------------------------------------------------------------
 
+def _is_schema_race(exc: BaseException) -> bool:
+    """Another process was setting up the same schema at the same moment, so trying again will succeed."""
+    return isinstance(exc, TransientError) or (isinstance(exc, Neo4jError) and exc.code in _SCHEMA_RACE_CODES)
+
+
 class GraphService:
     """
     Async Neo4j graph service with:
@@ -315,8 +320,7 @@ class GraphService:
                 await self._initialize_schema()
                 return
             except Neo4jError as exc:
-                raced = isinstance(exc, TransientError) or exc.code in _SCHEMA_RACE_CODES
-                if not raced or attempt == _SCHEMA_INIT_ATTEMPTS - 1:
+                if not _is_schema_race(exc) or attempt == _SCHEMA_INIT_ATTEMPTS - 1:
                     raise
                 logger.info("Schema setup retrying after a transient error: %s", exc.code)
                 await asyncio.sleep(0.5 * 2**attempt + random.random())
@@ -452,6 +456,10 @@ class GraphService:
                             settings.embedding_dimensions,
                         )
                     except Exception as exc:
+                        if _is_schema_race(exc):
+                            # The worker created it a moment before us. Let initialize() try again,
+                            # which then finds the index. Swallowing this left search off for good.
+                            raise
                         self.vector_index_available = False
                         logger.error(
                             "Failed to create vector index on empty DB "
@@ -1406,6 +1414,35 @@ class GraphService:
             "node_count": record["node_count"],
             "edge_count": record["edge_count"],
             "node_types": record["node_types"],
+        }
+
+    async def get_type_counts(self, agent_id: str, max_clearance: int = 5) -> dict:
+        """How many nodes of each type and edges of each relation the caller may see."""
+        async with self._driver.session() as session:
+            node_result = await session.run(
+                """
+                MATCH (n:SpaiderNode {agent_id: $agent_id})
+                WHERE coalesce(n.clearance_level, 1) <= $max_clearance
+                RETURN coalesce(n.type, 'unknown') AS name, count(n) AS total
+                """,
+                agent_id=agent_id,
+                max_clearance=max_clearance,
+            )
+            nodes = await node_result.data()
+            edge_result = await session.run(
+                """
+                MATCH (a:SpaiderNode {agent_id: $agent_id})-[r:RELATION]->(b:SpaiderNode {agent_id: $agent_id})
+                WHERE coalesce(a.clearance_level, 1) <= $max_clearance
+                  AND coalesce(b.clearance_level, 1) <= $max_clearance
+                RETURN coalesce(r.relation, 'unknown') AS name, count(r) AS total
+                """,
+                agent_id=agent_id,
+                max_clearance=max_clearance,
+            )
+            edges = await edge_result.data()
+        return {
+            "node_types": {row["name"]: row["total"] for row in nodes},
+            "relation_types": {row["name"]: row["total"] for row in edges},
         }
 
     async def get_schema(self, agent_id: str, max_clearance: int = 5) -> dict:

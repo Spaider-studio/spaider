@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -25,6 +26,9 @@ from typing import Optional
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 
 from app.config import settings
+from app.core.clickhouse import BACKLOG_RETRY_SECONDS, WriteBuffer, log_write_failure
+from app.core.throttled_log import warn_throttled
+from app.services.audit_result import AuditResult, AuditStoreUnavailable
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +53,13 @@ _WORKFLOW_EVENTS_DDL = [
 ]
 
 
+# How often a service that was not there is tried again.
+_RECONNECT_SECONDS = 30.0
+# How long an event waits for Kafka before it is given up on. A dead broker otherwise
+# blocks the send for tens of seconds.
+_KAFKA_SEND_TIMEOUT = 5.0
+
+
 class ReplayService:
     """Records workflow events (Kafka + ClickHouse) and serves the audit log."""
 
@@ -56,40 +67,72 @@ class ReplayService:
         self._producer: Optional[AIOKafkaProducer] = None
         self._ch_client = None
         self._ch_ready = False
+        self._buffer = WriteBuffer()
+        self._retry_task: Optional[asyncio.Task] = None
+        self._last_connect_try = float("-inf")
 
     async def start(self) -> None:
-        """Start the Kafka producer and connect the ClickHouse audit store."""
-        self._producer = AIOKafkaProducer(
+        """Connect the ClickHouse audit store and the Kafka producer.
+
+        ClickHouse is the audit store and Kafka is a second copy and the seven-day
+        fallback, so either one is enough to start. The service used to need Kafka,
+        which meant audit reads answered 503 and new events were dropped whenever
+        Kafka was down or late, although ClickHouse was running.
+        """
+        await self._start_producer()
+        await self._init_clickhouse()
+        if self._producer is None and not self._ch_ready:
+            raise RuntimeError("Neither Kafka nor ClickHouse is reachable")
+
+    async def _start_producer(self) -> None:
+        producer = AIOKafkaProducer(
             bootstrap_servers=settings.kafka_bootstrap_servers,
             value_serializer=lambda v: json.dumps(v).encode("utf-8"),
             key_serializer=lambda k: k.encode("utf-8") if k else None,
             acks="all",
             enable_idempotence=True,
         )
-        await self._producer.start()
+        try:
+            await producer.start()
+        except Exception as exc:  # noqa: BLE001
+            try:
+                await producer.stop()
+            except Exception:  # noqa: BLE001 - the start error is the one that matters
+                pass
+            logger.warning("ReplayService: Kafka is not reachable (%s); events go to ClickHouse only for now", exc)
+            return
+        self._producer = producer
         logger.info("ReplayService producer started")
-        await self._init_clickhouse()
+
+    async def _ensure_connected(self) -> None:
+        """Pick up ClickHouse or Kafka that was not there when the service started, at most every 30 seconds."""
+        want_clickhouse = bool(settings.clickhouse_host) and not self._ch_ready
+        want_kafka = bool(settings.kafka_bootstrap_servers) and self._producer is None
+        if not (want_clickhouse or want_kafka):
+            return
+        now = time.monotonic()
+        if now - self._last_connect_try < _RECONNECT_SECONDS:
+            return
+        self._last_connect_try = now
+        if want_clickhouse:
+            await self._init_clickhouse()
+        if want_kafka:
+            await self._start_producer()
 
     async def _init_clickhouse(self) -> None:
         """Best-effort ClickHouse connection. The audit log degrades to the
         Kafka scan when ClickHouse is down — never blocks event recording."""
         try:
-            import clickhouse_connect
+            from app.core.clickhouse import create_client
 
-            self._ch_client = await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: clickhouse_connect.get_client(
-                    host=settings.clickhouse_host,
-                    port=settings.clickhouse_port,
-                    username=settings.clickhouse_user,
-                    password=settings.clickhouse_password,
-                ),
-            )
+            self._ch_client = await asyncio.get_event_loop().run_in_executor(None, create_client)
             for ddl in _WORKFLOW_EVENTS_DDL:
                 await asyncio.get_event_loop().run_in_executor(
                     None, lambda q=ddl: self._ch_client.command(q)
                 )
             self._ch_ready = True
+            if self._retry_task is None:
+                self._retry_task = asyncio.create_task(self._retry_loop())
             logger.info("ReplayService: ClickHouse audit store ready")
         except Exception as exc:
             logger.warning(
@@ -100,6 +143,9 @@ class ReplayService:
 
     async def stop(self) -> None:
         """Stop the internal producer and the ClickHouse client."""
+        if self._retry_task is not None:
+            self._retry_task.cancel()
+            self._retry_task = None
         if self._producer is not None:
             await self._producer.stop()
             self._producer = None
@@ -138,8 +184,9 @@ class ReplayService:
         Returns:
             event_id: Unique identifier for this event.
         """
-        if self._producer is None:
-            raise RuntimeError("ReplayService is not started. Call start() first.")
+        await self._ensure_connected()
+        if self._producer is None and not self._ch_ready:
+            raise RuntimeError("No audit store is reachable (neither Kafka nor ClickHouse).")
 
         event_id = str(uuid.uuid4())
         event = {
@@ -153,15 +200,23 @@ class ReplayService:
             "schema_version": "1.0",
         }
 
-        await self._producer.send_and_wait(
-            topic=settings.kafka_topic_workflow_events,
-            value=event,
-            key=workflow_id,
-        )
-        # Durable copy: fire-and-forget into ClickHouse so the audit trail
-        # survives Kafka's retention window. Never blocks the caller.
+        # ClickHouse is the audit store, so its row is scheduled first and never waits for Kafka.
         if self._ch_ready:
             asyncio.create_task(self._insert_event_clickhouse(event))
+        if self._producer is not None:
+            try:
+                await asyncio.wait_for(
+                    self._producer.send_and_wait(
+                        topic=settings.kafka_topic_workflow_events,
+                        value=event,
+                        key=workflow_id,
+                    ),
+                    timeout=_KAFKA_SEND_TIMEOUT,
+                )
+            except Exception as exc:  # noqa: BLE001 - the event is already on its way to ClickHouse
+                warn_throttled(
+                    logger, "replay_kafka_send", "Audit event could not be sent to Kafka: %s", exc or type(exc).__name__
+                )
         logger.info(
             "Recorded workflow event | event_id=%s workflow_id=%s type=%s",
             event_id,
@@ -169,6 +224,35 @@ class ReplayService:
             event_type,
         )
         return event_id
+
+    async def _insert_rows(self, table: str, columns: list[str], rows: list) -> None:
+        await asyncio.get_event_loop().run_in_executor(
+            None, lambda: self._ch_client.insert(table, rows, column_names=columns)
+        )
+
+    async def _write(self, table: str, rows: list, columns: list[str]) -> None:
+        """Insert rows; if ClickHouse cannot take them now, keep them for the retry loop."""
+        try:
+            await self._insert_rows(table, columns, rows)
+        except Exception as exc:  # noqa: BLE001
+            log_write_failure(table.rsplit(".", 1)[-1], exc)
+            for row in rows:
+                self._buffer.add(table, columns, row)
+
+    async def flush_buffer(self) -> int:
+        written = await self._buffer.flush(self._insert_rows)
+        if written:
+            logger.info("Wrote %d audit events that had been waiting for ClickHouse", written)
+        return written
+
+    async def _retry_loop(self) -> None:
+        """Try the rows that could not be written every few seconds, for as long as the service runs."""
+        while True:
+            await asyncio.sleep(BACKLOG_RETRY_SECONDS)
+            try:
+                await self.flush_buffer()
+            except Exception as exc:  # noqa: BLE001 - never let the retry loop die
+                logger.debug("ClickHouse backlog retry failed: %s", exc)
 
     async def _insert_event_clickhouse(self, event: dict) -> None:
         try:
@@ -188,14 +272,9 @@ class ReplayService:
             ]]
             cols = ["timestamp", "event_id", "workflow_id", "agent_id",
                     "event_type", "payload", "graph_state_hash"]
-            await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: self._ch_client.insert(
-                    "spaider.workflow_events", data, column_names=cols
-                ),
-            )
+            await self._write("spaider.workflow_events", data, cols)
         except Exception as exc:
-            logger.debug("ClickHouse workflow_events insert failed: %s", exc)
+            log_write_failure("workflow_events", exc)
 
     @staticmethod
     def _parse_event_ts(ts_str: str) -> Optional[datetime]:
@@ -245,6 +324,8 @@ class ReplayService:
         Returns:
             List of event dicts, ordered by timestamp.
         """
+        await self._ensure_connected()
+        clickhouse_failed = False
         if self._ch_ready:
             events = await self._get_workflow_events_clickhouse(
                 workflow_id,
@@ -254,14 +335,18 @@ class ReplayService:
                 limit=limit,
             )
             if events is not None:
-                return events
-        return await self._get_workflow_events_kafka(
+                return AuditResult(events)
+            clickhouse_failed = True
+        events = await self._get_workflow_events_kafka(
             workflow_id,
             start_time=start_time,
             end_time=end_time,
             event_types=event_types,
             limit=limit,
         )
+        if clickhouse_failed and not events:
+            raise AuditStoreUnavailable("ClickHouse failed and the Kafka fallback found no events.")
+        return AuditResult(events, source="kafka", complete=False)
 
     async def _get_workflow_events_clickhouse(
         self,
@@ -421,13 +506,19 @@ class ReplayService:
         List distinct workflow runs (workflow_id, agent_id, first/last event
         timestamps, event count). ClickHouse-first; Kafka-scan fallback.
         """
+        await self._ensure_connected()
+        clickhouse_failed = False
         if self._ch_ready:
             workflows = await self._list_workflows_clickhouse(
                 agent_id=agent_id, limit=limit
             )
             if workflows is not None:
-                return workflows
-        return await self._list_workflows_kafka(agent_id=agent_id, limit=limit)
+                return AuditResult(workflows)
+            clickhouse_failed = True
+        workflows = await self._list_workflows_kafka(agent_id=agent_id, limit=limit)
+        if clickhouse_failed and not workflows:
+            raise AuditStoreUnavailable("ClickHouse failed and the Kafka fallback found no workflows.")
+        return AuditResult(workflows, source="kafka", complete=False)
 
     async def _list_workflows_clickhouse(
         self,
@@ -438,7 +529,9 @@ class ReplayService:
         """Aggregate workflow summaries from the audit table. Returns None on
         failure so the caller falls back to Kafka."""
         sql = (
-            "SELECT workflow_id, any(agent_id) AS agent_id, "
+            # The alias must not be agent_id: ClickHouse then reads the WHERE
+            # below as a filter on the aggregate and rejects the query.
+            "SELECT workflow_id, any(agent_id) AS run_agent_id, "
             "min(timestamp) AS first_event, max(timestamp) AS last_event, "
             "count() AS event_count "
             "FROM spaider.workflow_events"
@@ -472,7 +565,7 @@ class ReplayService:
             record = dict(zip(result.column_names, row))
             out.append({
                 "workflow_id": record.get("workflow_id", ""),
-                "agent_id": record.get("agent_id", ""),
+                "agent_id": record.get("run_agent_id", ""),
                 "first_event": _iso(record.get("first_event")),
                 "last_event": _iso(record.get("last_event")),
                 "event_count": int(record.get("event_count") or 0),

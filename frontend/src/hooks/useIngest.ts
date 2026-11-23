@@ -1,16 +1,14 @@
 "use client";
 
 import { authFetch } from "@/lib/auth";
+import { backendUrl } from "@/lib/constants";
 import { useState, useCallback } from "react";
 import { useGraph } from "./useGraph";
 import type { GraphNode, GraphEdge } from "@/lib/types";
 
 // Direct URL for ingest — bypasses Next.js proxy which times out on long LLM calls.
-// CORS is configured on the backend to allow localhost:3000.
-const BACKEND_URL =
-  typeof window !== "undefined"
-    ? (process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000/api/v1")
-    : "http://localhost:8000/api/v1";
+// The API must allow the Studio's origin (CORS_ORIGINS).
+const BACKEND_URL = backendUrl();
 
 export type IngestStatus = "idle" | "processing" | "animating" | "done" | "error";
 

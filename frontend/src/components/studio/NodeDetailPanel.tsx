@@ -87,7 +87,7 @@ export default function NodeDetailPanel({ node }: Props) {
           {copied ? (
             <span className="text-xs text-[#10B981] flex-shrink-0">Copied!</span>
           ) : (
-            <Copy className="w-3 h-3 text-[#6B7280] group-hover:text-[#A1A1AA] transition-colors flex-shrink-0" />
+            <Copy className="w-3 h-3 text-[#8B93A3] group-hover:text-[#A1A1AA] transition-colors flex-shrink-0" />
           )}
         </button>
 
@@ -96,19 +96,19 @@ export default function NodeDetailPanel({ node }: Props) {
           <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
             {node.agent_id && (
               <>
-                <span className="text-[#6B7280]">Agent</span>
+                <span className="text-[#8B93A3]">Agent</span>
                 <span className="text-[#A1A1AA] font-mono truncate">{node.agent_id}</span>
               </>
             )}
             {node.created_at && (
               <>
-                <span className="text-[#6B7280]">Created</span>
+                <span className="text-[#8B93A3]">Created</span>
                 <span className="text-[#A1A1AA]">{formatDate(node.created_at)}</span>
               </>
             )}
             {node.updated_at && (
               <>
-                <span className="text-[#6B7280]">Updated</span>
+                <span className="text-[#8B93A3]">Updated</span>
                 <span className="text-[#A1A1AA]">{formatDate(node.updated_at)}</span>
               </>
             )}
@@ -133,7 +133,7 @@ export default function NodeDetailPanel({ node }: Props) {
               <div className="flex flex-col gap-1.5 pl-1">
                 {displayProps.map(([key, value]) => (
                   <div key={key} className="grid grid-cols-[auto_1fr] gap-x-3 text-xs items-start">
-                    <span className="text-[#6B7280] font-medium min-w-[4rem] max-w-[7rem] truncate">
+                    <span className="text-[#8B93A3] font-medium min-w-[4rem] max-w-[7rem] truncate">
                       {key}
                     </span>
                     <span className="text-[#E4E4E7] break-words">
@@ -164,7 +164,7 @@ export default function NodeDetailPanel({ node }: Props) {
                     key={e.id}
                     className="flex items-center gap-2 text-xs text-[#A1A1AA] py-1 border-b border-[#1A1A25] last:border-0"
                   >
-                    <span className="text-[#6B7280] w-3 flex-shrink-0 text-center font-mono">
+                    <span className="text-[#8B93A3] w-3 flex-shrink-0 text-center font-mono">
                       {isSource ? "→" : "←"}
                     </span>
                     <span
@@ -202,7 +202,7 @@ export default function NodeDetailPanel({ node }: Props) {
             <Trash2 className="w-4 h-4" />
             GDPR Killswitch — Permanent Delete
           </button>
-          <p className="text-[10px] text-[#6B7280] text-center mt-1.5">
+          <p className="text-[10px] text-[#8B93A3] text-center mt-1.5">
             Cascading hard delete of node + {connectedEdges.length} edge(s) · audit log created
           </p>
         </div>

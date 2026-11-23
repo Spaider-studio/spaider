@@ -12,18 +12,15 @@ from app.core.authz import Action, OrgAction, Principal, authorize, get_principa
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-_analytics_service = None
-
 
 def _get_analytics() -> "AnalyticsService | None":  # noqa: F821
-    global _analytics_service
-    if _analytics_service is None:
-        try:
-            from app.services.analytics_service import AnalyticsService
-            _analytics_service = AnalyticsService()
-        except Exception as exc:
-            logger.warning("AnalyticsService unavailable: %s", exc)
-    return _analytics_service
+    """The service the app connected at startup, the one ingest and query record into.
+
+    A second instance made here was never connected, so every read answered 503.
+    """
+    import app.main as main
+
+    return getattr(main, "_analytics_service", None)
 
 
 def _svc():

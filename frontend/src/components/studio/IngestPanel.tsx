@@ -185,7 +185,7 @@ export default function IngestPanel({ agentId }: Props) {
             <span className="truncate">{statusMessage}</span>
           </div>
           {(nodesAdded > 0 || edgesAdded > 0) && (
-            <div className="flex items-center gap-3 pl-5 text-xs text-white/40">
+            <div className="flex items-center gap-3 pl-5 text-xs text-white/55">
               <span><span className="text-blue-400 font-mono">{nodesAdded}</span> nodes</span>
               <span><span className="text-emerald-400 font-mono">{edgesAdded}</span> edges</span>
             </div>
@@ -210,7 +210,7 @@ export default function IngestPanel({ agentId }: Props) {
 
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-xs font-semibold text-white/40 uppercase tracking-wider">
+      <h3 className="text-xs font-semibold text-white/55 uppercase tracking-wider">
         Ingest Knowledge
       </h3>
 
@@ -235,7 +235,7 @@ export default function IngestPanel({ agentId }: Props) {
               "flex-1 flex items-center justify-center gap-1.5 py-1 rounded-md text-xs font-medium transition-all",
               tab === t
                 ? "bg-violet-600/70 text-white shadow-sm"
-                : "text-white/40 hover:text-white/70",
+                : "text-white/55 hover:text-white/70",
             )}
           >
             {t === "text"  && <Send      className="w-3 h-3" />}
@@ -298,13 +298,13 @@ export default function IngestPanel({ agentId }: Props) {
             onClick={() => fileInputRef.current?.click()}
           >
             <div className="flex flex-col items-center gap-1.5 py-4 px-3 text-center pointer-events-none">
-              <Upload className={cn("w-5 h-5", fileDragOver ? "text-violet-400" : "text-white/25")} />
-              <p className="text-xs text-white/40 leading-tight">
+              <Upload className={cn("w-5 h-5", fileDragOver ? "text-violet-400" : "text-white/55")} />
+              <p className="text-xs text-white/55 leading-tight">
                 {fileDragOver
                   ? "Drop files here"
                   : "Drop files or click to browse"}
               </p>
-              <p className="text-[10px] text-white/20">
+              <p className="text-[10px] text-white/55">
                 PDF · DOCX · PPTX · HTML · MD · TXT
               </p>
             </div>
@@ -323,12 +323,12 @@ export default function IngestPanel({ agentId }: Props) {
             <ul className="flex flex-col gap-1 max-h-28 overflow-y-auto pr-0.5">
               {stagedFiles.map((f, i) => (
                 <li key={f.name + i} className="flex items-center gap-2 bg-white/5 rounded-md px-2 py-1">
-                  <FileText className="w-3 h-3 text-white/30 flex-shrink-0" />
+                  <FileText className="w-3 h-3 text-white/55 flex-shrink-0" />
                   <span className="text-xs text-white/70 truncate flex-1 min-w-0">{f.name}</span>
-                  <span className="text-[10px] text-white/25 flex-shrink-0">{fmtBytes(f.size)}</span>
+                  <span className="text-[10px] text-white/55 flex-shrink-0">{fmtBytes(f.size)}</span>
                   <button
                     onClick={(e) => { e.stopPropagation(); setStagedFiles((p) => p.filter((_, j) => j !== i)); }}
-                    className="text-white/25 hover:text-red-400 transition-colors flex-shrink-0"
+                    className="text-white/55 hover:text-red-400 transition-colors flex-shrink-0"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -372,11 +372,11 @@ export default function IngestPanel({ agentId }: Props) {
               <img src={imagePreview} alt="preview" className="w-full max-h-40 object-contain bg-black/30" />
             ) : (
               <div className="flex flex-col items-center gap-1.5 py-4 px-3 text-center pointer-events-none">
-                <ImageIcon className={cn("w-5 h-5", imageDragOver ? "text-violet-400" : "text-white/25")} />
-                <p className="text-xs text-white/40 leading-tight">
+                <ImageIcon className={cn("w-5 h-5", imageDragOver ? "text-violet-400" : "text-white/55")} />
+                <p className="text-xs text-white/55 leading-tight">
                   {imageDragOver ? "Drop image here" : "Drop an image or click to browse"}
                 </p>
-                <p className="text-[10px] text-white/20">
+                <p className="text-[10px] text-white/55">
                   A vision model reads it into the graph · diagrams, screenshots, photos
                 </p>
               </div>
@@ -392,12 +392,12 @@ export default function IngestPanel({ agentId }: Props) {
 
           {stagedImage && (
             <div className="flex items-center gap-2 bg-white/5 rounded-md px-2 py-1">
-              <ImageIcon className="w-3 h-3 text-white/30 flex-shrink-0" />
+              <ImageIcon className="w-3 h-3 text-white/55 flex-shrink-0" />
               <span className="text-xs text-white/70 truncate flex-1 min-w-0">{stagedImage.name}</span>
-              <span className="text-[10px] text-white/25 flex-shrink-0">{fmtBytes(stagedImage.size)}</span>
+              <span className="text-[10px] text-white/55 flex-shrink-0">{fmtBytes(stagedImage.size)}</span>
               <button
                 onClick={(e) => { e.stopPropagation(); setStagedImage(null); setImagePreview(null); }}
-                className="text-white/25 hover:text-red-400 transition-colors flex-shrink-0"
+                className="text-white/55 hover:text-red-400 transition-colors flex-shrink-0"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -425,7 +425,7 @@ export default function IngestPanel({ agentId }: Props) {
             onChange={(e) => setUrlInput(e.target.value)}
             disabled={loading || isMultiverse}
           />
-          <p className="text-[10px] text-white/20 -mt-1">
+          <p className="text-[10px] text-white/55 -mt-1">
             One URL per line · incremental sync via ETag
           </p>
           <button
@@ -445,7 +445,7 @@ export default function IngestPanel({ agentId }: Props) {
       {/* ── Connector observability ── */}
       {!isMultiverse && Object.keys(connStatuses).length > 0 && (
         <div className="border-t border-white/5 pt-3 flex flex-col gap-1.5">
-          <div className="flex items-center gap-1.5 text-[10px] text-white/25 uppercase tracking-wider mb-0.5">
+          <div className="flex items-center gap-1.5 text-[10px] text-white/55 uppercase tracking-wider mb-0.5">
             <Activity className="w-3 h-3" />
             Connector Status
           </div>
@@ -458,15 +458,15 @@ export default function IngestPanel({ agentId }: Props) {
             return (
               <div key={cid} className="flex items-center gap-2 text-[11px]">
                 <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", dot)} />
-                <span className="text-white/40 w-10 flex-shrink-0 font-mono">{cid}</span>
+                <span className="text-white/55 w-10 flex-shrink-0 font-mono">{cid}</span>
                 {s.status === "idle" ? (
-                  <span className="text-white/20">never run</span>
+                  <span className="text-white/55">never run</span>
                 ) : (
                   <>
                     <span className="text-white/50">
                       {s.records_processed} record{s.records_processed !== 1 ? "s" : ""}
                     </span>
-                    <span className="text-white/20 ml-auto flex-shrink-0">
+                    <span className="text-white/55 ml-auto flex-shrink-0">
                       {fmtRelative(s.last_run_at)}
                     </span>
                   </>

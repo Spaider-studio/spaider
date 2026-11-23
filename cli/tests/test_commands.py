@@ -182,6 +182,8 @@ def test_mcp_add_rejects_unknown_clients(api):
 def test_bundled_stack_unpacks(tmp_path):
     root = stack.locate()
     assert (root / "docker-compose.yml").exists() and (root / "gateway/kong.yml").exists()
+    # The compose file mounts this one; without it Docker would create a directory in its place.
+    assert (root / "clickhouse/system-logs.xml").read_text(encoding="utf-8").lstrip().startswith("<clickhouse>")
     assert (root / ".env").exists()
 
 

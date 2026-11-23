@@ -18,7 +18,7 @@ export function ErrorNote({ message }: { message: string }) {
 }
 
 export function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="text-sm text-zinc-500">{children}</p>;
+  return <p className="text-sm text-zinc-400">{children}</p>;
 }
 
 export function reason(error: unknown): string {

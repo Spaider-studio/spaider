@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { getWorkflowRuns, getReplayEvents } from "@/lib/api";
 import type { WorkflowRun, ReplayEvent } from "@/lib/types";
+import { useLatestRequest } from "./useLatestRequest";
 
 interface UseReplayReturn {
   runs: WorkflowRun[];
@@ -11,6 +12,8 @@ interface UseReplayReturn {
   selectedEvent: ReplayEvent | null;
   loadingRuns: boolean;
   loadingEvents: boolean;
+  /** The audit store did not answer, so the list holds only what Kafka still has. */
+  partial: boolean;
   error: string | null;
   fetchRuns: (agentId?: string, workflowId?: string) => Promise<void>;
   selectRun: (run: WorkflowRun) => Promise<void>;
@@ -25,51 +28,56 @@ export function useReplay(): UseReplayReturn {
   const [selectedEvent, setSelectedEvent] = useState<ReplayEvent | null>(null);
   const [loadingRuns, setLoadingRuns] = useState(false);
   const [loadingEvents, setLoadingEvents] = useState(false);
+  const [partial, setPartial] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Track the latest selected run id to discard stale in-flight responses
-  const latestRunIdRef = useRef<string | null>(null);
+  // Whichever answer arrives last must not win: only the newest request counts.
+  const startRunsRequest = useLatestRequest();
+  const startEventsRequest = useLatestRequest();
 
   const fetchRuns = useCallback(
     async (agentId?: string, workflowId?: string) => {
+      const current = startRunsRequest();
       setLoadingRuns(true);
       setError(null);
       try {
         const data = await getWorkflowRuns(agentId, workflowId);
-        setRuns(data);
+        if (!current()) return;
+        setRuns(data.runs);
+        setPartial(!data.complete);
       } catch (err) {
+        if (!current()) return;
         setError((err as Error).message || "Failed to fetch workflow runs");
         setRuns([]);
+        setPartial(false);
       } finally {
-        setLoadingRuns(false);
+        if (current()) setLoadingRuns(false);
       }
     },
-    []
+    [startRunsRequest]
   );
 
-  const selectRun = useCallback(async (run: WorkflowRun) => {
-    latestRunIdRef.current = run.id;
-    setSelectedRun(run);
-    setSelectedEvent(null);
-    setEvents([]); // clear immediately so stale events are never visible
-    setLoadingEvents(true);
-    setError(null);
-    try {
-      const data = await getReplayEvents(run.id);
-      // Discard the response if a newer selection was made while this was in flight
-      if (latestRunIdRef.current === run.id) {
-        setEvents(data);
+  const selectRun = useCallback(
+    async (run: WorkflowRun) => {
+      const current = startEventsRequest();
+      setSelectedRun(run);
+      setSelectedEvent(null);
+      setEvents([]); // clear immediately so stale events are never visible
+      setLoadingEvents(true);
+      setError(null);
+      try {
+        const data = await getReplayEvents(run.id);
+        if (current()) setEvents(data.events);
+      } catch (err) {
+        if (current()) {
+          setError((err as Error).message || "Failed to fetch replay events");
+          setEvents([]);
+        }
+      } finally {
+        if (current()) setLoadingEvents(false);
       }
-    } catch (err) {
-      if (latestRunIdRef.current === run.id) {
-        setError((err as Error).message || "Failed to fetch replay events");
-        setEvents([]);
-      }
-    } finally {
-      if (latestRunIdRef.current === run.id) {
-        setLoadingEvents(false);
-      }
-    }
-  }, []);
+    },
+    [startEventsRequest]
+  );
 
   const selectEvent = useCallback((event: ReplayEvent | null) => {
     setSelectedEvent(event);
@@ -88,6 +96,7 @@ export function useReplay(): UseReplayReturn {
     selectedEvent,
     loadingRuns,
     loadingEvents,
+    partial,
     error,
     fetchRuns,
     selectRun,

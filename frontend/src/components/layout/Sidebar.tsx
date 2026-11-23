@@ -15,12 +15,11 @@ import {
   Globe2,
   History, UserCog, Share2, Moon, GraduationCap } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { API_BASE } from "@/lib/constants";
 
 const NAV_ITEMS = [
   { href: "/studio", label: "Neural Studio", icon: Network, color: "#3B82F6" },
   { href: "/multiverse", label: "Multiverse", icon: Globe2, color: "#06B6D4" },
-  { href: "/agents", label: "Agents", icon: Users, color: "#8B5CF6" },
+  { href: "/agents", label: "Agents", icon: Users, color: "#A78BFA" },
   { href: "/synthesizer", label: "Synthesizer", icon: Database, color: "#10B981" },
   { href: "/members", label: "Members", icon: UserCog, color: "#F472B6" },
   { href: "/sharing", label: "Sharing", icon: Share2, color: "#22D3EE" },
@@ -38,8 +37,9 @@ export default function Sidebar() {
   useEffect(() => {
     async function checkHealth() {
       try {
-        const base = API_BASE.replace("/api/v1", "");
-        const res = await fetch(`${base}/health`, {
+        // The Studio's own route, which asks the API server-side. Calling the API
+        // from the browser needed a fixed host and port and a CORS entry.
+        const res = await fetch("/api/health", {
           signal: AbortSignal.timeout(3000),
         });
         setConnected(res.ok);
@@ -182,6 +182,8 @@ export default function Sidebar() {
       {/* Collapse toggle */}
       <button
         onClick={() => setExpanded((v) => !v)}
+        aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
+        aria-expanded={expanded}
         className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/60 border border-white/15 flex items-center justify-center text-[#A1A1AA] hover:text-[#E4E4E7] hover:border-[#3A3A45] transition-all z-10 shadow-md"
       >
         {expanded ? (

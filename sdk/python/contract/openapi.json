@@ -2540,6 +2540,11 @@
       },
       "WorkflowEventsResponse": {
         "properties": {
+          "complete": {
+            "default": true,
+            "title": "Complete",
+            "type": "boolean"
+          },
           "events": {
             "items": {
               "additionalProperties": true,
@@ -2547,6 +2552,11 @@
             },
             "title": "Events",
             "type": "array"
+          },
+          "source": {
+            "default": "clickhouse",
+            "title": "Source",
+            "type": "string"
           },
           "total": {
             "title": "Total",
@@ -2567,6 +2577,16 @@
       },
       "WorkflowListResponse": {
         "properties": {
+          "complete": {
+            "default": true,
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "source": {
+            "default": "clickhouse",
+            "title": "Source",
+            "type": "string"
+          },
           "total": {
             "title": "Total",
             "type": "integer"
@@ -2932,7 +2952,7 @@
   "info": {
     "description": "SpAIder \u2014 A multi-agent semantic knowledge graph platform powered by LLMs and Neo4j. Ingest unstructured text, build a persistent knowledge graph, query it in natural language, and synthesise fine-tuning datasets for downstream models.",
     "title": "SpAIder",
-    "version": "0.5.0"
+    "version": "0.5.1"
   },
   "openapi": "3.1.0",
   "paths": {

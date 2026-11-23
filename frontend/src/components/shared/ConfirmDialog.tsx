@@ -83,7 +83,7 @@ export default function ConfirmDialog({
               </Dialog.Description>
             </div>
             <Dialog.Close asChild>
-              <button className="text-gray-500 hover:text-gray-300 transition-colors">
+              <button className="text-gray-400 hover:text-gray-300 transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </Dialog.Close>

@@ -108,6 +108,33 @@ async def test_a_citation_tag_outside_the_context_is_ignored():
     assert [c["node_id"] for c in parse_citations("x [n1] y [n9] z [n1]", [node])] == ["a"]
 
 
+@pytest.mark.parametrize(
+    "answer, expected",
+    [
+        ("Mara leads it [n1].", ["a"]),
+        # What a real model writes when it paraphrases the instruction: a label before the tag, or
+        # several tags in one bracket. A local 8B model answered correctly with "[Evidence: n4]"
+        # and the answer then carried no citations at all.
+        ("Mara leads it [Evidence: n1].", ["a"]),
+        ("Mara leads it [Source: n1].", ["a"]),
+        ("Mara leads it [n1, n2].", ["a", "b"]),
+        ("Mara leads it [n2; n1].", ["b", "a"]),
+        ("Mara leads it [n1 and n2].", ["a", "b"]),
+        ("Mara leads it [n2][n1].", ["b", "a"]),
+        # Things that look similar but are not citations.
+        ("See note [3] and [n] and n1 and [note n1 here] and (n1).", []),
+        ("Mara leads it [n3].", []),
+    ],
+)
+async def test_citations_are_found_in_the_forms_models_really_write(answer, expected):
+    from types import SimpleNamespace
+
+    from app.services.learning import parse_citations
+
+    context = [SimpleNamespace(id="a", label="A", agent_id="kb"), SimpleNamespace(id="b", label="B", agent_id="kb")]
+    assert [c["node_id"] for c in parse_citations(answer, context)] == expected
+
+
 async def test_one_query_boosts_each_node_once(auth_world, openai_stub):
     kb = await auth_world.create_kb()
     await _ingest(auth_world, kb, "Acme is based in Berlin.")

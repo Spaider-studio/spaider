@@ -112,6 +112,8 @@ services:
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
     volumes:
       - clickhouse_data:/var/lib/clickhouse
+      # Old rows of ClickHouse's own system logs are deleted after a few days; see docs/operations.md.
+      - ./clickhouse/system-logs.xml:/etc/clickhouse-server/config.d/system-logs.xml:ro
     ulimits:
       nofile:
         soft: 262144
@@ -255,6 +257,7 @@ services:
       context: ./frontend
       args:
         BACKEND_API_URL: "http://kong:8000/api"
+        NEXT_PUBLIC_BACKEND_URL: "${NEXT_PUBLIC_BACKEND_URL:-}"
     container_name: spaider-frontend
     ports:
       - "${SPAIDER_BIND:-127.0.0.1}:3000:3000"
@@ -266,7 +269,6 @@ services:
     environment:
       BACKEND_API_URL: "http://kong:8000/api"
       BACKEND_HEALTH_URL: "http://spaider-backend-api:8000"
-      NEXT_PUBLIC_API_URL: "http://localhost:8080/api"
     restart: unless-stopped
 
   kong:
@@ -283,6 +285,10 @@ services:
       KONG_PROXY_ERROR_LOG: /dev/stderr
       KONG_ADMIN_ERROR_LOG: /dev/stderr
       KONG_ADMIN_LISTEN: "127.0.0.1:8001"
+      # Docker gives a recreated container a new IP. Kong keeps the old address for
+      # the lifetime of the DNS record, which is minutes, and answers 502 until then.
+      KONG_DNS_VALID_TTL: "5"
+      KONG_DNS_STALE_TTL: "5"
     volumes:
       - ./gateway/kong.yml:/etc/kong/kong.yml:ro
     depends_on:

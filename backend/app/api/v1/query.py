@@ -15,6 +15,7 @@ from fastapi.responses import StreamingResponse
 from app.config import settings
 from app.core.authz import Action, OrgAction, Principal, authorize, get_principal, require_org, resolve_kb
 from app.core.cypher_guard import CypherRejected, check_cypher
+from app.core.throttled_log import warn_throttled
 from app.models.requests import CypherQueryRequest, QueryRequest, TraverseRequest
 from app.models.schemas import GraphPayload, QueryResult
 from app.services.graph_service import get_graph_service
@@ -196,8 +197,8 @@ async def query_nl(
                     prompt_tokens=int(_tok.get("prompt_tokens", 0)),
                     completion_tokens=int(_tok.get("completion_tokens", 0)),
                 )
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            warn_throttled(logger, "analytics_record", "Analytics recording failed: %s", exc)
 
         # Replay: record query answer
         _fire_replay_event(

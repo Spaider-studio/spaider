@@ -31,9 +31,9 @@ from app.scheduler.connector_scheduler import run_connector_loop
 from app.services.compressor import SemanticCompressor
 from app.services.embedding_service import EmbeddingService
 from app.services.entity_resolver import EntityResolver
-from app.services.graph_service import GraphService
+from app.services.graph_service import get_graph_service
 from app.services.kafka_consumer import KafkaConsumerService
-from app.services.kafka_producer import KafkaProducerService
+from app.services.kafka_producer import start_with_retry
 
 configure_logging()
 logger = logging.getLogger("spaider.worker")
@@ -47,7 +47,9 @@ async def _run() -> None:
 
     embedding_service = EmbeddingService()
 
-    graph_service = GraphService()
+    # The shared instance: the ingest pipeline asks for it by name, and a
+    # separately built one never learns that the vector index exists.
+    graph_service = get_graph_service()
     await graph_service.initialize()
 
     compressor = SemanticCompressor()
@@ -57,8 +59,9 @@ async def _run() -> None:
 
     # Kafka producer — shared by the connector scheduler for publishing
     # parsed connector records back onto the ingest topic.
-    producer = KafkaProducerService()
-    await producer.start()
+    # Waits for Kafka instead of exiting: after a Docker restart it comes up
+    # later than the worker, and exiting made the worker restart in a loop.
+    producer = await start_with_retry()
     logger.info("KafkaProducerService started.")
 
     # Bootstrap Postgres schema (CREATE TABLE IF NOT EXISTS — idempotent).

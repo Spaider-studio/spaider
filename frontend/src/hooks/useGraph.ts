@@ -2,12 +2,14 @@
 
 import { create } from "zustand";
 import {
+  getAgents,
   getGraph,
   getGraphClusters,
   getGraphStats,
   getMultiverseGraph,
 } from "@/lib/api";
 import type {
+  Agent,
   GraphCluster,
   GraphClusterEdge,
   GraphEdge,
@@ -94,8 +96,14 @@ interface GraphState {
   highlightedIds: Set<string>;
   isLoading: boolean;
   error: string | null;
-  /** null = Multiverse mode (all agents) */
+  /**
+   * The knowledge base the whole app is looking at, chosen in one place (the
+   * header, or the Studio's own picker). null = all of them (the Multiverse).
+   */
   agentId: string | null;
+  /** The knowledge bases the caller can see, loaded once and shared. */
+  agents: Agent[];
+  agentsError: string | null;
   stats: GraphStats | null;
   viewMode: GraphViewMode;
   /**
@@ -122,12 +130,18 @@ interface GraphState {
   setSelectedNode: (node: GraphNode | null) => void;
   highlightNodes: (ids: string[]) => void;
   clearHighlights: () => void;
+  /** Records the choice and drops the old graph. Pages that show a graph load it themselves. */
   setAgentId: (id: string | null) => void;
+  /** Loads the list once, however many components ask. `force` tries again after a failure. */
+  loadAgents: (force?: boolean) => Promise<void>;
   setViewMode: (mode: GraphViewMode) => void;
   removeNode: (nodeId: string) => void;
   addNodes: (nodes: GraphNode[]) => void;
   addEdges: (edges: GraphEdge[]) => void;
 }
+
+// One request in flight, shared by everything that asks for the list.
+let pendingAgents: Promise<void> | null = null;
 
 export const useGraph = create<GraphState>((set, get) => ({
   nodes: [],
@@ -140,6 +154,8 @@ export const useGraph = create<GraphState>((set, get) => ({
   isLoading: false,
   error: null,
   agentId: null,
+  agents: [],
+  agentsError: null,
   stats: null,
   viewMode: "auto",
   isTruncated: false,
@@ -224,8 +240,26 @@ export const useGraph = create<GraphState>((set, get) => ({
       isTruncated: false,
       serverNodeCount: 0,
     });
-    get().fetchAll();
-    if (id !== null) get().fetchStats();
+  },
+
+  loadAgents: async (force = false) => {
+    if (!force && get().agents.length > 0) return;
+    if (!pendingAgents || force) {
+      pendingAgents = getAgents()
+        .then((found) => {
+          set({ agents: found, agentsError: null });
+          // A choice that no longer exists must not stay selected.
+          const chosen = get().agentId;
+          if (chosen !== null && !found.some((agent) => agent.id === chosen)) get().setAgentId(null);
+        })
+        .catch((error: unknown) => {
+          set({ agentsError: error instanceof Error ? error.message : "unknown error" });
+        })
+        .finally(() => {
+          pendingAgents = null;
+        });
+    }
+    await pendingAgents;
   },
 
   removeNode: (nodeId) =>

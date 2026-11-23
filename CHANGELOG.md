@@ -11,6 +11,72 @@ for their released versions. The release process is documented in
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-23
+
+A stability release: no new features, fixes for what a Docker restart, parallel use and
+a fresh install exposed.
+
+### Fixed
+- Kafka was reported as unavailable for as long as the API ran if it was not up in the
+  first seconds. The API now connects in the background and `/health` asks the broker.
+- After a restart of Docker, Neo4j, Redis, ClickHouse and Postgres that were slower than
+  the API stayed missing: no vector index (semantic search broken), no swarm listener, no
+  analytics, no connector tables. Each is now retried until it answers.
+- The worker crashed in a loop while Kafka was not up, and it skipped semantic
+  duplicate matching for every message because it set up a different graph service than
+  the ingest pipeline uses.
+- The audit log lost rows under parallel use (25 of 40 query rows and 27 of 80 workflows in a
+  test), because one shared ClickHouse session refused parallel queries and a failed insert
+  was only logged at debug level. Failed rows are now kept and written again, and failures
+  are logged.
+- Filtering the audit log by knowledge base failed in ClickHouse and fell back to a seven-day
+  Kafka scan. A fallback or an unavailable audit store is now reported, as `complete: false`
+  or `503`, instead of an empty list with status 200.
+- The audit page asked for its list twice and the later answer won, so results appeared and
+  vanished.
+- `/analytics/overview` and `/analytics/top-agents` always answered 503, and overview failed
+  with a 500 when a knowledge base had ingests but no queries. KB ids are now passed to
+  ClickHouse as parameters instead of being pasted into the SQL.
+- `GET /graph/stats` returned a count of 0 for every type.
+- The live feed stayed dead after the connection dropped, because the single-use ticket was
+  reused. It reconnects with a new ticket.
+- Kong answered `502` for minutes after the backend container was recreated.
+- A fresh install had a rate limit of 60 requests a minute (the code default is 600) and hit
+  "API rate limit exceeded" within a minute.
+- The Studio called the API at a fixed `localhost:8000` and the allowed origins were fixed in the
+  code. `CORS_ORIGINS` and `NEXT_PUBLIC_BACKEND_URL` replace both.
+- Three knowledge base pickers that did not know about each other are one, in the header, and
+  a pick no longer loads a graph on pages that do not show one.
+- The Settings page listed services that do not exist and showed services that are switched
+  off as failed. `/health` now reports `disabled` for them and `spaider doctor` no longer says
+  "All clear" while a service is down.
+- `npm run lint` did not work and CI did not run it.
+- A reader without audit access to any knowledge base saw an empty audit log. The API now answers
+  `403` with the reason and the page shows it.
+- On a fresh database the vector index could stay missing: the API and the worker created the same
+  schema at the same moment, and the loser's "already exists" error was swallowed. It is retried.
+- Every page now passes the axe accessibility checks: low contrast text and the primary button, buttons
+  and sliders without a name, and the synthesizer's labels that were not tied to their fields. The
+  memory and supersession switches say which side is on.
+- Cmd+K (Ctrl+K) did not open the command palette on the Studio and the Multiverse.
+- ClickHouse's own system logs were never deleted and grew by about 0.5 GB a day (6.3 GB of a 6.9 GB
+  volume after 13 days, against about 1 MB of audit rows). They now expire after three days (the busy
+  ones) or two weeks. An existing install keeps its old logs once, as `system.*_0` tables, which
+  [docs/operations.md](docs/operations.md#disk-use-of-clickhouse) shows how to drop.
+- An answer that cited its evidence as `[Evidence: n4]` or `[n3, n5]`, as real models often do, came
+  back with no citations. Both forms are read now.
+
+### Added
+- `/health` reports `clickhouse` and `postgres`, and a `status` of `ok`, `degraded` or `down`.
+- Audit list and event responses carry `complete` and `source`.
+- A test rig (`backend/tests/rig`) for browser, load and restart tests, Playwright journeys, and a
+  check of every Studio API call against the OpenAPI file.
+
+### Changed
+- `backend/uv.lock` is regenerated and matches `pyproject.toml` again.
+- Docker images and CI use Node 24. Dependency updates: FastAPI 0.162, Uvicorn 0.54, the Neo4j driver 6.4,
+  Next.js 16.4, React 19.3, framer-motion 14, ESLint 10 and others.
+
 ## [0.5.0] - 2026-11-08
 
 Identity and governance, a learning loop, federation, fast memory paths, robotics,

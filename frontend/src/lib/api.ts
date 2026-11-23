@@ -1,4 +1,5 @@
 import { authFetch } from "./auth";
+import { backendUrl } from "./constants";
 import type {
   ClusterGraphPayload,
   GraphPayload,
@@ -9,7 +10,6 @@ import type {
   IngestResponse,
   QueryResponse,
   SynthesizeResult,
-  TraversalResult,
   CypherResponse,
   WorkflowRun,
   ReplayEvent,
@@ -208,16 +208,6 @@ export async function queryCypher(
   });
 }
 
-export async function traverseGraph(
-  nodeId: string,
-  depth: number = 2,
-  agentId?: string
-): Promise<TraversalResult> {
-  const params = new URLSearchParams({ depth: String(depth) });
-  if (agentId) params.set("agent_id", agentId);
-  return request<TraversalResult>(`/graph/traverse/${nodeId}?${params}`);
-}
-
 // ---- Nodes -----------------------------------------------------------------
 
 export async function deleteNode(
@@ -304,10 +294,7 @@ export async function importAgentGraph(
   targetAgentId?: string,
   merge: boolean = false
 ): Promise<AgentImportResponse> {
-  const backendUrl =
-    typeof window !== "undefined"
-      ? (process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000/api/v1")
-      : "http://localhost:8000/api/v1";
+  const target = backendUrl();
 
   const params = new URLSearchParams({ merge: String(merge) });
   if (targetAgentId) {
@@ -316,7 +303,7 @@ export async function importAgentGraph(
   const formData = new FormData();
   formData.append("file", file);
 
-  const res = await authFetch(`${backendUrl}/agents/import?${params}`, {
+  const res = await authFetch(`${target}/agents/import?${params}`, {
     method: "POST",
     body: formData,
   });
@@ -439,14 +426,16 @@ export function decideKpr(id: string, decision: "approve" | "reject" | "revert")
 
 /** Approved grants, in the shape the agent views draw as links. */
 export async function listSwarmLinks(): Promise<SwarmLink[]> {
-  const grants = await listGrants();
+  // The names are a courtesy: a KB the caller cannot list keeps its id.
+  const [grants, agents] = await Promise.all([listGrants(), getAgents().catch(() => [] as Agent[])]);
+  const nameOf = (id: string) => agents.find((agent) => agent.id === id)?.name ?? id;
   return grants
     .filter((grant) => grant.status === "approved")
     .map((grant) => ({
       source_id: grant.target_kb,
-      source_name: grant.target_kb,
+      source_name: nameOf(grant.target_kb),
       target_id: grant.source_kb,
-      target_name: grant.source_kb,
+      target_name: nameOf(grant.source_kb),
       grant_id: grant.id,
     }));
 }
@@ -717,6 +706,8 @@ type WorkflowSummaryResponse = {
 type WorkflowListResponse = {
   workflows: WorkflowSummaryResponse[];
   total: number;
+  source?: string;
+  complete?: boolean;
 };
 
 type WorkflowEventResponse = {
@@ -732,6 +723,8 @@ type WorkflowEventsResponse = {
   workflow_id: string;
   events: WorkflowEventResponse[];
   total: number;
+  source?: string;
+  complete?: boolean;
 };
 
 // The backend's actual event types pass through verbatim; anything the UI
@@ -749,10 +742,13 @@ function mapReplayEventType(eventType: string): ReplayEvent["type"] {
   return (KNOWN_EVENT_TYPES.has(t) ? t : "other") as ReplayEvent["type"];
 }
 
+/** `complete` is false when the audit store could not answer and this is only what Kafka still holds. */
+export type WorkflowRunList = { runs: WorkflowRun[]; complete: boolean };
+
 export async function getWorkflowRuns(
   agentId?: string,
   workflowId?: string
-): Promise<WorkflowRun[]> {
+): Promise<WorkflowRunList> {
   const params = new URLSearchParams();
   if (agentId) params.set("agent_id", agentId);
   // Backend supports filtering by agent_id + limit; workflow_id filter is applied client-side.
@@ -771,23 +767,29 @@ export async function getWorkflowRuns(
     event_count: wf.event_count,
   }));
 
-  if (!workflowId) return runs;
+  const complete = res.complete !== false;
+  if (!workflowId) return { runs, complete };
   const q = workflowId.toLowerCase();
-  return runs.filter((r) => r.workflow_id.toLowerCase().includes(q));
+  return { runs: runs.filter((r) => r.workflow_id.toLowerCase().includes(q)), complete };
 }
 
-export async function getReplayEvents(runId: string): Promise<ReplayEvent[]> {
+export type ReplayEventList = { events: ReplayEvent[]; complete: boolean };
+
+export async function getReplayEvents(runId: string): Promise<ReplayEventList> {
   const res = await request<WorkflowEventsResponse>(
     `/replay/workflows/${encodeURIComponent(runId)}/events`
   );
 
-  return res.events.map((ev) => ({
-    id: ev.event_id,
-    timestamp: ev.timestamp,
-    type: mapReplayEventType(ev.event_type),
-    agent_id: ev.agent_id,
-    metadata: ev.payload ?? {},
-  }));
+  return {
+    events: res.events.map((ev) => ({
+      id: ev.event_id,
+      timestamp: ev.timestamp,
+      type: mapReplayEventType(ev.event_type),
+      agent_id: ev.agent_id,
+      metadata: ev.payload ?? {},
+    })),
+    complete: res.complete !== false,
+  };
 }
 
 // ---- Service Health --------------------------------------------------------
@@ -797,8 +799,10 @@ export interface ServiceHealthResponse {
   version: string;
   environment: string;
   // Fix 3 (type): explicit union so callers can derive aggregate status correctly
-  services: Record<string, "ok" | "unavailable">;
+  // "disabled" means switched off on purpose (the Lite profile), not broken.
+  services: Record<string, "ok" | "unavailable" | "disabled">;
   healthy: boolean;
+  status?: "ok" | "degraded" | "down";
 }
 
 /**

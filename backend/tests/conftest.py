@@ -64,6 +64,44 @@ async def neo4j_test_driver():
     await driver.close()
 
 
+@pytest.fixture
+def clickhouse_test(monkeypatch):
+    """Points the audit and analytics services at the throwaway ClickHouse.
+
+    The database is recreated empty for each test. It is only dropped when the
+    marker database from the test compose file exists, so a wrong URL cannot
+    wipe a real instance.
+    """
+    from urllib.parse import urlsplit
+
+    import clickhouse_connect
+
+    from app.config import settings
+
+    url = urlsplit(_safety.clickhouse_url_for_tests())
+    password = os.environ.get("SPAIDER_TEST_CLICKHOUSE_PASSWORD", _safety.TEST_CLICKHOUSE_PASSWORD)
+    try:
+        admin = clickhouse_connect.get_client(
+            host=url.hostname, port=url.port, username="default", password=password
+        )
+        databases = {row[0] for row in admin.query("SHOW DATABASES").result_rows}
+    except Exception as exc:  # noqa: BLE001
+        _integration_unavailable("ClickHouse", exc)
+    if _safety.CLICKHOUSE_MARKER_DB not in databases:
+        pytest.fail(
+            f"ClickHouse at {url.hostname}:{url.port} has no {_safety.CLICKHOUSE_MARKER_DB} "
+            "database; refusing to run tests against it."
+        )
+    admin.command("DROP DATABASE IF EXISTS spaider")
+    monkeypatch.setattr(settings, "clickhouse_host", url.hostname)
+    monkeypatch.setattr(settings, "clickhouse_port", url.port)
+    monkeypatch.setattr(settings, "clickhouse_user", "default")
+    monkeypatch.setattr(settings, "clickhouse_password", password)
+    yield admin
+    admin.command("DROP DATABASE IF EXISTS spaider")
+    admin.close()
+
+
 class AuthWorld:
     """An org on the real test database, driven through the real API router."""
 

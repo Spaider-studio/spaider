@@ -17,6 +17,7 @@ from aiokafka.errors import KafkaError
 
 from app.config import settings
 from app.core.jobs import mark_job_finished
+from app.core.throttled_log import warn_throttled
 from app.logging_context import bind_request_context, reset_request_context
 from app.services.graph_service import get_graph_service
 from app.services.ingest_pipeline import IngestPipeline
@@ -346,8 +347,8 @@ class KafkaConsumerService:
                     attempts=_MAX_RETRIES,
                     last_error=error,
                 )
-        except Exception:
-            logger.debug("record_extraction_failed skipped (non-fatal)")
+        except Exception as exc:  # noqa: BLE001
+            warn_throttled(logger, "extraction_failed_record", "Extraction failure was not recorded: %s", exc)
 
     # ------------------------------------------------------------------
     # DLQ with Kafka headers

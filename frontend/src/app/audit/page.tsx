@@ -7,6 +7,7 @@ import Header from "@/components/layout/Header";
 import WorkflowSelector from "@/components/audit/WorkflowSelector";
 import ReplayTimeline from "@/components/audit/ReplayTimeline";
 import EventDetail from "@/components/audit/EventDetail";
+import { useGraph } from "@/hooks/useGraph";
 import { useReplay } from "@/hooks/useReplay";
 
 export default function AuditPage() {
@@ -17,15 +18,19 @@ export default function AuditPage() {
     selectedEvent,
     loadingRuns,
     loadingEvents,
+    partial,
     error,
     fetchRuns,
     selectRun,
     selectEvent,
   } = useReplay();
 
+  // Which knowledge base is chosen in the header. Null is all of them.
+  const agentId = useGraph((s) => s.agentId);
+
   useEffect(() => {
-    fetchRuns();
-  }, [fetchRuns]);
+    void fetchRuns(agentId ?? undefined);
+  }, [agentId, fetchRuns]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#0A0A0F]">
@@ -42,13 +47,13 @@ export default function AuditPage() {
             <h1 className="text-lg font-bold text-[#E4E4E7]">
               Audit Log
             </h1>
-            <p className="text-xs text-[#6B7280]">
+            <p className="text-xs text-[#8B93A3]">
               Durable event log of every ingest and query — ClickHouse-backed
             </p>
           </div>
           {selectedRun && (
             <div className="ml-auto flex items-center gap-2">
-              <span className="text-[10px] text-[#6B7280] px-2 py-1 bg-white/[0.03] rounded-lg border border-[#2A2A35]">
+              <span className="text-[10px] text-[#8B93A3] px-2 py-1 bg-white/[0.03] rounded-lg border border-[#2A2A35]">
                 {selectedRun.workflow_id}
               </span>
               <span className="text-[10px] text-[#A1A1AA]">
@@ -65,6 +70,17 @@ export default function AuditPage() {
           </div>
         )}
 
+        {/* The audit store did not answer: this is only what Kafka still holds. */}
+        {partial && !error && (
+          <div
+            role="status"
+            className="mx-6 mt-3 px-4 py-2.5 bg-[#F59E0B]/10 border border-[#F59E0B]/20 rounded-lg text-xs text-[#F59E0B]"
+          >
+            The audit store did not answer, so this list shows only recent runs. Older runs may be missing. Try again
+            in a moment.
+          </div>
+        )}
+
         {/* Three-panel layout */}
         <div className="flex-1 flex overflow-hidden">
           {/* Left: Workflow selector */}
@@ -73,8 +89,8 @@ export default function AuditPage() {
               runs={runs}
               selectedRun={selectedRun}
               loading={loadingRuns}
+              failed={Boolean(error) && runs.length === 0}
               onSelectRun={selectRun}
-              onFilterChange={fetchRuns}
             />
           </div>
 

@@ -34,6 +34,38 @@ describe("federation calls", () => {
     expect(links[0]).toMatchObject({ source_id: "t", target_id: "s" });
   });
 
+  it("names the knowledge bases in a link instead of showing their ids", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const body = url.endsWith("/federation/grants")
+          ? [{ id: "a", source_kb: "kb-source", target_kb: "kb-reader", status: "approved" }]
+          : { agents: [{ id: "kb-source", name: "Zephyr" }, { id: "kb-reader", name: "Atlas" }], total: 2 };
+        return new Response(JSON.stringify(body), { status: 200 });
+      })
+    );
+
+    const [link] = await listSwarmLinks();
+
+    expect(link).toMatchObject({ source_name: "Atlas", target_name: "Zephyr" });
+  });
+
+  it("falls back to the id for a knowledge base the caller cannot list", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const body = url.endsWith("/federation/grants")
+          ? [{ id: "a", source_kb: "kb-other-org", target_kb: "kb-reader", status: "approved" }]
+          : { agents: [{ id: "kb-reader", name: "Atlas" }], total: 1 };
+        return new Response(JSON.stringify(body), { status: 200 });
+      })
+    );
+
+    const [link] = await listSwarmLinks();
+
+    expect(link).toMatchObject({ source_name: "Atlas", target_name: "kb-other-org" });
+  });
+
   it("removing a link revokes its grant", async () => {
     const mock = stubFetch({});
     await deleteSwarmLink({ source_id: "t", source_name: "t", target_id: "s", target_name: "s", grant_id: "g1" });

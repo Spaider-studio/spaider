@@ -10,7 +10,7 @@ import { Terminal, Wifi, WifiOff } from "lucide-react";
 
 type EventType =
   | "error"
-  | "actр"        // ACT-R activation boost
+  | "actr"        // ACT-R activation boost
   | "boost"
   | "pheromone"
   | "lease"
@@ -33,12 +33,14 @@ interface SwarmEvent {
 
 const MAX_EVENTS = 50;
 const SSE_URL    = "/api/v1/swarm/events/stream";
+const RECONNECT_FIRST_MS = 1_000;
+const RECONNECT_MAX_MS   = 30_000;
 
 /** Tailwind text-color class per event type. */
 function colorFor(type: string): string {
   const t = type.toLowerCase();
   if (t === "error")                        return "text-red-500";
-  if (t === "actр" || t === "boost")        return "text-[#39FF14]";   // neon green
+  if (t === "actr" || t === "boost")        return "text-[#39FF14]";   // neon green
   if (t === "pheromone")                    return "text-cyan-400";
   if (t === "lease")                        return "text-amber-400";
   if (t === "ack")                          return "text-emerald-400";
@@ -50,7 +52,7 @@ function colorFor(type: string): string {
 function prefixFor(type: string): string {
   const t = type.toLowerCase();
   if (t === "error")                        return "[ERR]";
-  if (t === "actр" || t === "boost")        return "[ACT]";
+  if (t === "actr" || t === "boost")        return "[ACT]";
   if (t === "pheromone")                    return "[PHR]";
   if (t === "lease")                        return "[LSE]";
   if (t === "ack")                          return "[ACK]";
@@ -68,59 +70,81 @@ export default function LivePheromoneStream() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const idxRef    = useRef(0);   // monotonic id counter — avoids uuid dependency
 
-  // ── EventSource lifecycle ─────────────────────────────────────────────────
+  // ── EventSource lifecycle ────────────────────────────────────────────
+  // A connection ticket works once. If the connection drops, the browser would
+  // retry the same URL, get a 401, and never try again, so the feed stayed dead
+  // until the page was reloaded. On any drop we close the stream and open a new
+  // one with a fresh ticket, waiting a little longer after each failure.
   useEffect(() => {
     let es: EventSource | null = null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     let cancelled = false;
+    let delay = RECONNECT_FIRST_MS;
 
-    const open = async () => {
-      const ticket = await connectionTicket();
+    const retryLater = () => {
       if (cancelled) return;
-      es = new EventSource(`${SSE_URL}?ticket=${encodeURIComponent(ticket)}`);
-      attach(es);
+      timer = setTimeout(open, delay);
+      delay = Math.min(delay * 2, RECONNECT_MAX_MS);
     };
 
-    const attach = (es: EventSource) => {
-    es.onopen = () => setConnected(true);
-
-    es.onmessage = (ev) => {
-      let raw: Record<string, unknown> = {};
-      try { raw = JSON.parse(ev.data); } catch { raw = { message: ev.data }; }
-
-      // Heartbeats keep the connection (and proxy) alive on a quiet channel —
-      // they are not real activity, so confirm "connected" but don't log them.
-      if (raw.type === "heartbeat") {
+    const attach = (source: EventSource) => {
+      source.onopen = () => {
         setConnected(true);
-        return;
-      }
-
-      const event: SwarmEvent = {
-        id:        String(++idxRef.current),
-        type:      (raw.type as string) ?? "unknown",
-        agent:     raw.agent as string | undefined,
-        message:   raw.message as string | undefined,
-        timestamp: (raw.timestamp as string) ?? new Date().toISOString(),
-        raw,
+        delay = RECONNECT_FIRST_MS;
       };
 
-      setEvents((prev) => {
-        const next = [...prev, event];
-        // Keep only the last MAX_EVENTS entries to prevent memory leak.
-        return next.length > MAX_EVENTS ? next.slice(next.length - MAX_EVENTS) : next;
-      });
+      source.onmessage = (ev) => {
+        let raw: Record<string, unknown> = {};
+        try { raw = JSON.parse(ev.data); } catch { raw = { message: ev.data }; }
+
+        // Heartbeats keep the connection (and proxy) alive on a quiet channel —
+        // they are not real activity, so confirm "connected" but don't log them.
+        if (raw.type === "heartbeat") {
+          setConnected(true);
+          return;
+        }
+
+        const event: SwarmEvent = {
+          id:        String(++idxRef.current),
+          type:      (raw.type as string) ?? "unknown",
+          agent:     raw.agent as string | undefined,
+          message:   raw.message as string | undefined,
+          timestamp: (raw.timestamp as string) ?? new Date().toISOString(),
+          raw,
+        };
+
+        setEvents((prev) => {
+          const next = [...prev, event];
+          // Keep only the last MAX_EVENTS entries to prevent memory leak.
+          return next.length > MAX_EVENTS ? next.slice(next.length - MAX_EVENTS) : next;
+        });
+      };
+
+      source.onerror = () => {
+        setConnected(false);
+        source.close();
+        retryLater();
+      };
     };
 
-    es.onerror = () => {
-      setConnected(false);
-      // EventSource auto-reconnects — we just reflect the disconnected state
-      // until the next successful `onopen`.
-    };
-    };
+    async function open() {
+      try {
+        const ticket = await connectionTicket();
+        if (cancelled) return;
+        es = new EventSource(`${SSE_URL}?ticket=${encodeURIComponent(ticket)}`);
+      } catch {
+        setConnected(false);
+        retryLater();
+        return;
+      }
+      attach(es);
+    }
 
-    open().catch(() => setConnected(false));
+    void open();
 
     return () => {
       cancelled = true;
+      clearTimeout(timer);
       es?.close();
       setConnected(false);
     };
@@ -173,7 +197,7 @@ export default function LivePheromoneStream() {
       >
         {events.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <span className="text-white/20 text-[10px]">
+            <span className="text-white/55 text-[10px]">
               {connected ? "Awaiting swarm events…" : "Connecting…"}
             </span>
           </div>
@@ -187,10 +211,10 @@ export default function LivePheromoneStream() {
 
             return (
               <div key={ev.id} className="leading-5 whitespace-pre-wrap break-all">
-                <span className="text-white/20">{ts} </span>
+                <span className="text-white/55">{ts} </span>
                 <span className={`${color} font-semibold`}>{prefix} </span>
                 {agent && (
-                  <span className="text-white/30">{agent}</span>
+                  <span className="text-white/55">{agent}</span>
                 )}
                 <span className={color}>{msg}</span>
               </div>
@@ -200,7 +224,7 @@ export default function LivePheromoneStream() {
       </div>
 
       {/* Footer: event count */}
-      <div className="text-[9px] text-white/20 text-right font-mono">
+      <div className="text-[9px] text-white/55 text-right font-mono">
         {events.length}/{MAX_EVENTS} events
       </div>
     </div>

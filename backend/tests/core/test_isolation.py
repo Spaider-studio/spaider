@@ -321,11 +321,13 @@ async def test_audit_list_without_a_kb_covers_what_the_owner_can_audit(auth_worl
     assert [run["workflow_id"] for run in response.json()["workflows"]] == ["w1"]
 
 
-async def test_audit_list_without_a_kb_is_empty_for_a_plain_member(auth_world):
+async def test_audit_list_without_a_kb_is_refused_for_a_plain_member(auth_world):
+    """Nothing leaks, and the caller is told why instead of being shown an empty list."""
     await auth_world.create_kb()
     user = await auth_world.user("plain")
     response = await auth_world.client.get("/api/v1/replay/workflows", headers=auth_world.headers(user["api_key"]))
-    assert response.status_code == 200 and response.json()["workflows"] == []
+    assert response.status_code == 403
+    assert "workflows" not in response.json()
 
 
 async def test_swarm_query_without_kbs_scans_only_accessible_ones(auth_world, monkeypatch):

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getAgents, deleteAgent } from "@/lib/api";
 import type { Agent } from "@/lib/types";
+import { backendUrl } from "@/lib/constants";
 import {
   Settings,
   Shield,
@@ -95,7 +96,7 @@ export default function SettingsPage() {
                   { label: "Streaming", value: "Apache Kafka" },
                 ].map((item) => (
                   <div key={item.label} className="flex flex-col gap-0.5">
-                    <span className="text-xs text-[#6B7280]">{item.label}</span>
+                    <span className="text-xs text-[#8B93A3]">{item.label}</span>
                     <span className="text-sm text-[#E4E4E7] font-mono">{item.value}</span>
                   </div>
                 ))}
@@ -112,8 +113,8 @@ export default function SettingsPage() {
               <div className="flex flex-col gap-3">
                 <ConfigRow
                   label="API Endpoint"
-                  value={process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1"}
-                  hint="Set NEXT_PUBLIC_API_URL in your .env file"
+                  value={backendUrl()}
+                  hint="Set NEXT_PUBLIC_BACKEND_URL when the Studio is built to change it"
                 />
               </div>
               <a
@@ -155,7 +156,7 @@ export default function SettingsPage() {
                   <button
                     onClick={loadAgents}
                     disabled={loadingAgents}
-                    className="flex items-center gap-1.5 text-xs text-[#6B7280] hover:text-[#A1A1AA] transition-colors disabled:opacity-50"
+                    className="flex items-center gap-1.5 text-xs text-[#8B93A3] hover:text-[#A1A1AA] transition-colors disabled:opacity-50"
                   >
                     <RefreshCw className={`w-3 h-3 ${loadingAgents ? "animate-spin" : ""}`} />
                     Load agents
@@ -163,7 +164,7 @@ export default function SettingsPage() {
                 </div>
 
                 {!agentsLoaded ? (
-                  <p className="text-xs text-[#6B7280] italic">
+                  <p className="text-xs text-[#8B93A3] italic">
                     Click &quot;Load agents&quot; to see erasure options
                   </p>
                 ) : loadingAgents ? (
@@ -171,7 +172,7 @@ export default function SettingsPage() {
                     <LoadingSpinner size="sm" />
                   </div>
                 ) : agents.length === 0 ? (
-                  <div className="flex items-center gap-2 py-3 text-xs text-[#6B7280]">
+                  <div className="flex items-center gap-2 py-3 text-xs text-[#8B93A3]">
                     <Bot className="w-4 h-4" />
                     No agents registered
                   </div>
@@ -183,10 +184,10 @@ export default function SettingsPage() {
                         className="flex items-center justify-between py-3 px-4 bg-[#0A0A0F] border border-[#2A2A35] rounded-lg"
                       >
                         <div className="flex items-center gap-3">
-                          <Bot className="w-4 h-4 text-[#6B7280]" />
+                          <Bot className="w-4 h-4 text-[#8B93A3]" />
                           <div>
                             <div className="text-sm text-[#E4E4E7]">{agent.name}</div>
-                            <div className="text-[11px] text-[#6B7280] font-mono">{agent.id}</div>
+                            <div className="text-[11px] text-[#8B93A3] font-mono">{agent.id}</div>
                           </div>
                         </div>
                         <button
@@ -266,7 +267,7 @@ function Section({
   return (
     <div className="mb-6 bg-[#12121A] border border-[#2A2A35] rounded-xl overflow-hidden">
       <div className="flex items-center gap-2 px-5 py-3 border-b border-[#2A2A35] bg-[#0D0D15]">
-        <span className="text-[#6B7280]">{icon}</span>
+        <span className="text-[#8B93A3]">{icon}</span>
         <span className="text-sm font-semibold text-[#E4E4E7]">{title}</span>
         {badge}
       </div>
@@ -284,7 +285,7 @@ function ConfigRow({ label, value, hint }: { label: string; value: string; hint?
           {value}
         </code>
       </div>
-      {hint && <span className="text-[10px] text-[#6B7280]">{hint}</span>}
+      {hint && <span className="text-[10px] text-[#8B93A3]">{hint}</span>}
     </div>
   );
 }

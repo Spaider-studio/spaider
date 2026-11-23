@@ -8,7 +8,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 from datetime import datetime, timezone
+from typing import Optional
+
+from app.core.clickhouse import BACKLOG_RETRY_SECONDS, WriteBuffer, log_write_failure
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +77,13 @@ _MIGRATIONS = [
 ]
 
 
+def _json_safe(value):
+    """ClickHouse averages an empty set to nan, which JSON cannot carry."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    return value
+
+
 class AnalyticsService:
     """
     Thin async wrapper around clickhouse-connect.
@@ -83,23 +94,16 @@ class AnalyticsService:
     def __init__(self) -> None:
         self._client = None
         self._ready = False
+        self._buffer = WriteBuffer()
+        self._retry_task: Optional[asyncio.Task] = None
 
     async def initialize(self) -> None:
         """Connect to ClickHouse and create tables. Called once at startup."""
         try:
-            import clickhouse_connect
-
             from app.config import settings
+            from app.core.clickhouse import create_client
 
-            self._client = await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: clickhouse_connect.get_client(
-                    host=settings.clickhouse_host,
-                    port=settings.clickhouse_port,
-                    username=settings.clickhouse_user,
-                    password=settings.clickhouse_password,
-                ),
-            )
+            self._client = await asyncio.get_event_loop().run_in_executor(None, create_client)
             for ddl in _DDL:
                 await asyncio.get_event_loop().run_in_executor(
                     None, lambda q=ddl: self._client.command(q)
@@ -112,6 +116,8 @@ class AnalyticsService:
                     None, lambda q=mig: self._client.command(q)
                 )
             self._ready = True
+            if self._retry_task is None:
+                self._retry_task = asyncio.create_task(self._retry_loop())
             logger.info(
                 "ClickHouse connected at %s:%s — analytics tables ready",
                 settings.clickhouse_host,
@@ -121,7 +127,20 @@ class AnalyticsService:
             logger.warning("ClickHouse unavailable — analytics disabled: %s", exc)
             self._ready = False
 
+    async def ping(self) -> bool:
+        """Whether ClickHouse answers a query right now."""
+        if not self._ready:
+            return False
+        try:
+            await asyncio.get_event_loop().run_in_executor(None, lambda: self._client.command("SELECT 1"))
+        except Exception:  # noqa: BLE001
+            return False
+        return True
+
     async def close(self) -> None:
+        if self._retry_task is not None:
+            self._retry_task.cancel()
+            self._retry_task = None
         if self._client is not None:
             try:
                 await asyncio.get_event_loop().run_in_executor(None, self._client.close)
@@ -225,7 +244,7 @@ class AnalyticsService:
         """Hourly ingest volume and latency for the last N days."""
         if not self._ready:
             return []
-        sql = f"""
+        sql = """
             SELECT
                 toStartOfHour(timestamp)          AS hour,
                 count()                           AS ingests,
@@ -233,12 +252,12 @@ class AnalyticsService:
                 sum(edges_created)                AS total_edges,
                 avg(latency_ms)                   AS avg_latency_ms
             FROM spaider.ingest_events
-            WHERE agent_id = '{agent_id}'
-              AND timestamp >= now() - INTERVAL {days} DAY
+            WHERE agent_id = {agent:String}
+              AND timestamp >= now() - INTERVAL {days:UInt16} DAY
             GROUP BY hour
             ORDER BY hour
         """
-        return await self._query(sql)
+        return await self._query(sql, {"agent": agent_id, "days": days})
 
     async def get_query_timeseries(
         self, agent_id: str, days: int = 7
@@ -246,7 +265,7 @@ class AnalyticsService:
         """Hourly query volume and latency for the last N days."""
         if not self._ready:
             return []
-        sql = f"""
+        sql = """
             SELECT
                 toStartOfHour(timestamp) AS hour,
                 count()                  AS queries,
@@ -254,19 +273,19 @@ class AnalyticsService:
                 avg(nodes_in_result)     AS avg_nodes_returned,
                 sum(cypher_used)         AS cypher_queries
             FROM spaider.query_events
-            WHERE agent_id = '{agent_id}'
-              AND timestamp >= now() - INTERVAL {days} DAY
+            WHERE agent_id = {agent:String}
+              AND timestamp >= now() - INTERVAL {days:UInt16} DAY
             GROUP BY hour
             ORDER BY hour
         """
-        return await self._query(sql)
+        return await self._query(sql, {"agent": agent_id, "days": days})
 
     async def get_overview(self, agent_id: str) -> dict:
         """Aggregate overview stats for an agent."""
         if not self._ready:
             return {}
 
-        ingest_sql = f"""
+        ingest_sql = """
             SELECT
                 count()            AS total_ingests,
                 sum(nodes_created) AS total_nodes_created,
@@ -274,18 +293,18 @@ class AnalyticsService:
                 avg(latency_ms)    AS avg_ingest_latency_ms,
                 max(latency_ms)    AS max_ingest_latency_ms
             FROM spaider.ingest_events
-            WHERE agent_id = '{agent_id}'
+            WHERE agent_id = {agent:String}
         """
-        query_sql = f"""
+        query_sql = """
             SELECT
                 count()          AS total_queries,
                 avg(latency_ms)  AS avg_query_latency_ms,
                 max(latency_ms)  AS max_query_latency_ms
             FROM spaider.query_events
-            WHERE agent_id = '{agent_id}'
+            WHERE agent_id = {agent:String}
         """
-        ingest_rows = await self._query(ingest_sql)
-        query_rows = await self._query(query_sql)
+        ingest_rows = await self._query(ingest_sql, {"agent": agent_id})
+        query_rows = await self._query(query_sql, {"agent": agent_id})
         return {
             "ingest": ingest_rows[0] if ingest_rows else {},
             "query": query_rows[0] if query_rows else {},
@@ -295,7 +314,7 @@ class AnalyticsService:
         """Most active agents by ingest count."""
         if not self._ready:
             return []
-        sql = f"""
+        sql = """
             SELECT
                 agent_id,
                 count()            AS ingests,
@@ -304,13 +323,42 @@ class AnalyticsService:
             FROM spaider.ingest_events
             GROUP BY agent_id
             ORDER BY ingests DESC
-            LIMIT {limit}
+            LIMIT {limit:UInt16}
         """
-        return await self._query(sql)
+        return await self._query(sql, {"limit": limit})
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    async def _insert_rows(self, table: str, columns: list[str], rows: list) -> None:
+        await asyncio.get_event_loop().run_in_executor(
+            None, lambda: self._client.insert(table, rows, column_names=columns)
+        )
+
+    async def _write(self, table: str, rows: list, columns: list[str]) -> None:
+        """Insert rows; if ClickHouse cannot take them now, keep them for the retry loop."""
+        try:
+            await self._insert_rows(table, columns, rows)
+        except Exception as exc:  # noqa: BLE001
+            log_write_failure(table.rsplit(".", 1)[-1], exc)
+            for row in rows:
+                self._buffer.add(table, columns, row)
+
+    async def flush_buffer(self) -> int:
+        written = await self._buffer.flush(self._insert_rows)
+        if written:
+            logger.info("Wrote %d analytics rows that had been waiting for ClickHouse", written)
+        return written
+
+    async def _retry_loop(self) -> None:
+        """Try the rows that could not be written every few seconds, for as long as the service runs."""
+        while True:
+            await asyncio.sleep(BACKLOG_RETRY_SECONDS)
+            try:
+                await self.flush_buffer()
+            except Exception as exc:  # noqa: BLE001 - never let the retry loop die
+                logger.debug("ClickHouse backlog retry failed: %s", exc)
 
     async def _insert_ingest(self, **kwargs) -> None:
         try:
@@ -327,12 +375,9 @@ class AnalyticsService:
             ]]
             cols = ["timestamp", "agent_id", "text_length", "chunk_count",
                     "nodes_created", "nodes_merged", "edges_created", "latency_ms"]
-            await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: self._client.insert("spaider.ingest_events", data, column_names=cols),
-            )
+            await self._write("spaider.ingest_events", data, cols)
         except Exception as exc:
-            logger.debug("ClickHouse ingest insert failed: %s", exc)
+            log_write_failure("ingest", exc)
 
     async def _insert_query(self, **kwargs) -> None:
         try:
@@ -352,12 +397,9 @@ class AnalyticsService:
             cols = ["timestamp", "agent_id", "question_length", "answer_length",
                     "nodes_in_result", "edges_in_result", "cypher_used", "latency_ms",
                     "prompt_tokens", "completion_tokens"]
-            await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: self._client.insert("spaider.query_events", data, column_names=cols),
-            )
+            await self._write("spaider.query_events", data, cols)
         except Exception as exc:
-            logger.debug("ClickHouse query insert failed: %s", exc)
+            log_write_failure("query", exc)
 
     async def _insert_extraction_failed(self, **kwargs) -> None:
         try:
@@ -373,22 +415,20 @@ class AnalyticsService:
                 last_error,
             ]]
             cols = ["timestamp", "agent_id", "source", "text_length", "attempts", "last_error"]
-            await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: self._client.insert(
-                    "spaider.extraction_failed_events", data, column_names=cols
-                ),
-            )
+            await self._write("spaider.extraction_failed_events", data, cols)
         except Exception as exc:
-            logger.debug("ClickHouse extraction_failed insert failed: %s", exc)
+            log_write_failure("extraction_failed", exc)
 
-    async def _query(self, sql: str) -> list[dict]:
+    async def _query(self, sql: str, parameters: Optional[dict] = None) -> list[dict]:
         try:
             result = await asyncio.get_event_loop().run_in_executor(
-                None, lambda: self._client.query(sql)
+                None, lambda: self._client.query(sql, parameters=parameters)
             )
             cols = result.column_names
-            return [dict(zip(cols, row)) for row in result.result_rows]
+            return [
+                {col: _json_safe(value) for col, value in zip(cols, row)}
+                for row in result.result_rows
+            ]
         except Exception as exc:
             logger.warning("ClickHouse query failed: %s", exc)
             return []

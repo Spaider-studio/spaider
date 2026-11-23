@@ -25,6 +25,7 @@ from app.core.authz import Action, Principal, authorize, can, get_principal
 from app.core.jobs import QueueFull, job_status, mark_job_queued
 from app.core.kv import get_kv
 from app.core.net_guard import BlockedTarget, PolicyRefused, check_image_url
+from app.core.throttled_log import warn_throttled
 from app.models.requests import IngestRequest
 from app.models.responses import IngestQueuedResponse, IngestSyncResponse, SlimEdge, SlimNode
 from app.models.schemas import Edge, GraphPayload, Node
@@ -247,6 +248,11 @@ _fire_replay_event = fire_replay_event
 async def _get_kafka_producer():
     """Lazy initialised Kafka producer singleton."""
     global _kafka_producer
+    import app.main as _main
+
+    shared = getattr(_main, "_kafka_producer", None)
+    if shared is not None:
+        return shared  # one producer per process, connected by the app at startup
     if _kafka_producer is None:
         try:
             from app.services.kafka_producer import KafkaProducerService
@@ -407,8 +413,8 @@ async def ingest_text_sync(request: IngestRequest, auth: Principal = Depends(get
                     edges_created=edges_written,
                     latency_ms=round(latency_ms, 2),
                 )
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            warn_throttled(logger, "analytics_record", "Analytics recording failed: %s", exc)
 
         # Replay: pipeline completed
         _fire_replay_event(
@@ -447,8 +453,8 @@ async def ingest_text_sync(request: IngestRequest, auth: Principal = Depends(get
                     attempts=exc.attempts,
                     last_error=exc.last_error or str(exc),
                 )
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            warn_throttled(logger, "analytics_record", "Analytics recording failed: %s", exc)
         raise HTTPException(
             status_code=422,
             detail=(
@@ -674,8 +680,8 @@ async def _run_stream_ingest(request: IngestRequest, job_id: str) -> None:
                     attempts=exc.attempts,
                     last_error=exc.last_error or str(exc),
                 )
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            warn_throttled(logger, "analytics_record", "Analytics recording failed: %s", exc)
         await ws_manager.broadcast(
             request.agent_id,
             {

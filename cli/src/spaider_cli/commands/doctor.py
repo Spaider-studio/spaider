@@ -109,12 +109,20 @@ def check_llm_key(repo: Path) -> CheckResult:
 
 
 def check_backend_health() -> CheckResult:
-    if api_client.health():
-        return _ok("backend /health", "healthy on :8000")
-    return _fail(
-        "backend /health",
-        "not reachable. Run `make dev` or `docker compose up -d backend-api`.",
-    )
+    report = api_client.health_report()
+    if report is None:
+        return _fail(
+            "backend /health",
+            "not reachable. Run `make dev` or `docker compose up -d backend-api`.",
+        )
+    # "disabled" means switched off on purpose (the Lite profile). Only a
+    # service that is switched on and does not answer is a problem.
+    broken = sorted(name for name, state in report.get("services", {}).items() if state == "unavailable")
+    if report.get("healthy") is False:
+        return _fail("backend /health", "not healthy: " + (", ".join(broken) or "see /health"))
+    if broken:
+        return _warn("backend /health", "answers, but not available: " + ", ".join(broken))
+    return _ok("backend /health", "healthy on :8000")
 
 
 def check_login() -> CheckResult:

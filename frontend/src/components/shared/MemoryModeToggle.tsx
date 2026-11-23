@@ -63,7 +63,7 @@ export default function MemoryModeToggle({
     >
       <Brain
         className={`w-3.5 h-3.5 flex-shrink-0 transition-colors ${
-          isOn ? "text-purple-400" : "text-[#6B7280]"
+          isOn ? "text-purple-400" : "text-[#8B93A3]"
         }`}
       />
       <span className="text-[11px] text-[#A1A1AA]">Synaptic Memory</span>
@@ -77,22 +77,24 @@ export default function MemoryModeToggle({
       >
         <button
           onClick={() => toggle("off")}
+          aria-pressed={ready && !isOn}
           disabled={busy || !ready}
           className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all duration-200 ${
             ready && !isOn
               ? "bg-[#2A2A35] text-[#E4E4E7]"
-              : "text-[#6B7280] hover:text-[#A1A1AA]"
+              : "text-[#8B93A3] hover:text-[#A1A1AA]"
           }`}
         >
           Off
         </button>
         <button
           onClick={() => toggle("on")}
+          aria-pressed={ready && isOn}
           disabled={busy || !ready}
           className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium transition-all duration-200 ${
             isOn
               ? "bg-purple-600 text-white shadow-[0_0_8px_rgba(139,92,246,0.5)]"
-              : "text-[#6B7280] hover:text-[#A1A1AA]"
+              : "text-[#8B93A3] hover:text-[#A1A1AA]"
           }`}
         >
           {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : null}

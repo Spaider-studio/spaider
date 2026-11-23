@@ -85,6 +85,16 @@ def health() -> bool:
         return False
 
 
+def health_report() -> dict | None:
+    """The full /health body, or None when the API does not answer."""
+    try:
+        with httpx.Client(timeout=2.0) as c:
+            resp = c.get(f"{api_base().rsplit('/api', 1)[0]}/health")
+            return resp.json() if resp.status_code == 200 else None
+    except Exception:
+        return None
+
+
 def embedding_health() -> dict | None:
     """GET /health/embedding — embedding-dimension consistency report.
 

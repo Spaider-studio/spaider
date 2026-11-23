@@ -6,7 +6,6 @@ import { Button, Empty, ErrorNote, reason } from "@/components/shared/ui";
 import {
   approveGrant,
   decideKpr,
-  getAgents,
   denyGrant,
   getKpr,
   listGrants,
@@ -16,6 +15,7 @@ import {
   type Grant,
   type KnowledgePR,
 } from "@/lib/api";
+import { useGraph } from "@/hooks/useGraph";
 import { CLEARANCE_LEVELS } from "@/lib/access";
 
 const OTHER = "__other__";
@@ -32,7 +32,9 @@ function Sharing({ agentId }: { agentId: string }) {
   const [grants, setGrants] = useState<Grant[]>([]);
   const [kprs, setKprs] = useState<KnowledgePR[]>([]);
   const [open, setOpen] = useState<KnowledgePR | null>(null);
-  const [names, setNames] = useState<Record<string, string>>({});
+  // The names come from the list the whole app shares, loaded once by the page around this one.
+  const agents = useGraph((s) => s.agents);
+  const names = Object.fromEntries(agents.map((agent) => [agent.id, agent.name]));
   const [source, setSource] = useState("");
   const [custom, setCustom] = useState("");
   const [ceiling, setCeiling] = useState(1);
@@ -48,12 +50,6 @@ function Sharing({ agentId }: { agentId: string }) {
   }, [agentId]);
 
   useEffect(load, [load]);
-
-  useEffect(() => {
-    getAgents()
-      .then((agents) => setNames(Object.fromEntries(agents.map((agent) => [agent.id, agent.name]))))
-      .catch(() => setNames({}));
-  }, []);
 
   const nameOf = (id: string) => names[id] ?? id;
   const sourceId = source === OTHER ? custom.trim() : source;
@@ -128,7 +124,7 @@ function Sharing({ agentId }: { agentId: string }) {
             <li key={grant.id} className="flex items-center justify-between gap-3 py-2 text-sm">
               <span className="min-w-0">
                 {nameOf(grant.source_kb)} → {nameOf(grant.target_kb)}{" "}
-                <span className="text-zinc-500">
+                <span className="text-zinc-400">
                   {(STATUS_NOTE[grant.status]?.(nameOf(grant.source_kb)) ?? grant.status) +
                     `, up to clearance ${grant.max_clearance}`}
                 </span>
@@ -151,7 +147,7 @@ function Sharing({ agentId }: { agentId: string }) {
 
       <section>
         <h2 className="mb-1 text-sm font-medium text-zinc-300">Knowledge PRs into this knowledge base</h2>
-        <p className="mb-2 text-xs text-zinc-500">
+        <p className="mb-2 text-xs text-zinc-400">
           A proposal to copy specific knowledge into this knowledge base, with a diff to review. Applying one can be
           reverted. Proposals are created with <code>spaider kpr create</code> for now.
         </p>
@@ -160,7 +156,7 @@ function Sharing({ agentId }: { agentId: string }) {
           {kprs.map((kpr) => (
             <li key={kpr.id} className="flex items-center justify-between gap-3 py-2 text-sm">
               <button className="min-w-0 truncate text-left hover:underline" onClick={() => getKpr(kpr.id).then(setOpen)}>
-                {kpr.title} <span className="text-zinc-500">{kpr.status}</span>
+                {kpr.title} <span className="text-zinc-400">{kpr.status}</span>
               </button>
               <span className="flex shrink-0 gap-1">
                 {kpr.status === "open" && (
@@ -184,7 +180,7 @@ function Sharing({ agentId }: { agentId: string }) {
                 </li>
               ))}
             </ul>
-            <p className="mt-1 text-zinc-500">{open.diff.edges.length} edges</p>
+            <p className="mt-1 text-zinc-400">{open.diff.edges.length} edges</p>
           </div>
         )}
       </section>

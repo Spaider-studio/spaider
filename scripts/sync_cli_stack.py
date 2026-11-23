@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-FILES = ("docker-compose.yml", ".env.example", "gateway/kong.yml")
+FILES = ("docker-compose.yml", ".env.example", "gateway/kong.yml", "clickhouse/system-logs.xml")
 TARGET = ROOT / "cli/src/spaider_cli/stack"
 
 

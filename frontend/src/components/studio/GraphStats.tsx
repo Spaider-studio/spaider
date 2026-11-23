@@ -27,11 +27,11 @@ export default function GraphStats() {
       <div className="grid grid-cols-2 gap-2">
         <div className="bg-[#12121A] border border-[#2A2A35] rounded-lg p-3 text-center">
           <div className="text-2xl font-bold text-accent-blue">{formatNumber(nodes.length)}</div>
-          <div className="text-xs text-gray-500 mt-0.5">Nodes</div>
+          <div className="text-xs text-gray-400 mt-0.5">Nodes</div>
         </div>
         <div className="bg-[#12121A] border border-[#2A2A35] rounded-lg p-3 text-center">
           <div className="text-2xl font-bold text-accent-green">{formatNumber(edges.length)}</div>
-          <div className="text-xs text-gray-500 mt-0.5">Edges</div>
+          <div className="text-xs text-gray-400 mt-0.5">Edges</div>
         </div>
       </div>
 
@@ -49,7 +49,7 @@ export default function GraphStats() {
                     style={{ width: `${pct}%`, backgroundColor: color }}
                   />
                 </div>
-                <span className="text-xs text-gray-500 w-6 text-right">{count}</span>
+                <span className="text-xs text-gray-400 w-6 text-right">{count}</span>
               </div>
             );
           })}

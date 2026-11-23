@@ -75,7 +75,7 @@ export default function SwarmConnectionManager({ refreshTrigger = 0 }: Props) {
         <button
           onClick={load}
           disabled={loading}
-          className="p-1.5 text-[#6B7280] hover:text-[#E4E4E7] hover:bg-white/5 rounded-lg transition-all disabled:opacity-40"
+          className="p-1.5 text-[#8B93A3] hover:text-[#E4E4E7] hover:bg-white/5 rounded-lg transition-all disabled:opacity-40"
           title="Refresh"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
@@ -85,13 +85,13 @@ export default function SwarmConnectionManager({ refreshTrigger = 0 }: Props) {
       {/* Body */}
       {loading ? (
         <div className="flex items-center justify-center py-8">
-          <RefreshCw className="w-5 h-5 text-[#6B7280] animate-spin" />
+          <RefreshCw className="w-5 h-5 text-[#8B93A3] animate-spin" />
         </div>
       ) : links.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 gap-2">
           <Unlink className="w-8 h-8 text-[#3A3A45]" />
-          <p className="text-xs text-[#6B7280]">No active bridges</p>
-          <p className="text-[10px] text-[#3A3A45]">
+          <p className="text-xs text-[#8B93A3]">No active bridges</p>
+          <p className="text-[10px] text-[#8B93A3]">
             Create a connection above to link two agents
           </p>
         </div>
@@ -119,7 +119,7 @@ export default function SwarmConnectionManager({ refreshTrigger = 0 }: Props) {
                 <button
                   onClick={() => handleDisconnect(link)}
                   disabled={isDeleting}
-                  className="ml-3 shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-[#6B7280] hover:text-[#EF4444] hover:bg-[#EF4444]/10 border border-transparent hover:border-[#EF4444]/20 rounded-lg transition-all opacity-0 group-hover:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="ml-3 shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-[#8B93A3] hover:text-[#EF4444] hover:bg-[#EF4444]/10 border border-transparent hover:border-[#EF4444]/20 rounded-lg transition-all opacity-0 group-hover:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Disconnect"
                 >
                   {isDeleting ? (

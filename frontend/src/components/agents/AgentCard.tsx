@@ -82,7 +82,7 @@ export function ClearanceBadge({ level }: ClearanceBadgeProps) {
     >
       <ShieldCheck className={`w-2.5 h-2.5 flex-shrink-0 ${style.icon}`} />
       L{level}
-      <span className="hidden sm:inline opacity-75">· {CLEARANCE_LABELS[level]}</span>
+      <span className="hidden sm:inline">· {CLEARANCE_LABELS[level]}</span>
     </span>
   );
 }
@@ -155,11 +155,11 @@ export default function AgentCard({ agent, onDelete, onRotate }: Props) {
             {/* Agent ID + API Key rows */}
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center gap-2">
-                <Key className="w-3 h-3 text-[#6B7280]" />
-                <code className="text-[11px] text-[#6B7280] font-mono">{agent.id}</code>
+                <Key className="w-3 h-3 text-[#8B93A3]" />
+                <code className="text-[11px] text-[#8B93A3] font-mono">{agent.id}</code>
                 <button
                   onClick={copyId}
-                  className="text-[#6B7280] hover:text-[#A1A1AA] transition-colors"
+                  className="text-[#8B93A3] hover:text-[#A1A1AA] transition-colors"
                   title="Copy agent ID"
                 >
                   {copiedId ? (
@@ -172,13 +172,13 @@ export default function AgentCard({ agent, onDelete, onRotate }: Props) {
 
               {agent.api_key && (
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-3 h-3 text-[#6B7280]" />
-                  <code className="text-[11px] text-[#6B7280] font-mono">
+                  <ShieldCheck className="w-3 h-3 text-[#8B93A3]" />
+                  <code className="text-[11px] text-[#8B93A3] font-mono">
                     {maskApiKey(agent.api_key)}
                   </code>
                   <button
                     onClick={copyKey}
-                    className="text-[#6B7280] hover:text-[#A1A1AA] transition-colors"
+                    className="text-[#8B93A3] hover:text-[#A1A1AA] transition-colors"
                     title="Copy API key"
                   >
                     {copiedKey ? (
@@ -205,17 +205,17 @@ export default function AgentCard({ agent, onDelete, onRotate }: Props) {
           <ClearanceBadge level={clearanceLevel} />
 
           <div className="flex items-center gap-3">
-            <span className="text-xs text-[#6B7280]">{formatDate(agent.created_at)}</span>
+            <span className="text-xs text-[#8B93A3]">{formatDate(agent.created_at)}</span>
             <button
               onClick={onRotate}
-              className="opacity-0 group-hover:opacity-100 p-1.5 text-[#6B7280] hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-all"
+              className="opacity-0 group-hover:opacity-100 p-1.5 text-[#8B93A3] hover:text-amber-400 hover:bg-amber-500/10 rounded-lg transition-all"
               title="Rotate API key"
             >
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={onDelete}
-              className="opacity-0 group-hover:opacity-100 p-1.5 text-[#6B7280] hover:text-[#EF4444] hover:bg-[#EF4444]/10 rounded-lg transition-all"
+              className="opacity-0 group-hover:opacity-100 p-1.5 text-[#8B93A3] hover:text-[#EF4444] hover:bg-[#EF4444]/10 rounded-lg transition-all"
               title="Delete agent"
             >
               <Trash2 className="w-3.5 h-3.5" />

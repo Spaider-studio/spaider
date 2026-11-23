@@ -30,7 +30,7 @@ function RoleGuide() {
           </div>
         ))}
       </dl>
-      <p className="mt-2 text-xs text-zinc-500">
+      <p className="mt-2 text-xs text-zinc-400">
         Roles apply to this knowledge base only. Clearance is separate: it caps how sensitive a piece of knowledge
         someone can see, in every knowledge base.
       </p>
@@ -213,7 +213,7 @@ function Members({ agentId }: { agentId: string }) {
           <li key={member.id} className="flex items-center justify-between gap-3 py-2 text-sm">
             <span className="min-w-0 truncate">
               {member.name || member.id}{" "}
-              <span className="text-xs text-zinc-500">
+              <span className="text-xs text-zinc-400">
                 {member.kind === "service_account" ? "app or agent key" : "person"}
               </span>
             </span>

@@ -86,7 +86,7 @@ export default function SwarmDashboard() {
             </span>
             <button
               onClick={handleClear}
-              className="text-white/30 hover:text-white/70 transition-colors"
+              className="text-white/55 hover:text-white/70 transition-colors"
               title="Clear spotlight"
             >
               <X className="w-3 h-3" />
@@ -107,7 +107,7 @@ export default function SwarmDashboard() {
           rows={3}
           className={cn(
             "w-full resize-none rounded-lg px-3 py-2 text-xs text-white/80",
-            "placeholder:text-white/25 bg-white/5 border border-white/10",
+            "placeholder:text-white/55 bg-white/5 border border-white/10",
             "focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20",
             "transition-colors"
           )}
@@ -176,7 +176,7 @@ export default function SwarmDashboard() {
                   {agentId.slice(0, 8)}…
                 </span>
               ))}
-              <span className="flex items-center px-2 py-0.5 text-[10px] text-white/30">
+              <span className="flex items-center px-2 py-0.5 text-[10px] text-white/55">
                 {result.source_node_ids.length} source nodes
               </span>
             </div>
