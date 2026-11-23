@@ -8,7 +8,9 @@ version: 2
 # must never ride along with — and block — routine safe bumps.
 updates:
   # --- Python packages ---
-  - package-ecosystem: pip
+  # Directories with a committed uv.lock use the uv ecosystem, so a bump updates pyproject.toml and
+  # the lock together. With pip the lock was never touched and went stale. The others have no lock.
+  - package-ecosystem: uv
     directory: /backend
     schedule:
       interval: weekly
@@ -38,7 +40,7 @@ updates:
         patterns: ["*"]
         update-types: ["minor", "patch"]
 
-  - package-ecosystem: pip
+  - package-ecosystem: uv
     directory: /benchmarks
     schedule:
       interval: weekly
