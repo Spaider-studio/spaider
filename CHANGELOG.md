@@ -11,6 +11,8 @@ for their released versions. The release process is documented in
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-23
+
 A stability release: no new features, fixes for what a Docker restart, parallel use and
 a fresh install exposed.
 

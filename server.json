@@ -2,13 +2,13 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
   "name": "io.github.spaider-studio/spaider",
   "description": "Knowledge-graph memory for AI agents: remember, recall, cited answers and consolidation.",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "repository": { "url": "https://github.com/Spaider-studio/spaider", "source": "github" },
   "packages": [
     {
       "registry_type": "pypi",
       "identifier": "spaider-backend",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "transport": { "type": "stdio" },
       "runtime_hint": "uvx",
       "package_arguments": [{ "type": "positional", "value": "spaider-mcp" }],
