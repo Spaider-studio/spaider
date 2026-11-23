@@ -57,6 +57,10 @@ a fresh install exposed.
   and sliders without a name, and the synthesizer's labels that were not tied to their fields. The
   memory and supersession switches say which side is on.
 - Cmd+K (Ctrl+K) did not open the command palette on the Studio and the Multiverse.
+- ClickHouse's own system logs were never deleted and grew by about 0.5 GB a day (6.3 GB of a 6.9 GB
+  volume after 13 days, against about 1 MB of audit rows). They now expire after three days (the busy
+  ones) or two weeks. An existing install keeps its old logs once, as `system.*_0` tables, which
+  [docs/operations.md](docs/operations.md#disk-use-of-clickhouse) shows how to drop.
 - An answer that cited its evidence as `[Evidence: n4]` or `[n3, n5]`, as real models often do, came
   back with no citations. Both forms are read now.
 
@@ -67,6 +71,7 @@ a fresh install exposed.
   check of every Studio API call against the OpenAPI file.
 
 ### Changed
+- `backend/uv.lock` is regenerated and matches `pyproject.toml` again.
 - Docker images and CI use Node 24. Dependency updates: FastAPI 0.162, Uvicorn 0.54, the Neo4j driver 6.4,
   Next.js 16.4, React 19.3, framer-motion 14, ESLint 10 and others.
 

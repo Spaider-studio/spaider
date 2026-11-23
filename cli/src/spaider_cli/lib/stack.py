@@ -6,7 +6,7 @@ import subprocess
 from importlib import resources
 from pathlib import Path
 
-_FILES = ("docker-compose.yml", ".env.example", "gateway/kong.yml")
+_FILES = ("docker-compose.yml", ".env.example", "gateway/kong.yml", "clickhouse/system-logs.xml")
 
 
 def stack_home() -> Path:

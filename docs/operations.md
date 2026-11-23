@@ -46,6 +46,27 @@ answer and the list comes from Kafka's retention, seven days. If it says the aud
 is unavailable, nothing could be read at all. Both clear by themselves when ClickHouse
 is back.
 
+## Disk use of ClickHouse
+
+ClickHouse keeps the audit and analytics tables of SpAIder, and it also writes its own diagnostics to
+`system.*_log` tables, which it never deletes by itself. On a stack that ran for 13 days they held 6.3 GB,
+while the audit rows were about 1 MB. `clickhouse/system-logs.xml`, mounted by the compose file, gives
+each of those logs a lifetime: three days for the busy ones (`text_log`, `trace_log`, `metric_log`,
+`asynchronous_metric_log`), two weeks for the small ones. It does not touch SpAIder's own tables.
+
+A new install has this from the first start. **An existing install keeps its old logs once:** the first
+time ClickHouse starts with the file it renames each old table to `<name>_0` and creates a new one with the
+lifetime. The old data stays on disk and no longer grows. To get the space back:
+
+```bash
+docker exec spaider-clickhouse sh -c 'for t in text_log trace_log metric_log asynchronous_metric_log \
+  query_log part_log processors_profile_log error_log; do \
+  clickhouse-client --user default --password "$CLICKHOUSE_PASSWORD" -q "DROP TABLE IF EXISTS system.${t}_0 SYNC"; done'
+```
+
+To see where the space is: `SELECT table, formatReadableSize(sum(bytes_on_disk)) FROM system.parts WHERE active
+GROUP BY database, table ORDER BY sum(bytes_on_disk) DESC LIMIT 10`.
+
 ## Serving the Studio from another host or port
 
 Most calls from the Studio go through its own proxy. Uploads, exports and long

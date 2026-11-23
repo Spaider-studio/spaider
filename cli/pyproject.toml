@@ -50,7 +50,7 @@ spaider = "spaider_cli.main:app"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"spaider_cli" = ["skills/*.md", "stack/docker-compose.yml", "stack/.env.example", "stack/gateway/*"]
+"spaider_cli" = ["skills/*.md", "stack/docker-compose.yml", "stack/.env.example", "stack/gateway/*", "stack/clickhouse/*"]
 
 [tool.ruff]
 line-length = 120
