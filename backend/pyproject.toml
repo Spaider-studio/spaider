@@ -11,7 +11,7 @@ requires-python = ">=3.11"
 # Runtime dependencies — same set previously listed in requirements.txt,
 # minus pytest/aiosqlite (now under [project.optional-dependencies] dev).
 dependencies = [
-    "fastapi==0.162.0",
+    "fastapi==0.165.0",
     "uvicorn[standard]==0.54.0",
     # pydantic >=2.10 is the first release with Python 3.13 support.
     "pydantic>=2.10,<3",
@@ -26,7 +26,7 @@ dependencies = [
     "networkx==3.6.1",
     "numpy>=2.2.0",
     "pandas>=2.2.3",
-    "python-multipart==0.0.33",
+    "python-multipart==0.0.34",
     "httpx==0.28.1",
     "Levenshtein>=0.26.0",
     "rapidfuzz>=3.10.0",
@@ -52,7 +52,7 @@ spaider-mcp = "app.mcp_stdio:main"
 # single `pip install -e .[dev]` on a workstation gets everything.
 dev = [
     "pytest==9.2.0",
-    "pytest-asyncio==1.4.1.post1",
+    "pytest-asyncio==1.5.0",
     "pytest-mock==3.17.0",
     "pytest-cov>=5.0",
     "aiosqlite>=0.20.0",
