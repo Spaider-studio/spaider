@@ -257,3 +257,16 @@ def test_mcp_skill_refreshes_without_touching_keys(tmp_path):
     assert result.exit_code == 0, result.output
     assert "spaider.recall" in (tmp_path / ".claude/skills/spaider.md").read_text(encoding="utf-8")
     assert config_file.read_text(encoding="utf-8") == '{"mcpServers": {"spaider": {"url": "x"}}}'
+
+
+def test_every_bundled_stack_file_is_listed_in_the_package_data():
+    # The editable install in development finds any file under stack/. The wheel carries only what the
+    # package-data patterns name, so a file missing there works in tests and is absent for users.
+    import fnmatch
+    import tomllib
+    from pathlib import Path
+
+    pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    patterns = tomllib.loads(pyproject.read_text(encoding="utf-8"))["tool"]["setuptools"]["package-data"]["spaider_cli"]
+    for name in stack._FILES:
+        assert any(fnmatch.fnmatch(f"stack/{name}", pattern) for pattern in patterns), f"stack/{name} would not ship"

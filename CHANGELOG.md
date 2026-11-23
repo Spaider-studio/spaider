@@ -11,6 +11,13 @@ for their released versions. The release process is documented in
 
 ## [Unreleased]
 
+### Fixed
+- `spaider-cli` 0.2.1 unpacks the 0.5.1 stack. Until now `spaider init` and `spaider up` wrote a `.env` with a
+  rate limit of 60 requests a minute, which a Studio session hits within a minute, and a compose file without
+  Kong's quick re-resolve of a recreated backend and without the expiry of ClickHouse's system logs.
+  `spaider doctor` also said "healthy" whenever `/health` answered, even with Kafka down. It now names the
+  services that are unavailable and does not count the ones that are switched off on purpose.
+
 ## [0.5.1] - 2026-11-23
 
 A stability release: no new features, fixes for what a Docker restart, parallel use and
